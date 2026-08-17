@@ -44,7 +44,7 @@ canonical import package contract/version and maximum accepted size
 ```
 
 No provider secret, token, iOTP, Vnstock credential, or raw package may use a
-`NEXT_PUBLIC_*` variable or appear in frontend configuration. TCBS tokens are
+`VITE_*` variable or appear in frontend configuration. TCBS tokens are
 runtime-only; iOTP is transiently exchanged only after owner authorization and
 is never stored, logged, generated, reused, or automated.
 

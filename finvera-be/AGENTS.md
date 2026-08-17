@@ -10,11 +10,15 @@ workflows, deterministic analytics, and calls to the internal AI service.
 
 ## Structure
 
-- Organize code by business module (`auth`, `user`, `market`, `stock`,
+- Organize code first by business module (`auth`, `user`, `market`, `stock`,
   `technical`, `fundamental`, `screener`, `strategy`, `signal`, `risk`,
   `portfolio`, `watchlist`, `news`, `alert`, `ai`).
-- Within a module, separate domain rules, application use cases, inbound API,
-  and outbound infrastructure. Framework types MUST NOT dominate domain logic.
+- Within each module use the ADR-0007 layers: `controller`, `dto`, `service`,
+  `repository`, and `entity`; use `domain` for pure deterministic rules,
+  `provider` for external integrations, and `config` when needed.
+- Dependencies flow `controller -> service -> repository -> entity`.
+  Controllers MUST NOT call repositories or expose entities. Services own use
+  cases and transaction boundaries. DTOs define transport data only.
 - A module MUST NOT access another module's repository or database internals.
   Use an explicit application interface or a documented domain event.
 - Keep controllers thin: validate transport input, invoke one use case, and map
@@ -52,5 +56,7 @@ workflows, deterministic analytics, and calls to the internal AI service.
   calculations.
 - Use integration tests for repositories, migrations, security, and module
   boundaries; use contract tests for `finvera-ai` interactions.
+- Do not hardcode credential-shaped username/password pairs, API keys, tokens,
+  OTPs, or password hashes, including in tests. Generate test authentication
+  values at runtime and let Testcontainers supply database credentials.
 - Run `.\mvnw.cmd test` from `finvera-be/` before handoff.
-

@@ -76,15 +76,21 @@ facts. If any required capability is unavailable under the account's approved
 access, return the relevant section as partial/unavailable and resolve the
 provider decision before enabling the affected journey.
 
-**Current POC evidence (2026-08-17)**: A TOTP token-exchange probe reached the
-TCBS endpoint and received HTTP 400 with sanitized provider code `203033`
-before any market REST or WebSocket call. A separate Email/SMS `request-otp`
-probe received HTTP 500 with sanitized provider code `203147`; no OTP was sent
-or entered. No response body, credential, OTP, or token was retained. TCBS's
-public token documentation does not map either code, so the results do not
-prove or disprove account entitlement. The owner must verify the OpenAPI
-registration/API key and registered OTP method with TCBS before another retry.
-The capability gate remains open.
+**Current POC evidence (2026-08-17)**: After earlier sanitized failures, the
+owner successfully completed the TOTP token exchange. Read-only REST probes
+passed for ticker-common datasets `1`, `2`, `3`, and `5`, returning respectively
+427, 30, 299, and 823 records with trading dates and the captured field schemas.
+The single-security reference probe also passed and returned a paginated
+`content` envelope. WebSocket authentication, heartbeat negotiation, and the
+subscription acknowledgement succeeded, proving provisioned stream access;
+no index update arrived during the 20-second probe run after market hours, so
+the four index message schemas remain unconfirmed. The sanitized summary hash
+is `bc58fdd4c2973ea1dc185cd660a598ad16dde3f58b062c75b9fe988a1553564e`.
+No response body, credential, OTP, token, or market value was retained. This
+closes the authentication and representative REST-access questions but does
+not close the complete capability gate: an in-session stream capture plus the
+remaining timing, correction, rate-limit, universe/status, and semantic
+mapping checks are still required.
 
 ## Delivery, rate, and failure behavior
 

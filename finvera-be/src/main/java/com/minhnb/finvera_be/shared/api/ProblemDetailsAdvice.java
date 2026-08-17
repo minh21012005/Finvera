@@ -1,6 +1,6 @@
 package com.minhnb.finvera_be.shared.api;
 
-import com.minhnb.finvera_be.auth.application.LoginThrottle.LoginRateLimitedException;
+import com.minhnb.finvera_be.auth.service.LoginThrottle.LoginRateLimitedException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;

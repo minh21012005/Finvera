@@ -78,6 +78,10 @@ request -> spec -> clarify -> plan/research/contracts -> tasks -> implement -> v
   events, not another module's repository or internal tables.
 - API and event contracts are versioned. Breaking changes require migration and
   backward-compatibility decisions in the feature plan.
+- Inside each Spring business module, use ADR-0007 layered packages:
+  `controller`, `dto`, `service`, `repository`, and `entity`, with optional
+  pure `domain`, external `provider`, and `config` packages. Controllers never
+  access repositories/entities directly and entities never become API DTOs.
 
 ## Financial and Data Correctness
 
@@ -117,6 +121,9 @@ request -> spec -> clarify -> plan/research/contracts -> tasks -> implement -> v
   portfolio, position, watchlist, journal, alert, and AI conversation.
 - Validate all inputs at trust boundaries. Use parameterized persistence APIs.
 - Keep secrets in environment/secret stores; commit only safe examples.
+- Do not commit credential-shaped username/password pairs or static password
+  hashes even as test fixtures. Generate test credentials at runtime and use
+  container-supplied database credentials.
 - Do not log credentials, JWTs, document contents containing private data, or
   full prompts/responses that may contain PII.
 - New external integrations require timeout, bounded retry, rate-limit,

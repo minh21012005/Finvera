@@ -79,6 +79,12 @@ an inconsistency.
 
 ## Known Baseline Decisions and Gaps
 
+- **Resolved — backend code organization**: Each Spring business module uses
+  conventional layered packages (`controller`, `dto`, `service`, `repository`,
+  `entity`) while pure deterministic rules remain in `domain` and replaceable
+  integrations remain in `provider`. See
+  [ADR-0007](adr/0007-use-layered-architecture-within-backend-modules.md).
+
 - **Resolved — private web client**: Finvera uses a React SPA built with Vite;
   Spring remains the authentication and public API boundary. The SRS Next.js
   baseline is refined by [ADR-0006](adr/0006-use-react-vite-for-private-web-client.md).

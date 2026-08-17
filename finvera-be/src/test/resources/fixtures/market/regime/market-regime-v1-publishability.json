@@ -1,0 +1,34 @@
+{
+  "fixtureVersion": "market-regime-v1-publishability-v1",
+  "ruleVersion": "market-regime-v1",
+  "source": "FINVERA_FIXTURE",
+  "purpose": "deterministic publication and renormalization replay",
+  "cases": [
+    {
+      "name": "exact-completeness-threshold",
+      "completeness": "80.000000",
+      "expectedPublishable": true
+    },
+    {
+      "name": "one-missing-volatility-at-eighty-percent",
+      "usableOriginalWeight": "0.900000",
+      "missingComponent": "VOLATILITY",
+      "expectedRenormalized": true,
+      "expectedPublishable": true
+    },
+    {
+      "name": "three-components-at-seventy-five-percent",
+      "usableOriginalWeight": "0.750000",
+      "expectedRenormalized": false,
+      "expectedPublishable": false,
+      "expectedReasonCode": "INSUFFICIENT_COMPONENT_COMPLETENESS"
+    },
+    {
+      "name": "zero-advance-decline-denominator",
+      "advancing": 0,
+      "declining": 0,
+      "expectedPublishable": false,
+      "expectedReasonCode": "MISSING_BREADTH_AD_RATIO"
+    }
+  ]
+}

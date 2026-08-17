@@ -43,25 +43,25 @@ are reviewable; no live provider operation exists.
 **Purpose**: Build the security, persistence, domain primitives, fixture port,
 and failure semantics required by every story.
 
-- [x] T005 [SEC-001, SEC-004, SEC-006, SC-008] Write owner login/session/logout, CSRF, fixation, cookie, expiry, rate-limit, non-owner, and TCBS-renewal redaction tests in `finvera-be/src/test/java/com/minhnb/finvera_be/auth/api/OwnerAccessSecurityTests.java`
+- [x] T005 [SEC-001, SEC-004, SEC-006, SC-008] Write owner login/session/logout, CSRF, fixation, cookie, expiry, rate-limit, non-owner, and TCBS-renewal redaction tests in `finvera-be/src/test/java/com/minhnb/finvera_be/auth/controller/OwnerAccessSecurityTests.java`
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=OwnerAccessSecurityTests test` fails because owner security is not implemented
       Depends: T004
-- [x] T006 [SEC-001, SEC-006] Implement configured owner identity, bcrypt verification, rotated in-memory session, secure cookie policy, CSRF, absolute expiry, and deny-by-default authorization in `finvera-be/src/main/java/com/minhnb/finvera_be/auth/OwnerProperties.java`, `OwnerSessionService.java`, `OwnerSessionExpiryFilter.java`, `OwnerSecurityConfiguration.java`, and `api/OwnerAccessController.java`
+- [x] T006 [SEC-001, SEC-006] Implement configured owner identity, bcrypt verification, rotated in-memory session, secure cookie policy, CSRF, absolute expiry, and deny-by-default authorization in `finvera-be/src/main/java/com/minhnb/finvera_be/auth/config/OwnerProperties.java`, `config/OwnerSecurityConfiguration.java`, `service/OwnerSessionService.java`, `filter/OwnerSessionExpiryFilter.java`, `dto/*`, and `controller/OwnerAccessController.java`
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=OwnerAccessSecurityTests test` passes login/session/logout and negative authorization cases
       Depends: T005
-- [x] T007 [SEC-004, SEC-006, NFR-006] Implement bounded login throttling and a provider-renewal placeholder that returns `PROVIDER_AUTH_REQUIRED` without accepting/storing OTP while TCBS is gated in `finvera-be/src/main/java/com/minhnb/finvera_be/auth/application/LoginThrottle.java` and `finvera-be/src/main/java/com/minhnb/finvera_be/market/api/TcbsRenewalController.java`
+- [x] T007 [SEC-004, SEC-006, NFR-006] Implement bounded login throttling and a provider-renewal placeholder that returns `PROVIDER_AUTH_REQUIRED` without accepting/storing OTP while TCBS is gated in `finvera-be/src/main/java/com/minhnb/finvera_be/auth/service/LoginThrottle.java` and `finvera-be/src/main/java/com/minhnb/finvera_be/market/controller/TcbsRenewalController.java`
       Verify: security tests prove uniform invalid-login errors, 429 behavior, and zero OTP/token content in captured logs
       Depends: T006
 - [x] T008 [P] [NFR-006] Implement RFC 9457 problem mapping and correlation IDs in `finvera-be/src/main/java/com/minhnb/finvera_be/shared/api/ProblemDetailsAdvice.java` and `CorrelationIdFilter.java` with tests in `finvera-be/src/test/java/com/minhnb/finvera_be/shared/api/ProblemDetailsTests.java`
       Verify: targeted MVC tests assert stable codes and correlation IDs without sensitive details
       Depends: T004
-- [x] T009 [DATA-001, DATA-002, DATA-006, DATA-009] Write migration-from-empty, constraint, precision, correction-link, and repository integration tests in `finvera-be/src/test/java/com/minhnb/finvera_be/market/infrastructure/persistence/MarketMigrationTests.java`
+- [x] T009 [DATA-001, DATA-002, DATA-006, DATA-009] Write migration-from-empty, constraint, precision, correction-link, and repository integration tests in `finvera-be/src/test/java/com/minhnb/finvera_be/market/repository/MarketMigrationTests.java`
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=MarketMigrationTests test` fails because the market migration is absent
       Depends: T001
 - [x] T010 [DATA-001, DATA-002, DATA-003, DATA-006, DATA-009] Create forward-only market schema, constraints, indexes, and seed reference versions in `finvera-be/src/main/resources/db/migration/V001__create_market_overview_schema.sql`
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=MarketMigrationTests test` passes against Testcontainers PostgreSQL
       Depends: T009
-- [ ] T011 [DATA-001, DATA-006, DATA-009] Implement explicit JPA mappings, repositories, and domain conversion without exposing JPA types in `finvera-be/src/main/java/com/minhnb/finvera_be/market/infrastructure/persistence/MarketObservationEntity.java`, `MarketDerivedEntity.java`, `MarketObservationJpaRepository.java`, and `MarketPersistenceAdapter.java`
+- [x] T011 [DATA-001, DATA-006, DATA-009] Implement explicit JPA mappings and repositories without exposing entities through controllers in `finvera-be/src/main/java/com/minhnb/finvera_be/market/entity/MarketObservationEntity.java`, `MarketIndexSnapshotEntity.java`, `finvera-be/src/main/java/com/minhnb/finvera_be/market/repository/MarketObservationRepository.java`, and `MarketIndexSnapshotRepository.java`
       Verify: repository integration tests round-trip UTC instants, exact decimals, immutable revisions, and input links
       Depends: T010
 - [x] T012 [P] [DATA-002, DATA-003, DATA-004, DATA-007] Implement framework-free market value objects and enums using `BigDecimal` in `finvera-be/src/main/java/com/minhnb/finvera_be/market/domain/model/MarketTypes.java`, `DecimalValue.java`, and `ObservationMetadata.java`
@@ -73,22 +73,22 @@ and failure semantics required by every story.
 - [x] T014 [FR-004, FR-006, DATA-002, DATA-005] Implement versioned calendar/session and freshness policies in `finvera-be/src/main/java/com/minhnb/finvera_be/market/domain/time/MarketTimePolicy.java` and `MarketFreshnessPolicy.java`
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=MarketTimePolicyTests test` passes in a non-Vietnam host timezone
       Depends: T013
-- [x] T015 [P] [FR-005, DATA-001, DATA-007, NFR-004, NFR-007, SEC-003] Write provider-port allowlist, fixture mapping, degraded-state, auth-required, and forbidden-operation tests in `finvera-be/src/test/java/com/minhnb/finvera_be/market/infrastructure/provider/FixtureMarketDataProviderTests.java`
-      Verify: tests fail before the provider-neutral port and fixture adapter exist
+- [x] T015 [P] [FR-005, DATA-001, DATA-007, NFR-004, NFR-007, SEC-003] Write provider-contract allowlist, fixture mapping, degraded-state, auth-required, and forbidden-operation tests in `finvera-be/src/test/java/com/minhnb/finvera_be/market/provider/FixtureMarketDataProviderTests.java`
+      Verify: tests fail before the provider-neutral contract and fixture integration exist
       Depends: T003
-- [x] T016 [FR-005, DATA-001, DATA-007, NFR-004, NFR-007, SEC-003] Implement the read-only port and fixture adapter in `finvera-be/src/main/java/com/minhnb/finvera_be/market/application/port/out/MarketDataProvider.java` and `finvera-be/src/main/java/com/minhnb/finvera_be/market/infrastructure/provider/fixture/FixtureMarketDataProvider.java`
+- [x] T016 [FR-005, DATA-001, DATA-007, NFR-004, NFR-007, SEC-003] Implement the read-only provider contract and fixture integration in `finvera-be/src/main/java/com/minhnb/finvera_be/market/provider/MarketDataProvider.java` and `finvera-be/src/main/java/com/minhnb/finvera_be/market/provider/fixture/FixtureMarketDataProvider.java`
       Verify: fixture provider tests pass with no TCBS, AI, Redis, Qdrant, or Kafka dependency
       Depends: T012, T014, T015
-- [ ] T017 [P] [FR-015, DATA-006, DATA-007] Write duplicate, out-of-order, correction, invalid-number, and idempotency tests in `finvera-be/src/test/java/com/minhnb/finvera_be/market/application/MarketIngestionServiceTests.java`
+- [x] T017 [P] [FR-015, DATA-006, DATA-007] Write duplicate, out-of-order, correction, invalid-number, and idempotency tests in `finvera-be/src/test/java/com/minhnb/finvera_be/market/service/MarketIngestionServiceTests.java`
       Verify: tests fail before ingestion ordering/correction behavior exists
       Depends: T003, T011
-- [ ] T018 [FR-015, DATA-006, DATA-007] Implement transactional normalization, validation, immutable acceptance, and correction recomputation orchestration in `finvera-be/src/main/java/com/minhnb/finvera_be/market/application/ingestion/MarketIngestionService.java`
+- [x] T018 [FR-015, DATA-006, DATA-007] Implement transactional normalization, validation, immutable acceptance, and correction recomputation orchestration in `finvera-be/src/main/java/com/minhnb/finvera_be/market/service/MarketIngestionService.java`
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=MarketIngestionServiceTests test` passes and older observations never regress accepted state
       Depends: T016, T017
 - [x] T019 [P] [NFR-004] Add module/package boundary tests preventing market domain dependencies on web, JPA, provider, Kafka, Redis, Qdrant, or AI types in `finvera-be/src/test/java/com/minhnb/finvera_be/architecture/MarketModuleArchitectureTests.java`
       Verify: ArchUnit test passes and fails when a forbidden dependency fixture is introduced
       Depends: T001, T012
-- [ ] T020 [NFR-006, SC-008] Implement privacy-safe market metrics, health/failure reason taxonomy, and structured logging fields in `finvera-be/src/main/java/com/minhnb/finvera_be/market/infrastructure/observability/MarketObservability.java`
+- [x] T020 [NFR-006, SC-008] Implement privacy-safe market metrics, health/failure reason taxonomy, and structured logging fields in `finvera-be/src/main/java/com/minhnb/finvera_be/market/service/MarketObservabilityService.java`
       Verify: observability tests distinguish auth/connectivity/stale/invalid/calculation/API failures and find no secret/raw payload
       Depends: T008, T016, T018
 
@@ -111,7 +111,7 @@ plus one explicit unavailable card.
 - [x] T021 [P] [US1] [FR-001, FR-002, FR-003, FR-004, FR-005, FR-006, FR-015, DATA-001, DATA-002, DATA-003, DATA-004, DATA-005, DATA-006, DATA-007] Write index calculation, stable ordering, coherent revision, missing-basis, unavailable, closed, delayed/stale, and correction tests in `finvera-be/src/test/java/com/minhnb/finvera_be/market/domain/index/IndexOverviewTests.java`
       Verify: tests fail before index domain behavior exists
       Depends: T012, T014
-- [ ] T022 [P] [US1] [FR-001, FR-002, FR-004, FR-005, SEC-001, SEC-002, SEC-006] Write owner-only `GET /api/v1/market/overview` contract/security tests in `finvera-be/src/test/java/com/minhnb/finvera_be/market/api/MarketOverviewApiTests.java`
+- [x] T022 [P] [US1] [FR-001, FR-002, FR-004, FR-005, SEC-001, SEC-002, SEC-006] Write owner-only `GET /api/v1/market/overview` contract/security tests in `finvera-be/src/test/java/com/minhnb/finvera_be/market/controller/MarketOverviewControllerTests.java`
       Verify: tests fail before the use case/controller exists and assert nullable decimal strings plus degraded HTTP 200
       Depends: T006, T008, T003
 
@@ -120,25 +120,25 @@ plus one explicit unavailable card.
 - [x] T023 [US1] [FR-001, FR-002, FR-003, FR-004, FR-006, FR-015, DATA-003, DATA-004, DATA-007] Implement exact index change/direction and four-index overview domain models in `finvera-be/src/main/java/com/minhnb/finvera_be/market/domain/index/IndexOverview.java` and `IndexOverviewCalculator.java`
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=IndexOverviewTests test` passes all numerical and degraded boundaries
       Depends: T021
-- [ ] T024 [US1] [FR-001, FR-002, FR-005, FR-006, FR-015, DATA-001, DATA-002, DATA-005, DATA-006, NFR-003] Implement coherent overview query/assembler and latest-revision persistence queries in `finvera-be/src/main/java/com/minhnb/finvera_be/market/application/overview/MarketOverviewQueryService.java` and `finvera-be/src/main/java/com/minhnb/finvera_be/market/infrastructure/persistence/query/MarketOverviewQueryRepository.java`
+- [x] T024 [US1] [FR-001, FR-002, FR-005, FR-006, FR-015, DATA-001, DATA-002, DATA-005, DATA-006, NFR-003] Implement coherent overview query/assembler and latest-revision persistence queries in `finvera-be/src/main/java/com/minhnb/finvera_be/market/service/MarketOverviewService.java` and `finvera-be/src/main/java/com/minhnb/finvera_be/market/repository/MarketOverviewRepository.java`
       Verify: application integration tests return one coherent trading date/revision and explicit unavailable sections
       Depends: T011, T018, T023
-- [ ] T025 [US1] [FR-001, FR-002, FR-004, FR-005, DATA-001, DATA-002, DATA-003, SEC-001, SEC-002] Implement explicit API DTO mapping, ETag, and controller in `finvera-be/src/main/java/com/minhnb/finvera_be/market/api/overview/MarketOverviewResponse.java` and `MarketOverviewController.java`
+- [x] T025 [US1] [FR-001, FR-002, FR-004, FR-005, DATA-001, DATA-002, DATA-003, SEC-001, SEC-002] Implement explicit API DTO mapping, ETag, and controller in `finvera-be/src/main/java/com/minhnb/finvera_be/market/dto/MarketOverviewResponse.java` and `finvera-be/src/main/java/com/minhnb/finvera_be/market/controller/MarketOverviewController.java`
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=MarketOverviewApiTests test` passes 200/304/401/403 and exact contract cases
       Depends: T022, T024
-- [ ] T026 [P] [US1] [FR-001, FR-002, FR-004, DATA-001, DATA-002, DATA-003, SEC-002] Implement browser API types, runtime validation, and same-origin Spring client in `finvera-fe/src/features/market-overview/api/market-overview.ts`
+- [x] T026 [P] [US1] [FR-001, FR-002, FR-004, DATA-001, DATA-002, DATA-003, SEC-002] Implement browser API types, runtime validation, and same-origin Spring client in `finvera-fe/src/features/market-overview/api/market-overview.ts`
       Verify: frontend unit tests reject malformed responses and repository search finds no provider/browser-direct call
       Depends: T025, T002
-- [ ] T027 [P] [US1] [FR-002, FR-004, DATA-003, DATA-004, DATA-007, NFR-005, SC-007] Write locale formatter, index-card, freshness, missing-value, and non-color accessibility tests in `finvera-fe/src/features/market-overview/index-overview.test.tsx`
+- [x] T027 [P] [US1] [FR-002, FR-004, DATA-003, DATA-004, DATA-007, NFR-005, SC-007] Write locale formatter, index-card, freshness, missing-value, and non-color accessibility tests in `finvera-fe/src/features/market-overview/index-overview.test.tsx`
       Verify: `cd finvera-fe; npm run test -- src/features/market-overview/index-overview.test.tsx` fails before components exist
       Depends: T002, T003
-- [ ] T028 [US1] [FR-001, FR-002, FR-003, FR-004, FR-005, FR-006, DATA-003, DATA-007, NFR-005] Implement exact locale formatting and accessible four-index cards in `finvera-fe/src/features/market-overview/format/market-format.ts` and `finvera-fe/src/features/market-overview/components/index-overview.tsx`
+- [x] T028 [US1] [FR-001, FR-002, FR-003, FR-004, FR-005, FR-006, DATA-003, DATA-007, NFR-005] Implement exact locale formatting and accessible four-index cards in `finvera-fe/src/features/market-overview/format/market-format.ts` and `finvera-fe/src/features/market-overview/components/index-overview.tsx`
       Verify: targeted component tests pass without recomputing authoritative financial values
       Depends: T026, T027
-- [ ] T029 [US1] [FR-001, FR-004, FR-005, NFR-001, NFR-004, SEC-001] Implement the authenticated client-side route with loading/error/content states in `finvera-fe/src/features/market-overview/market-overview-page.tsx` and register it in `finvera-fe/src/app.tsx`
+- [x] T029 [US1] [FR-001, FR-004, FR-005, NFR-001, NFR-004, SEC-001] Implement the authenticated client-side route with loading/error/content states in `finvera-fe/src/features/market-overview/market-overview-page.tsx` and register it in `finvera-fe/src/app.tsx`
       Verify: production build succeeds and the page uses only the Spring API client
       Depends: T028
-- [ ] T030 [US1] [FR-001, FR-002, FR-004, FR-005, FR-006, NFR-001, NFR-004, NFR-005, SC-001, SC-002, SC-004, SC-005, SC-006, SC-007, SC-008] Add Playwright P1 complete/delayed/closed/missing-index, owner-denied, AI-offline, and accessibility journeys in `finvera-fe/tests/e2e/market-overview.spec.ts`
+- [x] T030 [US1] [FR-001, FR-002, FR-004, FR-005, FR-006, NFR-001, NFR-004, NFR-005, SC-001, SC-002, SC-004, SC-005, SC-006, SC-007, SC-008] Add Playwright P1 complete/delayed/closed/missing-index, owner-denied, AI-offline, and accessibility journeys in `finvera-fe/tests/e2e/market-overview.spec.ts`
       Verify: `cd finvera-fe; npm run test:e2e -- --grep "P1"` passes against fixture mode
       Depends: T025, T029
 
@@ -158,22 +158,22 @@ each security exactly once.
 
 ### Tests and Evaluation
 
-- [ ] T031 [P] [US2] [FR-007, FR-008, FR-009, DATA-004, DATA-007, DATA-008] Write breadth universe, ISIN/fallback deduplication, classification, ex-right, missing-reference, and reconciliation property tests in `finvera-be/src/test/java/com/minhnb/finvera_be/market/domain/breadth/BreadthCalculatorTests.java`
+- [x] T031 [P] [US2] [FR-007, FR-008, FR-009, DATA-004, DATA-007, DATA-008] Write breadth universe, ISIN/fallback deduplication, classification, ex-right, missing-reference, and reconciliation property tests in `finvera-be/src/test/java/com/minhnb/finvera_be/market/domain/breadth/BreadthCalculatorTests.java`
       Verify: tests fail before breadth policies exist and assert `advancing + declining + unchanged + unclassified = eligible`
       Depends: T012, T003
-- [ ] T032 [US2] [FR-007, FR-008, FR-009, DATA-004, DATA-007, DATA-008] Implement versioned breadth universe and calculation policies in `finvera-be/src/main/java/com/minhnb/finvera_be/market/domain/breadth/BreadthUniversePolicy.java` and `BreadthCalculator.java`
+- [x] T032 [US2] [FR-007, FR-008, FR-009, DATA-004, DATA-007, DATA-008] Implement versioned breadth universe and calculation policies in `finvera-be/src/main/java/com/minhnb/finvera_be/market/domain/breadth/BreadthUniversePolicy.java` and `BreadthCalculator.java`
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=BreadthCalculatorTests test` passes with unrounded decimals and one identity once
       Depends: T031
-- [ ] T033 [US2] [FR-007, FR-009, DATA-001, DATA-008, NFR-003] Persist immutable breadth/input links and add breadth to the coherent assembler/API mapping in `finvera-be/src/main/java/com/minhnb/finvera_be/market/application/breadth/BreadthService.java`, `finvera-be/src/main/java/com/minhnb/finvera_be/market/infrastructure/persistence/MarketPersistenceAdapter.java`, and `finvera-be/src/main/java/com/minhnb/finvera_be/market/api/overview/MarketOverviewResponse.java`
+- [x] T033 [US2] [FR-007, FR-009, DATA-001, DATA-008, NFR-003] Persist immutable breadth/input links and add breadth to the coherent assembler/API mapping in `finvera-be/src/main/java/com/minhnb/finvera_be/market/service/BreadthService.java`, `finvera-be/src/main/java/com/minhnb/finvera_be/market/repository/MarketBreadthRepository.java`, and `finvera-be/src/main/java/com/minhnb/finvera_be/market/dto/MarketOverviewResponse.java`
       Verify: integration/API tests preserve universe hash/input IDs and return PARTIAL with unclassified count
       Depends: T011, T024, T032
-- [ ] T034 [P] [US2] [FR-007, FR-009, NFR-005, SC-007] Write breadth complete/partial/unavailable and non-color accessibility tests in `finvera-fe/src/features/market-overview/breadth-overview.test.tsx`
+- [x] T034 [P] [US2] [FR-007, FR-009, NFR-005, SC-007] Write breadth complete/partial/unavailable and non-color accessibility tests in `finvera-fe/src/features/market-overview/breadth-overview.test.tsx`
       Verify: targeted test fails before breadth UI exists
       Depends: T002, T003
-- [ ] T035 [US2] [FR-007, FR-009, DATA-008, NFR-005] Implement accessible breadth presentation in `finvera-fe/src/features/market-overview/components/breadth-overview.tsx`
+- [x] T035 [US2] [FR-007, FR-009, DATA-008, NFR-005] Implement accessible breadth presentation in `finvera-fe/src/features/market-overview/components/breadth-overview.tsx`
       Verify: component tests pass and display eligible/unclassified/universe/as-of/source without unsupported advice
       Depends: T026, T033, T034
-- [ ] T036 [US2] [FR-007, FR-008, FR-009, SC-002, SC-004, SC-006, SC-007] Add consolidated breadth and partial/unavailable Playwright journeys in `finvera-fe/tests/e2e/market-overview.spec.ts`
+- [x] T036 [US2] [FR-007, FR-008, FR-009, SC-002, SC-004, SC-006, SC-007] Add consolidated breadth and partial/unavailable Playwright journeys in `finvera-fe/tests/e2e/market-overview.spec.ts`
       Verify: `cd finvera-fe; npm run test:e2e -- --grep "P2"` passes and P1 remains green
       Depends: T035
 
@@ -190,19 +190,19 @@ fixtures twice and prove exact output or reason-coded withholding.
 
 ### Tests and Evaluation
 
-- [ ] T037 [P] [US3] [FR-010, FR-011, FR-012, FR-013, DATA-009] Create versioned regime replay/boundary fixtures and write BigDecimal SMA, Wilder RSI, return, median, population-standard-deviation, percentile, component, label, confidence, and renormalization tests in `finvera-be/src/test/java/com/minhnb/finvera_be/market/domain/regime/MarketRegimeV1Tests.java`
+- [x] T037 [P] [US3] [FR-010, FR-011, FR-012, FR-013, DATA-009] Create versioned regime replay/boundary fixtures and write BigDecimal SMA, Wilder RSI, return, median, population-standard-deviation, percentile, component, label, confidence, and renormalization tests in `finvera-be/src/test/java/com/minhnb/finvera_be/market/domain/regime/MarketRegimeV1Tests.java`
       Verify: tests fail before the engine exists and cover 29/30/44/45/55/56/70/71, zero A/D denominator, exactly 80% completeness, and one missing component
       Depends: T003, T012
-- [ ] T038 [US3] [FR-010, FR-011, FR-012, FR-013, DATA-003, DATA-009] Implement exact reusable decimal time-series calculations in `finvera-be/src/main/java/com/minhnb/finvera_be/market/domain/regime/math/DecimalTimeSeries.java`
+- [x] T038 [US3] [FR-010, FR-011, FR-012, FR-013, DATA-003, DATA-009] Implement exact reusable decimal time-series calculations in `finvera-be/src/main/java/com/minhnb/finvera_be/market/domain/regime/math/DecimalTimeSeries.java`
       Verify: targeted numerical tests pass with declared scale/rounding and no `double`/`float`
       Depends: T037
-- [ ] T039 [US3] [FR-010, FR-011, FR-012, FR-013, FR-014, DATA-009] Implement `market-regime-v1`, publishability, confidence, supporting factors, and disclaimer codes in `finvera-be/src/main/java/com/minhnb/finvera_be/market/domain/regime/MarketRegimeV1.java` and `RegimeAssessment.java`
+- [x] T039 [US3] [FR-010, FR-011, FR-012, FR-013, FR-014, DATA-009] Implement `market-regime-v1`, publishability, confidence, supporting factors, and disclaimer codes in `finvera-be/src/main/java/com/minhnb/finvera_be/market/domain/regime/MarketRegimeV1.java` and `RegimeAssessment.java`
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=MarketRegimeV1Tests test` passes deterministic replay and withholding cases
       Depends: T032, T038
-- [ ] T040 [P] [US3] [DATA-009, DATA-010, FR-012, FR-015] Write immutable assessment/input-link, corrected-history replay, and cross-source `SOURCE_CONFLICT` tests in `finvera-be/src/test/java/com/minhnb/finvera_be/market/application/RegimeAssessmentServiceTests.java`
+- [ ] T040 [P] [US3] [DATA-009, DATA-010, FR-012, FR-015] Write immutable assessment/input-link, corrected-history replay, and cross-source `SOURCE_CONFLICT` tests in `finvera-be/src/test/java/com/minhnb/finvera_be/market/service/RegimeAssessmentServiceTests.java`
       Verify: tests fail before assessment persistence/reconciliation exists and never average conflicting sources
       Depends: T011, T037
-- [ ] T041 [US3] [FR-010, FR-011, FR-012, FR-013, FR-015, DATA-009, DATA-010, NFR-003] Implement assessment orchestration, persistence, source reconciliation, correction replay, and overview/API mapping in `finvera-be/src/main/java/com/minhnb/finvera_be/market/application/regime/RegimeAssessmentService.java`, `finvera-be/src/main/java/com/minhnb/finvera_be/market/infrastructure/persistence/MarketPersistenceAdapter.java`, and `finvera-be/src/main/java/com/minhnb/finvera_be/market/api/overview/MarketOverviewResponse.java`
+- [ ] T041 [US3] [FR-010, FR-011, FR-012, FR-013, FR-015, DATA-009, DATA-010, NFR-003] Implement assessment orchestration, persistence, source reconciliation, correction replay, and overview/API mapping in `finvera-be/src/main/java/com/minhnb/finvera_be/market/service/RegimeAssessmentService.java`, `finvera-be/src/main/java/com/minhnb/finvera_be/market/repository/RegimeAssessmentRepository.java`, and `finvera-be/src/main/java/com/minhnb/finvera_be/market/dto/MarketOverviewResponse.java`
       Verify: targeted application/API tests pass with exact input IDs/rule version and withhold conflicts
       Depends: T033, T039, T040
 - [ ] T042 [P] [US3] [FR-010, FR-011, FR-012, FR-014, NFR-005, SC-007] Write regime complete/renormalized/withheld, factor, disclaimer, and non-color accessibility tests in `finvera-fe/src/features/market-overview/regime-overview.test.tsx`
@@ -228,13 +228,13 @@ mode is complete.
 - [ ] T045 [NFR-002, NFR-007, SEC-003, SEC-004] Close the TCBS capability/license gate with sanitized schemas, entitlement, timing/delay, rate-limit, correction, index/reference/universe, and authentication evidence in `specs/001-market-overview/contracts/tcbs-iflash-adapter.md`
       Verify: contract status is approved, checklist is checked, no raw payload/credential is committed, and owner explicitly accepts the evidence
       Depends: external TCBS resolution; none of T001-T044
-- [ ] T046 [NFR-002, NFR-006, NFR-007, SEC-002, SEC-003, SEC-004] After T045 only, write contract/fault/allowlist tests and implement the live adapter in `finvera-be/src/test/java/com/minhnb/finvera_be/market/infrastructure/provider/tcbs/TcbsMarketDataProviderTests.java` and `finvera-be/src/main/java/com/minhnb/finvera_be/market/infrastructure/provider/tcbs/TcbsMarketDataProvider.java`
+- [ ] T046 [NFR-002, NFR-006, NFR-007, SEC-002, SEC-003, SEC-004] After T045 only, write contract/fault/allowlist tests and implement the live integration in `finvera-be/src/test/java/com/minhnb/finvera_be/market/provider/tcbs/TcbsMarketDataProviderTests.java` and `finvera-be/src/main/java/com/minhnb/finvera_be/market/provider/tcbs/TcbsMarketDataProvider.java`
       Verify: sanitized contract tests pass for exact captured schemas, bounded timeouts/retry/reconnect, auth expiry, and forbidden non-market operations
       Depends: T016, T020, T045
 - [ ] T047 [DATA-010] Close the Vnstock upstream-use, request-limit, adjustment/correction, and bounded full-universe gates in `specs/001-market-overview/contracts/vnstock-historical-bootstrap.md`
       Verify: written evidence permits intended private storage/analysis and checklist gate is checked without inferring rights from the Python package license
       Depends: external source-rights confirmation; none of T001-T044
-- [ ] T048 [DATA-001, DATA-003, DATA-007, DATA-009, DATA-010] After T047 only, implement the canonical decimal-string exporter and atomic Spring importer in `tools/market-data/vnstock-export/export_history.py` and `finvera-be/src/main/java/com/minhnb/finvera_be/market/application/importing/MarketImportService.java` with tests in `finvera-be/src/test/java/com/minhnb/finvera_be/market/application/MarketImportServiceTests.java`
+- [ ] T048 [DATA-001, DATA-003, DATA-007, DATA-009, DATA-010] After T047 only, implement the canonical decimal-string exporter and atomic Spring importer in `tools/market-data/vnstock-export/export_history.py` and `finvera-be/src/main/java/com/minhnb/finvera_be/market/service/MarketImportService.java` with tests in `finvera-be/src/test/java/com/minhnb/finvera_be/market/service/MarketImportServiceTests.java`
       Verify: package checksum/schema/provenance/271-session/idempotency/conflict tests pass and neither tool nor package writes PostgreSQL directly
       Depends: T011, T039, T047
 
@@ -294,7 +294,7 @@ work starts only after its reviewed backend contract behavior is available.
 
 - T001 and T002 can run in parallel; T003 is independent of both.
 - Security T005-T008, persistence T009-T011, domain primitives/time T012-T014,
-  and provider-port tests T015 can progress in parallel where dependencies allow.
+  and provider-contract tests T015 can progress in parallel where dependencies allow.
 - For US1, T021/T022/T027 can be written in parallel; T026 can start after the
   backend contract is executable.
 - T031 and T034 can run in parallel for US2.

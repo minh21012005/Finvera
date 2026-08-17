@@ -17,7 +17,7 @@ market data, persist immutable accepted observations in PostgreSQL, calculate
 breadth and `market-regime-v1`, and expose one coherent
 `GET /api/v1/market/overview` response. A React SPA built with Vite will render
 the response without recalculating authoritative financial facts. TCBS iFlash is the initial
-read-only adapter behind a provider-neutral port. A pinned Vnstock tool provides
+read-only adapter behind a provider-neutral contract. A pinned Vnstock tool provides
 offline historical bootstrap packages through a validated Spring import
 boundary. Both are restricted to an owner-only private deployment and mandatory
 fixture/license gates. The AI service, Gemini, embeddings, Qdrant, Redis,
@@ -39,7 +39,7 @@ needs it.
 **Storage/State**: PostgreSQL is authoritative. No required Redis/Qdrant/Kafka
 state; fixture data is test/development-only.  
 **Interfaces**: Versioned owner-only REST API, internal outbound
-`MarketDataProvider` port, and versioned historical import-package schema; no
+`MarketDataProvider` contract, and versioned historical import-package schema; no
 internal AI/event interface.  
 **Testing/Evaluation**: Pure unit and numerical boundary/property tests;
 sanitized provider contract fixtures; Flyway/JPA integration tests on
@@ -78,7 +78,8 @@ source is permitted for public/multi-user delivery.
   behavior are modeled.
 - [x] **Boundaries and ownership**: Browser → Spring boundary is intact;
   Spring `market` owns the feature; PostgreSQL is authoritative; AI/Redis/Qdrant/
-  Kafka are absent.
+  Kafka are absent. The module follows ADR-0007 layered packages; controllers
+  do not access repositories/entities and services own transactions.
 - [x] **Security and privacy**: Tailscale private ingress plus a Spring-managed
   local owner session, CSRF, rate limiting, secure cookie, and transient iOTP
   boundary are defined. Credentials remain server-only and raw private material
@@ -109,7 +110,7 @@ and Vnstock import task T048 remain blocked by T045 and T047 respectively.
 private TCBS iFlash / deterministic fixtures / offline Vnstock package
         |
         v
-Spring market.infrastructure provider adapter
+Spring market.provider integration
         |
         v
 normalize -> validate -> immutable PostgreSQL observations
@@ -117,7 +118,7 @@ normalize -> validate -> immutable PostgreSQL observations
         |                         +-> breadth-v1
         |                         +-> market-regime-v1
         v
-market application overview assembler
+market service overview assembler
         |
         v
 GET /api/v1/market/overview
@@ -132,13 +133,13 @@ finvera-ai / Gemini / embeddings / Qdrant / Kafka: no path in this feature
 
 | Concern | Owning project/module | Reason |
 |---|---|---|
-| Provider authentication and DTO mapping | `finvera-be/.../market/infrastructure/provider` | Keeps source details and secrets behind outbound port. |
+| Provider authentication and DTO mapping | `finvera-be/.../market/provider` | Keeps source details and secrets behind a replaceable provider contract. |
 | Historical package export | `tools/market-data/vnstock-export` | Offline owner tool; emits canonical packages and has no database/network-serving authority. |
-| Historical package validation/import | `finvera-be/.../market/application` | Spring validates provenance/schema and owns the atomic PostgreSQL write. |
+| Historical package validation/import | `finvera-be/.../market/service` | Spring validates provenance/schema and owns the atomic PostgreSQL write. |
 | Market validation, time, breadth, regime rules | `finvera-be/.../market/domain` | Pure deterministic business behavior. |
-| Ingestion/reconciliation/overview use cases | `finvera-be/.../market/application` | Transaction and orchestration boundary. |
-| Accepted observations and derived assessments | PostgreSQL via `market/infrastructure/persistence` | Auditable transactional source of truth. |
-| Public REST mapping/security | `finvera-be/.../market/api` | Spring remains public/API access boundary. |
+| Ingestion/reconciliation/overview use cases | `finvera-be/.../market/service` | Transaction and orchestration boundary. |
+| Accepted observations and derived assessments | PostgreSQL via `market/repository` and `market/entity` | Auditable transactional source of truth. |
+| Public REST mapping/security | `finvera-be/.../market/controller` and `market/dto` | Spring remains public/API access boundary. |
 | Market presentation and formatting | `finvera-fe/src/features/market-overview` | UI consumes contract and does not calculate financial truth. |
 | AI/RAG | Not affected | Feature is deterministic and remains usable during AI outage. |
 
@@ -148,7 +149,7 @@ finvera-ai / Gemini / embeddings / Qdrant / Kafka: no path in this feature
 |---|---|---|---|
 | Public REST | Add coherent market overview GET endpoint | Additive `/api/v1`; response contract 1.0 | [market-overview.openapi.yaml](contracts/market-overview.openapi.yaml) |
 | Private owner access | Add local session, CSRF, login/logout/status, and TCBS renewal | Private contract 1.0; replaces bearer assumption for Feature 001 | [private-owner-access.openapi.yaml](contracts/private-owner-access.openapi.yaml) |
-| Market provider | Add internal read-only provider port and TCBS adapter | Internal `tcbs-iflash-market-private-v1`; adapter replaceable | [tcbs-iflash-adapter.md](contracts/tcbs-iflash-adapter.md) |
+| Market provider | Add internal read-only provider contract and TCBS integration | Internal `tcbs-iflash-market-private-v1`; provider replaceable | [tcbs-iflash-adapter.md](contracts/tcbs-iflash-adapter.md) |
 | Historical bootstrap | Add operator-only canonical package import | `vnstock-history-private-bootstrap-v1`; no runtime Python service | [vnstock-historical-bootstrap.md](contracts/vnstock-historical-bootstrap.md) |
 | Database | Add market/calendar/observation/derived tables | Forward Flyway migrations; no existing business data | [data-model.md](data-model.md) |
 

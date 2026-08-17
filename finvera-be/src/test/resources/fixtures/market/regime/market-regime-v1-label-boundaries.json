@@ -1,0 +1,16 @@
+{
+  "fixtureVersion": "market-regime-v1-boundaries-v1",
+  "ruleVersion": "market-regime-v1",
+  "source": "FINVERA_FIXTURE",
+  "purpose": "deterministic label-boundary replay",
+  "cases": [
+    { "unroundedScore": "29.000000", "expectedLabel": "BEAR" },
+    { "unroundedScore": "30.000000", "expectedLabel": "EARLY_BEAR" },
+    { "unroundedScore": "44.000000", "expectedLabel": "EARLY_BEAR" },
+    { "unroundedScore": "45.000000", "expectedLabel": "SIDEWAYS" },
+    { "unroundedScore": "55.000000", "expectedLabel": "SIDEWAYS" },
+    { "unroundedScore": "56.000000", "expectedLabel": "EARLY_BULL" },
+    { "unroundedScore": "70.000000", "expectedLabel": "EARLY_BULL" },
+    { "unroundedScore": "71.000000", "expectedLabel": "BULL" }
+  ]
+}
