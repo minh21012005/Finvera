@@ -149,6 +149,25 @@ The canonical package is an ephemeral transfer artifact and is deleted after
 successful validation/import according to the operator runbook. Accepted
 normalized observations remain immutable under their retention policy.
 
+### `source_reconciliation_audit`
+
+Immutable evidence that matching TCBS and Vnstock observations could not be
+used together. It is created only for `SOURCE_CONFLICT` or `NON_COMPARABLE`;
+normal agreement produces no audit row and TCBS remains the canonical input.
+
+| Field | Type | Rules |
+|---|---|---|
+| `id` | UUID | Primary key. |
+| `instrument_id`, `trading_date` | UUID, date | Subject and Vietnam market date. |
+| `tcbs_ingestion_record_id`, `vnstock_ingestion_record_id` | UUID | Accepted provenance FKs; both are required. |
+| `decision` | varchar(32) | `SOURCE_CONFLICT` or `NON_COMPARABLE`; no implicit source selection. |
+| `policy_version` | varchar(64) | Initially `tcbs-vnstock-reconciliation-v1`. |
+| `detected_at` | timestamptz | UTC audit time. |
+
+The pair of ingestion records and policy version is unique so replay does not
+create duplicate audit evidence. Resolving a conflict requires a later,
+separate correction workflow; this table never overwrites either source fact.
+
 ### `index_snapshot`
 
 Immutable accepted index observation.

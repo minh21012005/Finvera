@@ -57,6 +57,15 @@ fingerprints and aggregate status counts so interrupted batches can resume.
 eight sample calls and marks the summary as `NOT_RECHECKED`, never as fresh
 representative-gate evidence.
 
+To run bounded batches automatically until the checkpoint is complete:
+
+```powershell
+.\run-full-universe.ps1 -BatchSize 25 -RequestsPerMinute 30
+```
+
+The runner stops on provider failures, malformed summaries, or the batch limit;
+it never blindly retries a failed provider batch.
+
 ## TCBS interactive probe
 
 Run this yourself in a trusted terminal. The default `totp` flow accepts a

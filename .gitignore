@@ -4,6 +4,7 @@
 **/.next/
 **/target/
 **/__pycache__/
+**/.pytest_cache/
 **/*.pyc
 **/.venv/
 
@@ -11,6 +12,7 @@
 **/.env
 **/.env.*
 !**/.env.example
+!**/.env.local.example
 *.log
 
 # Private local market-data artifacts

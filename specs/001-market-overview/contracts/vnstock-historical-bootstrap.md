@@ -2,7 +2,7 @@
 
 **Contract version**: `vnstock-history-private-bootstrap-v1`  
 **Feature**: `001-market-overview`  
-**Status**: Technical coverage gate passed on 2026-08-17; upstream-use and full-universe gates remain blocking
+**Status**: Private KBS upstream-use accepted by owner on 2026-08-18; full-universe and adjustment/correction gates remain blocking
 
 ## Purpose and boundary
 
@@ -60,13 +60,14 @@ relevant gate and operator runbook are approved.
 ## Owner-approved local-only exception
 
 On 2026-08-17, the owner explicitly accepted the residual upstream-use risk for
-a manually operated, local-only and non-commercial Vnstock/KBS bootstrap. This
-is an implementation authorization, not evidence that KBS grants a license and
-not a compliance conclusion. It permits the canonical exporter below while all
-of these restrictions remain mandatory: no public endpoint, redistribution,
-multi-user deployment, scheduled/unbounded collection, credential persistence,
-or raw-response retention. The exception may be revoked before any run and is
-invalid for a public or remote deployment.
+a manually operated, local-only and non-commercial Vnstock/KBS bootstrap. On
+2026-08-18, the owner confirmed that KBS accepts the intended private use. This
+authorizes private storage and analysis for this contract only; it is not a
+right to public display, redistribution, multi-user deployment, or remote
+operation. The restrictions remain mandatory: no public endpoint, scheduled or
+unbounded collection, credential persistence, or raw-response retention. This
+approval may be revoked before any run and is invalid for a public or remote
+deployment.
 
 ## Fixture and license gate
 
@@ -102,9 +103,9 @@ gitignored. The latest rerun used the owner's Vnstock Community entitlement
 `2ded0d53a27c2e2319a3dcab65ab42e8981b0196c60885b36b9e6024d186344c`.
 
 This supplies representative evidence toward items 1-3 but does not prove
-source stability for every dataset. Items 4-6, a bounded full-universe run,
-upstream KBS private storage/automation rights, request limits, adjustment
-semantics, and correction behavior remain unresolved.
+source stability for every dataset. The owner has since confirmed the limited
+private KBS use described above. A bounded full-universe run, request-limit
+evidence, adjustment semantics, and correction behavior remain unresolved.
 
 ### Bounded full-universe probe
 
@@ -124,8 +125,9 @@ That summary is explicitly marked `NOT_RECHECKED`; it cannot be used as new
 representative-gate evidence.
 
 The probe is evidence gathering only. A partial run, a successful probe, or a
-Vnstock Community entitlement does not close the upstream-use, adjustment, or
-correction gates and does not authorize the importer in this contract.
+Vnstock Community entitlement does not by itself close the adjustment or
+correction gates and does not expand the owner's limited KBS private-use
+approval.
 
 **Initial bounded-run evidence (2026-08-17):** the checkpointed batches have
 processed 56 of 1,526 eligible equities at 30 requests/minute: 42 have usable
@@ -145,12 +147,23 @@ the versioned regime missing-component rule and is never inferred or zeroed.
 
 ## Reconciliation with TCBS
 
-For an overlapping completed session, compare Vnstock close/reference facts
-against the final accepted TCBS observation using exact decimals and a
-versioned tolerance policy. Preserve both sources. A material conflict creates
-`SOURCE_CONFLICT`; it is never silently overwritten or averaged, and the
-affected regime assessment is withheld until an approved source wins through
-an auditable correction/reconciliation decision.
+`tcbs-vnstock-reconciliation-v1` treats TCBS iFlash as the priority source for
+live/final observations and corrections; Vnstock is historical bootstrap and
+gap recovery only. Compare only equally adjusted, normalized raw facts. Values
+must match exactly at the persisted six-decimal scale: any difference greater
+than `0.000001` is `SOURCE_CONFLICT`. Preserve both provenances; never average
+or overwrite. A conflict or non-comparable adjustment status makes dependent
+breadth/regime output `PARTIAL` or `UNAVAILABLE` until an auditable correction
+selects a source. When both agree, TCBS is the canonical input. Vnstock may be
+accepted alone while TCBS is unavailable, but is labeled historical bootstrap,
+never live/final.
+
+`source_reconciliation_audit` stores immutable links to the two accepted
+ingestion records whenever the result is `SOURCE_CONFLICT` or `NON_COMPARABLE`.
+The reconciliation boundary is idempotent for the same pair and policy version;
+it records no implicit source selection and never averages values. A future
+TCBS adapter must invoke this boundary with normalized raw facts, and any
+operator-approved correction remains a separate auditable workflow.
 
 ## Operational restrictions
 

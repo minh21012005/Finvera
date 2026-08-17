@@ -123,13 +123,14 @@ provider failure. The latest sanitized summary SHA-256 is
 `a118e2cb6565fca08dab61747c42eb441c96091ac6ec7cb4da918a79131812fd`.
 
 **Remaining risks/validation**: Vnstock is an extraction tool, not the data
-owner. Its software license alone does not establish upstream storage/display
-rights or an SLA, and the public KBS terms reviewed did not provide an explicit
-market-data automation/storage grant. Before production importer work, the
-owner must accept the Vnstock personal/non-commercial license, confirm upstream
-private storage/analysis rights, record request limits and adjustment
-semantics, and run a bounded full-universe coverage test. These legal and
-semantic checks remain blocking even though the technical coverage probe passed.
+owner. Its software license alone does not establish upstream display rights or
+an SLA. On 2026-08-18, the owner confirmed KBS accepts the intended private
+storage and analysis use; this is limited to the contract's local/private
+boundary and does not permit public display, redistribution, multi-user, or
+remote use. Request limits, adjustment/correction semantics, and bounded
+full-universe coverage still require evidence before this provider can be
+called ready. These semantic checks remain blocking even though the
+representative technical coverage probe passed.
 
 Source: [Vnstock repository and license summary](https://github.com/thinh-vu/vnstock).
 

@@ -41,7 +41,7 @@ finvera:
       mode: ${FINVERA_MARKET_PROVIDER_MODE:fixture}
       live-enabled: ${FINVERA_MARKET_PROVIDER_LIVE_ENABLED:false}
     fixture:
-      bootstrap-enabled: false
+      bootstrap-enabled: ${FINVERA_MARKET_FIXTURE_BOOTSTRAP_ENABLED:false}
     import:
       enabled: ${FINVERA_MARKET_IMPORT_ENABLED:false}
       package-path: ${FINVERA_MARKET_IMPORT_PACKAGE_PATH:}

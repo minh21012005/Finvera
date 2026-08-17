@@ -26,6 +26,8 @@ public class MarketConfiguration {
     @ConditionalOnProperty(name = "finvera.market.import.package-path")
     ApplicationRunner localHistoricalImport(@Value("${finvera.market.import.package-path}") String packagePath,
             MarketImportPackageParser parser, MarketImportService importer) {
-        return arguments -> importer.importPackage(parser.parse(Path.of(packagePath)));
+        return arguments -> {
+            if (!packagePath.isBlank()) importer.importPackage(parser.parse(Path.of(packagePath)));
+        };
     }
 }
