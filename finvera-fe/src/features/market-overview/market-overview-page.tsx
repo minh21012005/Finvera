@@ -26,29 +26,63 @@ export function MarketOverviewPage() {
   }, [attempt]);
 
   if (state.kind === "loading") {
-    return <main className="app-shell" aria-busy="true"><p>Đang tải tổng quan thị trường…</p></main>;
+    return (
+      <main className="app-shell" aria-busy="true">
+        <p>Đang tải tổng quan thị trường…</p>
+      </main>
+    );
   }
   if (state.kind === "error") {
     return (
       <main className="app-shell">
         <p role="alert">{errorMessage(state.status)}</p>
-        <button type="button" onClick={() => {
-          setState({ kind: "loading" });
-          setAttempt((value) => value + 1);
-        }}>Thử lại</button>
+        <button
+          type="button"
+          className="btn-retry"
+          onClick={() => {
+            setState({ kind: "loading" });
+            setAttempt((value) => value + 1);
+          }}
+        >
+          Thử lại
+        </button>
       </main>
     );
   }
 
+  const isSessionOpen = state.overview.session.state === "OPEN";
+
   return (
     <main className="app-shell">
-      <p className="eyebrow">FINVERA · MARKET OVERVIEW</p>
-      <h1>Tổng quan thị trường</h1>
-      <p>Ngày giao dịch {state.overview.tradingDate} · Cập nhật {formatAsOf(state.overview.generatedAt)}</p>
-      <p>Trạng thái dữ liệu: {statusLabel(state.overview.dataStatus)}. Dữ liệu thiếu hoặc chậm được hiển thị rõ ràng, không được suy diễn.</p>
+      <header className="page-header">
+        <p className="eyebrow">FINVERA · MARKET OVERVIEW</p>
+        <h1>Tổng quan thị trường</h1>
+        <div className="meta-row">
+          <span className="meta-item">
+            <span className={`pulse-dot ${isSessionOpen ? "open" : "closed"}`}></span>
+            Phiên giao dịch {state.overview.tradingDate}
+          </span>
+          <span className="meta-item">Cập nhật {formatAsOf(state.overview.generatedAt)}</span>
+          <span className="meta-item">
+            Trạng thái dữ liệu:{" "}
+            <span className={`status-pill ${state.overview.dataStatus.toLowerCase()}`}>
+              {statusLabel(state.overview.dataStatus)}
+            </span>
+          </span>
+        </div>
+      </header>
+
       <IndexOverview overview={state.overview} />
-      <BreadthOverview breadth={state.overview.breadth} />
-      <RegimeOverview regime={state.overview.regime} />
+
+      <div className="dashboard-split">
+        <BreadthOverview breadth={state.overview.breadth} />
+        <RegimeOverview regime={state.overview.regime} />
+      </div>
+
+      <footer className="provenance-footer">
+        <span>Trạng thái dữ liệu: {statusLabel(state.overview.dataStatus)}. Dữ liệu thiếu hoặc chậm được hiển thị rõ ràng, không được suy diễn.</span>
+        <span>Finvera Quantitative Decision Support Engine</span>
+      </footer>
     </main>
   );
 }
