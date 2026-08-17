@@ -1389,7 +1389,7 @@ The system may integrate with external providers for:
 
 ## AI
 
-- Gemini or another LLM provider
+- Gemini as the initial LLM provider, behind a replaceable provider adapter
 
 ## Notifications
 
@@ -1458,7 +1458,7 @@ TradingView Lightweight Charts / ECharts
 
 ```text
 Java 21
-Spring Boot 3
+Spring Boot 4.1.x
 Spring Security
 Spring Data JPA
 Hibernate

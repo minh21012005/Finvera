@@ -1,0 +1,188 @@
+openapi: 3.1.0
+info:
+  title: Finvera Private Owner Access API
+  version: 1.0.0
+  description: >-
+    Same-origin Spring Security session contract for the single-owner private
+    deployment. Tailscale restricts network reachability but does not replace
+    Spring authentication or authorization.
+servers:
+  - url: /api/v1
+paths:
+  /auth/csrf:
+    get:
+      operationId: getCsrfToken
+      security: []
+      responses:
+        "200":
+          description: CSRF token for a subsequent state-changing request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CsrfTokenResponse"
+  /auth/session:
+    post:
+      operationId: createOwnerSession
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "204":
+          description: >-
+            Owner authenticated; rotates and sets FINVERA_SESSION as Secure,
+            HttpOnly, SameSite=Strict.
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "429":
+          $ref: "#/components/responses/Problem"
+    get:
+      operationId: getOwnerSession
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Current owner session summary.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+        "401":
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: deleteOwnerSession
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfHeader"
+      responses:
+        "204":
+          description: Session invalidated and cookie expired.
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+  /market/providers/tcbs/token-renewal:
+    post:
+      operationId: renewTcbsToken
+      description: >-
+        Immediately exchanges one owner-entered iOTP with TCBS. The request
+        body must be redacted from logs and never persisted, retried, or reused.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TcbsTokenRenewalRequest"
+      responses:
+        "204":
+          description: Token exchanged and retained only in runtime memory.
+        "400":
+          $ref: "#/components/responses/Problem"
+        "401":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "429":
+          $ref: "#/components/responses/Problem"
+        "502":
+          $ref: "#/components/responses/Problem"
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: FINVERA_SESSION
+  parameters:
+    CsrfHeader:
+      name: X-CSRF-TOKEN
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 16
+  schemas:
+    CsrfTokenResponse:
+      type: object
+      additionalProperties: false
+      required: [token, headerName]
+      properties:
+        token:
+          type: string
+        headerName:
+          type: string
+          const: X-CSRF-TOKEN
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 128
+        password:
+          type: string
+          minLength: 1
+          maxLength: 256
+          writeOnly: true
+    SessionResponse:
+      type: object
+      additionalProperties: false
+      required: [subject, username, authenticatedAt, expiresAt]
+      properties:
+        subject:
+          type: string
+          format: uuid
+        username:
+          type: string
+        authenticatedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+    TcbsTokenRenewalRequest:
+      type: object
+      additionalProperties: false
+      required: [iOtp]
+      properties:
+        iOtp:
+          type: string
+          pattern: "^[0-9]{6}$"
+          writeOnly: true
+    ErrorResponse:
+      type: object
+      required: [type, title, status, code, correlationId]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+        title:
+          type: string
+        status:
+          type: integer
+        code:
+          type: string
+        detail:
+          type: string
+        correlationId:
+          type: string
+  responses:
+    Problem:
+      description: Safe RFC 9457-compatible error; never echoes credentials or iOTP.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"

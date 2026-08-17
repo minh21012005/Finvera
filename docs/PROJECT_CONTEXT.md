@@ -28,7 +28,7 @@ Spring Boot modular monolith ----------------> PostgreSQL
 FastAPI AI service --------------------------> Qdrant
         |                                      retrieval index
         v
-LLM / embedding providers
+Gemini (LLM) / embedding provider
 ```
 
 Spring Boot is the only public backend boundary. It authorizes requests and owns
@@ -79,17 +79,31 @@ an inconsistency.
 
 ## Known Baseline Decisions and Gaps
 
-- The SRS names Spring Boot 3, while `finvera-be/pom.xml` currently pins Spring
-  Boot 4.1.0. Treat the manifest as the current build baseline and decide any
-  version change through a researched feature/ADR.
+- **Resolved — backend platform**: Finvera uses Java 21 and Spring Boot 4.1.x;
+  the current verified pin is 4.1.0. Only verified generally available 4.1.x
+  patches may be adopted. See [ADR-0001](adr/0001-use-spring-boot-4.md).
 - Kafka is described both as available and optional/later. It is not a default
   dependency for designs; a feature must justify its use with volume, ordering,
   replay, or decoupling requirements.
-- The market-data provider, data licensing, update latency, exchange calendar,
+- **Resolved for Feature 1 private v1 — market-data provider**: TCBS iFlash is
+  the read-only live provider for one owner-only/private deployment; Vnstock is
+  a conditional offline historical-bootstrap tool, not a runtime service.
+  Public or multi-user delivery requires a separately licensed provider and
+  ADR. See [ADR-0003](adr/0003-use-tcbs-for-private-market-data-v1.md) and
+  [ADR-0004](adr/0004-use-vnstock-for-private-historical-bootstrap.md).
+- **Resolved for Feature 1 private v1 — owner access**: Tailscale Serve/private
+  tailnet is the only ingress, with Funnel disabled; Spring independently
+  authenticates one configured local owner through a secure server session.
+  See [ADR-0005](adr/0005-use-tailscale-and-local-owner-session.md).
+- Data licensing beyond the private TCBS use, update latency, exchange calendar,
   adjusted-price policy, and corporate-action source are unresolved. The first
   market-data feature must research and contract them.
-- LLM, embedding, reranking, and document storage providers are unresolved.
-  Provider selection belongs to the first AI/RAG feature plan.
+- **Resolved — initial LLM provider**: Gemini is the initial LLM provider;
+  model/version selection, privacy review, quotas, cost, and fallback belong to
+  the first AI feature plan. See [ADR-0002](adr/0002-use-gemini-as-initial-llm-provider.md).
+- Embedding model/provider, reranking, and document storage remain unresolved.
+  The first RAG feature plan must benchmark and select them independently of the
+  Gemini decision.
 - Performance, retention, RPO/RTO, rate limits, AI quotas, and model-quality
   thresholds need measurable values in the features that depend on them.
 - The SRS file contains mojibake in some arrows/box drawing and Vietnamese text.
@@ -107,4 +121,3 @@ Use language that distinguishes these concepts:
   financial computation.
 - **Confidence**: calibrated model/engine uncertainty with a defined method; it
   must not be a decorative percentage.
-
