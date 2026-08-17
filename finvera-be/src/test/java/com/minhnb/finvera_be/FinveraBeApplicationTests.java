@@ -6,6 +6,9 @@ import com.minhnb.finvera_be.market.repository.MarketObservationRepository;
 import com.minhnb.finvera_be.market.repository.MarketOverviewRepository;
 import com.minhnb.finvera_be.market.repository.MarketBreadthRepository;
 import com.minhnb.finvera_be.market.repository.MarketBreadthSnapshotInputRepository;
+import com.minhnb.finvera_be.market.repository.RegimeAssessmentRepository;
+import com.minhnb.finvera_be.market.repository.RegimeAssessmentInputRepository;
+import com.minhnb.finvera_be.market.repository.RegimeFactorRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
@@ -39,6 +42,15 @@ class FinveraBeApplicationTests {
 
 	@MockitoBean
 	MarketBreadthSnapshotInputRepository marketBreadthSnapshotInputRepository;
+
+	@MockitoBean
+	RegimeAssessmentRepository regimeAssessmentRepository;
+
+	@MockitoBean
+	RegimeAssessmentInputRepository regimeAssessmentInputRepository;
+
+	@MockitoBean
+	RegimeFactorRepository regimeFactorRepository;
 
 	@DynamicPropertySource
 	static void ownerProperties(DynamicPropertyRegistry registry) {

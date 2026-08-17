@@ -199,10 +199,10 @@ fixtures twice and prove exact output or reason-coded withholding.
 - [x] T039 [US3] [FR-010, FR-011, FR-012, FR-013, FR-014, DATA-009] Implement `market-regime-v1`, publishability, confidence, supporting factors, and disclaimer codes in `finvera-be/src/main/java/com/minhnb/finvera_be/market/domain/regime/MarketRegimeV1.java` and `RegimeAssessment.java`
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=MarketRegimeV1Tests test` passes deterministic replay and withholding cases
       Depends: T032, T038
-- [ ] T040 [P] [US3] [DATA-009, DATA-010, FR-012, FR-015] Write immutable assessment/input-link, corrected-history replay, and cross-source `SOURCE_CONFLICT` tests in `finvera-be/src/test/java/com/minhnb/finvera_be/market/service/RegimeAssessmentServiceTests.java`
+- [x] T040 [P] [US3] [DATA-009, DATA-010, FR-012, FR-015] Write immutable assessment/input-link, corrected-history replay, and cross-source `SOURCE_CONFLICT` tests in `finvera-be/src/test/java/com/minhnb/finvera_be/market/service/RegimeAssessmentServiceTests.java`
       Verify: tests fail before assessment persistence/reconciliation exists and never average conflicting sources
       Depends: T011, T037
-- [ ] T041 [US3] [FR-010, FR-011, FR-012, FR-013, FR-015, DATA-009, DATA-010, NFR-003] Implement assessment orchestration, persistence, source reconciliation, correction replay, and overview/API mapping in `finvera-be/src/main/java/com/minhnb/finvera_be/market/service/RegimeAssessmentService.java`, `finvera-be/src/main/java/com/minhnb/finvera_be/market/repository/RegimeAssessmentRepository.java`, and `finvera-be/src/main/java/com/minhnb/finvera_be/market/dto/MarketOverviewResponse.java`
+- [x] T041 [US3] [FR-010, FR-011, FR-012, FR-013, FR-015, DATA-009, DATA-010, NFR-003] Implement assessment orchestration, persistence, source reconciliation, correction replay, and overview/API mapping in `finvera-be/src/main/java/com/minhnb/finvera_be/market/service/RegimeAssessmentService.java`, `finvera-be/src/main/java/com/minhnb/finvera_be/market/repository/RegimeAssessmentRepository.java`, and `finvera-be/src/main/java/com/minhnb/finvera_be/market/dto/MarketOverviewResponse.java`
       Verify: targeted application/API tests pass with exact input IDs/rule version and withhold conflicts
       Depends: T033, T039, T040
 - [ ] T042 [P] [US3] [FR-010, FR-011, FR-012, FR-014, NFR-005, SC-007] Write regime complete/renormalized/withheld, factor, disclaimer, and non-color accessibility tests in `finvera-fe/src/features/market-overview/regime-overview.test.tsx`

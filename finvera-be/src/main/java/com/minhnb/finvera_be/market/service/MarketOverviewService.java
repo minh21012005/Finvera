@@ -26,13 +26,16 @@ public class MarketOverviewService {
 
     private final MarketOverviewRepository repository;
     private final BreadthService breadthService;
+    private final RegimeAssessmentService regimeAssessmentService;
     private final Clock clock;
     private final IndexOverviewCalculator calculator = new IndexOverviewCalculator();
     private final MarketFreshnessPolicy freshness = new MarketFreshnessPolicy();
 
-    public MarketOverviewService(MarketOverviewRepository repository, BreadthService breadthService, Clock clock) {
+    public MarketOverviewService(MarketOverviewRepository repository, BreadthService breadthService,
+            RegimeAssessmentService regimeAssessmentService, Clock clock) {
         this.repository = repository;
         this.breadthService = breadthService;
+        this.regimeAssessmentService = regimeAssessmentService;
         this.clock = clock;
     }
 
@@ -62,9 +65,11 @@ public class MarketOverviewService {
         IndexOverview indices = calculator.calculate(new IndexOverviewCalculator.SnapshotInput(
                 tradingDate, asOf, session, freshnessStatus, revision, source, inputs));
         BreadthService.Snapshot breadth = breadthService.latestFor(tradingDate).orElse(null);
+        RegimeAssessmentService.Snapshot regime = regimeAssessmentService.latestFor(tradingDate).orElse(null);
         DataStatus overall = breadth == null ? overallStatus(indices.indices())
                 : DataStatus.mostActionable(overallStatus(indices.indices()), breadth.dataStatus());
-        return new MarketOverview(generatedAt, indices, breadth, overall, etagToken(indices));
+        if (regime != null) overall = DataStatus.mostActionable(overall, regime.assessment().dataStatus());
+        return new MarketOverview(generatedAt, indices, breadth, regime, overall, etagToken(indices));
     }
 
     public static MarketOverview empty(Instant generatedAt) {
@@ -72,7 +77,7 @@ public class MarketOverviewService {
         IndexOverview indices = new IndexOverviewCalculator().calculate(new IndexOverviewCalculator.SnapshotInput(
                 tradingDate, generatedAt, SessionState.UNKNOWN, DataStatus.UNAVAILABLE, 1,
                 "UNAVAILABLE", List.of()));
-        return new MarketOverview(generatedAt, indices, null, DataStatus.UNAVAILABLE, "no-accepted-index-data");
+        return new MarketOverview(generatedAt, indices, null, null, DataStatus.UNAVAILABLE, "no-accepted-index-data");
     }
 
     private IndexOverviewCalculator.IndexInput toInput(MarketOverviewRepository.LatestIndexSnapshot row) {
@@ -113,6 +118,7 @@ public class MarketOverviewService {
             Instant generatedAt,
             IndexOverview indices,
             BreadthService.Snapshot breadth,
+            RegimeAssessmentService.Snapshot regime,
             DataStatus dataStatus,
             String etag) {
     }

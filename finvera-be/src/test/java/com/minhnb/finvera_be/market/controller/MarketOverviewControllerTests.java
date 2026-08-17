@@ -18,6 +18,12 @@ import com.minhnb.finvera_be.market.service.MarketOverviewService;
 import com.minhnb.finvera_be.market.service.BreadthService;
 import com.minhnb.finvera_be.market.domain.breadth.BreadthCalculator;
 import com.minhnb.finvera_be.market.domain.model.MarketTypes.DataStatus;
+import com.minhnb.finvera_be.market.domain.model.MarketTypes.FactorDirection;
+import com.minhnb.finvera_be.market.domain.model.MarketTypes.RegimeLabel;
+import com.minhnb.finvera_be.market.domain.regime.MarketRegimeV1;
+import com.minhnb.finvera_be.market.domain.regime.RegimeAssessment;
+import com.minhnb.finvera_be.market.service.RegimeAssessmentService;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
@@ -114,7 +120,7 @@ class MarketOverviewControllerTests {
                 new BreadthCalculator.Result(3, 2, 1, 1, 7, java.util.List.of("MISSING_REFERENCE_PRICE")),
                 "breadth-universe-v1", "a".repeat(64));
         given(overviewService.latest()).willReturn(new MarketOverviewService.MarketOverview(
-                now, empty.indices(), breadth, DataStatus.PARTIAL, "market-breadth-fixture"));
+                now, empty.indices(), breadth, null, DataStatus.PARTIAL, "market-breadth-fixture"));
 
         mvc.perform(get("/api/v1/market/overview").session(ownerSession()))
                 .andExpect(status().isOk())
@@ -124,6 +130,33 @@ class MarketOverviewControllerTests {
                 .andExpect(jsonPath("$.breadth.unclassified").value(1))
                 .andExpect(jsonPath("$.breadth.universeVersion").value("breadth-universe-v1"))
                 .andExpect(jsonPath("$.breadth.reasonCodes[0]").value("MISSING_REFERENCE_PRICE"));
+    }
+
+    @Test
+    void ownerReceivesPersistedRegimeFactsAndSupportingFactorsWithoutBrowserCalculation() throws Exception {
+        Instant now = Instant.parse("2026-08-17T03:00:00Z");
+        var empty = MarketOverviewService.empty(now);
+        var assessment = new RegimeAssessment(DataStatus.CURRENT, RegimeLabel.BULL, 80, 90,
+                decimal("100"), decimal("100"), decimal("100"), false, java.util.List.of(), java.util.List.of(
+                new RegimeAssessment.SupportingFactor(MarketRegimeV1.Component.TREND, FactorDirection.POSITIVE,
+                        decimal("100"), decimal("0.350000"), decimal("0.350000"), decimal("35"))));
+        var regime = new RegimeAssessmentService.Snapshot(empty.indices().tradingDate(), now,
+                MarketRegimeV1.RULE_VERSION, assessment);
+        given(overviewService.latest()).willReturn(new MarketOverviewService.MarketOverview(
+                now, empty.indices(), null, regime, DataStatus.CURRENT, "market-regime-fixture"));
+
+        mvc.perform(get("/api/v1/market/overview").session(ownerSession()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.regime.dataStatus").value("CURRENT"))
+                .andExpect(jsonPath("$.regime.label").value("BULL"))
+                .andExpect(jsonPath("$.regime.score").value(80))
+                .andExpect(jsonPath("$.regime.confidence").value(90))
+                .andExpect(jsonPath("$.regime.factors[0].code").value("TREND"))
+                .andExpect(jsonPath("$.regime.factors[0].effectiveWeight").value("0.350000"));
+    }
+
+    private static BigDecimal decimal(String value) {
+        return new BigDecimal(value);
     }
 
     private MockHttpSession ownerSession() throws Exception {

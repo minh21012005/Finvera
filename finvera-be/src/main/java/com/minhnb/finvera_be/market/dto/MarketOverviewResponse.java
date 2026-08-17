@@ -33,7 +33,7 @@ public record MarketOverviewResponse(
                 "1.0", overview.generatedAt(), indexOverview.tradingDate(),
                 MarketOverviewService.MARKET_ZONE.getId(), overview.dataStatus(),
                 SessionResponse.from(indexOverview), indexResponses,
-                BreadthResponse.from(overview.breadth()), RegimeResponse.unavailable(), warnings(indexResponses));
+                BreadthResponse.from(overview.breadth()), RegimeResponse.from(overview.regime()), warnings(indexResponses));
     }
 
     private static List<WarningResponse> warnings(List<IndexResponse> indices) {
@@ -98,9 +98,18 @@ public record MarketOverviewResponse(
     }
 
     public record RegimeResponse(
-            DataStatus dataStatus, String ruleVersion, Object label, Integer score, Integer confidence,
-            String confidenceMeaning, List<Object> factors, LocalDate tradingDate, Instant asOf,
+            DataStatus dataStatus, String ruleVersion, com.minhnb.finvera_be.market.domain.model.MarketTypes.RegimeLabel label,
+            Integer score, Integer confidence, String confidenceMeaning, List<FactorResponse> factors, LocalDate tradingDate, Instant asOf,
             SourceReference source, List<String> reasonCodes, String disclaimerCode) {
+        static RegimeResponse from(com.minhnb.finvera_be.market.service.RegimeAssessmentService.Snapshot snapshot) {
+            if (snapshot == null) return unavailable();
+            var assessment = snapshot.assessment();
+            return new RegimeResponse(assessment.dataStatus(), snapshot.ruleVersion(), assessment.label(), assessment.score(),
+                    assessment.confidence(), "ASSESSMENT_QUALITY_NOT_FORECAST_PROBABILITY",
+                    assessment.factors().stream().map(FactorResponse::from).toList(), snapshot.tradingDate(), snapshot.asOf(),
+                    new SourceReference("FINVERA_ACCEPTED", "REGIME"), assessment.reasonCodes(),
+                    "QUANTITATIVE_DECISION_SUPPORT_NOT_INVESTMENT_ADVICE");
+        }
         static RegimeResponse unavailable() {
             return new RegimeResponse(DataStatus.UNAVAILABLE, "market-regime-v1", null, null, null,
                     "ASSESSMENT_QUALITY_NOT_FORECAST_PROBABILITY", List.of(), null, null,
@@ -108,6 +117,18 @@ public record MarketOverviewResponse(
                     "QUANTITATIVE_DECISION_SUPPORT_NOT_INVESTMENT_ADVICE");
         }
     }
+
+    public record FactorResponse(String code, com.minhnb.finvera_be.market.domain.model.MarketTypes.FactorDirection direction,
+                                 String descriptionCode, String normalizedScore, String effectiveWeight,
+                                 String contribution, List<FactorObservationResponse> observations) {
+        static FactorResponse from(com.minhnb.finvera_be.market.domain.regime.RegimeAssessment.SupportingFactor factor) {
+            return new FactorResponse(factor.component().name(), factor.direction(),
+                    "REGIME_FACTOR_" + factor.component().name() + "_V1", decimal(factor.normalizedScore()),
+                    decimal(factor.effectiveWeight()), decimal(factor.contribution()), List.of());
+        }
+    }
+
+    public record FactorObservationResponse(String name, String value, String unit) { }
 
     public record SourceReference(String provider, String dataset) {
     }
