@@ -2,7 +2,7 @@
 
 **Contract version**: `vnstock-history-private-bootstrap-v1`  
 **Feature**: `001-market-overview`  
-**Status**: Design contract; implementation is blocked until the fixture gate passes
+**Status**: Technical coverage gate passed on 2026-08-17; upstream-use and full-universe gates remain blocking
 
 ## Purpose and boundary
 
@@ -61,6 +61,32 @@ Before implementation is approved, the owner MUST prove with sanitized output:
 Vnstock is an extraction tool rather than the owner of the underlying data.
 Its software license does not by itself grant public display or redistribution
 rights for upstream data.
+
+### Sanitized technical evidence
+
+The non-production probe pinned Vnstock `4.0.6` with explicit source `KBS` and
+passed the representative history gate on 2026-08-17:
+
+- VNINDEX, HNXINDEX, and UPCOMINDEX: 652 daily rows each;
+- VNM (HOSE) and SHS (HNX): 652 daily rows each;
+- MCH (UPCOM): 647 daily rows;
+- required OHLCV columns present with no nulls in those samples; and
+- stock reference coverage: 404 HOSE, 299 HNX, and 823 UPCOM symbols.
+
+The local summary intentionally contains schema/count/date evidence only and is
+gitignored. Its SHA-256 is
+`B15DA17601D8C7D529D50BCC09315918C7115BFB9CD9F57532E41F4E5C9EC864`.
+
+This supplies representative evidence toward items 1-3 but does not prove
+source stability for every dataset. Items 4-6, a bounded full-universe run,
+upstream KBS private storage/automation rights, request limits, adjustment
+semantics, and correction behavior remain unresolved.
+
+The observed history uses `float64` price columns. Production code MUST parse
+canonical decimal strings into exact decimals at the import boundary and MUST
+NOT use the observed binary floats for authoritative calculations. The tested
+OHLCV shape has no matched-value field; missing historical liquidity follows
+the versioned regime missing-component rule and is never inferred or zeroed.
 
 ## Reconciliation with TCBS
 

@@ -1,0 +1,15 @@
+{
+  "fixtureVersion": "market-fixture-v1",
+  "source": "FINVERA_FIXTURE",
+  "tradingDate": "2026-08-17",
+  "observedAt": "2026-08-17T03:00:00Z",
+  "universePolicyVersion": "breadth-universe-v1",
+  "universeRevisionHash": "sha256:fixture-breadth-universe-v1",
+  "dataStatus": "PARTIAL",
+  "advancing": 612,
+  "declining": 498,
+  "unchanged": 91,
+  "unclassified": 3,
+  "eligible": 1204,
+  "reasonCodes": ["MISSING_REFERENCE_PRICE"]
+}

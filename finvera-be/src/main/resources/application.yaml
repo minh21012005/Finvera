@@ -1,3 +1,43 @@
 spring:
   application:
     name: finvera-be
+  datasource:
+    url: ${FINVERA_DATABASE_URL}
+    username: ${FINVERA_DATABASE_USERNAME}
+    password: ${FINVERA_DATABASE_PASSWORD}
+  flyway:
+    enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  jackson:
+    time-zone: UTC
+
+server:
+  servlet:
+    session:
+      cookie:
+        name: FINVERA_SESSION
+        http-only: true
+        secure: true
+        same-site: strict
+      timeout: 30m
+
+finvera:
+  security:
+    owner:
+      id: ${FINVERA_OWNER_ID}
+      username: ${FINVERA_OWNER_USERNAME}
+      password-hash: ${FINVERA_OWNER_PASSWORD_HASH}
+  market:
+    timezone: Asia/Ho_Chi_Minh
+    provider:
+      mode: fixture
+      live-enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics

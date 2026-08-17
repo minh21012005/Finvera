@@ -2,7 +2,7 @@
 
 **Feature Directory**: `001-market-overview`  
 **Created**: 2026-08-17  
-**Status**: Draft — Awaiting Product Review  
+**Status**: Approved for fixture-first implementation
 **SRS References**: Sections 5.1, 5.3, 36.1, 36.3, 36.5, 47 (MVP-1), 48,
 and 54 (criteria 1-2)  
 **Input**: User description: "Create the first Finvera feature specification
@@ -353,9 +353,9 @@ not be renumbered; removed requirements are deprecated with a reason.
 
 ### Measurable Outcomes
 
-- **SC-001**: In usability validation, at least 90% of target users can identify
-  the direction, session status, and as-of time of all four indices within 10
-  seconds of opening the dashboard.
+- **SC-001**: In usability validation, the configured owner can identify the
+  direction, session status, and as-of time of all four indices within 10
+  seconds in each of three consecutive timed trials.
 - **SC-002**: Across approved reference fixtures, 100% of displayed index facts
   and breadth counts match the accepted source to the declared display
   precision, with no missing value represented as zero.

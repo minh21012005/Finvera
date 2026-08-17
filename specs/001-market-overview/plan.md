@@ -3,7 +3,7 @@
 **Feature Directory**: `specs/001-market-overview`  
 **Date**: 2026-08-17  
 **Spec**: [spec.md](spec.md)  
-**Status**: Draft — Ready for Design Review
+**Status**: Approved — Fixture-first Implementation
 
 ## Summary
 
@@ -15,8 +15,8 @@ provenance, and degraded states.
 The Spring Boot `market` module will ingest and normalize licensed read-only
 market data, persist immutable accepted observations in PostgreSQL, calculate
 breadth and `market-regime-v1`, and expose one coherent
-`GET /api/v1/market/overview` response. Next.js will render the response without
-recalculating authoritative financial facts. TCBS iFlash is the initial
+`GET /api/v1/market/overview` response. A React SPA built with Vite will render
+the response without recalculating authoritative financial facts. TCBS iFlash is the initial
 read-only adapter behind a provider-neutral port. A pinned Vnstock tool provides
 offline historical bootstrap packages through a validated Spring import
 boundary. Both are restricted to an owner-only private deployment and mandatory
@@ -27,8 +27,8 @@ and Kafka are not required.
 
 **Affected Projects**: `finvera-be`, `finvera-fe`; PostgreSQL runtime/test
 configuration, TCBS connectivity, and an offline Vnstock bootstrap tool  
-**Languages/Versions**: Java 21 + Spring Boot 4.1.0; TypeScript 5 + Next.js
-16.3.1 + React 19.2.8; PostgreSQL version to be pinned by infrastructure task
+**Languages/Versions**: Java 21 + Spring Boot 4.1.0; TypeScript 5 + React
+19.2.8 + Vite (pinned by T002); PostgreSQL version to be pinned by infrastructure task
 without changing application semantics  
 **Primary Dependencies**: Existing Spring MVC, Security, JPA, PostgreSQL;
 proposed Spring Boot Flyway starter + Flyway PostgreSQL module; Testcontainers
@@ -60,10 +60,12 @@ Provider outage never creates zero/fabricated facts.
 one consolidated breadth and one regime assessment per coherent revision;
 shared read-mostly overview. No tick archive, chart delivery, HFT, or order flow.  
 **Open Technical Unknowns**: Owner authentication/private ingress are resolved
-by R-011. TCBS live field behavior and Vnstock historical
-coverage/upstream rights require fixture gates. Production adapters/importers
-remain blocked until those gates pass; deterministic fixture/domain work may
-proceed only after `tasks.md`. Failure defers the affected journey or selects a
+by R-011. A sanitized Vnstock `4.0.6`/KBS probe passed representative
+271-session history coverage on 2026-08-17. TCBS live field behavior and the
+remaining Vnstock upstream-use, request-limit, adjustment/correction, and
+full-universe checks still require gates. Production adapters/importers remain
+blocked until those gates pass; deterministic fixture/domain work may proceed
+only after `tasks.md`. Failure defers the affected journey or selects a
 licensed provider through a research/contract/ADR amendment. Neither personal
 source is permitted for public/multi-user delivery.
 
@@ -92,11 +94,12 @@ source is permitted for public/multi-user delivery.
 - [x] **Modular simplicity**: One modular-monolith slice and one provider port;
   no new service, broker, datastore, ML model, or AI dependency.
 
-**Pre-research result**: CONDITIONAL. The provider roles are resolved, while
-real integration remains gated by sanitized capability fixtures and usage terms.  
-**Post-design result**: CONDITIONAL. Domain/fixture work can be tasked after
-review; TCBS live and Vnstock import production work cannot start until their
-contract gates pass.
+**Pre-research result**: PASS for the fixture-first milestone. Provider roles,
+boundaries, and explicit activation gates are defined; no live integration is
+authorized by this result.
+**Post-design result**: PASS for T001-T044 and fixture validation T049-T056
+under the approved, narrow Complexity Tracking exception. TCBS live task T046
+and Vnstock import task T048 remain blocked by T045 and T047 respectively.
 
 ## System Context and Boundaries
 
@@ -120,7 +123,7 @@ market application overview assembler
 GET /api/v1/market/overview
         |
         v
-Next.js Server Component -> accessible index/breadth/regime/degraded UI
+React SPA route -> accessible index/breadth/regime/degraded UI
 
 finvera-ai / Gemini / embeddings / Qdrant / Kafka: no path in this feature
 ```
@@ -136,7 +139,7 @@ finvera-ai / Gemini / embeddings / Qdrant / Kafka: no path in this feature
 | Ingestion/reconciliation/overview use cases | `finvera-be/.../market/application` | Transaction and orchestration boundary. |
 | Accepted observations and derived assessments | PostgreSQL via `market/infrastructure/persistence` | Auditable transactional source of truth. |
 | Public REST mapping/security | `finvera-be/.../market/api` | Spring remains public/API access boundary. |
-| Market presentation and formatting | `finvera-fe/app/market` + feature components | UI consumes contract and does not calculate financial truth. |
+| Market presentation and formatting | `finvera-fe/src/features/market-overview` | UI consumes contract and does not calculate financial truth. |
 | AI/RAG | Not affected | Feature is deterministic and remains usable during AI outage. |
 
 ### Interface Changes
@@ -160,7 +163,7 @@ Research is complete in [research.md](research.md). Decisions include:
 - versioned freshness, calendar/session, breadth-universe, and corporate-action
   policies;
 - exact deterministic `market-regime-v1` formulas and publishability threshold;
-- PostgreSQL/Flyway/Testcontainers and Next.js test stacks;
+- PostgreSQL/Flyway/Testcontainers and React/Vite test stacks;
 - resilience, secrets, monitoring, and public API degraded semantics.
 
 ## Phase 1: Design and Contracts
@@ -333,16 +336,17 @@ finvera-be/
 
 finvera-fe/
 ├── package.json
-├── vitest.config.mts
+├── vite.config.ts
+├── vitest.config.ts
 ├── playwright.config.ts
-├── app/market/
-│   ├── page.tsx                     # Server Component entry
-│   ├── loading.tsx
-│   └── error.tsx
-├── features/market-overview/
+├── src/
+│   ├── main.tsx                     # Browser entry
+│   ├── app.tsx                      # Client-side route shell
+│   └── features/market-overview/
 │   ├── api/                         # explicit API DTO/client mapping
 │   ├── components/                  # cards, breadth, regime, status
-│   └── format/                      # locale/unit formatting only
+│   ├── format/                      # locale/unit formatting only
+│   └── market-overview-page.tsx     # loading/error/content states
 └── tests/
     ├── market-overview/
     └── e2e/market-overview.spec.ts
@@ -371,8 +375,11 @@ database directly.
 
 ## Complexity Tracking
 
-No constitution violation or material complexity exception is required. The
-provider port is the minimum seam needed to avoid coupling authoritative domain
-logic to one external schema. Flyway and Testcontainers address required
+| Violation/Addition | Why Required Now | Simpler Alternative Rejected | Approval/ADR | Removal or Review Trigger |
+|---|---|---|---|---|
+| Fixture-first milestone while live provider gates remain open | The owner explicitly directed implementation to continue while TCBS provisioning and Vnstock rights are resolved separately. T001-T044 and T049-T056 can be validated without representing fixtures as live data. | Blocking deterministic domain, security, persistence, API, and UI work on unrelated external onboarding | Owner approval, 2026-08-17; provider decisions remain governed by ADR-0003/0004 | Exception ends at fixture-mode validation; T045-T048 and any live deployment remain blocked until their individual gates pass. |
+
+The provider port is the minimum seam needed to avoid coupling authoritative
+domain logic to one external schema. Flyway and Testcontainers address required
 migration/reproducibility risks. Kafka, Redis, AI, and a new service are not
 introduced.

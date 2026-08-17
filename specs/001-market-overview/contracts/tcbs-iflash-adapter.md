@@ -19,7 +19,9 @@ adapter boundary or appear in browser/API payloads.
 ## Provider authentication and session lifecycle
 
 - The owner obtains the TCBS API key through TCInvest/iFlash Open API and
-  manually completes iOTP to obtain a token.
+  manually completes a documented OTP flow to obtain a token. TCInvest app
+  TOTP uses `apiKey + otp`. The separately registered Email/SMS flow first
+  calls `request-otp` with `apiKey`, then exchanges `apiKey + otp + otpId`.
 - TCBS documents a maximum token lifetime of eight hours. A token is held only
   in runtime memory; it is never persisted, logged, or sent to a browser.
 - Only the authenticated owner may initiate renewal. Finvera MAY accept iOTP
@@ -28,6 +30,9 @@ adapter boundary or appear in browser/API payloads.
   ingestion pauses until the owner completes this private operational path.
 - The API key is a server-side secret. It is absent from source control, client
   configuration, telemetry, fixtures, and logs.
+- TCBS documents that an iFlash API key is valid for 12 months and may be
+  viewed, revoked, or regenerated in TCInvest. Expiry/rotation must surface as
+  provider authentication health, never as missing or zero market data.
 
 ## Normalized port
 
@@ -60,10 +65,26 @@ capture sanitized fixtures and confirm the documented API can provide:
 4. correction, ordering, timestamp, rate-limit, REST/WebSocket, and delay
    behavior needed by the acceptance tests.
 
+The owner must also confirm that the account is currently entitled to iFlash.
+The TCBS FAQ states current priority criteria of at least VND 100 million in
+monthly listed-securities trading or at least 10 VN30 futures contracts per
+month. Meeting a published criterion is not inferred from possession of an API
+key; successful provisioned access and TCBS confirmation are the gate evidence.
+
 The implementation MUST not guess a TCBS schema or silently substitute missing
 facts. If any required capability is unavailable under the account's approved
 access, return the relevant section as partial/unavailable and resolve the
 provider decision before enabling the affected journey.
+
+**Current POC evidence (2026-08-17)**: A TOTP token-exchange probe reached the
+TCBS endpoint and received HTTP 400 with sanitized provider code `203033`
+before any market REST or WebSocket call. A separate Email/SMS `request-otp`
+probe received HTTP 500 with sanitized provider code `203147`; no OTP was sent
+or entered. No response body, credential, OTP, or token was retained. TCBS's
+public token documentation does not map either code, so the results do not
+prove or disprove account entitlement. The owner must verify the OpenAPI
+registration/API key and registered OTP method with TCBS before another retry.
+The capability gate remains open.
 
 ## Delivery, rate, and failure behavior
 
@@ -112,6 +133,8 @@ cannot be called.
   lifetime.
 - [TCBS token endpoint](https://developers.tcbs.com.vn/docs/v1.0.0/auth/token/)
   documents the OAuth token operation.
+- TCBS iFlash FAQ supplied/reviewed by the owner documents 12-month API-key
+  validity, TCInvest key management, and the current account-priority criteria.
 - TCBS iFlash Open API Terms and Conditions supplied by the owner, clauses
   2(c), 2(d), and 3(c): use is constrained to the client's own securities
   transaction purpose; sharing original or processed information with third

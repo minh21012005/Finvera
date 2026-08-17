@@ -19,7 +19,7 @@ More specific `AGENTS.md` files override this file only within their directory.
 ## Repository Map
 
 ```text
-finvera-fe/   Next.js 16, React 19, TypeScript, Tailwind CSS
+finvera-fe/   React 19 SPA, Vite, TypeScript, Tailwind CSS
 finvera-be/   Java 21, Spring Boot core API and modular monolith
 finvera-ai/   Python 3.13, FastAPI internal AI/RAG service
 docs/         Product requirements and cross-cutting guidance
@@ -177,4 +177,3 @@ A feature is complete only when:
 - Relevant quality commands pass and results are reported.
 - Documentation and ADRs reflect durable decisions.
 - No secret, placeholder, fabricated market fact, or unapproved scope remains.
-

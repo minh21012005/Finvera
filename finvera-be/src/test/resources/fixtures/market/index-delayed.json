@@ -1,0 +1,15 @@
+{
+  "fixtureVersion": "market-fixture-v1",
+  "source": "FINVERA_FIXTURE",
+  "tradingDate": "2026-08-17",
+  "observedAt": "2026-08-17T02:45:00Z",
+  "sessionState": "OPEN",
+  "dataStatus": "DELAYED",
+  "reasonCodes": ["UPDATE_DELAY_EXCEEDED"],
+  "indices": [
+    { "code": "VN_INDEX", "level": "1279.000000", "referenceLevel": "1275.000000" },
+    { "code": "VN30", "level": "1340.000000", "referenceLevel": "1338.400000" },
+    { "code": "HNX_INDEX", "level": "241.500000", "referenceLevel": "242.000000" },
+    { "code": "UPCOM_INDEX", "level": "98.300000", "referenceLevel": "98.420000" }
+  ]
+}

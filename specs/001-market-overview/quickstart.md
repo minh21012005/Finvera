@@ -7,7 +7,7 @@ after `tasks.md` is approved and implementation is complete.
 ## Prerequisites
 
 - Java 21 and the repository Maven wrapper.
-- Node.js compatible with the committed Next.js 16 project and `npm`.
+- Node.js compatible with the committed React/Vite project and `npm`.
 - A Docker-compatible container runtime for PostgreSQL/Testcontainers.
 - PostgreSQL for local runtime, configured only through environment/secret
   values.

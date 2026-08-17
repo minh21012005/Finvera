@@ -1,15 +1,16 @@
 <!--
 Sync Impact Report
-- Version change: template (unratified) -> 1.0.0
-- Adopted principles: Deterministic Finance Core; Evidence, Provenance, and
-  Temporal Truth; Explicit Service and Data Boundaries; Security, Privacy, and
-  Responsible Decision Support; Specification and Traceability Before Code;
-  Risk-Based Testing and Reproducibility; Resilience and Observability; Modular
-  Simplicity.
-- Added sections: Product and Technology Constraints; Delivery Gates.
-- Templates updated: spec, plan, tasks, and checklist templates.
-- Runtime guidance updated: root/service AGENTS.md and docs/SDD_WORKFLOW.md.
-- Deferred items: none.
+- Version change: 1.0.0 -> 1.0.1
+- Modified principles: none.
+- Clarified section: Product and Technology Constraints now identifies the
+  frontend as a React SPA built with Vite, per ADR-0006.
+- Added sections: none.
+- Removed sections: none.
+- Templates reviewed: plan, spec, and tasks templates require no framework-
+  specific change.
+- Runtime guidance updated: AGENTS.md, finvera-fe/AGENTS.md,
+  docs/PROJECT_CONTEXT.md, and Feature 001 design artifacts.
+- Follow-up TODOs: none.
 -->
 
 # Finvera Constitution
@@ -134,8 +135,9 @@ operability, and testability.
 ## Product and Technology Constraints
 
 - Product focus: Vietnamese equity research and decision support.
-- Delivery shape: Next.js frontend, Spring Boot modular monolith, and an
-  independently deployable internal FastAPI AI service.
+- Delivery shape: React SPA built with Vite, Spring Boot modular monolith, and
+  an independently deployable internal FastAPI AI service. SSR or another
+  frontend runtime requires an approved feature need and ADR.
 - Current runtime/dependency versions are those pinned by committed manifests
   and lockfiles. A version change requires research, compatibility validation,
   and inclusion in the feature plan.
@@ -211,5 +213,4 @@ design. Any exception MUST be explicit, narrowly scoped, time-bounded when
 possible, and recorded in Complexity Tracking or an ADR with an owner and
 remediation plan. Reviewers MUST reject undocumented exceptions.
 
-**Version**: 1.0.0 | **Ratified**: 2026-08-17 | **Last Amended**: 2026-08-17
-
+**Version**: 1.0.1 | **Ratified**: 2026-08-17 | **Last Amended**: 2026-08-17

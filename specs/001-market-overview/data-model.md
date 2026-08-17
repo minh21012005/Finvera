@@ -118,6 +118,13 @@ hash and sanitized diagnostic excerpt only when licensing permits.
 | `ingested_at` | timestamptz | Finvera receipt time. |
 | `source_sequence` | varchar(128) nullable | Provider sequence/version if supplied. |
 | `payload_hash` | char(64) | SHA-256 of canonical normalized payload. |
+| `status` | varchar(32) | `ACCEPTED`, `DUPLICATE`, `REJECTED`, `SUPERSEDED`. |
+| `reason_code` | varchar(64) nullable | Stable validation/rejection code. |
+| `supersedes_id` | UUID nullable | Previous corrected ingestion record. |
+
+Unique idempotency index on the complete natural key where source sequence is
+present; fallback unique index on source/dataset/subject/trading date/observed
+time/payload hash.
 
 ### `market_import_batch`
 
@@ -141,13 +148,6 @@ no data by itself; all contained observations still pass normal validation.
 The canonical package is an ephemeral transfer artifact and is deleted after
 successful validation/import according to the operator runbook. Accepted
 normalized observations remain immutable under their retention policy.
-| `status` | varchar(32) | `ACCEPTED`, `DUPLICATE`, `REJECTED`, `SUPERSEDED`. |
-| `reason_code` | varchar(64) nullable | Stable validation/rejection code. |
-| `supersedes_id` | UUID nullable | Previous corrected ingestion record. |
-
-Unique idempotency index on the complete natural key where source sequence is
-present; fallback unique index on source/dataset/subject/trading date/observed
-time/payload hash.
 
 ### `index_snapshot`
 

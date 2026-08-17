@@ -160,8 +160,13 @@ components:
       properties:
         iOtp:
           type: string
-          pattern: "^[0-9]{6}$"
+          minLength: 1
+          maxLength: 128
           writeOnly: true
+          description: >-
+            Opaque, transient owner-entered TCBS authentication value. Its
+            provider-specific format is not assumed until the TCBS capability
+            gate is approved.
     ErrorResponse:
       type: object
       required: [type, title, status, code, correlationId]

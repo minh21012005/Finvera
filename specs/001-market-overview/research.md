@@ -2,7 +2,7 @@
 
 **Feature**: `001-market-overview`  
 **Date**: 2026-08-17  
-**Status**: Conditional design; TCBS live and Vnstock historical fixture gates remain before production implementation
+**Status**: Conditional design; Vnstock technical coverage passed, while TCBS capability and upstream-use gates remain before production implementation
 
 This document resolves the technical dependencies identified by the feature
 specification. Provider documentation establishes technical feasibility, not a
@@ -34,14 +34,24 @@ approval before giving original or processed information to third parties.
   rejected as speculative. The port normalizes only Feature 1 needs.
 
 **Risks/validation**: TCBS requires an account, API key, and owner-initiated
-iOTP. The documented token lifetime is at most eight hours; Finvera cannot
-automate iOTP, so expiry pauses live ingestion and must surface
+OTP. The documented token lifetime is at most eight hours; Finvera cannot
+automate the OTP flow, so expiry pauses live ingestion and must surface
 `PROVIDER_AUTH_REQUIRED`. Before any real adapter task begins, capture
 sanitized fixtures and prove exact dataset entitlement, schemas, rate limits,
 latency/delay, index/symbol mapping, history depth, correction behavior,
 reference prices, and access constraints. If the account cannot supply a
 required fact or delivery becomes public/multi-user, select a separately
 licensed provider and amend this research, contract, and ADR.
+
+The first sanitized TCBS TOTP probe on 2026-08-17 returned HTTP 400 at token
+exchange; no market endpoint was called. A diagnostic rerun returned provider
+code `203033`. A separate Email/SMS `request-otp` attempt returned HTTP 500
+with provider code `203147`, before TCBS sent or the owner entered an OTP.
+TCBS's public token documentation does not map either code. The probe supports
+both documented TCInvest-app TOTP and registered Email/SMS OTP flows, and
+preserves only an allowlisted code/schema on failure. The owner must verify
+account/OpenAPI enrollment and the registered OTP method with TCBS before
+retrying the probe and before the live capability gate can be assessed.
 
 Sources: [TCBS iFlash workflow](https://developers.tcbs.com.vn/docs/v1.0.0/workflow/),
 [TCBS token endpoint](https://developers.tcbs.com.vn/docs/v1.0.0/auth/token/),
@@ -73,11 +83,31 @@ ownership boundary and avoids a permanent Python market-data service.
   and historical endpoint entitlement require direct confirmation.
 - FiinGroup remains the preferred future commercial/public replacement.
 
-**Risks/validation**: Vnstock is an extraction tool, not the data owner. Its
-software license alone does not establish upstream storage/display rights or
-an SLA. Before production implementation, pin the package/source, capture
-sanitized fixtures, prove 271-session coverage, record request limits and
-adjustment semantics, and accept/verify both software and upstream-source terms.
+**Technical gate evidence (2026-08-17)**: The isolated, sanitized probe under
+`tools/market-data/provider-poc` pinned Vnstock `4.0.6` and selected upstream
+source `KBS`. It returned 652 daily rows for VNINDEX, HNXINDEX, and UPCOMINDEX;
+652 rows for representative HOSE/HNX equities VNM/SHS; and 647 rows for UPCOM
+equity MCH. All samples contained `time/open/high/low/close/volume` with no
+nulls. The reference probes found 1,526 stock symbols: 404 HOSE, 299 HNX, and
+823 UPCOM. The local sanitized summary SHA-256 is
+`B15DA17601D8C7D529D50BCC09315918C7115BFB9CD9F57532E41F4E5C9EC864`.
+
+This proves representative 271-session coverage, not a full-universe import.
+It also shows that Vnstock exposes historical prices as binary `float64` and
+does not expose matched trading value in the tested OHLCV shape. The canonical
+exporter MUST convert provider values through their decimal string form before
+validation/calculation. A missing liquidity component may use the explicit
+four-of-five regime renormalization rule; it must never be synthesized from
+volume or set to zero.
+
+**Remaining risks/validation**: Vnstock is an extraction tool, not the data
+owner. Its software license alone does not establish upstream storage/display
+rights or an SLA, and the public KBS terms reviewed did not provide an explicit
+market-data automation/storage grant. Before production importer work, the
+owner must accept the Vnstock personal/non-commercial license, confirm upstream
+private storage/analysis rights, record request limits and adjustment
+semantics, and run a bounded full-universe coverage test. These legal and
+semantic checks remain blocking even though the technical coverage probe passed.
 
 Source: [Vnstock repository and license summary](https://github.com/thinh-vu/vnstock).
 
@@ -311,17 +341,15 @@ snapshot with section-level `dataStatus`, timestamps, source labels, units,
 reason codes, and nullable facts. Partial success is HTTP 200; no value is
 fabricated. The endpoint is private: Spring permits only the configured owner
 and returns the common 401/403 envelope to every other caller. Unexpected
-server failure uses the common error envelope. The initial Next.js
-page is a Server Component that calls only Spring Boot, with small client
-boundaries only if interaction requires them.
+server failure uses the common error envelope. The initial React/Vite page is a
+client-side route that calls only Spring Boot through a typed API client.
 
-Use Vitest + React Testing Library for synchronous formatter/presentation
-components and Playwright for the P1 page flow and async Server Component
-behavior.
+Use Vitest + React Testing Library for formatter, presentation, and asynchronous
+page-state components, and Playwright for the P1 browser flow.
 
 **Rationale**: One coherent response prevents the UI from mixing incompatible
-as-of snapshots. Next.js documents Vitest for unit/component testing but
-recommends E2E tests for async Server Components.
+as-of snapshots. Vite keeps browser-facing tests independent of a frontend
+server runtime.
 
 **Alternatives considered**: One endpoint per card was rejected because it
 increases cross-section consistency risk. Browser-to-provider calls violate the
@@ -332,9 +360,8 @@ degraded 200 responses, owner-only authorization, and denied public access.
 Accessibility tests must verify that status and direction are not conveyed by
 color alone.
 
-Sources: [Next.js testing overview](https://nextjs.org/docs/app/guides/testing),
-[Next.js Vitest guide](https://nextjs.org/docs/app/guides/testing/vitest),
-[Next.js Playwright guide](https://nextjs.org/docs/app/guides/testing/playwright).
+Repository-wide frontend delivery decision:
+[ADR-0006](../../docs/adr/0006-use-react-vite-for-private-web-client.md).
 
 ## R-010 — Resilience, Security, and Observability
 
@@ -384,8 +411,8 @@ an absolute eight-hour lifetime. State-changing requests use a same-origin CSRF
 token/header. Authentication failures use bounded backoff/rate limiting without
 revealing whether the username or password was wrong.
 
-The same-origin private route sends `/api/*` to Spring and other paths to
-Next.js. Tailscale is network reachability only: Spring does not trust an
+The same-origin private route sends `/api/*` to Spring and other paths to the
+React SPA. Tailscale is network reachability only: Spring does not trust an
 unverified proxy identity header, and every protected API checks the local
 owner session. No self-registration, password-reset email, invitation, API
 token, or second account exists in v1.

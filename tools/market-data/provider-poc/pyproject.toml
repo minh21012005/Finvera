@@ -1,0 +1,18 @@
+[project]
+name = "finvera-market-provider-poc"
+version = "0.1.0"
+description = "Non-production capability probes for Finvera market-data providers"
+requires-python = ">=3.13"
+dependencies = [
+    "httpx>=0.28,<1",
+    "vnstock==4.0.6",
+    "websockets>=15,<17",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8,<10",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

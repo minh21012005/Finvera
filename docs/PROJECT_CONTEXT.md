@@ -16,7 +16,7 @@ Market -> Stock -> Analysis -> Strategy -> Risk -> Evidence -> User decision
 ## System Map
 
 ```text
-Browser (Next.js)
+Browser (React SPA built with Vite)
         |
         v
 Spring Boot modular monolith ----------------> PostgreSQL
@@ -78,6 +78,10 @@ Conflicts must be documented and resolved; precedence is not permission to hide
 an inconsistency.
 
 ## Known Baseline Decisions and Gaps
+
+- **Resolved — private web client**: Finvera uses a React SPA built with Vite;
+  Spring remains the authentication and public API boundary. The SRS Next.js
+  baseline is refined by [ADR-0006](adr/0006-use-react-vite-for-private-web-client.md).
 
 - **Resolved — backend platform**: Finvera uses Java 21 and Spring Boot 4.1.x;
   the current verified pin is 4.1.0. Only verified generally available 4.1.x

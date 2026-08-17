@@ -1,17 +1,6 @@
-<!-- BEGIN:nextjs-agent-rules -->
-
-# This is NOT the Next.js you know
-
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
-
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
-
-<!-- END:nextjs-agent-rules -->
-
 # Finvera Frontend Instructions
 
-This section extends the repository-level `AGENTS.md` for `finvera-fe/`. Keep
-the generated Next.js rule block above intact.
+This file extends the repository-level `AGENTS.md` for `finvera-fe/`.
 
 ## Responsibility and Boundaries
 
@@ -20,15 +9,16 @@ the generated Next.js rule block above intact.
   returns or issuing unsupported buy/sell directives.
 - Call only the Spring Boot public API. Never call `finvera-ai`, Qdrant,
   PostgreSQL, Redis, an LLM provider, or a market-data provider from the browser.
-- Do not place secrets in `NEXT_PUBLIC_*` variables or client bundles.
+- Do not place secrets in `VITE_*` variables or client bundles. Every `VITE_*`
+  variable is public at build time.
 - Treat server responses and rich document/news content as untrusted input.
 
-## Next.js and TypeScript
+## React, Vite, and TypeScript
 
-- Target versions pinned in `package.json` and consult the installed Next.js
-  documentation required by the generated block before changing framework APIs.
-- Prefer Server Components. Add `"use client"` only at the smallest interactive
-  boundary and keep data access/server secrets out of Client Components.
+- Target versions pinned in `package.json`; do not introduce an SSR/BFF runtime
+  without an approved feature need and ADR.
+- Use client-side routes and call only same-origin Spring endpoints. Keep API
+  access in typed feature clients rather than UI components.
 - Keep API DTOs, domain display models, and chart view models explicit. Avoid
   `any`, unchecked casts, and duplicated calculation logic.
 - Financial calculations and signal decisions belong to the backend. The UI may
@@ -51,4 +41,5 @@ the generated Next.js rule block above intact.
 
 - Add component tests for decision-heavy states and end-to-end tests for P1
   journeys when the testing stack is introduced.
-- Run `npm run lint` and `npm run build` from `finvera-fe/` before handoff.
+- Run `npm run test`, `npm run lint`, and `npm run build` from
+  `finvera-fe/` before handoff.

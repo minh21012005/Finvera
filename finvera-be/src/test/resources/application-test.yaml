@@ -1,0 +1,21 @@
+spring:
+  flyway:
+    enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  jackson:
+    time-zone: UTC
+
+finvera:
+  security:
+    owner:
+      id: 00000000-0000-0000-0000-000000000001
+      username: fixture-owner
+      password-hash: "{noop}fixture-test-password"
+  market:
+    timezone: Asia/Ho_Chi_Minh
+    provider:
+      mode: fixture
+      live-enabled: false

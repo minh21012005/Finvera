@@ -15,8 +15,11 @@
 
 - [x] No `[NEEDS CLARIFICATION]` markers remain
 - [x] Owner identity and private-ingress mechanism are selected
-- [ ] TCBS live sanitized capability fixtures pass
-- [ ] Vnstock 271-session/upstream-license sanitized fixture gate passes
+- [x] TCBS live capability is isolated behind an explicit activation gate and
+  fixture-first implementation does not claim that the gate passed
+- [x] Vnstock representative 271-session technical coverage gate passes
+- [x] Vnstock rights/semantics/limits/full-universe checks are isolated behind
+  an explicit activation gate and are not required by fixture-first execution
 - [x] Success criteria are measurable
 - [x] Acceptance scenarios and failure cases are defined
 - [x] Dependencies, provenance, freshness, precision, and degradation are stated
@@ -27,12 +30,13 @@
 - [x] Deterministic regime behavior is separated from AI
 - [x] Public/multi-user delivery is excluded for both personal-use sources
 - [x] iOTP handling forbids persistence, logging, reuse, and automation
-- [ ] Constitution Design Gate passes without provider fixture/license conditions
-- [ ] `tasks.md` exists and passes `speckit-analyze`
+- [x] Constitution Design Gate passes for the approved fixture-first milestone;
+  live provider tasks remain separately blocked
+- [x] `tasks.md` exists and passes `speckit-analyze`
 
 ## Validation Evidence
 
-- Validation iteration: 2
+- Validation iteration: 3
 - Defined requirements: 38 (`FR-001`–`FR-015`, `DATA-001`–`DATA-010`,
   `NFR-001`–`NFR-007`, `SEC-001`–`SEC-006`)
 - Duplicate requirement IDs: 0
@@ -44,7 +48,9 @@
 
 - The owner accepted TCBS live plus Vnstock offline historical bootstrap for a
   private/non-commercial v1.
-- Production provider/importer tasks and code remain blocked until both fixture
-  and usage-right gates pass.
-- Task generation remains blocked until the provider fixture/license conditions
-  and conditional Constitution Check are resolved.
+- Vnstock `4.0.6`/KBS representative coverage passed on 2026-08-17; this does
+  not establish upstream storage/automation rights or full-universe fitness.
+- Production TCBS adapter and Vnstock importer tasks remain blocked until their
+  respective capability and remaining usage-right/semantic gates pass.
+- Fixture-first implementation is approved under the narrow exception in
+  `plan.md`; production TCBS/Vnstock activation remains blocked.
