@@ -45,6 +45,18 @@ calendar, decimal bounds, duplicate dates, monotonic date order, and provenance
 before creating immutable accepted observations. Invalid packages are rejected
 atomically and never partially imported.
 
+The provider-neutral Spring import core may be built and unit-tested before the
+external Vnstock gate closes. It accepts only a reviewed canonical package:
+the exporter supplies the exact canonical payload used for `package_sha256`,
+while the core records an `ACCEPTED` import batch plus immutable instrument,
+ingestion, and price facts in one transaction. It neither invokes Vnstock nor
+accepts raw provider responses. Wiring an exporter to that boundary, and using
+it with real data, remains blocked by the gates below.
+
+The internal import bean is disabled by default and is enabled only by the
+explicit `finvera.market.import.enabled=true` operator configuration after the
+relevant gate and operator runbook are approved.
+
 ## Fixture and license gate
 
 Before implementation is approved, the owner MUST prove with sanitized output:
@@ -74,13 +86,45 @@ passed the representative history gate on 2026-08-17:
 - stock reference coverage: 404 HOSE, 299 HNX, and 823 UPCOM symbols.
 
 The local summary intentionally contains schema/count/date evidence only and is
-gitignored. Its SHA-256 is
-`B15DA17601D8C7D529D50BCC09315918C7115BFB9CD9F57532E41F4E5C9EC864`.
+gitignored. The latest rerun used the owner's Vnstock Community entitlement
+(60 requests/minute) and produced SHA-256
+`2ded0d53a27c2e2319a3dcab65ab42e8981b0196c60885b36b9e6024d186344c`.
 
 This supplies representative evidence toward items 1-3 but does not prove
 source stability for every dataset. Items 4-6, a bounded full-universe run,
 upstream KBS private storage/automation rights, request limits, adjustment
 semantics, and correction behavior remain unresolved.
+
+### Bounded full-universe probe
+
+`tools/market-data/provider-poc/poc_vnstock.py --full-universe` is the
+non-production technical probe for this remaining coverage evidence. It is
+explicitly opt-in, defaults to 30 requests/minute (below the owner's Community
+limit), and can be bounded with `--max-symbols`. A checkpoint stores only
+one-way symbol fingerprints, aggregate status counts, and safe failure types;
+it stores neither prices nor raw provider responses. `--resume` continues a
+matching source/range/universe checkpoint without re-requesting completed
+symbols. The output summary contains aggregate counts by exchange and no symbol
+identifiers or market values.
+
+After a recorded representative success, a resumed batch may use
+`--skip-representative` to avoid consuming quota on the eight sample requests.
+That summary is explicitly marked `NOT_RECHECKED`; it cannot be used as new
+representative-gate evidence.
+
+The probe is evidence gathering only. A partial run, a successful probe, or a
+Vnstock Community entitlement does not close the upstream-use, adjustment, or
+correction gates and does not authorize the importer in this contract.
+
+**Initial bounded-run evidence (2026-08-17):** the checkpointed batches have
+processed 56 of 1,526 eligible equities at 30 requests/minute: 42 have usable
+271-session history and 14 are recorded as `INSUFFICIENT_HISTORY`. There were
+no provider-failure attempts and 1,470 candidates remain. Its latest sanitized
+summary SHA-256 is
+`a118e2cb6565fca08dab61747c42eb441c96091ac6ec7cb4da918a79131812fd`.
+This validates rate limiting, sanitized checkpoint migration/resume, and
+explicit unavailable-history reporting only; it is deliberately not
+full-universe coverage.
 
 The observed history uses `float64` price columns. Production code MUST parse
 canonical decimal strings into exact decimals at the import boundary and MUST

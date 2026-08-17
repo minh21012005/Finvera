@@ -98,8 +98,9 @@ source `KBS`. It returned 652 daily rows for VNINDEX, HNXINDEX, and UPCOMINDEX;
 652 rows for representative HOSE/HNX equities VNM/SHS; and 647 rows for UPCOM
 equity MCH. All samples contained `time/open/high/low/close/volume` with no
 nulls. The reference probes found 1,526 stock symbols: 404 HOSE, 299 HNX, and
-823 UPCOM. The local sanitized summary SHA-256 is
-`B15DA17601D8C7D529D50BCC09315918C7115BFB9CD9F57532E41F4E5C9EC864`.
+823 UPCOM. The latest local sanitized rerun, using the owner's Vnstock
+Community entitlement (60 requests/minute), has SHA-256
+`2ded0d53a27c2e2319a3dcab65ab42e8981b0196c60885b36b9e6024d186344c`.
 
 This proves representative 271-session coverage, not a full-universe import.
 It also shows that Vnstock exposes historical prices as binary `float64` and
@@ -108,6 +109,18 @@ exporter MUST convert provider values through their decimal string form before
 validation/calculation. A missing liquidity component may use the explicit
 four-of-five regime renormalization rule; it must never be synthesized from
 volume or set to zero.
+
+**Bounded full-universe probe decision (2026-08-17)**: T047 adds an explicit
+non-production probe mode rather than beginning the importer. It defaults to
+30 requests/minute under the owner's 60 requests/minute Community entitlement,
+requires `--full-universe`, supports `--max-symbols` and `--resume`, and writes
+only aggregate counts plus one-way symbol fingerprints in its gitignored
+checkpoint. This permits measured coverage evidence without retaining raw
+provider payloads or silently treating a partial batch as import approval.
+The checkpointed batches have processed 56 of 1,526 eligible histories at 30
+requests/minute: 42 usable and 14 explicitly `INSUFFICIENT_HISTORY`, with no
+provider failure. The latest sanitized summary SHA-256 is
+`a118e2cb6565fca08dab61747c42eb441c96091ac6ec7cb4da918a79131812fd`.
 
 **Remaining risks/validation**: Vnstock is an extraction tool, not the data
 owner. Its software license alone does not establish upstream storage/display

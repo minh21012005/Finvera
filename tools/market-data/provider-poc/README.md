@@ -32,7 +32,30 @@ uv run python poc_vnstock.py
 The probe checks index history and representative HOSE/HNX/UPCOM equities. It
 also inspects the reference universe when the pinned Vnstock API supports it.
 Passing requires at least 271 completed VN-Index sessions and usable OHLCV
-columns. Full-universe bootstrap remains a later importer acceptance test.
+columns. Full-universe coverage is a separate gated POC; the bootstrap importer
+remains blocked until T047 is fully approved.
+
+### Bounded full-universe coverage probe
+
+After the representative probe succeeds, use an explicit bounded batch first:
+
+```powershell
+uv run python poc_vnstock.py --full-universe --max-symbols 25 --requests-per-minute 30
+```
+
+Continue the same source/range/universe after reviewing the sanitized summary:
+
+```powershell
+uv run python poc_vnstock.py --full-universe --max-symbols 25 --requests-per-minute 30 --resume --skip-representative
+```
+
+Omit `--max-symbols` only when intentionally requesting every eligible common
+equity. The tool never writes PostgreSQL or raw market values. Its checkpoint
+and summary are gitignored; the checkpoint keeps only one-way symbol
+fingerprints and aggregate status counts so interrupted batches can resume.
+`--skip-representative` is allowed only on `--resume`; it avoids repeating the
+eight sample calls and marks the summary as `NOT_RECHECKED`, never as fresh
+representative-gate evidence.
 
 ## TCBS interactive probe
 

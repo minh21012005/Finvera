@@ -229,12 +229,17 @@ mode is complete.
 - [ ] T046 [NFR-002, NFR-006, NFR-007, SEC-002, SEC-003, SEC-004] After T045 only, write contract/fault/allowlist tests and implement the live integration in `finvera-be/src/test/java/com/minhnb/finvera_be/market/provider/tcbs/TcbsMarketDataProviderTests.java` and `finvera-be/src/main/java/com/minhnb/finvera_be/market/provider/tcbs/TcbsMarketDataProvider.java`
       Verify: sanitized contract tests pass for exact captured schemas, bounded timeouts/retry/reconnect, auth expiry, and forbidden non-market operations
       Depends: T016, T020, T045
-- [ ] T047 [DATA-010] Close the Vnstock upstream-use, request-limit, adjustment/correction, and bounded full-universe gates in `specs/001-market-overview/contracts/vnstock-historical-bootstrap.md`
-      Verify: written evidence permits intended private storage/analysis and checklist gate is checked without inferring rights from the Python package license
+- [ ] T047 [DATA-010] Close the Vnstock upstream-use, request-limit, adjustment/correction, and bounded full-universe gates using `tools/market-data/provider-poc/poc_vnstock.py` and `specs/001-market-overview/contracts/vnstock-historical-bootstrap.md`
+      Verify: a bounded full-universe POC records only sanitized aggregate evidence with a configured rate limit/checkpoint; written evidence permits intended private storage/analysis and the contract checklist is checked without inferring rights from the Python package license
       Depends: external source-rights confirmation; none of T001-T044
+      Interim evidence (2026-08-17): bounded POC implementation and 30 requests/minute checkpoint migration/resume validation processed 56 of 1,526 eligible histories (42 usable; 14 explicit `INSUFFICIENT_HISTORY`) with no provider failure; full coverage, adjustment/correction semantics, and upstream-use confirmation remain open.
 - [ ] T048 [DATA-001, DATA-003, DATA-007, DATA-009, DATA-010] After T047 only, implement the canonical decimal-string exporter and atomic Spring importer in `tools/market-data/vnstock-export/export_history.py` and `finvera-be/src/main/java/com/minhnb/finvera_be/market/service/MarketImportService.java` with tests in `finvera-be/src/test/java/com/minhnb/finvera_be/market/service/MarketImportServiceTests.java`
       Verify: package checksum/schema/provenance/271-session/idempotency/conflict tests pass and neither tool nor package writes PostgreSQL directly
       Depends: T011, T039, T047
+
+- [X] T059 [DATA-001, DATA-003, DATA-007, DATA-009] Implement the provider-neutral canonical historical-package validator and atomic Spring import core in `finvera-be/src/main/java/com/minhnb/finvera_be/market/service/MarketImportService.java` with tests in `finvera-be/src/test/java/com/minhnb/finvera_be/market/service/MarketImportServiceTests.java` and `MarketImportPersistenceTests.java`; it accepts only reviewed package records and does not invoke Vnstock.
+      Verify: unit tests cover checksum, decimal-string, date-order, provenance, idempotency, and no-write-on-validation-failure; PostgreSQL integration verifies persisted immutable facts and idempotent package replay.
+      Depends: T011, T039
 
 **Checkpoint**: Provider work is activated only by approved evidence; fixture
 completion is never misrepresented as live-data readiness.
