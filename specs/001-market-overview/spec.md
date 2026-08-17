@@ -2,7 +2,7 @@
 
 **Feature Directory**: `001-market-overview`  
 **Created**: 2026-08-17  
-**Status**: Approved for fixture-first implementation
+**Status**: Fixture mode implemented and validated; live providers and remote deployment gated
 **SRS References**: Sections 5.1, 5.3, 36.1, 36.3, 36.5, 47 (MVP-1), 48,
 and 54 (criteria 1-2)  
 **Input**: User description: "Create the first Finvera feature specification

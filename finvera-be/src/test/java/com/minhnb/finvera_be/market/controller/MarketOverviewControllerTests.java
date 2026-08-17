@@ -116,7 +116,7 @@ class MarketOverviewControllerTests {
     void ownerReceivesPartialBreadthWithItsReproducibleUniverseVersion() throws Exception {
         Instant now = Instant.parse("2026-08-17T03:00:00Z");
         var empty = MarketOverviewService.empty(now);
-        var breadth = new BreadthService.Snapshot(empty.indices().tradingDate(), now, DataStatus.PARTIAL,
+        var breadth = new BreadthService.Snapshot(UUID.randomUUID(), empty.indices().tradingDate(), now, DataStatus.PARTIAL,
                 new BreadthCalculator.Result(3, 2, 1, 1, 7, java.util.List.of("MISSING_REFERENCE_PRICE")),
                 "breadth-universe-v1", "a".repeat(64));
         given(overviewService.latest()).willReturn(new MarketOverviewService.MarketOverview(

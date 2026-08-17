@@ -3,6 +3,7 @@ import AxeBuilder from "@axe-core/playwright";
 
 type OverviewMode = "complete" | "delayed" | "closed" | "missing";
 type BreadthMode = "complete" | "partial" | "unavailable";
+type RegimeMode = "complete" | "withheld" | "conflict" | "corrected" | "unavailable";
 
 test.describe("P1 market overview", () => {
   test("P1 renders four complete index facts without contacting AI or a market provider", async ({ page }) => {
@@ -43,13 +44,14 @@ test.describe("P1 market overview", () => {
   });
 
   test("P1 denies an unauthenticated owner session without exposing fallback values", async ({ page }) => {
-    await page.route("**/api/v1/market/overview", async (route) => {
+    await page.route("**/api/v1/auth/session", async (route) => {
       await route.fulfill({ status: 401, contentType: "application/json", body: "{}" });
     });
 
     await page.goto("/");
 
-    await expect(page.getByRole("alert")).toHaveText("Phiên đăng nhập riêng tư không hợp lệ hoặc đã hết hạn.");
+    await expect(page.getByLabel("Username")).toBeVisible();
+    await expect(page.getByLabel("Password")).toBeVisible();
     await expect(page.getByRole("article")).toHaveCount(0);
   });
 
@@ -92,12 +94,78 @@ test.describe("P2 market breadth", () => {
   });
 });
 
-async function installMarketOverviewFixture(page: Page, mode: OverviewMode, breadthMode: BreadthMode = "unavailable"): Promise<void> {
+test.describe("P3 market regime", () => {
+  test("P3 replays the same deterministic regime facts and disclosure after reload", async ({ page }) => {
+    await installMarketOverviewFixture(page, "complete", "complete", "complete");
+    await page.goto("/");
+
+    const regime = page.locator("section").filter({ hasText: "market-regime-v1" });
+    await expect(regime).toContainText("EARLY_BULL");
+    await expect(regime).toContainText("62/100");
+    await expect(regime).toContainText("84/100");
+    await expect(regime).toContainText("market-regime-v1");
+    await expect(regime).toContainText("POSITIVE");
+    await expect(regime).toContainText("QUANTITATIVE_DECISION_SUPPORT_NOT_INVESTMENT_ADVICE");
+
+    await page.reload();
+    const replay = page.locator("section").filter({ hasText: "market-regime-v1" });
+    await expect(replay).toContainText("EARLY_BULL");
+    await expect(replay).toContainText("62/100");
+    await expect(replay).toContainText("84/100");
+  });
+
+  test("P3 withholds unavailable and conflicting assessments without inventing decision facts", async ({ page }) => {
+    await installMarketOverviewFixture(page, "complete", "complete", "withheld");
+    await page.goto("/");
+    const withheld = page.locator("section").filter({ hasText: "MANDATORY_INPUT_UNAVAILABLE" });
+    await expect(withheld.getByRole("status")).toContainText("MANDATORY_INPUT_UNAVAILABLE");
+    await expect(withheld).not.toContainText("/100");
+    await expect(withheld).not.toContainText("TREND");
+
+    await installMarketOverviewFixture(page, "complete", "complete", "conflict");
+    await page.reload();
+    const conflict = page.locator("section").filter({ hasText: "SOURCE_CONFLICT" });
+    await expect(conflict.getByRole("status")).toContainText("SOURCE_CONFLICT");
+    await expect(conflict).not.toContainText("/100");
+  });
+
+  test("P3 displays a corrected assessment with its new as-of indication and no trading instruction", async ({ page }) => {
+    await installMarketOverviewFixture(page, "complete", "complete", "corrected");
+    await page.goto("/");
+
+    const corrected = page.locator("section").filter({ hasText: "81/100" });
+    await expect(corrected).toContainText("BULL");
+    await expect(corrected).toContainText("81/100");
+    await expect(corrected).toContainText("10:05 17/8/26");
+    await expect(corrected).toContainText("QUANTITATIVE_DECISION_SUPPORT_NOT_INVESTMENT_ADVICE");
+    await expect(corrected).not.toContainText(/Mua|Bán/i);
+  });
+});
+
+async function installMarketOverviewFixture(
+  page: Page, mode: OverviewMode, breadthMode: BreadthMode = "unavailable", regimeMode: RegimeMode = "unavailable",
+): Promise<void> {
+  await installAuthenticatedOwnerSession(page);
   await page.route("**/api/v1/market/overview", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify(overviewFixture(mode, breadthMode)),
+      body: JSON.stringify(overviewFixture(mode, breadthMode, regimeMode)),
+    });
+  });
+}
+
+async function installAuthenticatedOwnerSession(page: Page): Promise<void> {
+  await page.route("**/api/v1/auth/session", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        subject: "00000000-0000-0000-0000-000000000001",
+        username: "fixture-owner",
+        authenticatedAt: "2026-08-17T02:55:00Z",
+        expiresAt: "2026-08-17T10:55:00Z",
+      }),
     });
   });
 }
@@ -111,7 +179,7 @@ function forbidExternalRequests(page: Page): string[] {
   return requests;
 }
 
-function overviewFixture(mode: OverviewMode, breadthMode: BreadthMode) {
+function overviewFixture(mode: OverviewMode, breadthMode: BreadthMode, regimeMode: RegimeMode) {
   const delayed = mode === "delayed";
   const closed = mode === "closed";
   const missing = mode === "missing";
@@ -144,8 +212,31 @@ function overviewFixture(mode: OverviewMode, breadthMode: BreadthMode) {
     },
     indices,
     breadth: breadthFixture(breadthMode, observedAt),
-    regime: {},
+    regime: regimeFixture(regimeMode, observedAt),
     warnings: [],
+  };
+}
+
+function regimeFixture(mode: RegimeMode, asOf: string) {
+  const unavailable = (dataStatus: "UNAVAILABLE" | "PARTIAL", reasonCodes: string[]) => ({
+    dataStatus, ruleVersion: "market-regime-v1", label: null, score: null, confidence: null,
+    confidenceMeaning: "ASSESSMENT_QUALITY_NOT_FORECAST_PROBABILITY", tradingDate: null, asOf: null, factors: [],
+    source: { provider: "UNAVAILABLE", dataset: "REGIME" }, reasonCodes,
+    disclaimerCode: "QUANTITATIVE_DECISION_SUPPORT_NOT_INVESTMENT_ADVICE",
+  });
+  if (mode === "unavailable") return unavailable("UNAVAILABLE", ["REGIME_NOT_AVAILABLE"]);
+  if (mode === "withheld") return unavailable("UNAVAILABLE", ["MANDATORY_INPUT_UNAVAILABLE"]);
+  if (mode === "conflict") return unavailable("PARTIAL", ["SOURCE_CONFLICT"]);
+  const corrected = mode === "corrected";
+  return {
+    dataStatus: "CURRENT", ruleVersion: "market-regime-v1", label: corrected ? "BULL" : "EARLY_BULL",
+    score: corrected ? 81 : 62, confidence: corrected ? 89 : 84,
+    confidenceMeaning: "ASSESSMENT_QUALITY_NOT_FORECAST_PROBABILITY", tradingDate: "2026-08-17",
+    asOf: corrected ? "2026-08-17T03:05:00Z" : asOf,
+    factors: [{ code: "TREND", direction: "POSITIVE", descriptionCode: "REGIME_FACTOR_TREND_V1",
+      normalizedScore: "70.0000", effectiveWeight: "0.350000", contribution: "24.500000", observations: [] }],
+    source: { provider: "FINVERA_ACCEPTED", dataset: "REGIME" }, reasonCodes: [],
+    disclaimerCode: "QUANTITATIVE_DECISION_SUPPORT_NOT_INVESTMENT_ADVICE",
   };
 }
 

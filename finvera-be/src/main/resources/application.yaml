@@ -15,6 +15,9 @@ spring:
     time-zone: UTC
 
 server:
+  # Private deployment invariant: Tailscale Serve (or an equivalent local reverse
+  # proxy) is the only ingress. Do not bind Spring directly to a LAN/WAN address.
+  address: 127.0.0.1
   servlet:
     session:
       cookie:
@@ -32,9 +35,13 @@ finvera:
       password-hash: ${FINVERA_OWNER_PASSWORD_HASH}
   market:
     timezone: Asia/Ho_Chi_Minh
+    freshness:
+      index-contracted-delay: ${FINVERA_MARKET_INDEX_CONTRACTED_DELAY}
     provider:
-      mode: fixture
-      live-enabled: false
+      mode: ${FINVERA_MARKET_PROVIDER_MODE:fixture}
+      live-enabled: ${FINVERA_MARKET_PROVIDER_LIVE_ENABLED:false}
+    fixture:
+      bootstrap-enabled: false
 
 management:
   endpoints:

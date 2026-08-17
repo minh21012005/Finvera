@@ -6,6 +6,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "regime_factor")
@@ -14,7 +16,7 @@ public class MarketRegimeFactorEntity {
     @Column(name = "assessment_id") private UUID assessmentId;
     @Column(name = "factor_code") private String factorCode;
     private String direction;
-    @Column(name = "raw_observations", columnDefinition = "jsonb") private String rawObservations;
+    @Column(name = "raw_observations", columnDefinition = "jsonb") @JdbcTypeCode(SqlTypes.JSON) private String rawObservations;
     @Column(name = "normalized_score", precision = 8, scale = 4) private BigDecimal normalizedScore;
     @Column(precision = 8, scale = 6) private BigDecimal weight;
     @Column(name = "effective_weight", precision = 8, scale = 6) private BigDecimal effectiveWeight;

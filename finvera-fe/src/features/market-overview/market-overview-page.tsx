@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getMarketOverview, MarketOverviewApiError, type MarketOverview } from "./api/market-overview";
 import { IndexOverview } from "./components/index-overview";
 import { BreadthOverview } from "./components/breadth-overview";
+import { RegimeOverview } from "./components/regime-overview";
 import { formatAsOf } from "./format/market-format";
 
 type LoadState =
@@ -47,6 +48,7 @@ export function MarketOverviewPage() {
       <p>Trạng thái dữ liệu: {statusLabel(state.overview.dataStatus)}. Dữ liệu thiếu hoặc chậm được hiển thị rõ ràng, không được suy diễn.</p>
       <IndexOverview overview={state.overview} />
       <BreadthOverview breadth={state.overview.breadth} />
+      <RegimeOverview regime={state.overview.regime} />
     </main>
   );
 }

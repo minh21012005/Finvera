@@ -11,6 +11,8 @@ spring:
 finvera:
   market:
     timezone: Asia/Ho_Chi_Minh
+    freshness:
+      index-contracted-delay: PT0S
     provider:
       mode: fixture
       live-enabled: false

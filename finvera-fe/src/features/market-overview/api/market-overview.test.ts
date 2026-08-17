@@ -30,7 +30,12 @@ const validOverview = {
   breadth: { dataStatus: "UNAVAILABLE", advancing: null, declining: null, unchanged: null, eligible: null,
     unclassified: null, universeVersion: "breadth-universe-v1", tradingDate: null, asOf: null,
     source: { provider: "UNAVAILABLE", dataset: "BREADTH" }, reasonCodes: ["BREADTH_NOT_AVAILABLE"] },
-  regime: {},
+  regime: {
+    dataStatus: "UNAVAILABLE", ruleVersion: "market-regime-v1", label: null, score: null, confidence: null,
+    confidenceMeaning: "ASSESSMENT_QUALITY_NOT_FORECAST_PROBABILITY", tradingDate: null, asOf: null, factors: [],
+    source: { provider: "UNAVAILABLE", dataset: "REGIME" }, reasonCodes: ["REGIME_NOT_AVAILABLE"],
+    disclaimerCode: "QUANTITATIVE_DECISION_SUPPORT_NOT_INVESTMENT_ADVICE",
+  },
   warnings: [],
 };
 
@@ -40,10 +45,17 @@ describe("market overview API client", () => {
   });
 
   it("rejects numbers used in place of precision-safe decimal strings", () => {
-    const malformed = structuredClone(validOverview);
+    const malformed = structuredClone(validOverview) as Omit<typeof validOverview, "warnings"> & { warnings: unknown[] };
     malformed.indices[0].value = 1280.25 as never;
 
     expect(() => parseMarketOverview(malformed)).toThrow("value must be a decimal string or null");
+  });
+
+  it("rejects a warning outside the reviewed contract enums", () => {
+    const malformed = structuredClone(validOverview) as Omit<typeof validOverview, "warnings"> & { warnings: unknown[] };
+    malformed.warnings = [{ code: "MISSING_INDEX", severity: "NOTICE", section: "INDEX", subject: "VN_INDEX" }];
+
+    expect(() => parseMarketOverview(malformed)).toThrow("warning severity is invalid");
   });
 
   it("uses only the versioned Spring same-origin endpoint", async () => {

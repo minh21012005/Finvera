@@ -86,7 +86,7 @@ public record MarketOverviewResponse(
         static BreadthResponse unavailable() {
             return new BreadthResponse(DataStatus.UNAVAILABLE, null, null, null, null, null,
                     "breadth-universe-v1", null, null,
-                    new SourceReference("UNAVAILABLE", "BREADTH"), List.of("BREADTH_NOT_IMPLEMENTED"));
+                    new SourceReference("UNAVAILABLE", "BREADTH"), List.of("BREADTH_NOT_AVAILABLE"));
         }
         static BreadthResponse from(com.minhnb.finvera_be.market.service.BreadthService.Snapshot snapshot) {
             if (snapshot == null) return unavailable();
@@ -113,7 +113,7 @@ public record MarketOverviewResponse(
         static RegimeResponse unavailable() {
             return new RegimeResponse(DataStatus.UNAVAILABLE, "market-regime-v1", null, null, null,
                     "ASSESSMENT_QUALITY_NOT_FORECAST_PROBABILITY", List.of(), null, null,
-                    new SourceReference("UNAVAILABLE", "REGIME"), List.of("REGIME_NOT_IMPLEMENTED"),
+                    new SourceReference("UNAVAILABLE", "REGIME"), List.of("REGIME_NOT_AVAILABLE"),
                     "QUANTITATIVE_DECISION_SUPPORT_NOT_INVESTMENT_ADVICE");
         }
     }

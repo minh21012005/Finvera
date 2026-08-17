@@ -9,11 +9,9 @@ fixture critical path.
 
 ## Task Format
 
-```text
-- [ ] T001 [P?] [US?] [Requirement IDs] Action with exact file path
-      Verify: command or observable completion evidence
-      Depends: task IDs or "none"
-```
+Each executable line uses a checkbox, a stable task ID, optional parallel and
+user-story tags, requirement IDs, an exact path, verification evidence, and
+dependencies.
 
 ## Phase 1: Setup and Contract Baseline
 
@@ -205,13 +203,13 @@ fixtures twice and prove exact output or reason-coded withholding.
 - [x] T041 [US3] [FR-010, FR-011, FR-012, FR-013, FR-015, DATA-009, DATA-010, NFR-003] Implement assessment orchestration, persistence, source reconciliation, correction replay, and overview/API mapping in `finvera-be/src/main/java/com/minhnb/finvera_be/market/service/RegimeAssessmentService.java`, `finvera-be/src/main/java/com/minhnb/finvera_be/market/repository/RegimeAssessmentRepository.java`, and `finvera-be/src/main/java/com/minhnb/finvera_be/market/dto/MarketOverviewResponse.java`
       Verify: targeted application/API tests pass with exact input IDs/rule version and withhold conflicts
       Depends: T033, T039, T040
-- [ ] T042 [P] [US3] [FR-010, FR-011, FR-012, FR-014, NFR-005, SC-007] Write regime complete/renormalized/withheld, factor, disclaimer, and non-color accessibility tests in `finvera-fe/src/features/market-overview/regime-overview.test.tsx`
+- [x] T042 [P] [US3] [FR-010, FR-011, FR-012, FR-014, NFR-005, SC-007] Write regime complete/renormalized/withheld, factor, disclaimer, and non-color accessibility tests in `finvera-fe/src/features/market-overview/regime-overview.test.tsx`
       Verify: targeted test fails before regime UI exists
       Depends: T002, T003
-- [ ] T043 [US3] [FR-010, FR-011, FR-012, FR-014, DATA-009, NFR-005] Implement accessible regime/factor presentation in `finvera-fe/src/features/market-overview/components/regime-overview.tsx`
+- [x] T043 [US3] [FR-010, FR-011, FR-012, FR-014, DATA-009, NFR-005] Implement accessible regime/factor presentation in `finvera-fe/src/features/market-overview/components/regime-overview.tsx`
       Verify: component tests label confidence as assessment quality and contain no prediction or buy/sell instruction
       Depends: T026, T041, T042
-- [ ] T044 [US3] [FR-010, FR-011, FR-012, FR-013, FR-014, FR-015, SC-003, SC-004, SC-007] Add deterministic replay, insufficient/conflicting data, correction, and disclaimer Playwright journeys in `finvera-fe/tests/e2e/market-overview.spec.ts`
+- [x] T044 [US3] [FR-010, FR-011, FR-012, FR-013, FR-014, FR-015, SC-003, SC-004, SC-007] Add deterministic replay, insufficient/conflicting data, correction, and disclaimer Playwright journeys in `finvera-fe/tests/e2e/market-overview.spec.ts`
       Verify: `cd finvera-fe; npm run test:e2e -- --grep "P3"` passes twice with identical fixture output
       Depends: T043
 
@@ -245,27 +243,31 @@ completion is never misrepresented as live-data readiness.
 
 ## Final Phase: Cross-Cutting Validation and Release Readiness
 
-- [ ] T049 [FR-001-FR-015, DATA-001-DATA-010, SEC-001-SEC-006] Run and reconcile backend/API/frontend contract tests across fixture-mode boundaries and update `specs/001-market-overview/contracts/market-overview.openapi.yaml` only if approved behavior changed
+- [x] T049 [FR-001-FR-015, DATA-001-DATA-010, SEC-001-SEC-006] Run and reconcile backend/API/frontend contract tests across fixture-mode boundaries and update `specs/001-market-overview/contracts/market-overview.openapi.yaml` only if approved behavior changed
       Verify: contract tests pass and no implemented response differs from the reviewed contract
       Depends: T030, T036, T044
-- [ ] T050 [NFR-001, NFR-002, NFR-003, SC-005] Add coherent-overview API and accepted-update latency smoke tests in `finvera-be/src/test/java/com/minhnb/finvera_be/market/performance/MarketOverviewPerformanceTests.java`
+- [x] T050 [NFR-001, NFR-002, NFR-003, SC-005] Add coherent-overview API and accepted-update latency smoke tests in `finvera-be/src/test/java/com/minhnb/finvera_be/market/performance/MarketOverviewPerformanceTests.java`
       Verify: representative fixture read p95 is <=500 ms and accepted fixture updates satisfy configured delay +30s in the test environment
       Depends: T024, T033, T041
 - [ ] T051 [SEC-001, SEC-002, SEC-005, SEC-006, SC-008] Document and validate Tailscale Serve-only ingress, Funnel/direct-port denial, owner secret generation, cookie/CSRF checks, and rollback in `docs/runbooks/private-market-overview.md`
       Verify: operator checklist records denied public/direct access and no secret appears in repository, logs, responses, or client bundle
       Depends: T006, T030
-- [ ] T052 [NFR-004, NFR-006, NFR-007, SC-006, SC-008] Add fault-injection and safe telemetry tests in `finvera-be/src/test/java/com/minhnb/finvera_be/market/operations/MarketOverviewFailureTests.java`
+      **Deferred by owner during local development (2026-08-17):** do not install or configure Tailscale yet. Keep every local process bound to `127.0.0.1`; do not create router port forwards, public DNS, public tunnels, Tailscale Funnel, or any public/LAN ingress. T051 remains a mandatory pre-deployment/pre-multi-device release gate and must be validated before this private system is deployed or accessed remotely.
+- [x] T052 [NFR-004, NFR-006, NFR-007, SC-006, SC-008] Add fault-injection and safe telemetry tests in `finvera-be/src/test/java/com/minhnb/finvera_be/market/operations/MarketOverviewFailureTests.java`
       Verify: tests distinguish provider/auth/stale/invalid/calculation/delivery failures, survive AI outage, and expose no sensitive payload
       Depends: T020, T041
-- [ ] T053 [FR-001-FR-015, SC-001-SC-008] Execute and update fixture-mode commands/scenarios in `specs/001-market-overview/quickstart.md`, explicitly retaining TCBS/Vnstock production blockers
+- [x] T053 [FR-001-FR-015, SC-001-SC-008] Execute and update fixture-mode commands/scenarios in `specs/001-market-overview/quickstart.md`, explicitly retaining TCBS/Vnstock production blockers
       Verify: P1-P3 happy paths and critical negative paths produce recorded expected results without claiming provider gates passed
-      Depends: T049, T050, T051, T052
-- [ ] T054 [FR-001-FR-015, DATA-001-DATA-010, NFR-001-NFR-007, SEC-001-SEC-006] Reconcile delivered behavior and limitations in `specs/001-market-overview/spec.md`, `plan.md`, `research.md`, `quickstart.md`, `contracts/market-overview.openapi.yaml`, `docs/adr/0006-use-react-vite-for-private-web-client.md`, and `docs/runbooks/private-market-overview.md`
+      Depends: T049, T050, T052, T058. T051 is not required for loopback-only local acceptance, but remains a mandatory pre-deployment/pre-remote-access release gate.
+      Evidence (2026-08-17): `validation/fixture-acceptance.md`; backend 83/83, frontend 19/19, lint/build, and Playwright 10/10 passed. TCBS, Vnstock, Tailscale, and manual usability gates remain explicitly open.
+- [x] T054 [FR-001-FR-015, DATA-001-DATA-010, NFR-001-NFR-007, SEC-001-SEC-006] Reconcile delivered behavior and limitations in `specs/001-market-overview/spec.md`, `plan.md`, `research.md`, `quickstart.md`, `contracts/market-overview.openapi.yaml`, `docs/adr/0006-use-react-vite-for-private-web-client.md`, and `docs/runbooks/private-market-overview.md`
       Verify: traceability review has no orphan requirement, undocumented behavior, secret, placeholder, or false live-provider claim
       Depends: T053
-- [ ] T055 Run repository quality gates from `finvera-be/` and `finvera-fe/`
+      Evidence (2026-08-17): cross-artifact analysis mapped all 46 requirement/success IDs to tasks, found no unresolved clarification, orphan requirement, constitution violation, placeholder implementation, or public-contract drift. The artifacts now consistently label fixture behavior as validated and TCBS, Vnstock, Tailscale, and manual usability as open gates.
+- [x] T055 Run repository quality gates from `finvera-be/` and `finvera-fe/`
       Verify: `.\mvnw.cmd test`, `npm run test`, `npm run lint`, `npm run build`, and fixture-mode `npm run test:e2e` pass; blocked external-provider checks are reported, not passed
       Depends: T054
+      Evidence (2026-08-17): backend 83/83 tests passed; frontend 19/19 tests passed; ESLint and Vite production build passed; Playwright Chromium 10/10 passed. External-provider and remote-ingress checks remain open and were not represented as passed.
 - [ ] T056 [SC-001] Conduct three consecutive timed owner usability checks for four-index direction/session/as-of identification and record anonymized evidence in `specs/001-market-overview/validation/usability.md`
       Verify: the owner completes every trial within 10 seconds, or findings are returned to spec/plan before release
       Depends: T055
@@ -284,6 +286,7 @@ Setup (T001-T004)
 
 External TCBS gate T045 -> T046 (not on fixture MVP path)
 External Vnstock gate T047 -> T048 (not on fixture MVP path)
+T051 -> private deployment/remote-access release (not local fixture acceptance)
 ```
 
 US2 requires shared observation foundations but not the US1 UI. US3 requires
@@ -306,27 +309,27 @@ work starts only after its reviewed backend contract behavior is available.
 
 | Requirement ID | Task IDs | Test/Evaluation Task | Status |
 |---|---|---|---|
-| FR-001-FR-006 | T003, T021-T030, T049, T053-T054 | T021, T022, T027, T030 | Planned |
-| FR-007-FR-009 | T031-T036, T049, T053-T054 | T031, T034, T036 | Planned |
-| FR-010-FR-014 | T037-T044, T049, T053-T054 | T037, T040, T042, T044 | Planned |
-| FR-015 | T017-T018, T021, T023-T024, T040-T041, T044, T049, T053-T054 | T017, T021, T040, T044 | Planned |
-| DATA-001-DATA-007 | T001, T003, T009-T18, T021-T26, T031-T33, T037-T41, T048-T49, T053-T054 | T009, T012-T013, T015, T017, T021-T022, T031, T037, T040 | Planned |
-| DATA-008 | T031-T035, T049, T053-T054 | T031, T034, T036 | Planned |
-| DATA-009 | T009-T11, T037-T41, T048-T49, T053-T054 | T009, T037, T040 | Planned |
+| FR-001-FR-006 | T003, T021-T030, T049, T053-T054 | T021, T022, T027, T030 | Fixture validated |
+| FR-007-FR-009 | T031-T036, T049, T053-T054 | T031, T034, T036 | Fixture validated |
+| FR-010-FR-014 | T037-T044, T049, T053-T054 | T037, T040, T042, T044 | Fixture validated |
+| FR-015 | T017-T018, T021, T023-T024, T040-T041, T044, T049, T053-T054 | T017, T021, T040, T044 | Fixture validated |
+| DATA-001-DATA-007 | T001, T003, T009-T18, T021-T26, T031-T33, T037-T41, T048-T49, T053-T054 | T009, T012-T013, T015, T017, T021-T022, T031, T037, T040 | Fixture validated; live/import path gated |
+| DATA-008 | T031-T035, T049, T053-T054 | T031, T034, T036 | Fixture validated |
+| DATA-009 | T009-T11, T037-T41, T048-T49, T053-T054 | T009, T037, T040 | Fixture validated |
 | DATA-010 | T040-T041, T047-T049, T053-T054 | T040, T048 | Planned; live/import path gated |
 | NFR-001-NFR-003 | T001, T024, T030, T033, T041, T045-T046, T050, T054-T055 | T030, T046, T050 | Planned; live NFR-002 gated |
-| NFR-004 | T015-T016, T019, T030, T052, T054-T055 | T015, T019, T030, T052 | Planned |
-| NFR-005 | T002, T027-T030, T034-T036, T042-T044, T054-T055 | T027, T030, T034, T036, T042, T044 | Planned |
+| NFR-004 | T015-T016, T019, T030, T052, T054-T055 | T015, T019, T030, T052 | Fixture validated |
+| NFR-005 | T002, T027-T030, T034-T036, T042-T044, T054-T055 | T027, T030, T034, T036, T042, T044 | Fixture validated |
 | NFR-006 | T007-T008, T020, T046, T052, T054-T055 | T020, T046, T052 | Planned |
 | NFR-007 | T004, T015-T16, T045-T046, T052, T054-T055 | T015, T046, T052 | Planned; TCBS path gated |
 | SEC-001-SEC-006 | T004-T008, T015-T016, T022, T025-T026, T030, T045-T046, T049, T051-T055 | T005, T015, T022, T030, T046, T051-T052 | Planned; TCBS renewal path gated |
 | SC-001 | T030, T053, T056 | T030, T056 | Planned |
-| SC-002 | T030, T036, T053 | T030, T036 | Planned |
-| SC-003 | T037-T044, T053 | T037, T040, T044 | Planned |
-| SC-004 | T030, T036, T044, T053 | T030, T036, T044 | Planned |
-| SC-005 | T030, T050, T053 | T030, T050 | Planned |
-| SC-006 | T030, T036, T052-T053 | T030, T036, T052 | Planned |
-| SC-007 | T002, T027-T030, T034-T036, T042-T044, T053 | T027, T030, T034, T036, T042, T044 | Planned |
+| SC-002 | T030, T036, T053 | T030, T036 | Fixture validated |
+| SC-003 | T037-T044, T053 | T037, T040, T044 | Fixture validated |
+| SC-004 | T030, T036, T044, T053 | T030, T036, T044 | Fixture validated |
+| SC-005 | T030, T050, T053 | T030, T050 | Fixture validated |
+| SC-006 | T030, T036, T052-T053 | T030, T036, T052 | Fixture validated |
+| SC-007 | T002, T027-T030, T034-T036, T042-T044, T053 | T027, T030, T034, T036, T042, T044 | Fixture validated |
 | SC-008 | T005, T020, T030, T051-T053 | T005, T020, T030, T051-T052 | Planned |
 
 ## Delivery Notes
@@ -340,3 +343,11 @@ work starts only after its reviewed backend contract behavior is available.
 - Never mark a task complete based only on code presence. Record its stated
   verification evidence.
 - If discovery changes behavior, update `spec.md`/`plan.md` before continuing.
+
+## Phase 8: Convergence
+
+- [x] T057 [FR-001, FR-002, SEC-001, SEC-006, SC-001] Implement an owner-only browser login/session flow in `finvera-fe/src/features/auth/` and integrate it with `finvera-fe/src/app.tsx` so the SPA obtains CSRF, authenticates with Spring, presents authenticated/loading/denied states, and never persists credentials or session secrets in browser storage. (missing; CRITICAL; US1/AC1, T029)
+      Verify: Vitest tests cover CSRF-before-login, successful session bootstrap, denied login, logout, and no credential/token persistence; authenticated fixture-mode page renders after the mocked Spring contract succeeds.
+- [x] T058 [FR-001-FR-015, DATA-001-DATA-010, NFR-004, NFR-007, SC-001-SC-004] Implement explicit fixture-mode runtime bootstrap/replay behind a development-only Spring configuration in `finvera-be/src/main/java/com/minhnb/finvera_be/market/config/` and `market/service/` so accepted fixture observations, breadth, and regime data are loaded atomically into PostgreSQL for local acceptance journeys without a provider credential or production activation. (missing; CRITICAL; US1/AC1, plan: fixture-first implementation)
+      Verify: Spring integration tests start fixture mode with PostgreSQL, expose an owner-authorized complete overview, replay deterministically without duplicate/regressing records, and prove the bootstrap is disabled outside explicit fixture mode.
+      Evidence (2026-08-17): `FixtureRuntimeBootstrapServiceTests` passed against PostgreSQL 17 Testcontainers for owner-authenticated HTTP overview, persisted provenance, and idempotent replay; `FixtureBootstrapConfigurationTests` proved default/non-fixture disablement. Full `finvera-be/.\mvnw.cmd test`: 83 tests, 0 failures/errors.

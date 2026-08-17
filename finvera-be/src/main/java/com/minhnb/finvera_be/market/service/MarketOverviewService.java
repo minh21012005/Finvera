@@ -6,9 +6,9 @@ import com.minhnb.finvera_be.market.domain.model.MarketTypes.DataStatus;
 import com.minhnb.finvera_be.market.domain.model.MarketTypes.IndexCode;
 import com.minhnb.finvera_be.market.domain.model.MarketTypes.SessionState;
 import com.minhnb.finvera_be.market.domain.time.MarketFreshnessPolicy;
+import com.minhnb.finvera_be.market.config.MarketFreshnessProperties;
 import com.minhnb.finvera_be.market.repository.MarketOverviewRepository;
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -28,15 +28,18 @@ public class MarketOverviewService {
     private final BreadthService breadthService;
     private final RegimeAssessmentService regimeAssessmentService;
     private final Clock clock;
+    private final MarketFreshnessProperties freshnessProperties;
     private final IndexOverviewCalculator calculator = new IndexOverviewCalculator();
     private final MarketFreshnessPolicy freshness = new MarketFreshnessPolicy();
 
     public MarketOverviewService(MarketOverviewRepository repository, BreadthService breadthService,
-            RegimeAssessmentService regimeAssessmentService, Clock clock) {
+            RegimeAssessmentService regimeAssessmentService, Clock clock,
+            MarketFreshnessProperties freshnessProperties) {
         this.repository = repository;
         this.breadthService = breadthService;
         this.regimeAssessmentService = regimeAssessmentService;
         this.clock = clock;
+        this.freshnessProperties = freshnessProperties;
     }
 
     @Transactional(readOnly = true)
@@ -55,7 +58,8 @@ public class MarketOverviewService {
                 .max(Instant::compareTo).orElseThrow();
         SessionState session = commonSession(rows);
         DataStatus freshnessStatus = freshness.evaluate(asOf,
-                generatedAt.isBefore(asOf) ? asOf : generatedAt, Duration.ZERO, session, DataStatus.CURRENT);
+                generatedAt.isBefore(asOf) ? asOf : generatedAt,
+                freshnessProperties.indexContractedDelay(), session, DataStatus.CURRENT);
         String source = commonSource(rows);
         long revision = rows.stream().map(MarketOverviewRepository.LatestIndexSnapshot::getRevision)
                 .filter(Objects::nonNull).mapToLong(Integer::longValue).max().orElse(1L);

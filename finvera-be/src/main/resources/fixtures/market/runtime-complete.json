@@ -1,0 +1,25 @@
+{
+  "contractVersion": "market-fixture-runtime-v1",
+  "packageSha256": "e256a97a0de32b1000ec1488b29f5bace1a7539e819b0c54942aa7bf65c072f9",
+  "payload": {
+    "source": "FINVERA_FIXTURE",
+    "tradingDate": "2026-08-17",
+    "asOf": "2026-08-17T03:00:00Z",
+    "sessionState": "OPEN",
+    "indices": [
+      {"code":"VN_INDEX","level":"1280.250000","referenceLevel":"1275.000000","matchedVolume":"420000000","matchedValueVnd":"11250000000000.0000"},
+      {"code":"VN30","level":"1342.800000","referenceLevel":"1338.400000","matchedVolume":"175000000","matchedValueVnd":"6850000000000.0000"},
+      {"code":"HNX_INDEX","level":"241.120000","referenceLevel":"242.000000","matchedVolume":"58000000","matchedValueVnd":"1080000000000.0000"},
+      {"code":"UPCOM_INDEX","level":"98.420000","referenceLevel":"98.420000","matchedVolume":"41000000","matchedValueVnd":"710000000000.0000"}
+    ],
+    "instruments": [
+      {"id":"10000000-0000-0000-0000-000000000001","isin":"VN0000000001","venue":"HOSE","symbol":"AAA","price":"10.500000","reference":"10.000000"},
+      {"id":"10000000-0000-0000-0000-000000000002","isin":"VN0000000002","venue":"HOSE","symbol":"BBB","price":"19.000000","reference":"20.000000"},
+      {"id":"10000000-0000-0000-0000-000000000003","isin":"VN0000000003","venue":"HNX","symbol":"CCC","price":"15.000000","reference":"15.000000"},
+      {"id":"10000000-0000-0000-0000-000000000004","isin":"VN0000000004","venue":"HNX","symbol":"DDD","price":"8.500000","reference":"8.000000"},
+      {"id":"10000000-0000-0000-0000-000000000005","isin":"VN0000000005","venue":"UPCOM","symbol":"EEE","price":"6.000000","reference":"6.500000"},
+      {"id":"10000000-0000-0000-0000-000000000006","isin":"VN0000000006","venue":"UPCOM","symbol":"FFF","price":"12.000000","reference":"12.000000"}
+    ],
+    "regimeScores": {"TREND":"70.000000","BREADTH":"64.000000","MOMENTUM":"60.000000","LIQUIDITY":"52.000000","VOLATILITY":"48.000000"}
+  }
+}

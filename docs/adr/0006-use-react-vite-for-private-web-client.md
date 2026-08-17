@@ -11,8 +11,10 @@ The SRS and initial scaffold selected Next.js. The clarified first deployment is
 an authenticated research workspace reached through private ingress, while
 Spring Boot already owns authentication, authorization, and every public API.
 The frontend has no SEO, public-content rendering, React Server Component, or
-frontend server/BFF requirement. The existing Next.js project is still an
-unmodified starter, so changing it now has negligible migration cost.
+frontend server/BFF requirement. At decision time the existing Next.js project
+was an unmodified starter, so the migration had negligible cost. The repository
+now contains the Vite SPA; Next.js runtime/build artifacts are no longer part
+of the client.
 
 This ADR refines the SRS technology baseline for implementation without changing
 the product scope or the browser-to-Spring security boundary.
@@ -74,16 +76,15 @@ ADR; it must not move financial truth or authorization into the frontend.
 
 ## Migration and Rollback
 
-Replace only the untouched Next.js starter: manifests, configuration, entry
-files, and agent guidance. Preserve React and Tailwind. If the Vite baseline
-cannot pass lint/build and the Feature 001 contract tests, restore the previous
-starter files before feature UI implementation; no data migration is involved.
+The untouched Next.js starter was replaced at the manifest, configuration,
+entry-file, and agent-guidance boundaries while preserving React and Tailwind.
+Rollback requires a new reviewed frontend decision because Feature 001 is now
+implemented and tested on Vite; no database migration is involved.
 
 ## Validation
 
-- `npm run lint`, `npm run test -- --run`, and `npm run build` pass.
+- `npm run test`, `npm run lint`, and `npm run build` pass.
 - The built SPA contains no provider/API secrets and calls only same-origin
   Spring endpoints.
-- Feature 001 Playwright owner and denial scenarios pass through the deployed
-  private-origin topology.
-
+- Feature 001 Playwright P1-P3 fixture and owner-denial scenarios pass on the
+  loopback topology. Remote private-origin topology remains gated by T051.

@@ -3,7 +3,7 @@
 **Feature Directory**: `specs/001-market-overview`  
 **Date**: 2026-08-17  
 **Spec**: [spec.md](spec.md)  
-**Status**: Approved — Fixture-first Implementation
+**Status**: Fixture implementation validated; provider/deployment gates remain open
 
 ## Summary
 
@@ -12,15 +12,16 @@ Finvera: four benchmark indices, consolidated HOSE/HNX/UPCOM breadth, and a
 versioned deterministic regime assessment with explicit session, freshness,
 provenance, and degraded states.
 
-The Spring Boot `market` module will ingest and normalize licensed read-only
-market data, persist immutable accepted observations in PostgreSQL, calculate
-breadth and `market-regime-v1`, and expose one coherent
-`GET /api/v1/market/overview` response. A React SPA built with Vite will render
-the response without recalculating authoritative financial facts. TCBS iFlash is the initial
-read-only adapter behind a provider-neutral contract. A pinned Vnstock tool provides
-offline historical bootstrap packages through a validated Spring import
-boundary. Both are restricted to an owner-only private deployment and mandatory
-fixture/license gates. The AI service, Gemini, embeddings, Qdrant, Redis,
+The Spring Boot `market` module ingests deterministic fixtures through the same
+accepted-observation boundary, persists immutable observations in PostgreSQL, calculates
+breadth and `market-regime-v1`, and exposes one coherent
+`GET /api/v1/market/overview` response. A React SPA built with Vite renders
+the response without recalculating authoritative financial facts. TCBS iFlash
+remains the intended initial live adapter behind a provider-neutral contract,
+but that adapter is not implemented until T045 passes. The pinned Vnstock
+offline exporter/importer likewise remains unimplemented until T047 passes.
+Both personal-use sources are restricted to an owner-only private deployment
+and mandatory capability/license gates. The AI service, Gemini, embeddings, Qdrant, Redis,
 and Kafka are not required.
 
 ## Technical Context
@@ -28,14 +29,12 @@ and Kafka are not required.
 **Affected Projects**: `finvera-be`, `finvera-fe`; PostgreSQL runtime/test
 configuration, TCBS connectivity, and an offline Vnstock bootstrap tool  
 **Languages/Versions**: Java 21 + Spring Boot 4.1.0; TypeScript 5 + React
-19.2.8 + Vite (pinned by T002); PostgreSQL version to be pinned by infrastructure task
+19.2.8 + Vite (pinned by T002); PostgreSQL 17 for runtime/test validation
 without changing application semantics  
-**Primary Dependencies**: Existing Spring MVC, Security, JPA, PostgreSQL;
-proposed Spring Boot Flyway starter + Flyway PostgreSQL module; Testcontainers
-PostgreSQL/JUnit for tests; proposed Vitest + React Testing Library and
-Playwright for frontend tests. No Kafka usage despite its current scaffold
-dependency; removal can be a baseline-cleanup task if no other approved feature
-needs it.  
+**Primary Dependencies**: Spring MVC, Security, JPA, PostgreSQL, the Spring Boot
+Flyway starter and PostgreSQL Flyway module; Testcontainers PostgreSQL/JUnit;
+Vitest, React Testing Library, and Playwright. Kafka is absent from this
+feature's runtime and dependency path.
 **Storage/State**: PostgreSQL is authoritative. No required Redis/Qdrant/Kafka
 state; fixture data is test/development-only.  
 **Interfaces**: Versioned owner-only REST API, internal outbound
@@ -44,7 +43,7 @@ internal AI/event interface.
 **Testing/Evaluation**: Pure unit and numerical boundary/property tests;
 sanitized provider contract fixtures; Flyway/JPA integration tests on
 Testcontainers PostgreSQL; Spring MVC/security contract tests; Vitest component
-tests; Playwright P1 E2E and accessibility checks.  
+tests; Playwright P1-P3 E2E and accessibility checks.
 **Target Environment**: Modern browser; Java server with outbound TLS and,
 for TCBS, owner-initiated iOTP renewal and private owner-only ingress; UTC host-safe operation with explicit
 `Asia/Ho_Chi_Minh` market semantics.  
@@ -101,6 +100,9 @@ authorized by this result.
 **Post-design result**: PASS for T001-T044 and fixture validation T049-T056
 under the approved, narrow Complexity Tracking exception. TCBS live task T046
 and Vnstock import task T048 remain blocked by T045 and T047 respectively.
+Loopback-only local fixture acceptance may execute while T051 is deferred by
+the owner. This does not satisfy or waive T051: deployment or access from
+another device remains blocked until the private-ingress checks pass.
 
 ## System Context and Boundaries
 
@@ -378,7 +380,7 @@ database directly.
 
 | Violation/Addition | Why Required Now | Simpler Alternative Rejected | Approval/ADR | Removal or Review Trigger |
 |---|---|---|---|---|
-| Fixture-first milestone while live provider gates remain open | The owner explicitly directed implementation to continue while TCBS provisioning and Vnstock rights are resolved separately. T001-T044 and T049-T056 can be validated without representing fixtures as live data. | Blocking deterministic domain, security, persistence, API, and UI work on unrelated external onboarding | Owner approval, 2026-08-17; provider decisions remain governed by ADR-0003/0004 | Exception ends at fixture-mode validation; T045-T048 and any live deployment remain blocked until their individual gates pass. |
+| Fixture-first milestone while live provider gates remain open | The owner explicitly directed implementation to continue while TCBS provisioning and Vnstock rights are resolved separately. T001-T044, T049-T050, and T052-T056 can be validated on loopback without representing fixtures as live data; T051 remains deferred. | Blocking deterministic domain, security, persistence, API, and UI work on unrelated external onboarding | Owner approval, 2026-08-17; provider decisions remain governed by ADR-0003/0004 | Exception ends at loopback fixture validation; T045-T048, T051, and any live/remote deployment remain blocked until their individual gates pass. |
 
 The provider port is the minimum seam needed to avoid coupling authoritative
 domain logic to one external schema. Flyway and Testcontainers address required

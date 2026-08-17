@@ -1,8 +1,8 @@
 # Quickstart and Acceptance: Market Overview
 
 **Feature**: `001-market-overview`  
-**Current phase**: Design only — commands and journeys below become executable
-after `tasks.md` is approved and implementation is complete.
+**Current phase**: Implemented fixture-mode local acceptance. Live TCBS,
+Vnstock import, and private remote deployment remain gated.
 
 ## Prerequisites
 
@@ -18,21 +18,24 @@ after `tasks.md` is approved and implementation is complete.
 - A pinned Vnstock environment only after
   [vnstock-historical-bootstrap.md](contracts/vnstock-historical-bootstrap.md)
   passes its license, coverage, and sanitized-fixture gate.
-- A private owner-only access path with no public ingress.
-- Tailscale installed on the host and owner device; Serve/private routing only,
-  ACL/grants limited to the owner, and Funnel disabled.
+- A loopback-only owner access path for local acceptance, with no public or LAN
+  ingress.
+- Tailscale is required only before deployment or remote/multi-device access;
+  Serve/private routing, owner-only ACL/grants, and disabled Funnel remain the
+  mandatory T051 release gate.
 
 Gemini, an embedding model, Qdrant, Kafka, and `finvera-ai` are not prerequisites.
 
-## Planned Configuration
+## Configuration
 
-The implementation will document exact environment names in safe example
-configuration. At minimum it needs:
+The runtime requires these environment values. Supply secrets from the current
+shell or a local secret store; never commit them:
 
 ```text
 PostgreSQL URL / database / user / password
 market timezone = Asia/Ho_Chi_Minh
-market provider mode = fixture | tcbs-iflash-private
+FINVERA_MARKET_PROVIDER_MODE = fixture | tcbs-iflash-private
+FINVERA_MARKET_FIXTURE_BOOTSTRAP_ENABLED = true only for local fixture bootstrap
 historical bootstrap mode = fixture | vnstock-offline-package
 contracted delay per dataset
 calendar and session policy version
@@ -70,8 +73,7 @@ npm run test:e2e
 ```
 
 Expected after implementation: Vitest component/presentation-state tests,
-lint, production build, and Playwright P1 journey pass. `test` and `test:e2e`
-scripts do not exist yet; their creation belongs to implementation tasks.
+lint, production build, and Playwright P1-P3 journeys pass.
 
 ## Local Runtime
 
@@ -79,11 +81,22 @@ After PostgreSQL and safe local configuration are available:
 
 ```powershell
 # terminal 1, from finvera-be/
+$env:FINVERA_MARKET_PROVIDER_MODE = "fixture"
+$env:FINVERA_MARKET_FIXTURE_BOOTSTRAP_ENABLED = "true"
 .\mvnw.cmd spring-boot:run
 
 # terminal 2, from finvera-fe/
 npm run dev
 ```
+
+The backend starts only after all required database, owner-access, and freshness
+environment variables listed above are present. The fixture bootstrap flag is
+explicit and opt-in; omitting it leaves PostgreSQL untouched. It is also rejected
+unless `finvera.market.provider.mode=fixture`.
+
+For local acceptance, keep both Vite and Spring bound to `127.0.0.1`. Do not
+open router/LAN ports or use a tunnel. Complete T051 before replacing this
+loopback-only setup with remote access.
 
 Use fixture provider mode for deterministic acceptance. The frontend calls the
 Spring endpoint defined in
@@ -204,6 +217,11 @@ Tailscale Funnel must be unreachable; Tailscale access alone must not bypass
 the Spring owner login.
 
 ## Operational Evidence
+
+The latest sanitized local execution record is
+[validation/fixture-acceptance.md](validation/fixture-acceptance.md). It records
+pass/fail and counts only; it contains no credential, cookie, raw provider
+payload, or real market fact.
 
 During the paths above, verify metrics/logs distinguish:
 

@@ -6,8 +6,10 @@ import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
 import jakarta.persistence.Table;
 import java.io.Serializable;
+import java.sql.Types;
 import java.util.Objects;
 import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
 
 @Entity
 @Table(name = "regime_assessment_input")
@@ -18,7 +20,9 @@ public class MarketRegimeAssessmentInputEntity {
     @Column(name = "index_snapshot_id") private UUID indexSnapshotId;
     @Column(name = "breadth_snapshot_id") private UUID breadthSnapshotId;
     @Column(name = "price_observation_id") private UUID priceObservationId;
-    @Column(name = "input_set_hash") private String inputSetHash;
+    @Column(name = "input_set_hash", columnDefinition = "char(64)")
+    @JdbcTypeCode(Types.CHAR)
+    private String inputSetHash;
 
     protected MarketRegimeAssessmentInputEntity() { }
 

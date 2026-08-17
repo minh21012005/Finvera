@@ -2,7 +2,7 @@
 
 **Feature**: `001-market-overview`  
 **Date**: 2026-08-17  
-**Status**: Conditional design; Vnstock technical coverage passed, while TCBS capability and upstream-use gates remain before production implementation
+**Status**: Fixture implementation validated; TCBS capability and Vnstock upstream-use gates remain before live implementation
 
 This document resolves the technical dependencies identified by the feature
 specification. Provider documentation establishes technical feasibility, not a
@@ -52,6 +52,15 @@ both documented TCInvest-app TOTP and registered Email/SMS OTP flows, and
 preserves only an allowlisted code/schema on failure. The owner must verify
 account/OpenAPI enrollment and the registered OTP method with TCBS before
 retrying the probe and before the live capability gate can be assessed.
+
+**Subsequent sanitized evidence (2026-08-17):** The owner later completed the
+TOTP exchange successfully. Representative read-only REST datasets and
+WebSocket authentication/subscription acknowledgement passed without retaining
+credentials, payloads, or market values. No index update arrived during the
+after-hours capture, so the four-index stream schema, in-session timing,
+correction, rate-limit, and remaining universe semantics are still unconfirmed.
+This advances but does not close T045; see the adapter contract for the exact
+sanitized counts and summary hash.
 
 Sources: [TCBS iFlash workflow](https://developers.tcbs.com.vn/docs/v1.0.0/workflow/),
 [TCBS token endpoint](https://developers.tcbs.com.vn/docs/v1.0.0/auth/token/),

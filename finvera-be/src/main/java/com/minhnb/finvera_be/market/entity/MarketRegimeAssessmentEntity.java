@@ -21,8 +21,8 @@ public class MarketRegimeAssessmentEntity {
     @Column(name = "calculated_at") private Instant calculatedAt;
     @Column(name = "rule_version") private String ruleVersion;
     private String label;
-    private Integer score;
-    private Integer confidence;
+    private Short score;
+    private Short confidence;
     @Column(name = "data_status") private String dataStatus;
     @Column(precision = 5, scale = 2) private BigDecimal completeness;
     @Column(name = "factor_agreement", precision = 5, scale = 2) private BigDecimal factorAgreement;
@@ -38,7 +38,9 @@ public class MarketRegimeAssessmentEntity {
             BigDecimal completeness, BigDecimal factorAgreement, BigDecimal boundaryDistance,
             boolean renormalized, List<String> reasonCodes, UUID supersedesId) {
         this.id = id; this.tradingDate = tradingDate; this.asOf = asOf; this.calculatedAt = calculatedAt;
-        this.ruleVersion = ruleVersion; this.label = label; this.score = score; this.confidence = confidence;
+        this.ruleVersion = ruleVersion; this.label = label;
+        this.score = score == null ? null : score.shortValue();
+        this.confidence = confidence == null ? null : confidence.shortValue();
         this.dataStatus = dataStatus; this.completeness = completeness; this.factorAgreement = factorAgreement;
         this.boundaryDistance = boundaryDistance; this.renormalized = renormalized;
         this.reasonCodes = reasonCodes.toArray(String[]::new); this.supersedesId = supersedesId;
@@ -50,8 +52,8 @@ public class MarketRegimeAssessmentEntity {
     public Instant getCalculatedAt() { return calculatedAt; }
     public String getRuleVersion() { return ruleVersion; }
     public String getLabel() { return label; }
-    public Integer getScore() { return score; }
-    public Integer getConfidence() { return confidence; }
+    public Integer getScore() { return score == null ? null : score.intValue(); }
+    public Integer getConfidence() { return confidence == null ? null : confidence.intValue(); }
     public String getDataStatus() { return dataStatus; }
     public BigDecimal getCompleteness() { return completeness; }
     public BigDecimal getFactorAgreement() { return factorAgreement; }
