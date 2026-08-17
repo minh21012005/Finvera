@@ -13,6 +13,10 @@
 !**/.env.example
 *.log
 
+# Private local market-data artifacts
+tools/market-data/vnstock-export/output/
+tools/market-data/provider-poc/poc-output/
+
 # Editors and operating systems
 .idea/
 .vscode/
@@ -20,4 +24,3 @@
 Thumbs.db
 *.tmp
 *.swp
-

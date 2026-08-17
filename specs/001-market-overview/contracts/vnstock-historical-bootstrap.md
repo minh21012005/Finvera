@@ -57,9 +57,20 @@ The internal import bean is disabled by default and is enabled only by the
 explicit `finvera.market.import.enabled=true` operator configuration after the
 relevant gate and operator runbook are approved.
 
+## Owner-approved local-only exception
+
+On 2026-08-17, the owner explicitly accepted the residual upstream-use risk for
+a manually operated, local-only and non-commercial Vnstock/KBS bootstrap. This
+is an implementation authorization, not evidence that KBS grants a license and
+not a compliance conclusion. It permits the canonical exporter below while all
+of these restrictions remain mandatory: no public endpoint, redistribution,
+multi-user deployment, scheduled/unbounded collection, credential persistence,
+or raw-response retention. The exception may be revoked before any run and is
+invalid for a public or remote deployment.
+
 ## Fixture and license gate
 
-Before implementation is approved, the owner MUST prove with sanitized output:
+Before a general or public provider activation is approved, the owner MUST prove with sanitized output:
 
 1. the pinned Vnstock version returns the required index and equity history;
 2. the selected upstream source is explicit and stable for every dataset;

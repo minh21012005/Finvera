@@ -42,6 +42,9 @@ finvera:
       live-enabled: ${FINVERA_MARKET_PROVIDER_LIVE_ENABLED:false}
     fixture:
       bootstrap-enabled: false
+    import:
+      enabled: ${FINVERA_MARKET_IMPORT_ENABLED:false}
+      package-path: ${FINVERA_MARKET_IMPORT_PACKAGE_PATH:}
 
 management:
   endpoints:
