@@ -45,10 +45,10 @@ public final class TcbsMarketDataProvider implements MarketDataProvider {
 
     public static final String SOURCE = "TCBS_IFLASH_MARKET_DATA";
 
-    /** HOSE and HNX standard session close (Asia/Ho_Chi_Minh). */
+    /** HOSE and HNX standard session close after ATC (Asia/Ho_Chi_Minh). */
     private static final LocalTime HOSE_HNX_CLOSE = LocalTime.of(14, 45);
-    /** UPCOM standard session close (Asia/Ho_Chi_Minh). */
-    private static final LocalTime UPCOM_CLOSE = LocalTime.of(14, 30);
+    /** UPCOM standard session close (continuous matching until 15:00, no ATC). */
+    private static final LocalTime UPCOM_CLOSE = LocalTime.of(15, 0);
     private static final ZoneId MARKET_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
     /** Allowlisted TCBS indexNumber → IndexCode mapping (from POC evidence). */
@@ -172,15 +172,15 @@ public final class TcbsMarketDataProvider implements MarketDataProvider {
     // ── private helpers ──────────────────────────────────────────────────────
 
     /**
-     * Infers {@code effective_at} as {@code tradingDate + HOSE session close} in
-     * {@code Asia/Ho_Chi_Minh}.
+     * Infers {@code effective_at} as {@code tradingDate + 15:00:00} in {@code Asia/Ho_Chi_Minh}.
      *
      * <p>Decision A: {@code tradingDate} from TCBS REST is a date string only.
-     * We use the versioned HOSE close time (14:45) as the canonical session-end
-     * reference. This is a deterministic calendar inference — not a fabricated value.
+     * While HOSE/HNX close at 14:45 (post-ATC), UPCOM continues continuous matching
+     * until 15:00 without ATC. Thus, the consolidated four-index snapshot is fully
+     * closed and finalized at 15:00:00. This is a deterministic calendar inference.
      */
     private static Instant inferEffectiveAt(LocalDate tradingDate) {
-        return tradingDate.atTime(HOSE_HNX_CLOSE).atZone(MARKET_ZONE).toInstant();
+        return tradingDate.atTime(UPCOM_CLOSE).atZone(MARKET_ZONE).toInstant();
     }
 
     /** Maps TCBS {@code indexNumber} to allowlisted {@link IndexCode}; returns {@code null} if not allowlisted. */

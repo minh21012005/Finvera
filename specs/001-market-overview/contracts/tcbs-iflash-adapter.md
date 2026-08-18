@@ -164,10 +164,11 @@ timestamp/revision source or must be marked partial/unavailable."_
 but does not supply an intraday timestamp. The adapter computes
 `effective_at = tradingDate + session_close_time(Asia/Ho_Chi_Minh)` using
 `MarketTimePolicy`'s versioned session schedule. For HOSE and HNX the standard
-close is `14:45:00`; for UPCOM `14:30:00`. This is a deterministic, calendar-
-derived inference — not a provider-supplied value — and must therefore be
-labelled **`TCBS_REST_TRADING_DATE_ONLY`** on every persisted observation
-sourced from this endpoint.
+close is `14:45:00` (after ATC); for UPCOM `15:00:00` (continuous matching until
+15:00, no ATC). The consolidated four-index snapshot is finalized at `15:00:00`.
+This is a deterministic, calendar-derived inference — not a provider-supplied
+value — and must therefore be labelled **`TCBS_REST_TRADING_DATE_ONLY`** on
+every persisted observation sourced from this endpoint.
 
 The reference level used for REST snapshots is `refPrice` (the provider's
 stated reference price), not the calculated `index - change` used for the
