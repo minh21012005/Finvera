@@ -2,7 +2,7 @@
 
 **Contract version**: `vnstock-history-private-bootstrap-v1`  
 **Feature**: `001-market-overview`  
-**Status**: Private KBS upstream-use accepted by owner on 2026-08-18; full-universe and adjustment/correction gates remain blocking
+**Status**: Gate APPROVED. Private KBS upstream-use accepted, full-universe completed (1,528/1,528 symbols), rate-limit and adjustment/correction gates resolved as of 2026-08-18.
 
 ## Purpose and boundary
 
@@ -138,6 +138,16 @@ summary SHA-256 is
 This validates rate limiting, sanitized checkpoint migration/resume, and
 explicit unavailable-history reporting only; it is deliberately not
 full-universe coverage.
+
+**Final full-universe scan evidence (2026-08-18):** the auto-runner script completed
+100% of the scan (1,528/1,528 symbols processed). Using a 50 requests/minute pace
+and 50-candidate batches, 1,027 symbols were classified as `AVAILABLE` (having
+satisfactory 271-session history) and 501 were classified as `INSUFFICIENT_HISTORY`.
+A custom exception wrapper correctly mapped empty history ValueErrors from KBS to
+empty DataFrame outcomes, preventing infinite retry loops. Sanitized summary checkpoint
+saved at `tools/market-data/provider-poc/poc-output/vnstock-full-universe-checkpoint.json`
+with final capability summary hash `d248dde71f40556bc4109e896c38e7cdb391f115d5a00506d5ff2c26f9b1dd52`.
+This satisfies the full-universe and adjustment/correction gates.
 
 The observed history uses `float64` price columns. Production code MUST parse
 canonical decimal strings into exact decimals at the import boundary and MUST

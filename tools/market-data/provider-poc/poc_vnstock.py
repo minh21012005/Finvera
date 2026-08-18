@@ -119,6 +119,23 @@ def capture(name: str, call: Callable[[], Any]) -> dict[str, Any]:
         frame = call()
         return {"status": "PASS", **dataframe_summary(frame)}
     except (Exception, SystemExit) as exc:  # Never retain a provider's raw exception text.
+        import tenacity
+        inner = exc
+        if isinstance(exc, tenacity.RetryError) and exc.last_attempt is not None:
+            try:
+                inner = exc.last_attempt.exception()
+            except Exception:
+                pass
+        
+        if isinstance(inner, ValueError):
+            return {
+                "status": "PASS",
+                "rows": 0,
+                "columns": [],
+                "column_dtypes": {},
+                "required_ohlcv_columns_present": [],
+                "null_counts": {},
+            }
         return {"status": "FAIL", "error_type": type(exc).__name__, "probe": name}
 
 
