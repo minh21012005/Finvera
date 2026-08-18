@@ -39,6 +39,18 @@ public final class DecimalMath {
                 .setScale(INTERMEDIATE_SCALE, RoundingMode.HALF_UP);
     }
 
+    /**
+     * Rounds a composite (non-division) intermediate value — such as an EMA
+     * recursion step or a MACD line/signal subtraction — to scale 12,
+     * {@code HALF_UP}. Used where {@code technical-indicators-v1} carries a
+     * multiply/add result forward as an intermediate value rather than a
+     * division result, which {@link #divide12} already rounds.
+     */
+    public static BigDecimal scale12(BigDecimal value) {
+        Objects.requireNonNull(value, "value");
+        return value.setScale(INTERMEDIATE_SCALE, RoundingMode.HALF_UP);
+    }
+
     /** Display rounding, applied exactly once at the presentation boundary (rule U-4). */
     public static BigDecimal roundForDisplay(BigDecimal unroundedValue, int displayScale) {
         Objects.requireNonNull(unroundedValue, "unroundedValue");

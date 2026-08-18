@@ -23,6 +23,7 @@ import com.minhnb.finvera_be.stock.service.StockChartService;
 import com.minhnb.finvera_be.stock.service.StockOverviewService;
 import com.minhnb.finvera_be.stock.service.StockOverviewService.StockOverview;
 import com.minhnb.finvera_be.stock.service.StockSearchService;
+import com.minhnb.finvera_be.stock.service.TechnicalIndicatorService;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -74,6 +75,9 @@ class StockOverviewControllerTests {
 
     @MockitoBean
     private StockChartService chartService;
+
+    @MockitoBean
+    private TechnicalIndicatorService technicalService;
 
     @Test
     void overviewRequiresThePrivateOwnerSession() throws Exception {

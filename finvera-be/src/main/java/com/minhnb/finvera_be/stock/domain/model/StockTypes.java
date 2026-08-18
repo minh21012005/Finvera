@@ -56,4 +56,8 @@ public final class StockTypes {
     public enum ValuationMetricCode {
         PE, PB, EV_EBITDA, PEG, DIVIDEND_YIELD
     }
+
+    public enum Unit {
+        VND, SHARES, PERCENT, RATIO, POINTS, COUNT
+    }
 }

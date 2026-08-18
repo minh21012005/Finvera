@@ -28,4 +28,6 @@ public interface EquityDailyBarRepository extends JpaRepository<EquityDailyBarEn
             UUID instrumentId, LocalDate beforeExclusive);
 
     long countByInstrumentId(UUID instrumentId);
+
+    List<EquityDailyBarEntity> findByInstrumentIdAndCurrentTrueOrderByTradingDateAsc(UUID instrumentId);
 }

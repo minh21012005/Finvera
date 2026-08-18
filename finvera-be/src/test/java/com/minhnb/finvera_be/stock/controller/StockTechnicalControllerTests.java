@@ -12,13 +12,19 @@ import com.minhnb.finvera_be.auth.config.OwnerSecurityConfiguration;
 import com.minhnb.finvera_be.auth.controller.OwnerAccessController;
 import com.minhnb.finvera_be.auth.service.OwnerSessionService;
 import com.minhnb.finvera_be.market.domain.model.MarketTypes.DataStatus;
-import com.minhnb.finvera_be.stock.domain.chart.StockChartAssembler.ChartBar;
 import com.minhnb.finvera_be.stock.domain.model.StockTypes.AdjustmentStatus;
+import com.minhnb.finvera_be.stock.domain.model.StockTypes.IndicatorCode;
+import com.minhnb.finvera_be.stock.domain.model.StockTypes.IndicatorComponent;
+import com.minhnb.finvera_be.stock.domain.model.StockTypes.MetricApplicability;
+import com.minhnb.finvera_be.stock.domain.model.StockTypes.Unit;
+import com.minhnb.finvera_be.stock.domain.technical.TechnicalIndicatorsV1;
+import com.minhnb.finvera_be.stock.domain.technical.TechnicalIndicatorsV1.ComponentResult;
+import com.minhnb.finvera_be.stock.domain.technical.TechnicalIndicatorsV1.IndicatorResult;
 import com.minhnb.finvera_be.stock.service.StockChartService;
-import com.minhnb.finvera_be.stock.service.StockChartService.StockChart;
 import com.minhnb.finvera_be.stock.service.StockOverviewService;
 import com.minhnb.finvera_be.stock.service.StockSearchService;
 import com.minhnb.finvera_be.stock.service.TechnicalIndicatorService;
+import com.minhnb.finvera_be.stock.service.TechnicalIndicatorService.StockTechnical;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -38,10 +44,10 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.json.JsonMapper;
 
-/** Contract-first tests for FR-003, DATA-008. */
+/** Contract-first tests for FR-005, FR-006. */
 @WebMvcTest(controllers = {OwnerAccessController.class, StockController.class})
 @Import({OwnerSecurityConfiguration.class, OwnerSessionService.class})
-class StockChartControllerTests {
+class StockTechnicalControllerTests {
 
     private static final String OWNER_NAME = "owner-" + UUID.randomUUID();
     private static final String LOGIN_PROOF = UUID.randomUUID().toString();
@@ -71,52 +77,46 @@ class StockChartControllerTests {
     private TechnicalIndicatorService technicalService;
 
     @Test
-    void chartRequiresThePrivateOwnerSession() throws Exception {
-        mvc.perform(get("/api/v1/stocks/FPT/chart"))
+    void technicalRequiresThePrivateOwnerSession() throws Exception {
+        mvc.perform(get("/api/v1/stocks/FPT/technical"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(content().contentType("application/problem+json"));
     }
 
     @Test
-    void ownerReceivesAnAscendingSeriesWithOneAdjustmentStatusForTheWholeWindow() throws Exception {
-        var bars = List.of(
-                new ChartBar(LocalDate.of(2026, 8, 13), new BigDecimal("122000.000000"),
-                        new BigDecimal("123000.000000"), new BigDecimal("121500.000000"),
-                        new BigDecimal("122500.000000"), 2_000_000L),
-                new ChartBar(LocalDate.of(2026, 8, 14), new BigDecimal("122500.000000"),
-                        new BigDecimal("123800.000000"), new BigDecimal("122300.000000"),
-                        new BigDecimal("123600.000000"), 2_270_000L));
-        var chart = new StockChart("1M", AdjustmentStatus.ADJUSTED, bars, DataStatus.CURRENT, null,
-                Instant.parse("2026-08-17T07:15:00Z"), "coh-chart-1");
-        given(chartService.findBySymbol("FPT", "1M")).willReturn(Optional.of(chart));
+    void ownerReceivesEveryIndicatorWithApplicabilityAndTheDecisionSupportDisclaimer() throws Exception {
+        var ma20 = new IndicatorResult(IndicatorCode.MA20, MetricApplicability.DEFINED, 20, 20,
+                LocalDate.of(2026, 7, 17), LocalDate.of(2026, 8, 14), 20, "a".repeat(64), null,
+                List.of(new ComponentResult(IndicatorComponent.VALUE, new BigDecimal("41491.754764850000"),
+                        Unit.VND, 2, MetricApplicability.DEFINED, null)));
+        var ma200 = new IndicatorResult(IndicatorCode.MA200, MetricApplicability.MISSING, 200, 199, null, null, 0,
+                null, "INSUFFICIENT_HISTORY", List.of());
+        var technical = new StockTechnical(TechnicalIndicatorsV1.RULE_VERSION, AdjustmentStatus.ADJUSTED,
+                List.of(ma20, ma200), DataStatus.CURRENT, List.of(), LocalDate.of(2026, 8, 14),
+                Instant.parse("2026-08-17T07:15:00Z"), "coh-technical-1");
+        given(technicalService.findBySymbol("FPT")).willReturn(Optional.of(technical));
 
-        mvc.perform(get("/api/v1/stocks/FPT/chart").param("window", "1M").session(ownerSession()))
+        mvc.perform(get("/api/v1/stocks/FPT/technical").session(ownerSession()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.adjustmentStatus").value("ADJUSTED"))
-                .andExpect(jsonPath("$.bars.length()").value(2))
-                .andExpect(jsonPath("$.bars[0].tradingDate").value("2026-08-13"))
-                .andExpect(jsonPath("$.bars[1].tradingDate").value("2026-08-14"))
-                .andExpect(jsonPath("$.bars[1].close").value("123600.000000"));
+                .andExpect(jsonPath("$.ruleVersion").value("technical-indicators-v1"))
+                .andExpect(jsonPath("$.disclaimerCode").value("QUANTITATIVE_DECISION_SUPPORT"))
+                .andExpect(jsonPath("$.indicators.length()").value(2))
+                .andExpect(jsonPath("$.indicators[0].indicatorCode").value("MA20"))
+                .andExpect(jsonPath("$.indicators[0].applicability").value("DEFINED"))
+                .andExpect(jsonPath("$.indicators[0].components[0].value").value("41491.75"))
+                .andExpect(jsonPath("$.indicators[1].indicatorCode").value("MA200"))
+                .andExpect(jsonPath("$.indicators[1].applicability").value("MISSING"))
+                .andExpect(jsonPath("$.indicators[1].requiredBars").value(200))
+                .andExpect(jsonPath("$.indicators[1].availableBars").value(199))
+                .andExpect(jsonPath("$.indicators[1].reasonCode").value("INSUFFICIENT_HISTORY"))
+                .andExpect(jsonPath("$.indicators[1].components.length()").value(0));
     }
 
     @Test
-    void chartUnavailableWhileOverviewStaysUsableIsAnExplicitStateNotAnError() throws Exception {
-        var chart = new StockChart("1M", com.minhnb.finvera_be.stock.domain.model.StockTypes.AdjustmentStatus.UNKNOWN,
-                List.of(), DataStatus.UNAVAILABLE, "PROVIDER_UNAVAILABLE", Instant.parse("2026-08-17T07:15:00Z"),
-                "coh-chart-empty");
-        given(chartService.findBySymbol("FPT", "1M")).willReturn(Optional.of(chart));
+    void unknownSymbolReturns404WithoutFabricatingIndicators() throws Exception {
+        given(technicalService.findBySymbol("ZZZZZ")).willReturn(Optional.empty());
 
-        mvc.perform(get("/api/v1/stocks/FPT/chart").param("window", "1M").session(ownerSession()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.meta.dataStatus").value("UNAVAILABLE"))
-                .andExpect(jsonPath("$.bars.length()").value(0));
-    }
-
-    @Test
-    void unknownSymbolReturns404WithoutFabricatingAChart() throws Exception {
-        given(chartService.findBySymbol("ZZZZZ", "1Y")).willReturn(Optional.empty());
-
-        mvc.perform(get("/api/v1/stocks/ZZZZZ/chart").session(ownerSession()))
+        mvc.perform(get("/api/v1/stocks/ZZZZZ/technical").session(ownerSession()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.reasonCode").value("STOCK_NOT_SUPPORTED"));
     }

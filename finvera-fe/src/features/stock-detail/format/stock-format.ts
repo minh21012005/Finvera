@@ -1,6 +1,15 @@
-import type { Applicability, DataStatus, Direction, SessionState } from "../api/stock-detail";
+import type {
+  Applicability,
+  DataStatus,
+  Direction,
+  IndicatorCode,
+  IndicatorComponentCode,
+  IndicatorUnit,
+  SessionState,
+} from "../api/stock-detail";
 
 export { formatDecimal, formatVnd, formatVolume, formatAsOf } from "../../market-overview/format/market-format";
+import { formatDecimal } from "../../market-overview/format/market-format";
 
 export function formatPercent(value: string | null): string {
   if (value === null) return "Không có dữ liệu";
@@ -43,4 +52,56 @@ export function sessionStateLabel(state: SessionState): string {
 export function applicabilityReasonLabel(applicability: Applicability, reasonCode: string | null): string | null {
   if (applicability === "DEFINED") return null;
   return reasonCode ?? (applicability === "MISSING" ? "MISSING" : "NOT_APPLICABLE");
+}
+
+const INDICATOR_LABELS: Record<IndicatorCode, string> = {
+  MA20: "MA20",
+  MA50: "MA50",
+  MA200: "MA200",
+  RSI14: "RSI(14)",
+  MACD: "MACD(12,26,9)",
+  BBANDS: "Dải Bollinger(20,2)",
+  ATR14: "ATR(14)",
+  AVG_VOLUME20: "KL bình quân(20)",
+  RELATIVE_VOLUME: "KL tương đối",
+};
+
+export function indicatorLabel(code: IndicatorCode): string {
+  return INDICATOR_LABELS[code];
+}
+
+const COMPONENT_LABELS: Record<IndicatorComponentCode, string> = {
+  VALUE: "Giá trị",
+  UPPER: "Dải trên",
+  MIDDLE: "Dải giữa",
+  LOWER: "Dải dưới",
+  BANDWIDTH: "Độ rộng dải",
+  MACD_LINE: "Đường MACD",
+  SIGNAL: "Đường tín hiệu",
+  HISTOGRAM: "Biểu đồ cột",
+  PERCENT_OF_CLOSE: "% so với giá đóng cửa",
+};
+
+export function componentLabel(code: IndicatorComponentCode): string {
+  return COMPONENT_LABELS[code];
+}
+
+/**
+ * `value` arrives already display-rounded by the backend (rule U-4: rounding
+ * happens exactly once, at the presentation boundary) — this only adds the
+ * unit suffix, it never re-rounds.
+ */
+export function formatIndicatorValue(value: string | null, unit: IndicatorUnit): string {
+  if (value === null) return "Không có dữ liệu";
+  switch (unit) {
+    case "VND":
+      return `${formatDecimal(value)} VND`;
+    case "PERCENT":
+      return `${formatDecimal(value)}%`;
+    case "SHARES":
+      return formatDecimal(value);
+    case "POINTS":
+    case "RATIO":
+      return formatDecimal(value);
+  }
 }

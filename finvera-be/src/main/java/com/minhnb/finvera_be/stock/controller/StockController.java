@@ -3,9 +3,11 @@ package com.minhnb.finvera_be.stock.controller;
 import com.minhnb.finvera_be.stock.dto.StockChartResponse;
 import com.minhnb.finvera_be.stock.dto.StockOverviewResponse;
 import com.minhnb.finvera_be.stock.dto.StockSearchResponse;
+import com.minhnb.finvera_be.stock.dto.StockTechnicalResponse;
 import com.minhnb.finvera_be.stock.service.StockChartService;
 import com.minhnb.finvera_be.stock.service.StockOverviewService;
 import com.minhnb.finvera_be.stock.service.StockSearchService;
+import com.minhnb.finvera_be.stock.service.TechnicalIndicatorService;
 import java.net.URI;
 import java.util.Arrays;
 import org.springframework.http.HttpStatus;
@@ -27,14 +29,17 @@ public class StockController {
     private final StockSearchService searchService;
     private final StockOverviewService overviewService;
     private final StockChartService chartService;
+    private final TechnicalIndicatorService technicalService;
 
     public StockController(
             StockSearchService searchService,
             StockOverviewService overviewService,
-            StockChartService chartService) {
+            StockChartService chartService,
+            TechnicalIndicatorService technicalService) {
         this.searchService = searchService;
         this.overviewService = overviewService;
         this.chartService = chartService;
+        this.technicalService = technicalService;
     }
 
     @GetMapping
@@ -64,6 +69,18 @@ public class StockController {
             return ResponseEntity.status(304).eTag(chart.coherenceKey()).build();
         }
         return ResponseEntity.ok().eTag(chart.coherenceKey()).body(StockChartResponse.from(symbol, chart));
+    }
+
+    @GetMapping("/{symbol}/technical")
+    ResponseEntity<StockTechnicalResponse> technical(
+            @PathVariable String symbol,
+            @RequestHeader(value = "If-None-Match", required = false) String ifNoneMatch) {
+        var technical = technicalService.findBySymbol(symbol).orElseThrow(() -> notSupported(symbol));
+        if (matches(ifNoneMatch, technical.coherenceKey())) {
+            return ResponseEntity.status(304).eTag(technical.coherenceKey()).build();
+        }
+        return ResponseEntity.ok().eTag(technical.coherenceKey())
+                .body(StockTechnicalResponse.from(symbol, technical));
     }
 
     @ExceptionHandler(StockNotSupportedException.class)

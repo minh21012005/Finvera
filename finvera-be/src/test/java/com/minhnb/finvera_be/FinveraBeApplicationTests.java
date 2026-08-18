@@ -17,6 +17,8 @@ import com.minhnb.finvera_be.stock.repository.EquityDailyBarRepository;
 import com.minhnb.finvera_be.stock.repository.EquityProfileRepository;
 import com.minhnb.finvera_be.stock.repository.FundamentalReportRepository;
 import com.minhnb.finvera_be.stock.repository.SectorReferenceRepository;
+import com.minhnb.finvera_be.stock.repository.TechnicalIndicatorResultRepository;
+import com.minhnb.finvera_be.stock.repository.TechnicalIndicatorValueRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
@@ -83,6 +85,12 @@ class FinveraBeApplicationTests {
 
 	@MockitoBean
 	SectorReferenceRepository sectorReferenceRepository;
+
+	@MockitoBean
+	TechnicalIndicatorResultRepository technicalIndicatorResultRepository;
+
+	@MockitoBean
+	TechnicalIndicatorValueRepository technicalIndicatorValueRepository;
 
 	@DynamicPropertySource
 	static void ownerProperties(DynamicPropertyRegistry registry) {

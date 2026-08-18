@@ -2,12 +2,15 @@ import { useEffect, useState } from "react";
 import {
   getStockChart,
   getStockOverview,
+  getStockTechnical,
   StockApiError,
   type StockChart as StockChartData,
   type StockOverview as StockOverviewData,
+  type StockTechnical as StockTechnicalData,
 } from "./api/stock-detail";
 import { StockOverview } from "./components/stock-overview";
 import { StockChart } from "./components/stock-chart";
+import { StockTechnical } from "./components/stock-technical";
 import { SymbolSearch } from "./components/symbol-search";
 import { navigate } from "../../router";
 
@@ -22,9 +25,15 @@ type ChartState =
   | { kind: "ready"; chart: StockChartData }
   | { kind: "unavailable" };
 
+type TechnicalState =
+  | { kind: "loading" }
+  | { kind: "ready"; technical: StockTechnicalData }
+  | { kind: "unavailable" };
+
 export function StockDetailPage({ symbol }: { symbol: string }) {
   const [overviewState, setOverviewState] = useState<OverviewState>({ kind: "loading" });
   const [chartState, setChartState] = useState<ChartState>({ kind: "loading" });
+  const [technicalState, setTechnicalState] = useState<TechnicalState>({ kind: "loading" });
 
   useEffect(() => {
     // `symbol` changes only via remount (App keys StockDetailPage by symbol),
@@ -43,13 +52,20 @@ export function StockDetailPage({ symbol }: { symbol: string }) {
         }
       });
 
-    // The chart section fails independently of the overview (FR-012): a chart
-    // outage must never block the rest of the page.
+    // The chart and technical sections fail independently of the overview
+    // (FR-012): an outage in either must never block the rest of the page.
     getStockChart(symbol, "1Y", controller.signal)
       .then((chart) => setChartState({ kind: "ready", chart }))
       .catch(() => {
         if (controller.signal.aborted) return;
         setChartState({ kind: "unavailable" });
+      });
+
+    getStockTechnical(symbol, controller.signal)
+      .then((technical) => setTechnicalState({ kind: "ready", technical }))
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        setTechnicalState({ kind: "unavailable" });
       });
 
     return () => controller.abort();
@@ -87,6 +103,15 @@ export function StockDetailPage({ symbol }: { symbol: string }) {
             </section>
           )}
           {chartState.kind === "ready" && <StockChart chart={chartState.chart} />}
+
+          {technicalState.kind === "loading" && <p aria-busy="true">Đang tải chỉ báo kỹ thuật…</p>}
+          {technicalState.kind === "unavailable" && (
+            <section aria-labelledby="stock-technical-heading" className="stock-technical-card">
+              <h2 id="stock-technical-heading">Chỉ báo kỹ thuật</h2>
+              <p role="status">Chỉ báo kỹ thuật tạm thời không có dữ liệu.</p>
+            </section>
+          )}
+          {technicalState.kind === "ready" && <StockTechnical technical={technicalState.technical} />}
 
           <footer className="provenance-footer">
             <span>

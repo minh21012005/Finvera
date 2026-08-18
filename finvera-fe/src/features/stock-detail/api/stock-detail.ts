@@ -72,6 +72,40 @@ export interface StockChart {
   bars: ChartBar[];
 }
 
+export type IndicatorCode =
+  | "MA20" | "MA50" | "MA200" | "RSI14" | "MACD" | "BBANDS" | "ATR14" | "AVG_VOLUME20" | "RELATIVE_VOLUME";
+export type IndicatorComponentCode =
+  | "VALUE" | "UPPER" | "MIDDLE" | "LOWER" | "BANDWIDTH" | "MACD_LINE" | "SIGNAL" | "HISTOGRAM" | "PERCENT_OF_CLOSE";
+export type IndicatorUnit = "VND" | "PERCENT" | "RATIO" | "SHARES" | "POINTS";
+
+export interface IndicatorComponentValue {
+  componentCode: IndicatorComponentCode;
+  value: string | null;
+  unit: IndicatorUnit;
+  displayPrecision: number;
+  applicability: Applicability;
+  reasonCode: string | null;
+}
+
+export interface IndicatorResult {
+  indicatorCode: IndicatorCode;
+  applicability: Applicability;
+  requiredBars: number;
+  availableBars: number;
+  windowStartDate: string | null;
+  windowEndDate: string | null;
+  reasonCode: string | null;
+  components: IndicatorComponentValue[];
+}
+
+export interface StockTechnical {
+  meta: SectionMeta;
+  ruleVersion: "technical-indicators-v1";
+  adjustmentStatus: AdjustmentStatus;
+  disclaimerCode: string;
+  indicators: IndicatorResult[];
+}
+
 export interface StockSearchResult {
   symbol: string;
   companyName: string;
@@ -98,6 +132,13 @@ const SESSION_STATES = new Set<SessionState>([
 const APPLICABILITIES = new Set<Applicability>(["DEFINED", "NOT_APPLICABLE", "MISSING"]);
 const ADJUSTMENT_STATUSES = new Set<AdjustmentStatus>(["ADJUSTED", "RAW", "NOT_APPLICABLE", "UNKNOWN"]);
 const LISTING_STATUSES = new Set<ListingStatus>(["LISTED", "SUSPENDED", "HALTED", "DELISTED", "UNKNOWN"]);
+const INDICATOR_CODES = new Set<IndicatorCode>([
+  "MA20", "MA50", "MA200", "RSI14", "MACD", "BBANDS", "ATR14", "AVG_VOLUME20", "RELATIVE_VOLUME",
+]);
+const INDICATOR_COMPONENT_CODES = new Set<IndicatorComponentCode>([
+  "VALUE", "UPPER", "MIDDLE", "LOWER", "BANDWIDTH", "MACD_LINE", "SIGNAL", "HISTOGRAM", "PERCENT_OF_CLOSE",
+]);
+const INDICATOR_UNITS = new Set<IndicatorUnit>(["VND", "PERCENT", "RATIO", "SHARES", "POINTS"]);
 const DECIMAL = /^-?[0-9]+(?:\.[0-9]+)?$/;
 
 async function getJson(path: string, signal?: AbortSignal): Promise<unknown> {
@@ -130,6 +171,10 @@ export async function getStockChart(
   return parseStockChart(
     await getJson(`/api/v1/stocks/${encodeURIComponent(symbol)}/chart?window=${window}`, signal),
   );
+}
+
+export async function getStockTechnical(symbol: string, signal?: AbortSignal): Promise<StockTechnical> {
+  return parseStockTechnical(await getJson(`/api/v1/stocks/${encodeURIComponent(symbol)}/technical`, signal));
 }
 
 export async function searchStocks(query: string, signal?: AbortSignal): Promise<StockSearchResult[]> {
@@ -224,6 +269,44 @@ function parseBar(value: unknown): ChartBar {
   };
 }
 
+export function parseStockTechnical(value: unknown): StockTechnical {
+  const technical = record(value, "stock technical");
+  if (technical.ruleVersion !== "technical-indicators-v1") throw new Error("Unsupported technical ruleVersion");
+  return {
+    meta: parseMeta(technical.meta),
+    ruleVersion: "technical-indicators-v1",
+    adjustmentStatus: adjustmentStatus(technical.adjustmentStatus, "technical adjustmentStatus"),
+    disclaimerCode: text(technical.disclaimerCode, "technical disclaimerCode"),
+    indicators: array(technical.indicators, "technical indicators").map(parseIndicatorResult),
+  };
+}
+
+function parseIndicatorResult(value: unknown): IndicatorResult {
+  const result = record(value, "indicator result");
+  return {
+    indicatorCode: indicatorCode(result.indicatorCode, "indicator indicatorCode"),
+    applicability: applicability(result.applicability, "indicator applicability"),
+    requiredBars: nonNegativeInteger(result.requiredBars, "indicator requiredBars"),
+    availableBars: nonNegativeInteger(result.availableBars, "indicator availableBars"),
+    windowStartDate: nullableText(result.windowStartDate, "indicator windowStartDate"),
+    windowEndDate: nullableText(result.windowEndDate, "indicator windowEndDate"),
+    reasonCode: nullableText(result.reasonCode, "indicator reasonCode"),
+    components: array(result.components, "indicator components").map(parseIndicatorComponent),
+  };
+}
+
+function parseIndicatorComponent(value: unknown): IndicatorComponentValue {
+  const component = record(value, "indicator component");
+  return {
+    componentCode: indicatorComponentCode(component.componentCode, "component componentCode"),
+    value: decimal(component.value, "component value"),
+    unit: indicatorUnit(component.unit, "component unit"),
+    displayPrecision: nonNegativeInteger(component.displayPrecision, "component displayPrecision"),
+    applicability: applicability(component.applicability, "component applicability"),
+    reasonCode: nullableText(component.reasonCode, "component reasonCode"),
+  };
+}
+
 function parseSearchResult(value: unknown): StockSearchResult {
   const result = record(value, "search result");
   return {
@@ -296,4 +379,28 @@ function adjustmentStatus(value: unknown, name: string): AdjustmentStatus {
 function listingStatus(value: unknown, name: string): ListingStatus {
   if (typeof value !== "string" || !LISTING_STATUSES.has(value as ListingStatus)) throw new Error(`${name} is invalid`);
   return value as ListingStatus;
+}
+
+function nonNegativeInteger(value: unknown, name: string): number {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
+    throw new Error(`${name} must be a safe non-negative integer`);
+  }
+  return value;
+}
+
+function indicatorCode(value: unknown, name: string): IndicatorCode {
+  if (typeof value !== "string" || !INDICATOR_CODES.has(value as IndicatorCode)) throw new Error(`${name} is invalid`);
+  return value as IndicatorCode;
+}
+
+function indicatorComponentCode(value: unknown, name: string): IndicatorComponentCode {
+  if (typeof value !== "string" || !INDICATOR_COMPONENT_CODES.has(value as IndicatorComponentCode)) {
+    throw new Error(`${name} is invalid`);
+  }
+  return value as IndicatorComponentCode;
+}
+
+function indicatorUnit(value: unknown, name: string): IndicatorUnit {
+  if (typeof value !== "string" || !INDICATOR_UNITS.has(value as IndicatorUnit)) throw new Error(`${name} is invalid`);
+  return value as IndicatorUnit;
 }
