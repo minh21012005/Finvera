@@ -3,7 +3,7 @@
 **Feature Directory**: `specs/002-stock-detail-analysis`
 **Date**: 2026-08-18
 **Spec**: [spec.md](spec.md)
-**Status**: Design complete; provider gates G-01 to G-04 open; `tasks.md` generated (73 tasks). Phase 1 (setup/fixtures) and Phase 2 (foundation: schema, entities, market reference-data boundary, freshness policy, provider ports, ingestion service, observability) complete — T001-T020 done, 163/163 backend tests passing. Phase 3 (US1) not started.
+**Status**: Design complete; provider gates G-01 to G-04 open; `tasks.md` generated (73 tasks). Phase 1 (setup/fixtures), Phase 2 (foundation), and Phase 3 (US1 — overview + chart, backend and frontend) complete — T001-T033 done. 183/183 backend tests, 25/25 frontend unit tests, and 9/9 Playwright P1 journeys passing. Phase 4 (US2 — technical indicators) not started.
 
 ## Summary
 

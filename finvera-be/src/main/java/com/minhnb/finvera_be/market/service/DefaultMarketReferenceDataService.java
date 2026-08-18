@@ -14,6 +14,7 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -41,6 +42,20 @@ public class DefaultMarketReferenceDataService implements MarketReferenceDataSer
         Objects.requireNonNull(symbol, "symbol");
         return instruments.findFirstBySymbolAndListedToIsNull(symbol.toUpperCase())
                 .map(DefaultMarketReferenceDataService::toReference);
+    }
+
+    @Override
+    public List<InstrumentReference> searchActiveInstrumentsBySymbolPrefix(String symbolPrefix, int limit) {
+        Objects.requireNonNull(symbolPrefix, "symbolPrefix");
+        if (limit < 1) {
+            throw new IllegalArgumentException("limit must be positive");
+        }
+        return instruments
+                .findByListedToIsNullAndSymbolStartingWithIgnoreCaseOrderBySymbolAsc(
+                        symbolPrefix, Limit.of(limit))
+                .stream()
+                .map(DefaultMarketReferenceDataService::toReference)
+                .toList();
     }
 
     @Override

@@ -3,6 +3,7 @@ package com.minhnb.finvera_be.market.service;
 import com.minhnb.finvera_be.market.domain.model.MarketTypes.SessionState;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -18,6 +19,9 @@ public interface MarketReferenceDataService {
 
     /** The currently listed instrument for a symbol, if one is known and active. */
     Optional<InstrumentReference> findActiveInstrumentBySymbol(String symbol);
+
+    /** Active instruments whose symbol starts with the given prefix, for symbol lookup (FR-016). */
+    List<InstrumentReference> searchActiveInstrumentsBySymbolPrefix(String symbolPrefix, int limit);
 
     /** The trading-day and session-window state at an instant, for one venue. */
     SessionContext resolveSession(String venue, Instant at);

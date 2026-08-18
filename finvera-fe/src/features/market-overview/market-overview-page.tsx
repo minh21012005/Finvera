@@ -4,6 +4,8 @@ import { IndexOverview } from "./components/index-overview";
 import { BreadthOverview } from "./components/breadth-overview";
 import { RegimeOverview } from "./components/regime-overview";
 import { formatAsOf } from "./format/market-format";
+import { SymbolSearch } from "../stock-detail/components/symbol-search";
+import { navigate } from "../../router";
 
 type LoadState =
   | { kind: "loading" }
@@ -70,6 +72,7 @@ export function MarketOverviewPage() {
             </span>
           </span>
         </div>
+        <SymbolSearch onSelect={(symbol) => navigate(`/stocks/${symbol}`)} />
       </header>
 
       <IndexOverview overview={state.overview} />

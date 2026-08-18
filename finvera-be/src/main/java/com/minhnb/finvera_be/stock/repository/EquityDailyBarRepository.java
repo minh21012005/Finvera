@@ -18,5 +18,14 @@ public interface EquityDailyBarRepository extends JpaRepository<EquityDailyBarEn
     Optional<EquityDailyBarEntity> findFirstByInstrumentIdAndSourceAndCurrentTrueOrderByTradingDateDesc(
             UUID instrumentId, String source);
 
+    List<EquityDailyBarEntity> findByInstrumentIdAndCurrentTrueAndTradingDateBetweenOrderByTradingDateAsc(
+            UUID instrumentId, LocalDate fromInclusive, LocalDate toInclusive);
+
+    Optional<EquityDailyBarEntity> findFirstByInstrumentIdAndCurrentTrueOrderByTradingDateDescAcceptedAtDesc(
+            UUID instrumentId);
+
+    Optional<EquityDailyBarEntity> findFirstByInstrumentIdAndCurrentTrueAndTradingDateBeforeOrderByTradingDateDesc(
+            UUID instrumentId, LocalDate beforeExclusive);
+
     long countByInstrumentId(UUID instrumentId);
 }
