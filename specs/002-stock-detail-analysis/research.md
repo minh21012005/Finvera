@@ -379,6 +379,70 @@ personal, non-commercial use only. Fundamentals obtained through it carry exactl
 the same private-deployment restriction as price history, and any public or
 multi-user delivery requires a commercially licensed replacement.
 
+**Evidence gathered (2026-08-19)** — live sanitized probe against the pinned
+Vnstock `4.0.6`, script `tools/market-data/provider-poc/poc_vnstock_fundamentals.py`,
+sanitized output `tools/market-data/provider-poc/poc-output/{kbs,vci}/vnstock-fundamentals-capability-summary.json`
+(gitignored, schema/field-name/count evidence only, no dollar amounts recorded
+beyond the public line-item labels themselves, which are not secret):
+
+1. **`balance_sheet()` returns zero rows for every symbol tried under
+   `source="kbs"`** (`VNM`, `VCB`, `SSI`, `HPG`; both `period="year"` and
+   `period="quarter"`). `show_log=True` confirms this is a genuine upstream
+   response, not a client bug: the library issues a real HTTP GET to
+   `https://kbbuddywts.kbsec.com.vn/.../finance-info/{symbol}?type=CDKT...` and
+   logs `Không tìm thấy bảng cân đối kế toán cho {symbol}` ("balance sheet not
+   found"). `income_statement`, `cash_flow`, and `ratio` all return real,
+   nonempty data for the same symbols and periods, so this is specific to the
+   balance-sheet report type, not a blanket API failure.
+2. **`source="vci"` cannot be used as a fallback**: constructing
+   `Finance(source="vci", ...)` raises `UnboundLocalError` from inside
+   vnstock's own `core/utils/env.py` (`get_hosting_service`) for every symbol
+   tried — a defect in the pinned package version itself, not a data
+   availability question.
+3. **Consequence for FR-007/valuation-v1**: `EQUITY_ATTRIBUTABLE_TO_PARENT`,
+   `TOTAL_DEBT`, and `CASH_AND_EQUIVALENTS` are balance-sheet line items.
+   Without them, `PB` and `EV_EBITDA` can never be computed from a live feed
+   (`valuation-v1`'s own formulas require `bvps`/`ev`, both balance-sheet
+   derived), and FR-007's `debt-to-equity` display metric loses its two
+   underlying inputs (though `ratio()` separately exposes a pre-computed
+   `debt_to_equity` figure — see point 5).
+4. **Schema shape differs from what the domain model assumed**: `income_statement`,
+   `cash_flow`, and `ratio` are wide tables (one row per line item, one column
+   per fiscal period, e.g. `2026-Q2`, `2025-Q4`), not one row per period as
+   `FundamentalReportAcceptance`/`IncomingFundamentalReport` currently assume.
+   An adapter would need a wide-to-long transform per period column, which is
+   new, unresearched work, not a simple field rename.
+5. **Field identity is workable**: the `item_id` column is already an English
+   snake_case key (`revenue`, `gross_profit`, `net_profit`,
+   `earnings_per_share_vnd`, `roe`, `roa`, `debt_to_equity`, `dividend_yield`,
+   `ev_ebitda`, …), not a numeric or Vietnamese-only code — mapping most of it
+   to `FundamentalReportAcceptance.ALLOWED_METRIC_CODES` looks feasible. Two
+   open questions surfaced, not yet resolved: (a) `income_statement` returns
+   **two** `revenue`-labelled rows per symbol (`item` "1. Doanh thu bán hàng…"
+   gross revenue vs. "3. Doanh thu thuần…" net revenue) — which one is
+   Finvera's `REVENUE` is undecided; (b) no `item_id` corresponds to
+   `FREE_CASH_FLOW` directly — it would need to be derived (e.g. operating
+   cash flow minus capex), a new formula not yet specified anywhere.
+6. **`ratio()` already returns pre-computed `pe_ratio`/`pb_ratio`/`ev_ebitda`/`roe`/`roa`**
+   for the symbol. Per Constitution Principle I these can never be trusted as
+   Finvera's authoritative `valuation-v1` outputs (which must be computed by
+   Finvera's own versioned domain code), but they are a legitimate reference
+   value for a future cross-check test against the domain engine's own result.
+7. Restatement behaviour (item 3) and request-limit behaviour (item 5) were
+   **not** established by this pass — a single point-in-time probe cannot
+   observe whether a re-filed period changes under the same key, and no
+   sustained-load test was run.
+
+**Gate status: still open.** Items 1, 2, and 4 above (missing balance sheet,
+broken VCI fallback, wide-format schema mismatch) are new blockers this
+evidence surfaced, not resolved by it. This is an owner decision, not
+something further probing alone will resolve: accept fundamentals without
+`PB`/`EV_EBITDA`/`TOTAL_DEBT`/`CASH_AND_EQUIVALENTS` (a materially narrower
+FR-007/valuation-v1 than specified), find a different balance-sheet source,
+or evaluate a vnstock package upgrade (its own review/compatibility/ADR cost
+per `AGENTS.md`, not attempted here). T058 MUST NOT start until the owner
+picks one of these and records the decision here.
+
 ### G-02 — Corporate action and adjustment basis (blocking for the US1 chart and US2)
 
 The split, stock dividend, cash dividend, and rights-issue history needed for
@@ -388,12 +452,53 @@ symbol, the ex-date and ratio field identity, and confirmation of whether the
 provider's historical series is already adjusted. Until G-02 closes, the chart
 and technical indicators serve `RAW` series with the disclosed reason code.
 
+**Evidence gathered (2026-08-19)** — live probe of `vnstock.Company(source="kbs")`
+for `VNM`, `HPG`, `SSI`:
+
+1. **`Company.events()` returns zero rows for every symbol tried.** This is
+   the API surface a dedicated corporate-action feed would be expected to use
+   (as opposed to a derived inference); it returned nothing via KBS for all
+   three symbols probed.
+2. **`Company.capital_history()` returns real data** (`date`, `charter_capital`,
+   `currency` columns; 14–34 rows per symbol) showing charter-capital step
+   changes over time — e.g. VNM's charter capital rose from ~17.4T to ~20.9T
+   VND on 2020-10-28, consistent with a stock dividend or bonus share issue —
+   but **it does not carry the fields G-02 requires**: no explicit action
+   `type` (split vs. stock dividend vs. rights issue vs. M&A), no explicit
+   `ratio`, and no ex-date (`date` is presumably an effective/announcement
+   date, unconfirmed; 5 of VNM's 14 rows have `date = NaT`, i.e. missing
+   entirely). A ratio could be *inferred* from consecutive capital values, but
+   that is a derivation Finvera would own, not a field the provider supplies —
+   exactly the kind of guessed provider semantics `AGENTS.md` prohibits.
+3. Whether the OHLCV history returned by `Market.equity(...).ohlcv(...)`
+   (used for price bars) is already split-adjusted or raw was **not**
+   established — confirming this needs a symbol with a known, dated split and
+   comparing the price series across that date, not attempted in this pass.
+
+**Gate status: still open, and not closeable via the currently probed API
+surface.** No explicit split/dividend event feed with ex-date and ratio was
+found under `source="kbs"`. Before this can close, either a working `events()`
+response needs to be found (different source, different vnstock version, or a
+different symbol/parameter combination not yet tried) or the owner must accept
+deriving corporate actions from `capital_history`'s capital deltas as an
+explicit, documented approximation — a materially different, weaker claim than
+what G-02 originally asked for. T060 MUST NOT start until one of these is
+decided and recorded here.
+
 ### G-03 — Per-stock quote coverage (blocking for the US1 live path)
 
 Extends the Feature 001 TCBS gate to per-instrument subjects: confirmation that
 the accepted adapter returns the current price, official reference price, and
 session volume for an arbitrary supported symbol, and that the request cost per
 symbol is compatible with NFR-001.
+
+**Not attempted (2026-08-19).** `tools/market-data/provider-poc/poc_tcbs.py`'s
+own safety design requires a live TCBS API key and an interactive iOTP
+(one-time password) prompt — by design, "iOTP is always prompted and never
+read from an environment variable" (`provider-poc/README.md`), so this probe
+cannot be run by an unattended agent. No `TCBS_API_KEY` is present in
+`finvera-be/.env.local` either. This gate can only be closed by the owner
+running `poc_tcbs.py` themselves and recording sanitized results here.
 
 ### G-04 — Sector reference and constituent coverage (blocking for the sector basis)
 
@@ -403,6 +508,32 @@ enough classified constituents per sector for a median to be meaningful.
 evidence of the classification scheme, its version, and its coverage of the
 supported universe. Until G-04 closes, valuation publishes on the own-history
 basis alone with the basis disclosed, exactly as `valuation-v1` specifies.
+
+**Evidence gathered (2026-08-19)** — `vnstock.Listing(source="kbs").symbols_by_industries()`:
+
+1. Returns 696 symbols classified into 25 `industry_code`/`industry_name`
+   groups (a KBS-proprietary numeric taxonomy in Vietnamese — e.g. `3` =
+   "Bất động sản" (real estate), `11` = "Ngân hàng" (banking); not confirmed
+   to be standard ICB or GICS, and the API exposes no explicit scheme-version
+   field).
+2. **22 of 25 industries (88%) already clear the `N_min = 8` comparable-constituent
+   floor** `valuation-v1` requires (largest: real estate 83, construction 66,
+   transport/warehousing 62; smallest passing: manufacturing-equipment 8,
+   accommodation/food-service 8). Three industries fall short (rubber
+   products 4, other-finance 3, consulting/support 7).
+3. `Listing.industries_icb()` — the method whose name suggests an actual ICB
+   standard mapping — **fails** (`RetryError` wrapping a `NotImplementedError`
+   inside the pinned package), so no confirmed standard-scheme identity exists
+   yet, only the proprietary `symbols_by_industries()` taxonomy above.
+
+**Gate status: promising, but not yet closeable.** Coverage is good, but the
+scheme's identity/version is unconfirmed (point 3) and every classified
+instrument would need to be cross-checked against Finvera's own
+`sector_reference`/`equity_profile.sector_reference_id` seeding before this
+becomes usable evidence. This is the closest of the four gates to being
+closeable; it needs the owner's explicit review and acceptance of the KBS
+taxonomy as the classification scheme of record (or continued attempts at
+`industries_icb()`/an alternative standard-scheme source) before T063/T064.
 
 ---
 
