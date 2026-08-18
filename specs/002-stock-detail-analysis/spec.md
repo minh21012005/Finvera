@@ -400,8 +400,19 @@ not be renumbered; removed requirements are deprecated with a reason.
 - An accepted fundamental-report data source, its provenance, and its
   reporting-period/fiscal-calendar semantics; this is a new data category
   beyond what `001-market-overview` researched and MUST be resolved in this
-  feature's `research.md` before implementation, including whether TCBS
-  iFlash, Vnstock, or another approved source supplies it.
+  feature's `research.md` before implementation. Preliminary desk research
+  (2026-08-18) found: TCBS iFlash's documented contract
+  (`contracts/tcbs-iflash-adapter.md`) has tested only `tickerCommons` and the
+  Ouranos `C001` price channel, no fundamentals endpoint; the pinned Vnstock
+  package (4.0.6) exposes a real `Finance` API (`balance_sheet`,
+  `income_statement`, `cash_flow`, `ratio`) sourced from `"kbs"` or `"vci"`,
+  and the historical-bootstrap POC already approved under ADR-0004/T047 used
+  `source="KBS"` — the same upstream, not a new provider relationship, though
+  the fundamentals endpoint/schema/reporting-period semantics are still
+  unverified. This still requires its own bounded evidence gate (sanitized
+  schema, restatement/reporting-period behavior, rate limits) analogous to
+  T045/T047 before production use, and either an ADR-0004 scope extension or a
+  new ADR if the decision materially changes.
 - A corporate-action/price-adjustment data source for splits, stock and cash
   dividends, and rights issues affecting historical price series.
 - A versioned deterministic technical-indicator calculation specification
