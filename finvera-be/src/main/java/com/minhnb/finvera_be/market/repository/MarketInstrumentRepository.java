@@ -7,4 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface MarketInstrumentRepository extends JpaRepository<MarketInstrumentEntity, UUID> {
     Optional<MarketInstrumentEntity> findByVenueAndSymbolAndListedFrom(
             String venue, String symbol, LocalDate listedFrom);
+
+    Optional<MarketInstrumentEntity> findFirstBySymbolAndListedToIsNull(String symbol);
 }

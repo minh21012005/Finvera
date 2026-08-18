@@ -1,15 +1,20 @@
 package com.minhnb.finvera_be;
 
+import com.minhnb.finvera_be.market.repository.MarketCalendarDayRepository;
 import com.minhnb.finvera_be.market.repository.MarketIndexRepository;
 import com.minhnb.finvera_be.market.repository.MarketIndexSnapshotRepository;
+import com.minhnb.finvera_be.market.repository.MarketInstrumentRepository;
 import com.minhnb.finvera_be.market.repository.MarketObservationRepository;
 import com.minhnb.finvera_be.market.repository.MarketOverviewRepository;
 import com.minhnb.finvera_be.market.repository.MarketBreadthRepository;
 import com.minhnb.finvera_be.market.repository.MarketBreadthSnapshotInputRepository;
+import com.minhnb.finvera_be.market.repository.MarketSessionWindowRepository;
 import com.minhnb.finvera_be.market.repository.RegimeAssessmentRepository;
 import com.minhnb.finvera_be.market.repository.RegimeAssessmentInputRepository;
 import com.minhnb.finvera_be.market.repository.RegimeFactorRepository;
 import com.minhnb.finvera_be.market.repository.SourceReconciliationAuditRepository;
+import com.minhnb.finvera_be.stock.repository.EquityDailyBarRepository;
+import com.minhnb.finvera_be.stock.repository.FundamentalReportRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
@@ -55,6 +60,21 @@ class FinveraBeApplicationTests {
 
 	@MockitoBean
 	SourceReconciliationAuditRepository sourceReconciliationAuditRepository;
+
+	@MockitoBean
+	MarketInstrumentRepository marketInstrumentRepository;
+
+	@MockitoBean
+	MarketCalendarDayRepository marketCalendarDayRepository;
+
+	@MockitoBean
+	MarketSessionWindowRepository marketSessionWindowRepository;
+
+	@MockitoBean
+	EquityDailyBarRepository equityDailyBarRepository;
+
+	@MockitoBean
+	FundamentalReportRepository fundamentalReportRepository;
 
 	@DynamicPropertySource
 	static void ownerProperties(DynamicPropertyRegistry registry) {
