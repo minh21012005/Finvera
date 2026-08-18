@@ -1,0 +1,11 @@
+{
+  "fixtureVersion": "stock-fixture-v1",
+  "description": "Direct unit fixture for the valuation-v1 score-to-band mapping (contract section 'Score and classification'). Each unrounded score is classified on the unrounded value; the displayed integer is derived from the same value and must never contradict the label.",
+  "ruleVersion": "valuation-v1",
+  "cases": [
+    { "unroundedScore": "35.400000000000", "expectedDisplayedScore": 35, "expectedClassification": "UNDER_VALUED" },
+    { "unroundedScore": "35.500000000000", "expectedDisplayedScore": 36, "expectedClassification": "FAIR_VALUED" },
+    { "unroundedScore": "64.400000000000", "expectedDisplayedScore": 64, "expectedClassification": "FAIR_VALUED" },
+    { "unroundedScore": "64.500000000000", "expectedDisplayedScore": 65, "expectedClassification": "OVER_VALUED" }
+  ]
+}

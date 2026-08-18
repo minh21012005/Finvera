@@ -1,0 +1,31 @@
+{
+  "fixtureVersion": "stock-fixture-v1",
+  "symbol": "FPT",
+  "source": "FINVERA_FIXTURE",
+  "tradingDate": "2026-08-17",
+  "observedAt": "2026-08-17T07:10:00Z",
+  "sessionState": "OPEN",
+  "dataStatus": "DELAYED",
+  "reasonCodes": ["UPDATE_DELAY_EXCEEDED"],
+  "profile": {
+    "companyName": "CTCP FPT",
+    "companyNameEn": "FPT Corporation",
+    "exchange": "HOSE",
+    "sector": "Information Technology",
+    "sectorScheme": "finvera-sector-v1",
+    "listingStatus": "LISTED",
+    "sharesOutstanding": 1462000000
+  },
+  "price": {
+    "currency": "VND",
+    "last": "123100.000000",
+    "referencePrice": "122500.000000",
+    "absoluteChange": "600.000000",
+    "percentageChange": "0.489796",
+    "direction": "UP",
+    "volume": 2050000,
+    "valueVnd": "252355500000.0000",
+    "marketCapVnd": "180000200000000.000000",
+    "applicability": "DEFINED"
+  }
+}

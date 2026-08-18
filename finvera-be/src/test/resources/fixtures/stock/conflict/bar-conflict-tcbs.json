@@ -1,0 +1,14 @@
+{
+  "fixtureVersion": "stock-fixture-v1",
+  "symbol": "FPT",
+  "source": "TCBS",
+  "instrumentId": "FPT-HOSE",
+  "tradingDate": "2026-08-14",
+  "open": "122500.000000",
+  "high": "123800.000000",
+  "low": "122300.000000",
+  "close": "123600.000000",
+  "volume": 2270000,
+  "observedAt": "2026-08-14T08:15:00Z",
+  "description": "Companion fixture to bar-conflict-vnstock.json: same instrument and trading date, distinct source identity, and a close price that diverges from the Vnstock value by more than the configured reconciliation tolerance."
+}

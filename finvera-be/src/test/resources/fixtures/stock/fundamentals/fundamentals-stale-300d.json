@@ -1,0 +1,26 @@
+{
+  "fixtureVersion": "stock-fixture-v1",
+  "symbol": "STALE",
+  "source": "FINVERA_FIXTURE",
+  "catalogVersion": "fundamental-metric-catalog-v1",
+  "asOfForStaleness": "2026-08-17",
+  "description": "period_end is 301 days before asOfForStaleness, past the R-010 280-day STALE boundary; the fundamentals section and any dependent valuation must report FUNDAMENTALS_STALE rather than silently showing an old figure as current.",
+  "report": {
+    "periodType": "QUARTER",
+    "fiscalYear": 2025,
+    "fiscalQuarter": 3,
+    "periodStart": "2025-07-01",
+    "periodEnd": "2025-09-30",
+    "reportKind": "CONSOLIDATED",
+    "auditStatus": "UNAUDITED",
+    "currency": "VND",
+    "unitScale": 1,
+    "publishedAt": "2025-10-28T02:00:00Z",
+    "observedAt": "2025-10-28T02:05:00Z"
+  },
+  "metrics": [
+    { "metricCode": "REVENUE", "value": "9400000000000.000000", "applicability": "DEFINED" },
+    { "metricCode": "NET_PROFIT", "value": "1120000000000.000000", "applicability": "DEFINED" },
+    { "metricCode": "EPS", "value": "980.000000", "applicability": "DEFINED" }
+  ]
+}

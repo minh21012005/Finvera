@@ -1,0 +1,36 @@
+{
+  "fixtureVersion": "stock-fixture-v1",
+  "symbol": "FPT",
+  "source": "FINVERA_FIXTURE",
+  "catalogVersion": "fundamental-metric-catalog-v1",
+  "report": {
+    "periodType": "QUARTER",
+    "fiscalYear": 2026,
+    "fiscalQuarter": 2,
+    "periodStart": "2026-04-01",
+    "periodEnd": "2026-06-30",
+    "reportKind": "CONSOLIDATED",
+    "auditStatus": "REVIEWED",
+    "currency": "VND",
+    "unitScale": 1,
+    "publishedAt": "2026-07-28T02:00:00Z",
+    "observedAt": "2026-07-28T02:05:00Z"
+  },
+  "metrics": [
+    { "metricCode": "REVENUE", "value": "16250000000000.000000", "applicability": "DEFINED" },
+    { "metricCode": "GROSS_PROFIT", "value": "6180000000000.000000", "applicability": "DEFINED" },
+    { "metricCode": "OPERATING_PROFIT", "value": "3120000000000.000000", "applicability": "DEFINED" },
+    { "metricCode": "NET_PROFIT", "value": "2450000000000.000000", "applicability": "DEFINED" },
+    { "metricCode": "EPS", "value": "1675.500000", "applicability": "DEFINED" },
+    { "metricCode": "ROE", "value": "6.850000", "applicability": "DEFINED" },
+    { "metricCode": "ROA", "value": "3.920000", "applicability": "DEFINED" },
+    { "metricCode": "DEBT_TO_EQUITY", "value": "0.410000", "applicability": "DEFINED" },
+    { "metricCode": "OPERATING_MARGIN", "value": "19.200000", "applicability": "DEFINED" },
+    { "metricCode": "FREE_CASH_FLOW", "value": "1980000000000.000000", "applicability": "DEFINED" },
+    { "metricCode": "DIVIDEND_PER_SHARE", "value": "1000.000000", "applicability": "DEFINED" },
+    { "metricCode": "EQUITY_ATTRIBUTABLE_TO_PARENT", "value": "35800000000000.000000", "applicability": "DEFINED" },
+    { "metricCode": "TOTAL_DEBT", "value": "14700000000000.000000", "applicability": "DEFINED" },
+    { "metricCode": "CASH_AND_EQUIVALENTS", "value": "9200000000000.000000", "applicability": "DEFINED" },
+    { "metricCode": "EBITDA", "value": "4100000000000.000000", "applicability": "DEFINED" }
+  ]
+}

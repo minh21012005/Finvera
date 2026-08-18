@@ -3,7 +3,7 @@
 **Feature Directory**: `specs/002-stock-detail-analysis`
 **Date**: 2026-08-18
 **Spec**: [spec.md](spec.md)
-**Status**: Design complete; provider gates G-01 to G-04 open; `tasks.md` not yet generated
+**Status**: Design complete; provider gates G-01 to G-04 open; `tasks.md` generated (73 tasks across setup, foundation, three user stories, gated provider activation, and release readiness) — implementation not started
 
 ## Summary
 
@@ -311,7 +311,7 @@ specs/002-stock-detail-analysis/
 │   └── stock-data-provider.md
 ├── checklists/
 │   └── requirements.md
-└── tasks.md                         # created in the next SDD phase
+└── tasks.md                         # generated; implementation not started
 ```
 
 ### Source code affected

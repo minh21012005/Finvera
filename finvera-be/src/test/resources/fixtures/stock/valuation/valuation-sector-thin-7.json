@@ -1,0 +1,33 @@
+{
+  "fixtureVersion": "stock-fixture-v1",
+  "symbol": "FPT",
+  "source": "FINVERA_FIXTURE",
+  "ruleVersion": "valuation-v1",
+  "asOf": "2026-08-17T00:00:00Z",
+  "asOfTradingDate": "2026-08-14",
+  "description": "The sector cross-section has exactly 7 comparable constituents, one below the N_min=8 floor in valuation-v1. Basis B (sector) must be excluded with SECTOR_BASIS_INSUFFICIENT while Basis A (own history) still qualifies and the classification publishes on Basis A alone.",
+  "sectorScheme": "finvera-sector-v1",
+  "sectorSchemeVersion": "2026-01",
+  "sectorCode": "ICT",
+  "sectorConstituents": [
+    { "symbol": "CMG", "PE": "12.400000000000", "PB": "1.850000000000" },
+    { "symbol": "ELC", "PE": "9.100000000000", "PB": "1.020000000000" },
+    { "symbol": "ITD", "PE": "15.700000000000", "PB": "2.310000000000" },
+    { "symbol": "SGT", "PE": "18.900000000000", "PB": "1.640000000000" },
+    { "symbol": "SAM", "PE": "10.300000000000", "PB": "0.980000000000" },
+    { "symbol": "VGI", "PE": "14.200000000000", "PB": "2.050000000000" },
+    { "symbol": "CTR", "PE": "11.600000000000", "PB": "1.730000000000" }
+  ],
+  "sectorConstituentCount": 7,
+  "ownHistory": {
+    "definedPointCount": 618,
+    "note": "Above the H_min=500 floor, so Basis A qualifies independently of the sector outcome."
+  },
+  "expected": {
+    "usedOwnHistory": true,
+    "usedSector": false,
+    "sectorConstituentCount": 7,
+    "reasonCodes": ["SECTOR_BASIS_INSUFFICIENT"],
+    "published": true
+  }
+}

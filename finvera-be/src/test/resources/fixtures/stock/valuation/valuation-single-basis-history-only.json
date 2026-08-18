@@ -1,0 +1,24 @@
+{
+  "fixtureVersion": "stock-fixture-v1",
+  "symbol": "SOLOHIST",
+  "source": "FINVERA_FIXTURE",
+  "ruleVersion": "valuation-v1",
+  "asOf": "2026-08-17T00:00:00Z",
+  "asOfTradingDate": "2026-08-14",
+  "description": "The instrument's sector has no classified reference data at all (0 constituents), so only Basis A (own history, 620 defined points) is used. The disclosure must name Basis A alone rather than implying a sector comparison occurred.",
+  "sectorScheme": "finvera-sector-v1",
+  "sectorSchemeVersion": "2026-01",
+  "sectorCode": "UNCLASSIFIED",
+  "sectorConstituentCount": 0,
+  "ownHistory": {
+    "definedPointCount": 620
+  },
+  "expected": {
+    "usedOwnHistory": true,
+    "usedSector": false,
+    "sector": null,
+    "published": true,
+    "reasonCodes": ["SECTOR_BASIS_INSUFFICIENT"],
+    "disclosure": "basis names OWN_HISTORY only"
+  }
+}

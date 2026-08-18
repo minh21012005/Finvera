@@ -1,0 +1,18 @@
+{
+  "fixtureVersion": "stock-fixture-v1",
+  "symbol": "FPT",
+  "source": "VNSTOCK",
+  "instrumentId": "FPT-HOSE",
+  "tradingDate": "2026-08-14",
+  "open": "122500.000000",
+  "high": "123800.000000",
+  "low": "122300.000000",
+  "close": "119400.000000",
+  "volume": 2245000,
+  "observedAt": "2026-08-15T01:00:00Z",
+  "description": "Companion fixture to bar-conflict-tcbs.json. The close (119400.000000) diverges from TCBS's accepted close (123600.000000) by roughly 3.4%, beyond tolerance. Both provenances must be retained; a source_reconciliation_audit row with decision SOURCE_CONFLICT must be created, and every technical/valuation result consuming this trading date must be withheld with reason SOURCE_CONFLICT (DATA-010) until an approved reconciliation rule resolves it.",
+  "expectedOutcome": {
+    "auditDecision": "SOURCE_CONFLICT",
+    "dependentResultsWithheld": true
+  }
+}

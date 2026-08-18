@@ -1,0 +1,12 @@
+{
+  "fixtureVersion": "stock-fixture-v1",
+  "symbol": "FPT",
+  "source": "FINVERA_FIXTURE",
+  "dataStatus": "UNAVAILABLE",
+  "window": "1M",
+  "adjustmentStatus": "UNKNOWN",
+  "reasonCodes": ["PROVIDER_UNAVAILABLE"],
+  "asOf": "2026-08-17T07:15:00Z",
+  "description": "The chart section is deliberately unavailable while the overview fixture for the same symbol (overview-complete.json) stays usable, proving FR-012 section independence.",
+  "bars": []
+}

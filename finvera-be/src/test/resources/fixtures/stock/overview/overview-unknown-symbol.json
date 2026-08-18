@@ -1,0 +1,8 @@
+{
+  "fixtureVersion": "stock-fixture-v1",
+  "symbol": "ZZZZZ",
+  "source": "FINVERA_FIXTURE",
+  "description": "No market_instrument or equity_profile row resolves for this symbol. The API MUST return HTTP 404 with StockNotSupported and MUST NOT synthesize a placeholder profile or price (FR-016).",
+  "expectedHttpStatus": 404,
+  "expectedReasonCode": "STOCK_NOT_SUPPORTED"
+}

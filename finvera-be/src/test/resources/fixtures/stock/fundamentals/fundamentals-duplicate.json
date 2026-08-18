@@ -1,0 +1,40 @@
+{
+  "fixtureVersion": "stock-fixture-v1",
+  "symbol": "FPT",
+  "source": "FINVERA_FIXTURE",
+  "catalogVersion": "fundamental-metric-catalog-v1",
+  "description": "The identical accepted (instrument, period_type, fiscal_year, fiscal_quarter, report_kind, source) key is submitted a second time with identical values. Acceptance check A-9 must reject it as DUPLICATE and the accepted revision must not change.",
+  "acceptedReport": {
+    "periodType": "QUARTER",
+    "fiscalYear": 2026,
+    "fiscalQuarter": 2,
+    "periodStart": "2026-04-01",
+    "periodEnd": "2026-06-30",
+    "reportKind": "CONSOLIDATED",
+    "auditStatus": "REVIEWED",
+    "currency": "VND",
+    "unitScale": 1,
+    "observedAt": "2026-07-28T02:05:00Z",
+    "metrics": [
+      { "metricCode": "REVENUE", "value": "16250000000000.000000", "applicability": "DEFINED" },
+      { "metricCode": "NET_PROFIT", "value": "2450000000000.000000", "applicability": "DEFINED" }
+    ]
+  },
+  "duplicateSubmission": {
+    "periodType": "QUARTER",
+    "fiscalYear": 2026,
+    "fiscalQuarter": 2,
+    "periodStart": "2026-04-01",
+    "periodEnd": "2026-06-30",
+    "reportKind": "CONSOLIDATED",
+    "auditStatus": "REVIEWED",
+    "currency": "VND",
+    "unitScale": 1,
+    "observedAt": "2026-07-28T09:40:00Z",
+    "metrics": [
+      { "metricCode": "REVENUE", "value": "16250000000000.000000", "applicability": "DEFINED" },
+      { "metricCode": "NET_PROFIT", "value": "2450000000000.000000", "applicability": "DEFINED" }
+    ],
+    "expectedRejectReason": "DUPLICATE"
+  }
+}

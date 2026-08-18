@@ -1,0 +1,53 @@
+{
+  "fixtureVersion": "stock-fixture-v1",
+  "symbol": "FPT",
+  "source": "FINVERA_FIXTURE",
+  "catalogVersion": "fundamental-metric-catalog-v1",
+  "description": "Two revisions of the same period. The restated revision supersedes the original, carries restatementReason, and the original remains queryable (FR-014).",
+  "revisions": [
+    {
+      "revision": 1,
+      "report": {
+        "periodType": "QUARTER",
+        "fiscalYear": 2026,
+        "fiscalQuarter": 1,
+        "periodStart": "2026-01-01",
+        "periodEnd": "2026-03-31",
+        "reportKind": "CONSOLIDATED",
+        "auditStatus": "UNAUDITED",
+        "currency": "VND",
+        "unitScale": 1,
+        "publishedAt": "2026-04-25T02:00:00Z",
+        "observedAt": "2026-04-25T02:05:00Z"
+      },
+      "metrics": [
+        { "metricCode": "REVENUE", "value": "15100000000000.000000", "applicability": "DEFINED" },
+        { "metricCode": "NET_PROFIT", "value": "2210000000000.000000", "applicability": "DEFINED" },
+        { "metricCode": "EPS", "value": "1512.000000", "applicability": "DEFINED" }
+      ]
+    },
+    {
+      "revision": 2,
+      "supersedesRevision": 1,
+      "restatementReason": "AUDIT_ADJUSTMENT",
+      "report": {
+        "periodType": "QUARTER",
+        "fiscalYear": 2026,
+        "fiscalQuarter": 1,
+        "periodStart": "2026-01-01",
+        "periodEnd": "2026-03-31",
+        "reportKind": "CONSOLIDATED",
+        "auditStatus": "AUDITED",
+        "currency": "VND",
+        "unitScale": 1,
+        "publishedAt": "2026-06-10T02:00:00Z",
+        "observedAt": "2026-06-10T02:05:00Z"
+      },
+      "metrics": [
+        { "metricCode": "REVENUE", "value": "15050000000000.000000", "applicability": "DEFINED" },
+        { "metricCode": "NET_PROFIT", "value": "2095000000000.000000", "applicability": "DEFINED" },
+        { "metricCode": "EPS", "value": "1433.000000", "applicability": "DEFINED" }
+      ]
+    }
+  ]
+}

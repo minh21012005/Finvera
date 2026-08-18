@@ -1,0 +1,46 @@
+{
+  "fixtureVersion": "stock-fixture-v1",
+  "symbol": "FPT",
+  "source": "FINVERA_FIXTURE",
+  "catalogVersion": "fundamental-metric-catalog-v1",
+  "description": "A newer accepted revision already exists; an older, unflagged submission for the same period key must be rejected as OUT_OF_ORDER (A-10) and must never regress the view to the older figures (DATA-006).",
+  "acceptedRevision": {
+    "revision": 2,
+    "observedAt": "2026-06-10T02:05:00Z",
+    "report": {
+      "periodType": "QUARTER",
+      "fiscalYear": 2026,
+      "fiscalQuarter": 1,
+      "periodStart": "2026-01-01",
+      "periodEnd": "2026-03-31",
+      "reportKind": "CONSOLIDATED",
+      "auditStatus": "AUDITED",
+      "currency": "VND",
+      "unitScale": 1
+    },
+    "metrics": [
+      { "metricCode": "REVENUE", "value": "15050000000000.000000", "applicability": "DEFINED" },
+      { "metricCode": "NET_PROFIT", "value": "2095000000000.000000", "applicability": "DEFINED" }
+    ]
+  },
+  "outOfOrderSubmission": {
+    "observedAt": "2026-04-25T02:05:00Z",
+    "isCorrectionFlag": false,
+    "report": {
+      "periodType": "QUARTER",
+      "fiscalYear": 2026,
+      "fiscalQuarter": 1,
+      "periodStart": "2026-01-01",
+      "periodEnd": "2026-03-31",
+      "reportKind": "CONSOLIDATED",
+      "auditStatus": "UNAUDITED",
+      "currency": "VND",
+      "unitScale": 1
+    },
+    "metrics": [
+      { "metricCode": "REVENUE", "value": "15100000000000.000000", "applicability": "DEFINED" },
+      { "metricCode": "NET_PROFIT", "value": "2210000000000.000000", "applicability": "DEFINED" }
+    ],
+    "expectedRejectReason": "OUT_OF_ORDER"
+  }
+}

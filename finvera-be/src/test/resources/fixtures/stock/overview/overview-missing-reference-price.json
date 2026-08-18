@@ -1,0 +1,33 @@
+{
+  "fixtureVersion": "stock-fixture-v1",
+  "symbol": "FPT",
+  "source": "FINVERA_FIXTURE",
+  "tradingDate": "2026-08-17",
+  "observedAt": "2026-08-17T07:15:00Z",
+  "sessionState": "OPEN",
+  "dataStatus": "PARTIAL",
+  "reasonCodes": ["REFERENCE_PRICE_UNAVAILABLE"],
+  "description": "The previous valid official close (change basis, FR-002) is unavailable, so absolute/percentage change MUST be unavailable rather than inferred or zero-filled; last price stays visible.",
+  "profile": {
+    "companyName": "CTCP FPT",
+    "companyNameEn": "FPT Corporation",
+    "exchange": "HOSE",
+    "sector": "Information Technology",
+    "sectorScheme": "finvera-sector-v1",
+    "listingStatus": "LISTED",
+    "sharesOutstanding": 1462000000
+  },
+  "price": {
+    "currency": "VND",
+    "last": "123600.000000",
+    "referencePrice": null,
+    "absoluteChange": null,
+    "percentageChange": null,
+    "direction": "UNCHANGED",
+    "volume": 2270000,
+    "valueVnd": "280457200000.0000",
+    "marketCapVnd": "180627200000000.000000",
+    "applicability": "MISSING",
+    "changeBasisReason": "REFERENCE_PRICE_UNAVAILABLE"
+  }
+}

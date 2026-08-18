@@ -1,0 +1,18 @@
+{
+  "fixtureVersion": "stock-fixture-v1",
+  "symbol": "NOADJ",
+  "source": "FINVERA_FIXTURE",
+  "dataStatus": "PARTIAL",
+  "window": "1M",
+  "adjustmentStatus": "RAW",
+  "reasonCodes": ["ADJUSTMENT_BASIS_UNAVAILABLE"],
+  "asOf": "2026-08-17T07:15:00Z",
+  "description": "No accepted corporate-action basis exists for part of the window, so the whole series is served RAW rather than partially adjusted (research R-004).",
+  "bars": [
+    { "tradingDate": "2026-08-10", "open": "98500.000000", "high": "99200.000000", "low": "98100.000000", "close": "98900.000000", "volume": 1420000 },
+    { "tradingDate": "2026-08-11", "open": "98900.000000", "high": "99600.000000", "low": "98600.000000", "close": "99300.000000", "volume": 1360000 },
+    { "tradingDate": "2026-08-12", "open": "99300.000000", "high": "99900.000000", "low": "98800.000000", "close": "99000.000000", "volume": 1510000 },
+    { "tradingDate": "2026-08-13", "open": "99000.000000", "high": "99500.000000", "low": "98300.000000", "close": "98700.000000", "volume": 1470000 },
+    { "tradingDate": "2026-08-14", "open": "98700.000000", "high": "99400.000000", "low": "98500.000000", "close": "99100.000000", "volume": 1390000 }
+  ]
+}

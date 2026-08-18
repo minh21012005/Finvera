@@ -1,0 +1,32 @@
+{
+  "fixtureVersion": "stock-fixture-v1",
+  "symbol": "LOSSCO",
+  "source": "FINVERA_FIXTURE",
+  "ruleVersion": "valuation-v1",
+  "asOf": "2026-08-17T00:00:00Z",
+  "asOfTradingDate": "2026-08-14",
+  "description": "A loss-making company. PE and PEG must resolve NOT_APPLICABLE because epsTtm <= 0; PB still scores from a positive book value; nothing is negative or zero-filled where a real value exists; DIVIDEND_YIELD is a genuine defined zero, distinct from missing.",
+  "inputs": {
+    "price": "8500.000000",
+    "sharesOutstanding": 400000000,
+    "epsTtm": "-1650.000000",
+    "epsGrowthPercent": "-220.000000",
+    "equityAttributableToParent": "1960000000000.000000",
+    "ebitdaTtm": "-140000000000.000000",
+    "totalDebt": "3620000000000.000000",
+    "cashAndEquivalents": "410000000000.000000",
+    "dividendPerShareTtm": "0.000000"
+  },
+  "expectedMetrics": {
+    "PE": { "applicability": "NOT_APPLICABLE", "reasonCode": "NOT_APPLICABLE" },
+    "PB": { "applicability": "DEFINED", "value": "1.734693877551" },
+    "EV_EBITDA": { "applicability": "NOT_APPLICABLE", "reasonCode": "NOT_APPLICABLE" },
+    "PEG": { "applicability": "NOT_APPLICABLE", "reasonCode": "NOT_APPLICABLE" },
+    "DIVIDEND_YIELD": { "applicability": "DEFINED", "value": "0.000000000000" }
+  },
+  "derived": {
+    "bookValuePerShare": "4900.000000000000",
+    "marketCapVnd": "3400000000000.000000",
+    "enterpriseValueVnd": "6610000000000.000000"
+  }
+}

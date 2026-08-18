@@ -1,0 +1,27 @@
+{
+  "fixtureVersion": "stock-fixture-v1",
+  "symbol": "THINHIST",
+  "source": "FINVERA_FIXTURE",
+  "ruleVersion": "valuation-v1",
+  "asOf": "2026-08-17T00:00:00Z",
+  "asOfTradingDate": "2026-08-14",
+  "description": "Neither comparison basis qualifies: own history has fewer than H_min=500 defined points (recently listed) and the sector has fewer than N_min=8 comparable constituents. classification, score, and confidence must be withheld together (FR-010).",
+  "sectorScheme": "finvera-sector-v1",
+  "sectorSchemeVersion": "2026-01",
+  "sectorCode": "NEWLIST",
+  "sectorConstituentCount": 3,
+  "ownHistory": {
+    "definedPointCount": 140,
+    "note": "Below the H_min=500 floor; recently listed instrument."
+  },
+  "expected": {
+    "usedOwnHistory": false,
+    "usedSector": false,
+    "published": false,
+    "classification": null,
+    "score": null,
+    "displayedScore": null,
+    "confidence": null,
+    "reasonCodes": ["NO_COMPARISON_BASIS", "HISTORY_BASIS_INSUFFICIENT", "SECTOR_BASIS_INSUFFICIENT"]
+  }
+}
