@@ -6,9 +6,14 @@ import com.minhnb.finvera_be.market.domain.reconciliation.SourceReconciliationPo
 import com.minhnb.finvera_be.market.service.IngestionRecordService;
 import com.minhnb.finvera_be.market.service.MarketReferenceDataService;
 import com.minhnb.finvera_be.market.service.SourceReconciliationService;
+import com.minhnb.finvera_be.stock.domain.fundamentals.FundamentalReportAcceptance;
+import com.minhnb.finvera_be.stock.domain.fundamentals.FundamentalReportAcceptance.AcceptanceResult;
+import com.minhnb.finvera_be.stock.domain.fundamentals.FundamentalReportAcceptance.AcceptedMetric;
 import com.minhnb.finvera_be.stock.entity.EquityDailyBarEntity;
 import com.minhnb.finvera_be.stock.entity.FundamentalReportEntity;
+import com.minhnb.finvera_be.stock.entity.FundamentalReportMetricEntity;
 import com.minhnb.finvera_be.stock.repository.EquityDailyBarRepository;
+import com.minhnb.finvera_be.stock.repository.FundamentalReportMetricRepository;
 import com.minhnb.finvera_be.stock.repository.FundamentalReportRepository;
 import com.minhnb.finvera_be.stock.service.StockObservabilityService.StockDataset;
 import java.math.BigDecimal;
@@ -50,8 +55,10 @@ public class StockIngestionService {
     private final IngestionRecordService ingestionRecords;
     private final EquityDailyBarRepository dailyBars;
     private final FundamentalReportRepository fundamentalReports;
+    private final FundamentalReportMetricRepository fundamentalReportMetrics;
     private final SourceReconciliationService reconciliation;
     private final StockObservabilityService observability;
+    private final FundamentalReportAcceptance metricAcceptance = new FundamentalReportAcceptance();
     private final Clock clock;
 
     public StockIngestionService(
@@ -59,6 +66,7 @@ public class StockIngestionService {
             IngestionRecordService ingestionRecords,
             EquityDailyBarRepository dailyBars,
             FundamentalReportRepository fundamentalReports,
+            FundamentalReportMetricRepository fundamentalReportMetrics,
             SourceReconciliationService reconciliation,
             StockObservabilityService observability,
             Clock clock) {
@@ -66,6 +74,7 @@ public class StockIngestionService {
         this.ingestionRecords = ingestionRecords;
         this.dailyBars = dailyBars;
         this.fundamentalReports = fundamentalReports;
+        this.fundamentalReportMetrics = fundamentalReportMetrics;
         this.reconciliation = reconciliation;
         this.observability = observability;
         this.clock = clock;
@@ -197,6 +206,15 @@ public class StockIngestionService {
             return new IngestionResult(IngestionStatus.REJECTED, "PAYLOAD_REJECTED", null, null);
         }
 
+        // FR-007/DATA-007: validate and normalize metric values (allowlisted
+        // codes, unit-scale multiplication, three-state applicability) before
+        // any row is written — the same fail-fast-before-write shape as
+        // validateOhlc for daily bars.
+        AcceptanceResult metricAcceptanceResult = metricAcceptance.accept(toAcceptanceInput(incoming));
+        if (!metricAcceptanceResult.accepted()) {
+            return new IngestionResult(IngestionStatus.REJECTED, metricAcceptanceResult.reasonCode(), null, null);
+        }
+
         String subjectKey = incoming.symbol() + "|" + incoming.periodType() + "|" + incoming.fiscalYear()
                 + "|" + incoming.fiscalQuarter() + "|" + incoming.reportKind();
         String payloadHash = hashFundamentalReport(incoming);
@@ -239,8 +257,25 @@ public class StockIngestionService {
                 currentReport.map(FundamentalReportEntity::getId).orElse(null),
                 isRestatement ? incoming.restatementReason() : null));
 
+        for (AcceptedMetric metric : metricAcceptanceResult.metrics()) {
+            fundamentalReportMetrics.save(new FundamentalReportMetricEntity(
+                    reportId, metric.metricCode(), metric.value(), metric.applicability().name(),
+                    metric.qualityReason()));
+        }
+
         return new IngestionResult(
                 isRestatement ? IngestionStatus.CORRECTED : IngestionStatus.ACCEPTED, null, reportId, revision);
+    }
+
+    private static FundamentalReportAcceptance.ReportInput toAcceptanceInput(IncomingFundamentalReport incoming) {
+        List<FundamentalReportAcceptance.MetricInput> metricInputs = incoming.metrics().stream()
+                .map(m -> new FundamentalReportAcceptance.MetricInput(
+                        m.metricCode(), m.value(), m.applicability(), m.qualityReason()))
+                .toList();
+        return new FundamentalReportAcceptance.ReportInput(
+                incoming.periodType(), incoming.fiscalYear(), incoming.fiscalQuarter(),
+                incoming.periodStart(), incoming.periodEnd(), incoming.reportKind(), incoming.auditStatus(),
+                incoming.currency(), incoming.unitScale(), incoming.catalogVersion(), metricInputs);
     }
 
     private static String validateOhlc(IncomingDailyBar bar) {

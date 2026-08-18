@@ -427,6 +427,81 @@ class ValuationV1Tests {
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
+    // DATA-007 / U-3: a missing price input and a genuinely zero price must
+    // remain distinguishable for DIVIDEND_YIELD, exactly as they already are
+    // for PE/PB/EV_EBITDA (MISSING_PRICE vs their own NOT_APPLICABLE reasons).
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    @Test
+    void dividendYieldIsMissingNotNotApplicableWhenPriceIsAbsent() {
+        var engine = new ValuationV1();
+        var inputs = ValuationV1.Inputs.builder()
+                .price(null)                                  // price input absent, not zero
+                .sharesOutstanding(1_462_000_000L)
+                .epsTtm(new BigDecimal("4580.000000"))
+                .epsGrowthPercent(new BigDecimal("18.500000"))
+                .equityAttributableToParent(new BigDecimal("42000000000000.000000"))
+                .ebitdaTtm(new BigDecimal("8900000000000.000000"))
+                .totalDebt(new BigDecimal("3000000000000.000000"))
+                .cashAndEquivalents(new BigDecimal("7500000000000.000000"))
+                .dividendPerShareTtm(new BigDecimal("2000.000000"))
+                .ownHistorySeries(List.of())
+                .sectorSeries(List.of())
+                .build();
+
+        var result = engine.classify(inputs);
+
+        var dvMetric = findMetric(result, "DIVIDEND_YIELD");
+        assertThat(dvMetric.applicability()).isEqualTo(MetricApplicability.MISSING);
+        assertThat(dvMetric.reasonCode()).isEqualTo("MISSING_PRICE");
+        assertThat(dvMetric.value()).isNull();
+    }
+
+    @Test
+    void dividendYieldIsNotApplicableWhenPriceIsExactlyZero() {
+        var engine = new ValuationV1();
+        var inputs = ValuationV1.Inputs.builder()
+                .price(BigDecimal.ZERO)                       // price genuinely zero, not missing
+                .sharesOutstanding(1_462_000_000L)
+                .epsTtm(new BigDecimal("4580.000000"))
+                .epsGrowthPercent(new BigDecimal("18.500000"))
+                .equityAttributableToParent(new BigDecimal("42000000000000.000000"))
+                .ebitdaTtm(new BigDecimal("8900000000000.000000"))
+                .totalDebt(new BigDecimal("3000000000000.000000"))
+                .cashAndEquivalents(new BigDecimal("7500000000000.000000"))
+                .dividendPerShareTtm(new BigDecimal("2000.000000"))
+                .ownHistorySeries(List.of())
+                .sectorSeries(List.of())
+                .build();
+
+        var result = engine.classify(inputs);
+
+        var dvMetric = findMetric(result, "DIVIDEND_YIELD");
+        assertThat(dvMetric.applicability()).isEqualTo(MetricApplicability.NOT_APPLICABLE);
+        assertThat(dvMetric.reasonCode()).isEqualTo("ZERO_PRICE");
+        assertThat(dvMetric.value()).isNull();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // U-1: confidence must be computed decimal-only; this worked example pins
+    // the exact integer so a future regression to double/float arithmetic
+    // would have to produce the identical rounding to stay green.
+    // standardInputs()'s history/sector series only carry PE and PB points, so
+    // only those two metrics qualify: metricCoverage = 0.40+0.30 = 0.70;
+    // basisCoverage = 2/2 = 1.00 (both bases score on PE+PB);
+    // historyDepth = 600/750 = 0.80.
+    // confidence = round(100 * (0.45*0.70 + 0.35*1.00 + 0.20*0.80))
+    //            = round(100 * 0.825) = round(82.5) = 83 (HALF_UP)
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    @Test
+    void confidenceMatchesDecimalWorkedExample() {
+        var engine = new ValuationV1();
+        var result = engine.classify(standardInputs());
+        assertThat(result.confidence()).isEqualTo(83);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
     // Confidence formula
     // ─────────────────────────────────────────────────────────────────────────────
 

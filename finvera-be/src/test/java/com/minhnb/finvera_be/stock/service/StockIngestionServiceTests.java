@@ -6,6 +6,7 @@ import com.minhnb.finvera_be.market.domain.model.MarketTypes;
 import com.minhnb.finvera_be.market.entity.MarketInstrumentEntity;
 import com.minhnb.finvera_be.market.repository.MarketInstrumentRepository;
 import com.minhnb.finvera_be.stock.repository.EquityDailyBarRepository;
+import com.minhnb.finvera_be.stock.repository.FundamentalReportMetricRepository;
 import com.minhnb.finvera_be.stock.repository.FundamentalReportRepository;
 import com.minhnb.finvera_be.stock.service.StockIngestionService.IncomingDailyBar;
 import com.minhnb.finvera_be.stock.service.StockIngestionService.IncomingFundamentalReport;
@@ -49,6 +50,7 @@ class StockIngestionServiceTests {
     @Autowired MarketInstrumentRepository instruments;
     @Autowired EquityDailyBarRepository dailyBars;
     @Autowired FundamentalReportRepository reports;
+    @Autowired FundamentalReportMetricRepository reportMetrics;
     @Autowired StockIngestionService ingestion;
 
     @Test
@@ -156,6 +158,38 @@ class StockIngestionServiceTests {
         assertThat(superseded.isCurrent()).isFalse();
         assertThat(reports.findById(restated.barId()).orElseThrow().getRestatementReason())
                 .isEqualTo("AUDIT_ADJUSTMENT");
+    }
+
+    @Test
+    void ingestFundamentalReportPersistsItsMetricValuesNotJustTheHeaderRow() {
+        saveInstrument("STK09");
+        var accepted = ingestion.ingestFundamentalReport(fundamentalReport("STK09", 2026, 3,
+                Instant.parse("2026-10-25T02:05:00Z"), false, null));
+        assertThat(accepted.status()).isEqualTo(IngestionStatus.ACCEPTED);
+
+        var persistedMetrics = reportMetrics.findByReportId(accepted.barId());
+        assertThat(persistedMetrics).isNotEmpty();
+        assertThat(persistedMetrics).anySatisfy(m -> {
+            assertThat(m.getMetricCode()).isEqualTo("REVENUE");
+            assertThat(m.getValue()).isEqualByComparingTo(new BigDecimal("1000000000.000000"));
+            assertThat(m.getApplicability()).isEqualTo("DEFINED");
+        });
+    }
+
+    @Test
+    void rejectsAFundamentalReportWithAnUnrecognizedApplicabilityValue() {
+        UUID instrumentId = saveInstrument("STK10");
+        var incoming = new IncomingFundamentalReport("FINVERA_FIXTURE", "STK10", "QUARTER", 2026, 3,
+                LocalDate.of(2026, 7, 1), LocalDate.of(2026, 9, 30), "CONSOLIDATED", "REVIEWED", "VND",
+                1, "fundamental-metric-catalog-v1", Instant.parse("2026-10-25T02:05:00Z"),
+                List.of(new MetricValue("REVENUE", new BigDecimal("1.000000"), "NOT_A_REAL_STATE", null)),
+                false, null);
+
+        var result = ingestion.ingestFundamentalReport(incoming);
+
+        assertThat(result.status()).isEqualTo(IngestionStatus.REJECTED);
+        assertThat(result.reasonCode()).isEqualTo("INVALID_METRIC");
+        assertThat(reports.findFirstByInstrumentIdAndCurrentTrueOrderByPeriodEndDesc(instrumentId)).isEmpty();
     }
 
     @Test

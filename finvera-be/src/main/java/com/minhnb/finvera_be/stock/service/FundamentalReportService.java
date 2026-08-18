@@ -26,14 +26,14 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -91,7 +91,8 @@ public class FundamentalReportService {
                     symbol, null, null, null, null, null, null, null, "VND",
                     false, null, List.of(), DataStatus.UNAVAILABLE,
                     List.of("FUNDAMENTALS_UNAVAILABLE"), asOfDate, asOf,
-                    CoherenceKeys.of(List.of("FUNDAMENTALS", symbol, "UNAVAILABLE"))
+                    CoherenceKeys.of(List.of("FUNDAMENTALS", symbol, "UNAVAILABLE")),
+                    null
             ));
         }
 
@@ -134,6 +135,7 @@ public class FundamentalReportService {
         }
 
         SummaryResult summaryResult = calculator.calculate(domainPeriods, asOfDate);
+        UUID summaryId = persistSummary(instrumentId, asOfDate, asOf, summaryResult);
 
         // Build presentation metrics: all metrics from newest report + summary metrics
         Map<String, FundamentalMetric> combined = new LinkedHashMap<>();
@@ -186,8 +188,62 @@ public class FundamentalReportService {
                 summaryResult.reasonCodes(),
                 asOfDate,
                 asOf,
-                coherenceKey
+                coherenceKey,
+                summaryId
         ));
+    }
+
+    /**
+     * FR-007, FR-014, DATA-006, DATA-009. Persists {@code fundamental_summary}
+     * as an immutable revision chain, mirroring {@code TechnicalIndicatorService}'s
+     * pattern but without an explicit {@code is_current} flag — this table has
+     * none (data-model.md), so "current" is simply the newest
+     * {@code (as_of_trading_date, calculated_at)} row, per
+     * {@link FundamentalSummaryRepository#findFirstByInstrumentIdAndRuleVersionOrderByAsOfTradingDateDescCalculatedAtDesc}.
+     *
+     * <p>Idempotent on unchanged inputs: a restated report always gets a new
+     * {@code fundamental_report} row id (T018), so comparing the exact set of
+     * contributing report ids to the existing current summary's linked inputs
+     * is a sound "did anything actually change" check without needing a
+     * separate hash column.
+     */
+    private UUID persistSummary(UUID instrumentId, LocalDate asOfDate, Instant calculatedAt, SummaryResult summaryResult) {
+        if (summaryResult.contributingReportIds().isEmpty()) {
+            return null;
+        }
+        Optional<FundamentalSummaryEntity> existing = summaries
+                .findFirstByInstrumentIdAndRuleVersionOrderByAsOfTradingDateDescCalculatedAtDesc(
+                        instrumentId, FundamentalSummaryCalculator.RULE_VERSION);
+        if (existing.isPresent()
+                && contributingReportsUnchanged(existing.get().getId(), summaryResult.contributingReportIds())) {
+            return existing.get().getId();
+        }
+
+        UUID summaryId = UUID.randomUUID();
+        summaries.save(new FundamentalSummaryEntity(
+                summaryId, instrumentId, asOfDate, FundamentalSummaryCalculator.RULE_VERSION,
+                summaryResult.basisPeriodEnd(), summaryResult.basisPeriodLabel(), summaryResult.dataStatus().name(),
+                calculatedAt, summaryResult.reasonCodes(), existing.map(FundamentalSummaryEntity::getId).orElse(null)));
+
+        for (SummaryMetric metric : summaryResult.metrics()) {
+            summaryMetrics.save(new FundamentalSummaryMetricEntity(
+                    summaryId, metric.metricCode(), metric.value(),
+                    metric.applicability().name(), metric.qualityReason()));
+        }
+
+        int roleIndex = 0;
+        for (UUID reportId : summaryResult.contributingReportIds()) {
+            summaryInputs.save(new FundamentalSummaryInputEntity(
+                    summaryId, "CONTRIBUTING_REPORT_" + roleIndex++, reportId));
+        }
+        return summaryId;
+    }
+
+    private boolean contributingReportsUnchanged(UUID existingSummaryId, Set<UUID> newContributingReportIds) {
+        Set<UUID> existingContributingReportIds = summaryInputs.findBySummaryId(existingSummaryId).stream()
+                .map(FundamentalSummaryInputEntity::getReportId)
+                .collect(Collectors.toSet());
+        return existingContributingReportIds.equals(newContributingReportIds);
     }
 
     public record StockFundamentals(
@@ -207,7 +263,8 @@ public class FundamentalReportService {
             List<String> reasonCodes,
             LocalDate tradingDate,
             Instant asOf,
-            String coherenceKey
+            String coherenceKey,
+            UUID summaryId
     ) {}
 
     public record FundamentalMetric(

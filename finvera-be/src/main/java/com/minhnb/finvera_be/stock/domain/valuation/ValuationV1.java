@@ -6,7 +6,6 @@ import com.minhnb.finvera_be.stock.domain.model.StockTypes.ValuationLabel;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +29,10 @@ public final class ValuationV1 {
     private static final int MIN_HISTORY_POINTS = 500;
     private static final int MAX_HISTORY_POINTS = 750;
     private static final int MIN_SECTOR_CONSTITUENTS = 8;
+
+    private static final BigDecimal CONFIDENCE_METRIC_WEIGHT = new BigDecimal("0.45");
+    private static final BigDecimal CONFIDENCE_BASIS_WEIGHT = new BigDecimal("0.35");
+    private static final BigDecimal CONFIDENCE_HISTORY_WEIGHT = new BigDecimal("0.20");
 
     private static final Map<String, BigDecimal> BASE_WEIGHTS = Map.of(
             "PE", new BigDecimal("0.40"),
@@ -231,12 +234,20 @@ public final class ValuationV1 {
 
         BandResult band = classifyBand(finalValuationScore);
 
-        // Confidence calculation:
+        // Confidence calculation (contract U-1: decimal only, scale-12 HALF_UP at each division):
         // metricCoverage: sum of baseWeight over scored metrics that are DEFINED and have >=1 basis
-        double metricCov = qualifyingWeight.doubleValue();
-        double basisCov = (basisAScore != null && basisBScore != null ? 2.0 : (basisAScore != null || basisBScore != null ? 1.0 : 0.0)) / 2.0;
-        double historyDepth = Math.min((double) maxHistoryCount / MAX_HISTORY_POINTS, 1.0);
-        int confidence = (int) Math.round(100.0 * (0.45 * metricCov + 0.35 * basisCov + 0.20 * historyDepth));
+        BigDecimal metricCov = qualifyingWeight;
+        int basisCount = (basisAScore != null ? 1 : 0) + (basisBScore != null ? 1 : 0);
+        BigDecimal basisCov = DecimalMath.divide12(BigDecimal.valueOf(basisCount), new BigDecimal("2"));
+        BigDecimal historyDepth = DecimalMath.divide12(BigDecimal.valueOf(maxHistoryCount), BigDecimal.valueOf(MAX_HISTORY_POINTS));
+        if (historyDepth.compareTo(BigDecimal.ONE) > 0) {
+            historyDepth = BigDecimal.ONE;
+        }
+        BigDecimal confidenceRaw = HUNDRED.multiply(
+                CONFIDENCE_METRIC_WEIGHT.multiply(metricCov)
+                        .add(CONFIDENCE_BASIS_WEIGHT.multiply(basisCov))
+                        .add(CONFIDENCE_HISTORY_WEIGHT.multiply(historyDepth)));
+        int confidence = confidenceRaw.setScale(0, RoundingMode.HALF_UP).intValue();
 
         List<MetricResult> metricResults = buildMetricResults(computed, ownPercentiles, sectorPercentiles, effectiveWeights);
 
@@ -294,7 +305,14 @@ public final class ValuationV1 {
         return DecimalMath.divide12(numerator.multiply(HUNDRED), sizeDec);
     }
 
-    private ComputedMetrics computeMetrics(Inputs inputs) {
+    /**
+     * Pure per-date metric computation, exposed {@code public static} so callers
+     * (such as {@code ValuationService} building the own-history series) can
+     * reuse the exact same PE/PB/EV_EBITDA/PEG/DIVIDEND_YIELD formulas for a
+     * historical session instead of re-implementing them — a single source of
+     * truth for the contract's metric definitions.
+     */
+    public static ComputedMetrics computeMetrics(Inputs inputs) {
         BigDecimal price = inputs.price();
         Long shares = inputs.sharesOutstanding();
 
@@ -362,10 +380,16 @@ public final class ValuationV1 {
         }
 
         // 5. DIVIDEND_YIELD = dividendPerShareTtm / price * 100
+        // A missing price (input absence) and a genuinely zero price are kept
+        // distinct per DATA-007/U-3: the former is MISSING, only the latter is
+        // NOT_APPLICABLE, mirroring how PE/PB/EV_EBITDA separate MISSING_PRICE
+        // from their own NOT_APPLICABLE conditions above.
         MetricValue dividendYield;
         if (inputs.dividendPerShareTtm() == null) {
             dividendYield = new MetricValue("DIVIDEND_YIELD", null, MetricApplicability.MISSING, "MISSING_DIVIDEND");
-        } else if (price == null || price.compareTo(BigDecimal.ZERO) == 0) {
+        } else if (price == null) {
+            dividendYield = new MetricValue("DIVIDEND_YIELD", null, MetricApplicability.MISSING, "MISSING_PRICE");
+        } else if (price.compareTo(BigDecimal.ZERO) == 0) {
             dividendYield = new MetricValue("DIVIDEND_YIELD", null, MetricApplicability.NOT_APPLICABLE, "ZERO_PRICE");
         } else {
             BigDecimal yieldVal = DecimalMath.divide12(inputs.dividendPerShareTtm().multiply(HUNDRED), price);

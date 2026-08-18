@@ -19,6 +19,15 @@ import org.junit.jupiter.api.Test;
  * T068 [SC-003]
  * Replay determinism verification for technical indicators and valuation assessments.
  * Recomputation from exact inputs and rule version must yield identical decimals.
+ *
+ * <p>These two tests prove the pure domain engines ({@link TechnicalIndicatorsV1},
+ * {@link ValuationV1}) are deterministic given identical in-memory inputs — a
+ * necessary but not sufficient condition. The stronger claim T068 actually
+ * makes ("recomputing every persisted ... result from its recorded inputs")
+ * is exercised against the real database in
+ * {@code ValuationServiceTests.replayingAPublishedAssessmentFromItsAcceptedInputsReproducesTheStoredDecimalsExactly}
+ * and the idempotent-replay assertions in {@code TechnicalIndicatorServiceTests}
+ * and {@code FundamentalReportServiceTests}.
  */
 class StockReplayDeterminismTests {
 

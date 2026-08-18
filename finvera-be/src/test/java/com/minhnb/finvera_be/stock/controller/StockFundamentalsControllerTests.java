@@ -179,7 +179,7 @@ class StockFundamentalsControllerTests {
                                 "VND", 0, MetricApplicability.DEFINED, null)
                 ),
                 DataStatus.CURRENT, List.of(), LocalDate.of(2026, 8, 14),
-                Instant.parse("2026-08-14T10:00:00Z"), "coh-fundamentals-1");
+                Instant.parse("2026-08-14T10:00:00Z"), "coh-fundamentals-1", null);
     }
 
     private StockValuation buildPublishedValuation() {
