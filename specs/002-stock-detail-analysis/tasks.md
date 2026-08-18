@@ -356,31 +356,31 @@ completion is never represented as live-data readiness.
 
 ## Final Phase: Cross-Cutting Validation and Release Readiness
 
-- [ ] T065 [FR-001-FR-016] Run and reconcile all contract tests across the five sections; update `contracts/stock-detail.openapi.yaml` only if owner-approved behavior changed
+- [x] T065 [FR-001-FR-016] Run and reconcile all contract tests across the five sections; update `contracts/stock-detail.openapi.yaml` only if owner-approved behavior changed
       Verify: contract tests pass and no implemented response differs from the reviewed contract
       Depends: T033, T042, T056
-- [ ] T066 [NFR-001, NFR-002, NFR-003, SC-005] Add per-section latency and accepted-update smoke tests in `finvera-be/src/test/java/com/minhnb/finvera_be/stock/performance/StockDetailPerformanceTests.java`
+- [x] T066 [NFR-001, NFR-002, NFR-003, SC-005] Add per-section latency and accepted-update smoke tests in `finvera-be/src/test/java/com/minhnb/finvera_be/stock/performance/StockDetailPerformanceTests.java`
       Verify: representative fixture-mode p95 is <=500 ms per section and coherence-key comparison detects an intentionally mixed snapshot
       Depends: T026, T038, T052
-- [ ] T067 [FR-012, NFR-004, NFR-006, NFR-007] Add fault-injection and safe-telemetry tests covering all six failure classes, AI-outage survival, and `PROVIDER_AUTH_REQUIRED` behavior in `finvera-be/src/test/java/com/minhnb/finvera_be/stock/operations/StockDetailFailureTests.java`
+- [x] T067 [FR-012, NFR-004, NFR-006, NFR-007] Add fault-injection and safe-telemetry tests covering all six failure classes, AI-outage survival, and `PROVIDER_AUTH_REQUIRED` behavior in `finvera-be/src/test/java/com/minhnb/finvera_be/stock/operations/StockDetailFailureTests.java`
       Verify: each failure class is distinguishable, every section degrades independently, and no sensitive payload appears
       Depends: T020, T038, T052
-- [ ] T068 [SC-003] Add the determinism replay test recomputing every persisted `technical_indicator_result` and `valuation_assessment` from its recorded `input_set_hash`/inputs and rule version, asserting exact stored-decimal equality, in `finvera-be/src/test/java/com/minhnb/finvera_be/stock/service/StockReplayDeterminismTests.java`
+- [x] T068 [SC-003] Add the determinism replay test recomputing every persisted `technical_indicator_result` and `valuation_assessment` from its recorded `input_set_hash`/inputs and rule version, asserting exact stored-decimal equality, in `finvera-be/src/test/java/com/minhnb/finvera_be/stock/service/StockReplayDeterminismTests.java`
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=StockReplayDeterminismTests test` passes
       Depends: T038, T052
-- [ ] T069 [SEC-001-SEC-004, SC-008] Add owner/non-owner/unauthenticated/missing-CSRF negative security tests and provider adapter forbidden-operation tests, plus a `finvera-fe/dist` production-bundle secret scan, reusing the Feature 001 runbook pattern
+- [x] T069 [SEC-001-SEC-004, SC-008] Add owner/non-owner/unauthenticated/missing-CSRF negative security tests and provider adapter forbidden-operation tests, plus a `finvera-fe/dist` production-bundle secret scan, reusing the Feature 001 runbook pattern
       Verify: only the owner succeeds on every endpoint; no trading/account/cash/order operation is reachable; no credential appears in the built bundle
       Depends: T027, T039, T050, T053
-- [ ] T070 [FR-001-FR-016, SC-001-SC-008] Execute and update the fixture-mode commands/scenarios in `quickstart.md`, explicitly retaining gates G-01 to G-04 and T051 as open blockers
+- [x] T070 [FR-001-FR-016, SC-001-SC-008] Execute and update the fixture-mode commands/scenarios in `quickstart.md`, explicitly retaining gates G-01 to G-04 and T051 as open blockers
       Verify: P1-P3 happy paths, degraded/failure paths, authorization checks, and accessibility checks produce recorded expected results without claiming a gate passed
       Depends: T065, T066, T067, T069
-- [ ] T071 [FR-001-FR-016, DATA-001-DATA-010, NFR-001-NFR-007, SEC-001-SEC-004] Reconcile delivered behavior and open limitations in `spec.md`, `plan.md` (update the header `Status` line), `research.md`, `quickstart.md`, and the `contracts/` directory
+- [x] T071 [FR-001-FR-016, DATA-001-DATA-010, NFR-001-NFR-007, SEC-001-SEC-004] Reconcile delivered behavior and open limitations in `spec.md`, `plan.md` (update the header `Status` line), `research.md`, `quickstart.md`, and the `contracts/` directory
       Verify: traceability review finds no orphan requirement, undocumented behavior, secret, placeholder, or false live-provider claim
       Depends: T070
-- [ ] T072 Run repository quality gates from `finvera-be/` and `finvera-fe/`
+- [x] T072 Run repository quality gates from `finvera-be/` and `finvera-fe/`
       Verify: `.\mvnw.cmd test`, `npm run lint`, `npm run test`, `npm run build`, and fixture-mode `npm run test:e2e` all pass; gated external-provider checks are reported as open, not passed
       Depends: T071
-- [ ] T073 [SC-001] Conduct three consecutive timed owner usability trials for price/direction/session identification and record anonymized evidence in `specs/002-stock-detail-analysis/validation/usability.md`
+- [x] T073 [SC-001] Conduct three consecutive timed owner usability trials for price/direction/session identification and record anonymized evidence in `specs/002-stock-detail-analysis/validation/usability.md`
       Verify: the owner completes every trial within 10 seconds, or findings return to `spec.md`/`plan.md` before release
       Depends: T072
 

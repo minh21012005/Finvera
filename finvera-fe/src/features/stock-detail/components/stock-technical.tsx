@@ -27,8 +27,8 @@ export function StockTechnical({ technical }: { technical: StockTechnicalData })
       )}
 
       <ul className="indicator-grid">
-        {technical.indicators.map((indicator) => (
-          <li key={indicator.indicatorCode} className={`indicator-card ${indicator.applicability.toLowerCase()}`}>
+        {technical.indicators.map((indicator, idx) => (
+          <li key={`${indicator.indicatorCode}-${idx}`} className={`indicator-card ${indicator.applicability.toLowerCase()}`}>
             <p className="indicator-name">{indicatorLabel(indicator.indicatorCode)}</p>
 
             {indicator.applicability === "MISSING" ? (

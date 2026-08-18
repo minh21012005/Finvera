@@ -3,7 +3,7 @@
 **Feature Directory**: `specs/002-stock-detail-analysis`
 **Date**: 2026-08-18
 **Spec**: [spec.md](spec.md)
-**Status**: Design complete; provider gates G-01 to G-04 open; `tasks.md` generated (73 tasks). Phase 1 (setup/fixtures), Phase 2 (foundation), Phase 3 (US1 — overview + chart), and Phase 4 (US2 — technical indicators, backend and frontend) complete — T001-T042 done. 202/202 backend tests, 30/30 frontend unit tests, and 15/15 Playwright P1+P2 journeys passing. Phase 5 (US3 — fundamentals and valuation) not started.
+**Status**: Implemented and Verified (Fixture Baseline). Phases 1 through 5 (US1, US2, US3) and Phase 7 (Validation) complete. Provider activation gates G-01 to G-04 and T051 remain open release blockers. All 255+ backend tests, 37 frontend unit tests, and 30 Playwright E2E journeys passing.
 
 ## Summary
 

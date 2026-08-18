@@ -1,8 +1,7 @@
 # Quickstart and Acceptance: Stock Detail and Analysis
 
 **Feature**: `002-stock-detail-analysis`
-**Status**: Planned. Commands marked **(not yet implemented)** do not exist until
-their tasks are complete. This file is the final acceptance path for the feature.
+**Status**: Implemented and Verified (Fixture Baseline). Gates G-01 to G-04 and T051 remain open release blockers.
 
 Every command below runs against `127.0.0.1` only. The T051 ingress deferral is
 still in force: do not create a port forward, public DNS record, tunnel, or
@@ -14,9 +13,9 @@ Tailscale Funnel while running any of this.
    its owner session, its instrument reference data, and its accepted
    observations.
 2. PostgreSQL 17 is reachable through the Feature 001 connection settings, and
-   Flyway has applied migrations through `V003` **(not yet implemented)**.
+   Flyway has applied migrations through `V003`.
 3. Fixture mode is active. No gate in research R-012 is closed, so every provider
-   adapter must resolve to a fixture double.
+   adapter resolves to a fixture double.
 4. At least one fixture symbol with 250 or more accepted completed daily bars is
    loaded, so the recursive indicators are exercisable.
 
@@ -48,13 +47,14 @@ cd D:\Finvera\finvera-fe
 npm run lint
 npm run test
 npm run build
+npx playwright test
 ```
 
-Feature-scoped suites **(not yet implemented)**:
+Feature-scoped backend suites:
 
 ```powershell
 cd D:\Finvera\finvera-be
-.\mvnw.cmd '-Dtest=TechnicalIndicatorRulesTests,ValuationRulesTests,StockDetailControllerTests,StockAccessSecurityTests' test
+.\mvnw.cmd '-Dtest=StockDetailPerformanceTests,StockDetailFailureTests,StockReplayDeterminismTests,StockDetailSecurityTests' test
 ```
 
 ## Local runtime
