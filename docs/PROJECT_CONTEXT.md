@@ -13,6 +13,11 @@ The intended user journey is:
 Market -> Stock -> Analysis -> Strategy -> Risk -> Evidence -> User decision
 ```
 
+Cross-feature engineering design — boundaries, data and API conventions,
+security posture, and the ADR index — is in
+[ARCHITECTURE.md](ARCHITECTURE.md). This file stays focused on product context
+and open gaps.
+
 ## System Map
 
 ```text

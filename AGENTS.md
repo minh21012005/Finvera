@@ -13,6 +13,8 @@ Read these files before planning or changing code:
 3. `docs/Software Requirements Specification (SRS) — AI Investment Research & Decision Support Platform.md`
    for product scope and intent.
 4. `docs/SDD_WORKFLOW.md` for the delivery process.
+5. `docs/ARCHITECTURE.md` for cross-feature boundaries, data/API/security
+   conventions, and the decision index.
 
 More specific `AGENTS.md` files override this file only within their directory.
 
