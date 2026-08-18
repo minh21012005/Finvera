@@ -92,9 +92,10 @@ an inconsistency.
 - **Resolved — backend platform**: Finvera uses Java 21 and Spring Boot 4.1.x;
   the current verified pin is 4.1.0. Only verified generally available 4.1.x
   patches may be adopted. See [ADR-0001](adr/0001-use-spring-boot-4.md).
-- Kafka is described both as available and optional/later. It is not a default
-  dependency for designs; a feature must justify its use with volume, ordering,
-  replay, or decoupling requirements.
+- **Resolved — Kafka status**: the SRS previously described Kafka as both a
+  baseline dependency and an optional later addition. Section 43 now states it
+  is not a default dependency. A feature must justify any adoption with volume,
+  ordering, replay, or decoupling requirements and record an ADR.
 - **Resolved for Feature 1 private v1 — market-data provider**: TCBS iFlash is
   the read-only live provider for one owner-only/private deployment; Vnstock is
   a conditional offline historical-bootstrap tool, not a runtime service.
@@ -114,10 +115,18 @@ an inconsistency.
 - Embedding model/provider, reranking, and document storage remain unresolved.
   The first RAG feature plan must benchmark and select them independently of the
   Gemini decision.
-- Performance, retention, RPO/RTO, rate limits, AI quotas, and model-quality
-  thresholds need measurable values in the features that depend on them.
-- The SRS file contains mojibake in some arrows/box drawing and Vietnamese text.
-  Treat meaning carefully and fix encoding in a dedicated documentation change.
+- **Partially resolved — measurable thresholds**: SRS sections 36.1 and 36.3
+  through 36.8 now state product baselines for performance, availability,
+  security, observability, accessibility, data provenance, and privacy or
+  retention, and section 54 states measurable MVP success criteria. RPO/RTO,
+  per-provider rate limits, AI quotas, and model-quality thresholds remain
+  unresolved and still need concrete values in the features that depend on
+  them.
+- **Resolved — SRS file encoding**: a byte-level scan (2026-08-18) found the
+  SRS is clean UTF-8 with no replacement characters or C1 control bytes; its
+  arrows, box drawing, and Vietnamese text are intact. The earlier mojibake
+  report was a console/display artifact, not a file defect. No encoding fix is
+  needed; read the file as UTF-8.
 
 ## Domain Safety Vocabulary
 

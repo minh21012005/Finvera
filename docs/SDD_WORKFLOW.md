@@ -121,6 +121,16 @@ Use these prefixes:
 | `AI-` | Retrieval, grounding, model, orchestration behavior | `AI-005` |
 | `SC-` | Measurable success criterion | `SC-001` |
 
+These prefixes are **feature-scoped**: they are numbered independently inside
+each `specs/<feature>/` directory, so `FR-003` in one feature is unrelated to
+`FR-003` in another.
+
+Product-level capabilities carry `SRS-` identifiers assigned in section 58 of
+the SRS (for example `SRS-MKT-05`, `SRS-NFR-07`). They live in a separate
+namespace and are never renumbered. A feature spec should list the `SRS-` IDs
+it realizes in its **SRS References** header, then define its own feature-scoped
+requirements with testable detail.
+
 Reference these IDs in plan decisions, contract descriptions, task text, test
 names/display names where practical, and review notes. Do not renumber accepted
 IDs; deprecate them with a reason.

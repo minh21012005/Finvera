@@ -11,7 +11,7 @@ AI Service: Python + FastAPI
 Database: PostgreSQL
 Vector Database: Qdrant
 Cache: Redis
-Messaging: Kafka
+Messaging: Kafka (optional — not a default dependency; see section 43)
 Platform: Web Application  
 Architecture: Modular Monolith + AI Microservice
 
@@ -40,7 +40,25 @@ The system is not intended to guarantee investment returns or act as an autonomo
 
 ---
 
-## 1.2 Scope
+## 1.2 Requirement Keywords
+
+Normative statements in this document use the following keywords. They are
+interpreted consistently throughout, and a feature specification may tighten a
+`should` or `may` into a firm commitment but may not weaken a `shall`.
+
+| Keyword | Meaning |
+|---|---|
+| `shall` | A mandatory capability. Removing it changes the product. |
+| `should` | A strong recommendation. A feature may deviate only with a recorded rationale. |
+| `may` | An optional capability. Its absence is not a defect. |
+
+A statement that combines these keywords contradictorily (for example
+"shall optionally") is a documentation defect and must be rewritten as one of
+the three forms above.
+
+---
+
+## 1.3 Scope
 
 The system covers the following major functional areas:
 
@@ -672,7 +690,8 @@ The system may calculate suggested position sizes based on:
 - Stop-loss distance
 - Portfolio exposure
 
-The calculation shall be deterministic and transparent.
+Where position sizing is offered, its calculation shall be deterministic,
+reproducible, and transparent about every input and assumption it uses.
 
 ---
 
@@ -1101,7 +1120,7 @@ The AI Analyst may combine both sources.
 
 # 34. Daily Market Briefing
 
-The system shall optionally generate an AI-powered daily market briefing.
+The system may generate an AI-powered daily market briefing.
 
 Potential content:
 
@@ -1152,16 +1171,28 @@ Supported delivery channels:
 
 # 36. Non-Functional Requirements
 
+The thresholds in this section are **product baselines**, measured under normal
+operating conditions. A feature specification shall restate the thresholds that
+apply to it, and may tighten them, but shall not silently relax one. Where a
+capability cannot meet a baseline, the feature plan shall record the deviation
+and its rationale.
+
 ## 36.1 Performance
 
-The system should provide:
+The system shall meet these baselines:
 
-- Fast dashboard response
-- Cached market data where appropriate
-- Asynchronous processing for heavy AI/document workloads
-- Efficient historical data querying
+| Measure | Baseline |
+|---|---|
+| Primary read view (dashboard, stock detail, watchlist) | 95% of visits usable within 3 seconds |
+| Accepted market update becoming visible | 99% within the declared source-delay policy plus 30 seconds |
+| Screening or filtering over the supported universe | 95% of queries return within 5 seconds |
+| Interactive AI answer | 95% begin streaming or return within 15 seconds |
 
-LLM and document-processing operations should not block ordinary transactional operations unnecessarily.
+The system should cache market data where the cache cannot become a system of
+record, and should query historical series through bounded, paginated access.
+
+Heavy AI, embedding, backtesting, and document-processing work shall run
+asynchronously and shall not block ordinary transactional request processing.
 
 ---
 
@@ -1190,9 +1221,21 @@ without requiring a complete redesign.
 
 ## 36.3 Availability
 
-Core market-data and portfolio functionality should remain available even when external LLM providers are unavailable.
+Core authentication, market-data, stock-analysis, and portfolio functionality
+shall remain usable when the LLM provider, embedding provider, vector database,
+news source, or notification channel is degraded or unavailable.
 
-AI functionality should degrade gracefully.
+AI functionality shall degrade gracefully: the system shall present an explicit
+unavailable or partial state rather than an empty view, a fabricated answer, or
+an error that blocks non-AI capabilities.
+
+| Measure | Baseline |
+|---|---|
+| Non-AI capabilities usable during a full AI outage | 100% of P1 journeys |
+| Degraded state labelled rather than silently empty | 100% of affected views |
+
+Every external call shall declare an explicit timeout, bounded retry for safe
+operations only, and a defined fallback path.
 
 ---
 
@@ -1200,29 +1243,50 @@ AI functionality should degrade gracefully.
 
 The system shall implement:
 
-- Authentication
-- Authorization
-- JWT
-- Secure token handling
-- Input validation
-- API protection
-- Rate limiting where required
-- Secure secret management
+- Authentication and server-side authorization at every trust boundary
+- Object-level ownership checks for every user-scoped resource
+- A session or token mechanism with secure handling and rotation
+  (see section 57 for the currently accepted mechanism)
+- Input validation and parameterized persistence access
+- API protection and rate limiting on authentication and abuse-prone endpoints
+- Secret management outside source control
 
-AI services shall not expose private user information unnecessarily.
+User portfolios, positions, watchlists, journals, alerts, conversations, and
+documents shall be private by default and denied unless explicitly authorized.
+
+Retrieved documents, news, and external tool output shall be treated as
+untrusted data. They shall not authorize tools, alter system policy, or be
+executed as instructions.
+
+The system shall send the minimum user data required to an external model and
+shall not place secrets, tokens, private portfolio data, or raw personal data
+into prompts, telemetry, or logs.
+
+| Measure | Baseline |
+|---|---|
+| Cross-user or unauthenticated access to a private resource | 0 successful attempts in authorization tests |
+| Secrets, tokens, or personal data present in logs, responses, or client bundles | 0 occurrences |
+| Authentication or data-access change shipped without a negative authorization test | 0 |
 
 ---
 
 ## 36.5 Observability
 
-The system should support:
+The system shall emit structured logs, application metrics, health signals, and
+correlation identifiers at every new boundary, sufficient to diagnose latency,
+errors, data staleness, and dependency health.
 
-- Structured logging
-- Application metrics
-- Error tracking
-- Health checks
-- AI request monitoring
-- External API monitoring
+Operational monitoring shall distinguish at minimum: provider unavailability,
+provider authentication failure, stale data, invalid or rejected snapshots,
+calculation failure, and user-facing delivery failure.
+
+Observability shall not capture secrets, tokens, raw personal data, or private
+financial and document payloads.
+
+| Measure | Baseline |
+|---|---|
+| Failure classes distinguishable without inspecting payloads | 100% of the classes listed above |
+| Sensitive values present in telemetry | 0 occurrences |
 
 Potential technologies:
 
@@ -1231,6 +1295,84 @@ Spring Actuator
 Prometheus
 Grafana
 ```
+
+---
+
+## 36.6 Accessibility and Localization
+
+The primary audience is Vietnamese retail and research investors, and the
+product presents direction, risk, and confidence information that must not be
+misread.
+
+- Direction, freshness, risk, breadth, confidence, and valuation state shall be
+  distinguishable without relying on color alone.
+- Interactive views shall preserve keyboard focus, semantic structure,
+  sufficient contrast, and reduced-motion behavior.
+- Charts shall provide a keyboard-accessible summary or equivalent textual
+  evidence.
+- Monetary and numeric values shall use locale-aware formatting for Vietnamese
+  users while preserving the exact value where rounding could mislead.
+
+| Measure | Baseline |
+|---|---|
+| Directional, freshness, risk, and confidence states carrying a non-color indicator | 100% |
+| Charts without a textual or keyboard-accessible equivalent | 0 |
+
+---
+
+## 36.7 Data Quality, Provenance, and Temporal Integrity
+
+Every displayed market fact is an observation with a source and a time, not an
+ambient truth.
+
+- Each market, fundamental, and derived value shall retain its source identity,
+  observation time, effective time, and ingestion time where relevant.
+- Market-facing dates and times shall be interpreted in `Asia/Ho_Chi_Minh`;
+  transport and storage shall use UTC unless a feature contract records another
+  deliberate representation. The host timezone shall never be relied upon.
+- Every dataset shall expose a user-visible freshness state that distinguishes
+  at minimum current, delayed, stale, partial, and unavailable data.
+- Monetary amounts, ratios, and order-sensitive calculations shall use declared
+  decimal precision and rounding. Binary floating point shall not be used for
+  authoritative financial values.
+- Zero, missing, invalid, and not-applicable values shall remain
+  distinguishable. A missing value shall never be displayed as zero.
+- Rounding shall occur only for display and shall never reverse the direction
+  or classification a value represents.
+- Corporate actions, trading-calendar boundaries, suspensions, price limits, and
+  data corrections shall be handled explicitly rather than assumed away.
+- Duplicate, out-of-order, and corrected snapshots shall not cause a view to
+  regress silently to older facts.
+- Deterministic results shall record the rule version and input references
+  needed to reproduce them.
+
+| Measure | Baseline |
+|---|---|
+| Displayed facts carrying source and as-of time | 100% |
+| Missing or invalid financial values rendered as zero | 0 |
+| Deterministic results reproducible from recorded inputs and rule version | 100% |
+
+---
+
+## 36.8 Privacy, Retention, and Data Rights
+
+- Market data may be used only within the rights actually granted by its
+  provider. Display, storage, redistribution, and export rights shall be
+  confirmed per provider and recorded in a decision record before integration,
+  never inferred from a software license.
+- Personal data, portfolio contents, journals, and conversations shall be
+  collected and retained only as long as the feature that owns them requires,
+  with the retention period stated by that feature.
+- Private user data shall not be sent to an external model, notification
+  channel, or third party beyond what the invoked capability requires, and the
+  user shall be able to understand what leaves the system.
+- Deletion of a user-owned resource shall remove its derived copies, including
+  cache and vector-index entries, within a period the owning feature declares.
+
+| Measure | Baseline |
+|---|---|
+| External providers integrated without recorded data-usage rights | 0 |
+| Private user data leaving the system beyond the invoked capability | 0 occurrences |
 
 ---
 
@@ -1437,9 +1579,12 @@ DOCUMENT_INGESTED
 RAG_INDEX_UPDATED
 ```
 
-Kafka may be introduced initially.
+Kafka is **not** a default dependency of the initial architecture. The events
+listed above are conceptual extension points, not an implemented transport.
 
-Kafka may be considered later if event volume and streaming requirements justify it.
+Kafka may be adopted later only if event volume, ordering, replay, or
+decoupling requirements justify it, and its adoption requires a documented
+decision record.
 
 ---
 
@@ -1488,7 +1633,7 @@ Qdrant
 ## Messaging
 
 ```text
-Kafka
+Kafka (optional; adopted only under section 43)
 ```
 
 ## Infrastructure
@@ -1628,6 +1773,12 @@ These may become future extensions.
 ---
 
 # 49. Future Roadmap
+
+The phases below group capabilities **thematically** and do not restate the
+MVP delivery sequence. Where this section and section 47 disagree on ordering,
+**section 47 governs MVP sequencing**. In particular, Watchlist and Portfolio
+are delivered together as MVP-5 even though this roadmap discusses them under
+different themes.
 
 ## Phase 1 — Core Platform
 
@@ -1876,20 +2027,38 @@ The central value proposition is:
 
 # 54. MVP Success Criteria
 
-The MVP should demonstrate that a user can:
+Each criterion below is measurable and verifiable from the user's perspective.
+The numbering is stable: criterion *N* keeps its meaning across revisions, so a
+feature specification may cite "section 54 criterion N" as a durable reference.
 
-1. Open the market dashboard.
-2. Understand the current market regime.
-3. Search for a Vietnamese stock.
-4. View technical and fundamental analysis.
-5. Screen stocks using multiple conditions.
-6. Review a strategy-generated signal.
-7. Understand entry, stop-loss, target and risk assumptions.
-8. Read related news.
-9. Ask AI questions about a stock.
-10. Ask questions about financial reports using RAG.
-11. Receive explanations grounded in structured market data and source documents.
-12. Track a personal watchlist and portfolio.
+A feature specification shall restate the criteria it delivers as its own
+`SC-` requirements with concrete fixtures and thresholds. These are product-level
+outcomes, not a substitute for feature-level acceptance.
+
+| # | ID | Capability | Measurable criterion |
+|---|---|---|---|
+| 1 | MVP-SC-01 | Open the market dashboard | The user identifies index direction, session status, and as-of time for every supported index within 10 seconds, in 3 consecutive timed trials |
+| 2 | MVP-SC-02 | Understand the current market regime | 100% of published regime assessments show a label, score, confidence, as-of time, rule version, and supporting factors, and are reproducible from their recorded inputs |
+| 3 | MVP-SC-03 | Search for a Vietnamese stock | 95% of lookups of a supported symbol return its detail view within 3 seconds; an unsupported symbol returns an explicit not-found state with no fabricated data |
+| 4 | MVP-SC-04 | View technical and fundamental analysis | 100% of displayed indicator and fundamental values match the accepted source to the declared precision, each carrying its calculation window, rule version, and as-of time |
+| 5 | MVP-SC-05 | Screen stocks using multiple conditions | A screen combining at least 3 filters returns a result set that reconciles exactly with the same filters applied to the accepted source data, with 0 duplicated or silently dropped securities |
+| 6 | MVP-SC-06 | Review a strategy-generated signal | 100% of signals expose their strategy, rule version, triggering conditions, and supporting evidence, and are reproducible from their recorded inputs |
+| 7 | MVP-SC-07 | Understand entry, stop-loss, target and risk assumptions | 100% of signals state entry zone, stop loss, target, risk/reward, and the assumptions behind them, and are labelled as scenarios rather than guarantees |
+| 8 | MVP-SC-08 | Read related news | 100% of displayed articles carry source identity, publication time, and the basis for their stock or sector association |
+| 9 | MVP-SC-09 | Ask AI questions about a stock | 95% of answers begin returning within 15 seconds, and 100% cite the structured facts or documents they rely on |
+| 10 | MVP-SC-10 | Ask questions about financial reports using RAG | 100% of document-derived answers carry a resolvable citation identifying document and location; unsupported questions produce an explicit refusal rather than an ungrounded answer |
+| 11 | MVP-SC-11 | Receive explanations grounded in evidence | 0 answers assert a market fact or calculation absent from the retrieved evidence, measured on a versioned evaluation dataset |
+| 12 | MVP-SC-12 | Track a personal watchlist and portfolio | 100% of watchlist and portfolio resources are readable and writable only by their owner, with 0 successful cross-user accesses in authorization tests |
+
+Across every criterion, the MVP shall also demonstrate that:
+
+- the P1 journeys of each delivered capability remain usable while all AI
+  capabilities are unavailable;
+- 100% of stale, partial, corrected, and unavailable data scenarios show the
+  correct data-quality state and never fabricate a fact, count, label, or
+  confidence value;
+- no response, log, export, or client bundle contains a provider credential,
+  token, or raw provider payload.
 
 ---
 
@@ -1992,3 +2161,165 @@ This provides a practical balance between:
 - suitability for a portfolio/production-oriented project
 
 The system can later evolve into independently deployed Market Data, AI, Document Processing and Backtesting services without changing the fundamental product architecture.
+
+---
+
+# 57. Superseding Architecture Decisions
+
+This section is a pointer index, not a change of product intent. The baseline
+choices recorded earlier in this SRS remain the original product statement;
+where an accepted Architecture Decision Record (ADR) refines or replaces one,
+**the ADR governs the engineering decision** while this SRS continues to govern
+product scope and intent.
+
+Nothing in this section waives a constitutional principle. Read it together
+with `.specify/memory/constitution.md` and `docs/PROJECT_CONTEXT.md`.
+
+| SRS baseline | Section(s) | Superseded by | Current decision |
+|---|---|---|---|
+| Next.js frontend | Header, 37, 44, 45, 51, 55 | [ADR-0006](adr/0006-use-react-vite-for-private-web-client.md) | React SPA built with Vite; Spring Boot remains the auth and public API boundary |
+| JWT-based authentication and token refresh | 4.1, 36.4 | [ADR-0005](adr/0005-use-tailscale-and-local-owner-session.md) | Rotated server-side session with a `Secure`/`HttpOnly`/`SameSite=Strict` cookie and CSRF validation for the private owner deployment |
+| Open user registration | 4.1 | [ADR-0005](adr/0005-use-tailscale-and-local-owner-session.md) | Single configured owner identity; self-registration, invitations, and shared links are denied while provider licensing remains private-use only |
+| AWS deployment | 44 | [ADR-0005](adr/0005-use-tailscale-and-local-owner-session.md) | Private owner-only deployment reached through a Tailscale tailnet with Funnel disabled; no public ingress |
+| Generic "Vietnamese stock market data provider" | 41 | [ADR-0003](adr/0003-use-tcbs-for-private-market-data-v1.md), [ADR-0004](adr/0004-use-vnstock-for-private-historical-bootstrap.md) | TCBS iFlash as the read-only live source and Vnstock as an offline historical bootstrap tool, both restricted to private single-owner use |
+| Unspecified LLM provider | 41 | [ADR-0002](adr/0002-use-gemini-as-initial-llm-provider.md) | Gemini as the initial provider behind a replaceable adapter |
+| Spring Boot version unpinned beyond 4.1.x | 44 | [ADR-0001](adr/0001-use-spring-boot-4.md) | Java 21 with the verified Spring Boot 4.1.x pin recorded in the committed manifests |
+| Module structure without an internal layering rule | 38 | [ADR-0007](adr/0007-use-layered-architecture-within-backend-modules.md) | Layered packages (`controller`, `dto`, `service`, `repository`, `entity`) inside each business module, plus optional `domain`, `provider`, and `config` |
+
+## Cross-cutting constraints
+
+Sections 36.4 through 36.8 state the product-level obligations for security,
+observability, accessibility, data provenance and temporal integrity, and
+privacy, retention, and data rights. They are baselines, not full engineering
+rules.
+
+The detailed, non-negotiable engineering rules behind them live in
+`.specify/memory/constitution.md`, and each feature makes them concrete under
+`specs/<feature>/`. Where a feature needs a value this SRS does not fix — a
+specific freshness threshold, a retention period, a provider's data-usage
+rights, an exchange calendar, or a corporate-action source — it shall resolve
+that value in its own research and plan artifacts and record the decision.
+
+A feature shall not infer permission from this document's silence.
+
+---
+
+# 58. Requirements Index
+
+## Purpose and namespace
+
+This index assigns a stable identifier to each capability this SRS defines, so
+a feature specification can cite product intent precisely and survive future
+section renumbering.
+
+These `SRS-` identifiers live in their own namespace. They are **not** the same
+as the feature-level `FR-`, `NFR-`, `DATA-`, `SEC-`, `AI-`, and `SC-` prefixes
+defined in `docs/SDD_WORKFLOW.md`, which are scoped to a single
+`specs/<feature>/` directory and numbered independently there. A feature
+specification should record the `SRS-` identifiers it realizes in its
+**SRS References** header, and then define its own `FR-`/`NFR-` requirements
+with testable detail.
+
+Identifiers are stable. A capability that is removed shall be marked deprecated
+with a reason rather than renumbered or reused.
+
+## Foundation
+
+| ID | Section | Capability | MVP |
+|---|---|---|---|
+| SRS-AUTH-01 | 4.1 | User registration, login, logout, and session or token lifecycle | Foundational enabler |
+| SRS-AUTH-02 | 4.1 | Protection of user-scoped resources by owner | Foundational enabler |
+
+## Market intelligence
+
+| ID | Section | Capability | MVP |
+|---|---|---|---|
+| SRS-MKT-01 | 5.1 | Market overview for the supported benchmark indices | MVP-1 |
+| SRS-MKT-02 | 5.1 | Consolidated market breadth (advancing, declining, unchanged) | MVP-1 |
+| SRS-MKT-03 | 5.2 | Sector performance, momentum, liquidity, and relative strength | Post-MVP |
+| SRS-MKT-04 | 5.2 | Leading and weak stock lists per sector | Post-MVP |
+| SRS-MKT-05 | 5.3 | Deterministic market regime classification with score, confidence, and supporting factors | MVP-1 |
+
+## Stock analysis
+
+| ID | Section | Capability | MVP |
+|---|---|---|---|
+| SRS-STK-01 | 6.1 | Per-stock overview: identity, price, change, capitalization, sector, volume | MVP-2 |
+| SRS-STK-02 | 6.1 | Overall stock score, risk, trend, and valuation classification on the stock page | MVP-2 (valuation, trend) / Post-MVP (composite score) |
+| SRS-STK-03 | 6.2 | Stock page sections: Overview, Technical, Fundamental, Valuation, Financials, News, Research, AI Analysis | MVP-2 (first four) / MVP-6 and MVP-7 (remainder) |
+| SRS-TEC-01 | 7.1 | Trend indicators (SMA, EMA, MA20/50/200) | MVP-2 |
+| SRS-TEC-02 | 7.2 | Momentum indicators (RSI, MACD, Stochastic) | MVP-2 |
+| SRS-TEC-03 | 7.3 | Volatility indicators (Bollinger Bands, ATR) | MVP-2 |
+| SRS-TEC-04 | 7.4 | Volume analysis (average, relative, spike, trend) | MVP-2 |
+| SRS-TEC-05 | 7.5 | Price structure: support, resistance, breakout, breakdown, Fibonacci | Post-MVP |
+| SRS-TEC-06 | 7.6 | Candlestick pattern identification | Post-MVP |
+| SRS-TEC-07 | 8 | Multi-timeframe evaluation and alignment summary | Post-MVP |
+| SRS-FUN-01 | 9.1 | Fundamental financial metrics for the latest accepted reporting period | MVP-2 |
+| SRS-VAL-01 | 10 | Valuation metrics (P/E, P/B, EV/EBITDA, PEG, dividend yield) | MVP-2 |
+| SRS-VAL-02 | 10 | Valuation comparison against history, sector, peers, and market | MVP-2 (history, sector) / Post-MVP (selected peers) |
+| SRS-CMP-01 | 11 | Multi-company peer comparison, tabular and graphical | Post-MVP |
+| SRS-SCO-01 | 12 | Multi-factor stock score with exposed contributing factors | Post-MVP |
+
+## Screening
+
+| ID | Section | Capability | MVP |
+|---|---|---|---|
+| SRS-SCR-01 | 13 | Deterministic screening across market, price, technical, and fundamental filters | MVP-3 |
+| SRS-SCR-02 | 13 | Combination of multiple filters in one screen | MVP-3 |
+| SRS-SCR-03 | 14 | Natural-language to structured-filter conversion, executed by the deterministic engine | MVP-7 |
+
+## Strategy, signal, and risk
+
+| ID | Section | Capability | MVP |
+|---|---|---|---|
+| SRS-STR-01 | 15 | Configurable strategies with entry, exit, risk rules, and timeframe | MVP-4 |
+| SRS-SIG-01 | 16 | Signal generation with direction, levels, risk/reward, and supporting evidence | MVP-4 |
+| SRS-SIG-02 | 16 | Signals presented as scenarios rather than guarantees | MVP-4 |
+| SRS-RSK-01 | 17 | Trade and portfolio risk scoring with named risk factors | MVP-4 |
+| SRS-RSK-02 | 18 | Deterministic, transparent position sizing (optional capability) | MVP-4 |
+| SRS-BKT-01 | 19 | Historical backtesting with configurable cost and sizing assumptions | Post-MVP |
+| SRS-BKT-02 | 19 | Look-ahead, survivorship, corporate-action, slippage, and cost handling | Post-MVP |
+
+## Portfolio and personalization
+
+| ID | Section | Capability | MVP |
+|---|---|---|---|
+| SRS-PF-01 | 20 | Portfolio holdings, positions, cash, and realized/unrealized P/L | MVP-5 |
+| SRS-PF-02 | 21 | Portfolio analytics, concentration, and benchmark comparison | MVP-5 |
+| SRS-WL-01 | 22 | Watchlist creation and per-item market and analysis context | MVP-5 |
+| SRS-JRN-01 | 23 | Investment journal entries and later personalized analytics | Post-MVP |
+| SRS-ALR-01 | 35 | Configurable alerts and supported delivery channels | Post-MVP |
+
+## News, documents, and retrieval
+
+| ID | Section | Capability | MVP |
+|---|---|---|---|
+| SRS-NWS-01 | 24 | News aggregation, normalization, and categorization | MVP-6 |
+| SRS-NWS-02 | 25 | Entity, sentiment, and impact classification over news | MVP-6 |
+| SRS-DOC-01 | 26 | Research document ingestion with structured metadata | MVP-6 |
+| SRS-RAG-01 | 27 | Document processing pipeline through to embedding | MVP-6 |
+| SRS-RAG-02 | 28 | Vector index storing embeddings and retrieval metadata, never as source of truth | MVP-6 |
+| SRS-RAG-03 | 29 | Retrieval pipeline with filtering, reranking, and citable source metadata | MVP-6 |
+
+## AI capabilities
+
+| ID | Section | Capability | MVP |
+|---|---|---|---|
+| SRS-AIA-01 | 30 | AI Analyst answering investment research questions | MVP-7 |
+| SRS-AIA-02 | 31 | Tool-selecting orchestration over allowlisted capabilities | MVP-7 |
+| SRS-AIA-03 | 32 | AI explanation of deterministic outputs without replacing the calculation | MVP-7 |
+| SRS-AIA-04 | 33 | Separation of structured-data queries from document retrieval | MVP-7 |
+| SRS-AIA-05 | 34 | Daily market briefing (optional capability) | Post-MVP |
+
+## Cross-cutting
+
+| ID | Section | Capability |
+|---|---|---|
+| SRS-NFR-01 | 36.1 | Performance baselines for read views, updates, screening, and AI responses |
+| SRS-NFR-02 | 36.2 | Architectural evolution without redesign |
+| SRS-NFR-03 | 36.3 | Availability and graceful degradation during dependency outage |
+| SRS-NFR-04 | 36.4 | Security, authorization, untrusted-content handling, and minimal data exposure |
+| SRS-NFR-05 | 36.5 | Observability and failure-class distinguishability |
+| SRS-NFR-06 | 36.6 | Accessibility and Vietnamese locale formatting |
+| SRS-NFR-07 | 36.7 | Data quality, provenance, precision, and temporal integrity |
+| SRS-NFR-08 | 36.8 | Privacy, retention, and provider data rights |

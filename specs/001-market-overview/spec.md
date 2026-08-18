@@ -5,6 +5,9 @@
 **Status**: Fixture mode implemented and validated; live providers and remote deployment gated
 **SRS References**: Sections 5.1, 5.3, 36.1, 36.3, 36.5, 47 (MVP-1), 48,
 and 54 (criteria 1-2)  
+**SRS Requirement IDs**: SRS-MKT-01, SRS-MKT-02, SRS-MKT-05, SRS-AUTH-01,
+SRS-AUTH-02, SRS-NFR-01, SRS-NFR-03, SRS-NFR-04, SRS-NFR-05, SRS-NFR-06,
+SRS-NFR-07, SRS-NFR-08; MVP-SC-01, MVP-SC-02  
 **Input**: User description: "Create the first Finvera feature specification
 for the market overview; stop before planning, tasks, or implementation."
 

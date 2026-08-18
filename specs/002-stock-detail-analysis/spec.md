@@ -6,6 +6,13 @@
 **SRS References**: Sections 6.1, 6.2 (Overview/Technical/Fundamental/Valuation
 subset), 7 (Technical Analysis, core indicators), 9 (Fundamental Analysis),
 10 (Valuation Analysis), 36, 47 (MVP-2), 48, 54
+**SRS Requirement IDs**: SRS-STK-01, SRS-STK-03 (Overview/Technical/
+Fundamental/Valuation sections only), SRS-TEC-01, SRS-TEC-02, SRS-TEC-03,
+SRS-TEC-04, SRS-FUN-01, SRS-VAL-01, SRS-VAL-02 (history and sector basis only),
+SRS-NFR-01, SRS-NFR-03, SRS-NFR-04, SRS-NFR-05, SRS-NFR-06, SRS-NFR-07,
+SRS-NFR-08; MVP-SC-03, MVP-SC-04.
+Explicitly deferred: SRS-STK-02 (composite score), SRS-TEC-05, SRS-TEC-06,
+SRS-TEC-07, SRS-CMP-01, SRS-SCO-01.
 **Input**: User description: "Stock Detail and Analysis (MVP-2). The owner
 opens a single stock's detail page to research it before deciding whether to
 investigate further. In scope: current price and session status, a price
