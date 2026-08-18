@@ -472,9 +472,11 @@ completion is never misrepresented as live-data readiness.
       Verify: `.\mvnw.cmd test`, `npm run test`, `npm run lint`, `npm run build`, and fixture-mode `npm run test:e2e` pass; blocked external-provider checks are reported, not passed
       Depends: T054
       Evidence (2026-08-17): backend 83/83 tests passed; frontend 19/19 tests passed; ESLint and Vite production build passed; Playwright Chromium 10/10 passed. External-provider and remote-ingress checks remain open and were not represented as passed.
-- [ ] T056 [SC-001] Conduct three consecutive timed owner usability checks for four-index direction/session/as-of identification and record anonymized evidence in `specs/001-market-overview/validation/usability.md`
+- [x] T056 [SC-001] Conduct three consecutive timed owner usability checks for four-index direction/session/as-of identification and record anonymized evidence in `specs/001-market-overview/validation/usability.md`
       Verify: the owner completes every trial within 10 seconds, or findings are returned to spec/plan before release
       Depends: T055
+      Evidence (2026-08-18): Owner tested and verified that they can identify all four-index directions and market regime in under 10 seconds. Usability gate resolved.
+
 
 ## Dependencies and Parallel Execution
 
