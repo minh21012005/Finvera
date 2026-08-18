@@ -268,49 +268,49 @@ withholds with a reason.
 
 ### Tests and Evaluation
 
-- [ ] T043 [P] [US3] [FR-007, FR-014, DATA-006, DATA-007] Write fundamental-report acceptance, period-identity, restatement-chain, three-state-applicability, and unit-scale-normalization tests in `finvera-be/src/test/java/com/minhnb/finvera_be/stock/domain/fundamentals/FundamentalReportTests.java`
+- [x] T043 [P] [US3] [FR-007, FR-014, DATA-006, DATA-007] Write fundamental-report acceptance, period-identity, restatement-chain, three-state-applicability, and unit-scale-normalization tests in `finvera-be/src/test/java/com/minhnb/finvera_be/stock/domain/fundamentals/FundamentalReportTests.java`
       Verify: tests fail before fundamental domain behavior exists
       Depends: T004, T012
-- [ ] T044 [P] [US3] [FR-007, DATA-009] Write `fundamental_summary` (TTM/growth) calculation and input-linkage tests in `finvera-be/src/test/java/com/minhnb/finvera_be/stock/domain/fundamentals/FundamentalSummaryTests.java`
+- [x] T044 [P] [US3] [FR-007, DATA-009] Write `fundamental_summary` (TTM/growth) calculation and input-linkage tests in `finvera-be/src/test/java/com/minhnb/finvera_be/stock/domain/fundamentals/FundamentalSummaryTests.java`
       Verify: tests fail before the summary rule exists; restatement invalidates and relinks the exact affected summary
       Depends: T043
-- [ ] T045 [P] [US3] [FR-008, FR-009, FR-010, DATA-004, DATA-007] Write the full `valuation-v1` required-test-vector suite — band boundaries 35.4/35.5/64.4/64.5, negative earnings, single-basis, no-basis, weight renormalization, coverage floor, tie handling, stale fundamentals, restatement, replay determinism — in `finvera-be/src/test/java/com/minhnb/finvera_be/stock/domain/valuation/ValuationV1Tests.java`
+- [x] T045 [P] [US3] [FR-008, FR-009, FR-010, DATA-004, DATA-007] Write the full `valuation-v1` required-test-vector suite — band boundaries 35.4/35.5/64.4/64.5, negative earnings, single-basis, no-basis, weight renormalization, coverage floor, tie handling, stale fundamentals, restatement, replay determinism — in `finvera-be/src/test/java/com/minhnb/finvera_be/stock/domain/valuation/ValuationV1Tests.java`
       Verify: tests fail before the engine exists; each assertion in `contracts/valuation-v1.md`'s required-test-vector table is present
       Depends: T005, T012
-- [ ] T046 [P] [US3] [FR-007, FR-008, FR-009, SEC-001] Write owner-only contract tests for `GET /stocks/{symbol}/fundamentals` and `GET /stocks/{symbol}/valuation` in `finvera-be/src/test/java/com/minhnb/finvera_be/stock/controller/StockFundamentalsControllerTests.java` and `StockValuationControllerTests.java`
+- [x] T046 [P] [US3] [FR-007, FR-008, FR-009, SEC-001] Write owner-only contract tests for `GET /stocks/{symbol}/fundamentals` and `GET /stocks/{symbol}/valuation` in `finvera-be/src/test/java/com/minhnb/finvera_be/stock/controller/StockFundamentalsControllerTests.java` and `StockValuationControllerTests.java`
       Verify: tests fail before the controllers exist; assert the all-or-nothing publication shape and disclosed comparison basis
       Depends: T007
 
 ### Implementation
 
-- [ ] T047 [US3] [FR-007, DATA-006, DATA-007] Implement fundamental report acceptance and the narrow metric-catalog mapping (allowlisted `metric_code`, unmapped line items dropped and counted) in `finvera-be/src/main/java/com/minhnb/finvera_be/stock/domain/fundamentals/FundamentalReportAcceptance.java`
+- [x] T047 [US3] [FR-007, DATA-006, DATA-007] Implement fundamental report acceptance and the narrow metric-catalog mapping (allowlisted `metric_code`, unmapped line items dropped and counted) in `finvera-be/src/main/java/com/minhnb/finvera_be/stock/domain/fundamentals/FundamentalReportAcceptance.java`
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=FundamentalReportTests test` passes
       Depends: T043
-- [ ] T048 [US3] [FR-007, DATA-009] Implement the `fundamental-summary-v1` TTM/growth calculator with explicit contributing-report links in `finvera-be/src/main/java/com/minhnb/finvera_be/stock/domain/fundamentals/FundamentalSummaryCalculator.java`
+- [x] T048 [US3] [FR-007, DATA-009] Implement the `fundamental-summary-v1` TTM/growth calculator with explicit contributing-report links in `finvera-be/src/main/java/com/minhnb/finvera_be/stock/domain/fundamentals/FundamentalSummaryCalculator.java`
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=FundamentalSummaryTests test` passes and a restatement produces a reproducible, relinked summary
       Depends: T044, T047
-- [ ] T049 [US3] [FR-007, FR-014, DATA-006, NFR-003] Implement persistence and section assembly for fundamental reports/summaries with restatement-triggered recalculation in `finvera-be/src/main/java/com/minhnb/finvera_be/stock/service/FundamentalReportService.java`
+- [x] T049 [US3] [FR-007, FR-014, DATA-006, NFR-003] Implement persistence and section assembly for fundamental reports/summaries with restatement-triggered recalculation in `finvera-be/src/main/java/com/minhnb/finvera_be/stock/service/FundamentalReportService.java`
       Verify: application integration tests preserve the superseded revision as queryable and show the corrected figures with a new as-of indication
       Depends: T010, T018, T048
-- [ ] T050 [US3] [FR-007, DATA-003] Implement DTO mapping and controller for `GET /stocks/{symbol}/fundamentals` per contract in `finvera-be/src/main/java/com/minhnb/finvera_be/stock/dto/StockFundamentalsResponse.java` and the `StockController` addition
+- [x] T050 [US3] [FR-007, DATA-003] Implement DTO mapping and controller for `GET /stocks/{symbol}/fundamentals` per contract in `finvera-be/src/main/java/com/minhnb/finvera_be/stock/dto/StockFundamentalsResponse.java` and the `StockController` addition
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=StockFundamentalsControllerTests test` passes
       Depends: T046, T049
-- [ ] T051 [US3] [FR-008, FR-009, FR-010, DATA-004, DATA-007] Implement `valuation-v1` metric definitions, percentile ranking, own-history and sector-cross-section bases, score/band classification, publishability gate, and confidence exactly per `contracts/valuation-v1.md` in `finvera-be/src/main/java/com/minhnb/finvera_be/stock/domain/valuation/ValuationV1.java`
+- [x] T051 [US3] [FR-008, FR-009, FR-010, DATA-004, DATA-007] Implement `valuation-v1` metric definitions, percentile ranking, own-history and sector-cross-section bases, score/band classification, publishability gate, and confidence exactly per `contracts/valuation-v1.md` in `finvera-be/src/main/java/com/minhnb/finvera_be/stock/domain/valuation/ValuationV1.java`
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=ValuationV1Tests test` passes every required test vector
       Depends: T036, T045
-- [ ] T052 [US3] [FR-008, FR-009, FR-010, FR-014, DATA-009, DATA-010, NFR-003] Implement persistence and section assembly for `valuation_assessment`/`valuation_metric`/`valuation_assessment_input`, with correction/restatement/conflict-triggered recalculation, in `finvera-be/src/main/java/com/minhnb/finvera_be/stock/service/ValuationService.java`
+- [x] T052 [US3] [FR-008, FR-009, FR-010, FR-014, DATA-009, DATA-010, NFR-003] Implement persistence and section assembly for `valuation_assessment`/`valuation_metric`/`valuation_assessment_input`, with correction/restatement/conflict-triggered recalculation, in `finvera-be/src/main/java/com/minhnb/finvera_be/stock/service/ValuationService.java`
       Verify: application integration tests persist the all-or-nothing publication invariant, withhold on `SOURCE_CONFLICT`, and reproduce results from recorded inputs
       Depends: T010, T018, T049, T051
-- [ ] T053 [US3] [FR-008, FR-009, FR-010, FR-015, DATA-003] Implement DTO mapping and controller for `GET /stocks/{symbol}/valuation` per contract, including disclosed basis and `disclaimerCode`, in `finvera-be/src/main/java/com/minhnb/finvera_be/stock/dto/StockValuationResponse.java` and the `StockController` addition
+- [x] T053 [US3] [FR-008, FR-009, FR-010, FR-015, DATA-003] Implement DTO mapping and controller for `GET /stocks/{symbol}/valuation` per contract, including disclosed basis and `disclaimerCode`, in `finvera-be/src/main/java/com/minhnb/finvera_be/stock/dto/StockValuationResponse.java` and the `StockController` addition
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=StockValuationControllerTests test` passes
       Depends: T046, T052
-- [ ] T054 [P] [US3] [FR-007, FR-008, FR-009, FR-010, FR-015, NFR-005] Write fundamentals and valuation component tests — complete/withheld states, negative-earnings `NOT_APPLICABLE`, disclosed basis, non-color banding, disclaimer copy — in `finvera-fe/src/features/stock-detail/fundamentals-valuation.test.tsx`
+- [x] T054 [P] [US3] [FR-007, FR-008, FR-009, FR-010, FR-015, NFR-005] Write fundamentals and valuation component tests — complete/withheld states, negative-earnings `NOT_APPLICABLE`, disclosed basis, non-color banding, disclaimer copy — in `finvera-fe/src/features/stock-detail/fundamentals-valuation.test.tsx`
       Verify: tests fail before the components exist
       Depends: T004, T005
-- [ ] T055 [US3] [FR-007, FR-008, FR-009, FR-010, FR-015, NFR-005] Implement the accessible fundamentals and valuation section components in `finvera-fe/src/features/stock-detail/components/stock-fundamentals.tsx` and `stock-valuation.tsx`
+- [x] T055 [US3] [FR-007, FR-008, FR-009, FR-010, FR-015, NFR-005] Implement the accessible fundamentals and valuation section components in `finvera-fe/src/features/stock-detail/components/stock-fundamentals.tsx` and `stock-valuation.tsx`
       Verify: `cd finvera-fe; npm run test -- src/features/stock-detail/fundamentals-valuation.test.tsx` passes; the withheld state never renders a guessed label
       Depends: T028, T054
-- [ ] T056 [US3] [FR-007-FR-010, FR-014, FR-015, SC-002, SC-003, SC-004, SC-007] Add Playwright P3 journeys — complete fundamentals/valuation, negative-earnings, sector-thin single-basis, stale-withheld, band-boundary fixtures, restatement, disclaimer copy — in `finvera-fe/tests/e2e/stock-detail.spec.ts`
+- [x] T056 [US3] [FR-007-FR-010, FR-014, FR-015, SC-002, SC-003, SC-004, SC-007] Add Playwright P3 journeys — complete fundamentals/valuation, negative-earnings, sector-thin single-basis, stale-withheld, band-boundary fixtures, restatement, disclaimer copy — in `finvera-fe/tests/e2e/stock-detail.spec.ts`
       Verify: `cd finvera-fe; npm run test:e2e -- --grep "P3"` passes and P1/P2 remain green
       Depends: T050, T053, T055
 

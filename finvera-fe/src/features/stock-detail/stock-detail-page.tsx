@@ -1,16 +1,22 @@
 import { useEffect, useState } from "react";
 import {
   getStockChart,
+  getStockFundamentals,
   getStockOverview,
   getStockTechnical,
+  getStockValuation,
   StockApiError,
   type StockChart as StockChartData,
+  type StockFundamentals as StockFundamentalsData,
   type StockOverview as StockOverviewData,
   type StockTechnical as StockTechnicalData,
+  type StockValuation as StockValuationData,
 } from "./api/stock-detail";
 import { StockOverview } from "./components/stock-overview";
 import { StockChart } from "./components/stock-chart";
 import { StockTechnical } from "./components/stock-technical";
+import { StockFundamentals } from "./components/stock-fundamentals";
+import { StockValuation } from "./components/stock-valuation";
 import { SymbolSearch } from "./components/symbol-search";
 import { navigate } from "../../router";
 
@@ -30,15 +36,24 @@ type TechnicalState =
   | { kind: "ready"; technical: StockTechnicalData }
   | { kind: "unavailable" };
 
+type FundamentalsState =
+  | { kind: "loading" }
+  | { kind: "ready"; fundamentals: StockFundamentalsData }
+  | { kind: "unavailable" };
+
+type ValuationState =
+  | { kind: "loading" }
+  | { kind: "ready"; valuation: StockValuationData }
+  | { kind: "unavailable" };
+
 export function StockDetailPage({ symbol }: { symbol: string }) {
   const [overviewState, setOverviewState] = useState<OverviewState>({ kind: "loading" });
   const [chartState, setChartState] = useState<ChartState>({ kind: "loading" });
   const [technicalState, setTechnicalState] = useState<TechnicalState>({ kind: "loading" });
+  const [fundamentalsState, setFundamentalsState] = useState<FundamentalsState>({ kind: "loading" });
+  const [valuationState, setValuationState] = useState<ValuationState>({ kind: "loading" });
 
   useEffect(() => {
-    // `symbol` changes only via remount (App keys StockDetailPage by symbol),
-    // so the initial "loading" state above already covers a symbol switch;
-    // no reset is called here.
     const controller = new AbortController();
 
     getStockOverview(symbol, controller.signal)
@@ -52,8 +67,7 @@ export function StockDetailPage({ symbol }: { symbol: string }) {
         }
       });
 
-    // The chart and technical sections fail independently of the overview
-    // (FR-012): an outage in either must never block the rest of the page.
+    // The five sections fail independently of each other (FR-012)
     getStockChart(symbol, "1Y", controller.signal)
       .then((chart) => setChartState({ kind: "ready", chart }))
       .catch(() => {
@@ -66,6 +80,20 @@ export function StockDetailPage({ symbol }: { symbol: string }) {
       .catch(() => {
         if (controller.signal.aborted) return;
         setTechnicalState({ kind: "unavailable" });
+      });
+
+    getStockFundamentals(symbol, controller.signal)
+      .then((fundamentals) => setFundamentalsState({ kind: "ready", fundamentals }))
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        setFundamentalsState({ kind: "unavailable" });
+      });
+
+    getStockValuation(symbol, controller.signal)
+      .then((valuation) => setValuationState({ kind: "ready", valuation }))
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        setValuationState({ kind: "unavailable" });
       });
 
     return () => controller.abort();
@@ -112,6 +140,24 @@ export function StockDetailPage({ symbol }: { symbol: string }) {
             </section>
           )}
           {technicalState.kind === "ready" && <StockTechnical technical={technicalState.technical} />}
+
+          {fundamentalsState.kind === "loading" && <p aria-busy="true">Đang tải chỉ số cơ bản…</p>}
+          {fundamentalsState.kind === "unavailable" && (
+            <section aria-labelledby="stock-fundamentals-heading" className="stock-fundamentals-card">
+              <h2 id="stock-fundamentals-heading">Chỉ số cơ bản</h2>
+              <p role="status">Chỉ số cơ bản tạm thời không có dữ liệu.</p>
+            </section>
+          )}
+          {fundamentalsState.kind === "ready" && <StockFundamentals fundamentals={fundamentalsState.fundamentals} />}
+
+          {valuationState.kind === "loading" && <p aria-busy="true">Đang tải định giá…</p>}
+          {valuationState.kind === "unavailable" && (
+            <section aria-labelledby="stock-valuation-heading" className="stock-valuation-card">
+              <h2 id="stock-valuation-heading">Định giá tương đối</h2>
+              <p role="status">Định giá tạm thời không có dữ liệu.</p>
+            </section>
+          )}
+          {valuationState.kind === "ready" && <StockValuation valuation={valuationState.valuation} />}
 
           <footer className="provenance-footer">
             <span>

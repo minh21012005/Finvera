@@ -79,6 +79,12 @@ class StockOverviewControllerTests {
     @MockitoBean
     private TechnicalIndicatorService technicalService;
 
+    @MockitoBean
+    private com.minhnb.finvera_be.stock.service.FundamentalReportService fundamentalService;
+
+    @MockitoBean
+    private com.minhnb.finvera_be.stock.service.ValuationService valuationService;
+
     @Test
     void overviewRequiresThePrivateOwnerSession() throws Exception {
         mvc.perform(get("/api/v1/stocks/FPT"))

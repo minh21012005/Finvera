@@ -92,6 +92,30 @@ class FinveraBeApplicationTests {
 	@MockitoBean
 	TechnicalIndicatorValueRepository technicalIndicatorValueRepository;
 
+	@MockitoBean
+	com.minhnb.finvera_be.stock.repository.FundamentalReportMetricRepository fundamentalReportMetricRepository;
+
+	@MockitoBean
+	com.minhnb.finvera_be.stock.repository.FundamentalSummaryRepository fundamentalSummaryRepository;
+
+	@MockitoBean
+	com.minhnb.finvera_be.stock.repository.FundamentalSummaryMetricRepository fundamentalSummaryMetricRepository;
+
+	@MockitoBean
+	com.minhnb.finvera_be.stock.repository.FundamentalSummaryInputRepository fundamentalSummaryInputRepository;
+
+	@MockitoBean
+	com.minhnb.finvera_be.stock.repository.FundamentalMetricCatalogRepository fundamentalMetricCatalogRepository;
+
+	@MockitoBean
+	com.minhnb.finvera_be.stock.repository.ValuationAssessmentRepository valuationAssessmentRepository;
+
+	@MockitoBean
+	com.minhnb.finvera_be.stock.repository.ValuationMetricRepository valuationMetricRepository;
+
+	@MockitoBean
+	com.minhnb.finvera_be.stock.repository.ValuationAssessmentInputRepository valuationAssessmentInputRepository;
+
 	@DynamicPropertySource
 	static void ownerProperties(DynamicPropertyRegistry registry) {
 		registry.add("finvera.security.owner.id", UUID::randomUUID);

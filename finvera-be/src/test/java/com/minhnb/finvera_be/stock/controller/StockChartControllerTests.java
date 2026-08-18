@@ -70,6 +70,12 @@ class StockChartControllerTests {
     @MockitoBean
     private TechnicalIndicatorService technicalService;
 
+    @MockitoBean
+    private com.minhnb.finvera_be.stock.service.FundamentalReportService fundamentalService;
+
+    @MockitoBean
+    private com.minhnb.finvera_be.stock.service.ValuationService valuationService;
+
     @Test
     void chartRequiresThePrivateOwnerSession() throws Exception {
         mvc.perform(get("/api/v1/stocks/FPT/chart"))

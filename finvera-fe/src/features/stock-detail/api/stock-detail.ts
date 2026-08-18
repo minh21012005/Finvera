@@ -106,6 +106,74 @@ export interface StockTechnical {
   indicators: IndicatorResult[];
 }
 
+export type PeriodType = "ANNUAL" | "QUARTER";
+export type ReportKind = "CONSOLIDATED" | "SEPARATE";
+export type AuditStatus = "AUDITED" | "REVIEWED" | "UNAUDITED" | "UNKNOWN";
+
+export interface FundamentalPeriod {
+  label: string;
+  periodType: PeriodType;
+  fiscalYear: number;
+  fiscalQuarter: number | null;
+  periodStart: string;
+  periodEnd: string;
+  reportKind: ReportKind;
+  auditStatus: AuditStatus;
+  currency: string;
+  restated: boolean;
+}
+
+export interface FundamentalMetricValue {
+  metricCode: string;
+  value: string | null;
+  unit: string;
+  displayPrecision: number;
+  applicability: Applicability;
+  reasonCode: string | null;
+}
+
+export interface StockFundamentals {
+  meta: SectionMeta;
+  period: FundamentalPeriod | null;
+  metrics: FundamentalMetricValue[];
+}
+
+export type ValuationLabel = "UNDER_VALUED" | "FAIR_VALUED" | "OVER_VALUED";
+export type ValuationMetricCode = "PE" | "PB" | "EV_EBITDA" | "PEG" | "DIVIDEND_YIELD";
+
+export interface ValuationMetricValue {
+  metricCode: ValuationMetricCode;
+  value: string | null;
+  applicability: Applicability;
+  ownHistoryPercentile: string | null;
+  sectorPercentile: string | null;
+  effectiveWeight: string | null;
+  reasonCode: string | null;
+}
+
+export interface ValuationBasis {
+  usedOwnHistory: boolean;
+  usedSector: boolean;
+  sector: string | null;
+  sectorScheme: string | null;
+  sectorSchemeVersion: string | null;
+  sectorConstituentCount: number | null;
+  historyPointCount: number | null;
+}
+
+export interface StockValuation {
+  meta: SectionMeta;
+  ruleVersion: "valuation-v1";
+  published: boolean;
+  classification: ValuationLabel | null;
+  score: string | null;
+  displayedScore: number | null;
+  confidence: number | null;
+  disclaimerCode: string;
+  basis: ValuationBasis;
+  metrics: ValuationMetricValue[];
+}
+
 export interface StockSearchResult {
   symbol: string;
   companyName: string;
@@ -175,6 +243,14 @@ export async function getStockChart(
 
 export async function getStockTechnical(symbol: string, signal?: AbortSignal): Promise<StockTechnical> {
   return parseStockTechnical(await getJson(`/api/v1/stocks/${encodeURIComponent(symbol)}/technical`, signal));
+}
+
+export async function getStockFundamentals(symbol: string, signal?: AbortSignal): Promise<StockFundamentals> {
+  return parseStockFundamentals(await getJson(`/api/v1/stocks/${encodeURIComponent(symbol)}/fundamentals`, signal));
+}
+
+export async function getStockValuation(symbol: string, signal?: AbortSignal): Promise<StockValuation> {
+  return parseStockValuation(await getJson(`/api/v1/stocks/${encodeURIComponent(symbol)}/valuation`, signal));
 }
 
 export async function searchStocks(query: string, signal?: AbortSignal): Promise<StockSearchResult[]> {
@@ -304,6 +380,86 @@ function parseIndicatorComponent(value: unknown): IndicatorComponentValue {
     displayPrecision: nonNegativeInteger(component.displayPrecision, "component displayPrecision"),
     applicability: applicability(component.applicability, "component applicability"),
     reasonCode: nullableText(component.reasonCode, "component reasonCode"),
+  };
+}
+
+export function parseStockFundamentals(value: unknown): StockFundamentals {
+  const f = record(value, "stock fundamentals");
+  return {
+    meta: parseMeta(f.meta),
+    period: f.period ? parseFundamentalPeriod(f.period) : null,
+    metrics: array(f.metrics, "fundamentals metrics").map(parseFundamentalMetric),
+  };
+}
+
+function parseFundamentalPeriod(value: unknown): FundamentalPeriod {
+  const p = record(value, "fundamental period");
+  return {
+    label: text(p.label, "period label"),
+    periodType: text(p.periodType, "period periodType") as PeriodType,
+    fiscalYear: nonNegativeInteger(p.fiscalYear, "period fiscalYear"),
+    fiscalQuarter: nullableInteger(p.fiscalQuarter, "period fiscalQuarter"),
+    periodStart: text(p.periodStart, "period periodStart"),
+    periodEnd: text(p.periodEnd, "period periodEnd"),
+    reportKind: text(p.reportKind, "period reportKind") as ReportKind,
+    auditStatus: text(p.auditStatus, "period auditStatus") as AuditStatus,
+    currency: text(p.currency, "period currency"),
+    restated: typeof p.restated === "boolean" ? p.restated : false,
+  };
+}
+
+function parseFundamentalMetric(value: unknown): FundamentalMetricValue {
+  const m = record(value, "fundamental metric");
+  return {
+    metricCode: text(m.metricCode, "metric metricCode"),
+    value: decimal(m.value, "metric value"),
+    unit: text(m.unit, "metric unit"),
+    displayPrecision: nonNegativeInteger(m.displayPrecision, "metric displayPrecision"),
+    applicability: applicability(m.applicability, "metric applicability"),
+    reasonCode: nullableText(m.reasonCode, "metric reasonCode"),
+  };
+}
+
+export function parseStockValuation(value: unknown): StockValuation {
+  const v = record(value, "stock valuation");
+  if (v.ruleVersion !== "valuation-v1") throw new Error("Unsupported valuation ruleVersion");
+  return {
+    meta: parseMeta(v.meta),
+    ruleVersion: "valuation-v1",
+    published: typeof v.published === "boolean" ? v.published : false,
+    classification: v.classification ? (text(v.classification, "valuation classification") as ValuationLabel) : null,
+    score: decimal(v.score, "valuation score"),
+    displayedScore: nullableInteger(v.displayedScore, "valuation displayedScore"),
+    confidence: nullableInteger(v.confidence, "valuation confidence"),
+    disclaimerCode: text(v.disclaimerCode, "valuation disclaimerCode"),
+    basis: parseValuationBasis(v.basis),
+    metrics: array(v.metrics, "valuation metrics").map(parseValuationMetric),
+  };
+}
+
+function parseValuationBasis(value: unknown): ValuationBasis {
+  const b = record(value, "valuation basis");
+  return {
+    usedOwnHistory: typeof b.usedOwnHistory === "boolean" ? b.usedOwnHistory : false,
+    usedSector: typeof b.usedSector === "boolean" ? b.usedSector : false,
+    sector: nullableText(b.sector, "basis sector"),
+    sectorScheme: nullableText(b.sectorScheme, "basis sectorScheme"),
+    sectorSchemeVersion: nullableText(b.sectorSchemeVersion, "basis sectorSchemeVersion"),
+    sectorConstituentCount: nullableInteger(b.sectorConstituentCount, "basis sectorConstituentCount"),
+    historyPointCount: nullableInteger(b.historyPointCount, "basis historyPointCount"),
+  };
+}
+
+function parseValuationMetric(value: unknown): ValuationMetricValue {
+  const m = record(value, "valuation metric");
+  return {
+    metricCode: text(m.metricCode, "valuation metricCode") as ValuationMetricCode,
+    value: decimal(m.value, "valuation metric value"),
+    applicability: applicability(m.applicability, "valuation metric applicability"),
+    ownHistoryPercentile: decimal(m.ownHistoryPercentile, "valuation metric ownHistoryPercentile"),
+    sectorPercentile: decimal(m.sectorPercentile, "valuation metric sectorPercentile"),
+    effectiveWeight: decimal(m.effectiveWeight, "valuation metric effectiveWeight"),
+    reasonCode: nullableText(m.reasonCode, "valuation metric reasonCode"),
   };
 }
 

@@ -105,3 +105,71 @@ export function formatIndicatorValue(value: string | null, unit: IndicatorUnit):
       return formatDecimal(value);
   }
 }
+
+const FUNDAMENTAL_METRIC_LABELS: Record<string, string> = {
+  REVENUE: "Doanh thu",
+  GROSS_PROFIT: "Lợi nhuận gộp",
+  OPERATING_PROFIT: "Lợi nhuận thuần HĐKD",
+  NET_PROFIT: "Lợi nhuận sau thuế",
+  NET_PROFIT_TTM: "Lợi nhuận sau thuế TTM",
+  EPS: "EPS (Thu nhập trên mỗi CP)",
+  EPS_TTM: "EPS TTM",
+  EPS_GROWTH_PERCENT: "Tăng trưởng EPS TTM",
+  ROE: "ROE (Lợi nhuận trên VCSH)",
+  ROA: "ROA (Lợi nhuận trên tổng TS)",
+  DEBT_TO_EQUITY: "Nợ / Vốn chủ sở hữu",
+  OPERATING_MARGIN: "Biên lợi nhuận HĐKD",
+  FREE_CASH_FLOW: "Dòng tiền tự do",
+  DIVIDEND_PER_SHARE: "Cổ tức / CP",
+  DIVIDEND_PER_SHARE_TTM: "Cổ tức TTM / CP",
+  EQUITY_ATTRIBUTABLE_TO_PARENT: "Vốn CSH thuộc cty mẹ",
+  TOTAL_DEBT: "Tổng nợ vay",
+  CASH_AND_EQUIVALENTS: "Tiền & tương đương tiền",
+  EBITDA: "EBITDA",
+  EBITDA_TTM: "EBITDA TTM",
+};
+
+export function fundamentalMetricLabel(code: string): string {
+  return FUNDAMENTAL_METRIC_LABELS[code] ?? code;
+}
+
+export function formatFundamentalValue(value: string | null, unit: string): string {
+  if (value === null) return "Không có dữ liệu";
+  if (unit === "PERCENT") return `${formatDecimal(value)}%`;
+  if (unit === "VND") {
+    // If value is >= 1 billion VND, format conveniently or use formatDecimal
+    const num = parseFloat(value);
+    if (!isNaN(num) && Math.abs(num) >= 1_000_000_000) {
+      const billions = (num / 1_000_000_000).toFixed(2);
+      return `${formatDecimal(billions)} tỷ VND`;
+    }
+    return `${formatDecimal(value)} VND`;
+  }
+  return formatDecimal(value);
+}
+
+export function valuationLabel(label: string | null): string {
+  if (!label) return "Chưa xác định";
+  switch (label) {
+    case "UNDER_VALUED":
+      return "Định giá thấp";
+    case "FAIR_VALUED":
+      return "Định giá hợp lý";
+    case "OVER_VALUED":
+      return "Định giá cao";
+    default:
+      return label;
+  }
+}
+
+const VALUATION_METRIC_LABELS: Record<string, string> = {
+  PE: "P/E (Giá / Thu nhập)",
+  PB: "P/B (Giá / Sổ sách)",
+  EV_EBITDA: "EV / EBITDA",
+  PEG: "PEG",
+  DIVIDEND_YIELD: "Tỷ suất cổ tức",
+};
+
+export function valuationMetricLabel(code: string): string {
+  return VALUATION_METRIC_LABELS[code] ?? code;
+}

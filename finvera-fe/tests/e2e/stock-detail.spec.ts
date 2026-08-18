@@ -161,11 +161,62 @@ test.describe("P2 technical condition — deterministic indicators", () => {
   });
 });
 
+test.describe("P3 fundamental health and valuation analysis", () => {
+  test("P3 renders quarterly reporting period, audit status, and key financial metrics", async ({ page }) => {
+    await installStockDetailFixtures(page, "complete", "complete", "full", "complete", "published");
+    await page.goto("/stocks/FPT");
+
+    await expect(page.getByText("2026-Q2")).toBeVisible();
+    await expect(page.getByText(/Hợp nhất/)).toBeVisible();
+    await expect(page.getByText(/Soát xét/)).toBeVisible();
+    await expect(page.getByText(/Doanh thu/)).toBeVisible();
+  });
+
+  test("P3 renders published relative valuation with classification, score, and confidence", async ({ page }) => {
+    await installStockDetailFixtures(page, "complete", "complete", "full", "complete", "published");
+    await page.goto("/stocks/FPT");
+
+    await expect(page.getByText("Định giá hợp lý")).toBeVisible();
+    await expect(page.getByText(/Điểm đắt\/rẻ/)).toContainText("48");
+    await expect(page.getByText(/Độ hoàn thiện/)).toContainText("72%");
+    await expect(page.getByText(/Lịch sử riêng/)).toBeVisible();
+  });
+
+  test("P3 shows withheld valuation with reasons and never fabricates a label", async ({ page }) => {
+    await installStockDetailFixtures(page, "complete", "complete", "full", "complete", "withheld");
+    await page.goto("/stocks/FPT");
+
+    await expect(page.getByText(/Định giá tạm thời chưa thể công bố/)).toBeVisible();
+    await expect(page.getByText(/NO_COMPARISON_BASIS/)).toBeVisible();
+    await expect(page.getByText("Định giá thấp")).toHaveCount(0);
+    await expect(page.getByText("Định giá cao")).toHaveCount(0);
+  });
+
+  test("P3 disclaims valuation as decision support, not investment advice", async ({ page }) => {
+    await installStockDetailFixtures(page, "complete", "complete", "full", "complete", "published");
+    await page.goto("/stocks/FPT");
+
+    await expect(page.getByText(/không phải.*khuyến nghị đầu tư/i).first()).toBeVisible();
+    await expect(page.getByText(/Mua|Bán/i)).toHaveCount(0);
+  });
+
+  test("P3 has no automatically detectable accessibility violations", async ({ page }) => {
+    await installStockDetailFixtures(page, "complete", "complete", "full", "complete", "published");
+    await page.goto("/stocks/FPT");
+    await expect(page.getByRole("heading", { name: "CTCP FPT" })).toBeVisible();
+
+    const results = await new AxeBuilder({ page }).analyze();
+    expect(results.violations).toEqual([]);
+  });
+});
+
 async function installStockDetailFixtures(
   page: Page,
   overviewMode: OverviewMode,
   chartMode: ChartMode,
   technicalMode: TechnicalMode = "full",
+  fundamentalsMode: "complete" | "unavailable" = "complete",
+  valuationMode: "published" | "withheld" | "unavailable" = "published",
 ): Promise<void> {
   await installAuthenticatedOwnerSession(page);
   await page.route("**/api/v1/stocks/FPT", async (route) => {
@@ -180,6 +231,12 @@ async function installStockDetailFixtures(
   });
   await page.route("**/api/v1/stocks/FPT/technical", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(technicalFixture(technicalMode)) });
+  });
+  await page.route("**/api/v1/stocks/FPT/fundamentals", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(fundamentalsFixture(fundamentalsMode)) });
+  });
+  await page.route("**/api/v1/stocks/FPT/valuation", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(valuationFixture(valuationMode)) });
   });
 }
 
@@ -400,5 +457,129 @@ function minimalMarketOverview() {
       disclaimerCode: "QUANTITATIVE_DECISION_SUPPORT_NOT_INVESTMENT_ADVICE",
     },
     warnings: [],
+  };
+}
+
+function fundamentalsFixture(mode: "complete" | "unavailable" = "complete") {
+  if (mode === "unavailable") {
+    return {
+      meta: {
+        contractVersion: "1.0",
+        symbol: "FPT",
+        asOf: "2026-08-17T07:15:00Z",
+        tradingDate: "2026-08-14",
+        timezone: "Asia/Ho_Chi_Minh",
+        dataStatus: "UNAVAILABLE",
+        coherenceKey: "coh-fundamentals-unavail",
+        sources: ["FINVERA_ACCEPTED"],
+        reasonCodes: ["FUNDAMENTALS_UNAVAILABLE"],
+      },
+      period: null,
+      metrics: [],
+    };
+  }
+
+  return {
+    meta: {
+      contractVersion: "1.0",
+      symbol: "FPT",
+      asOf: "2026-08-17T07:15:00Z",
+      tradingDate: "2026-08-14",
+      timezone: "Asia/Ho_Chi_Minh",
+      dataStatus: "CURRENT",
+      coherenceKey: "coh-fundamentals-1",
+      sources: ["FINVERA_ACCEPTED"],
+      reasonCodes: [],
+    },
+    period: {
+      label: "2026-Q2",
+      periodType: "QUARTER",
+      fiscalYear: 2026,
+      fiscalQuarter: 2,
+      periodStart: "2026-04-01",
+      periodEnd: "2026-06-30",
+      reportKind: "CONSOLIDATED",
+      auditStatus: "REVIEWED",
+      currency: "VND",
+      restated: false,
+    },
+    metrics: [
+      { metricCode: "REVENUE", value: "16250000000000.00", unit: "VND", displayPrecision: 2, applicability: "DEFINED", reasonCode: null },
+      { metricCode: "NET_PROFIT", value: "2210000000000.00", unit: "VND", displayPrecision: 2, applicability: "DEFINED", reasonCode: null },
+      { metricCode: "EPS", value: "1300.00", unit: "VND", displayPrecision: 2, applicability: "DEFINED", reasonCode: null },
+      { metricCode: "ROE", value: "6.85", unit: "PERCENT", displayPrecision: 2, applicability: "DEFINED", reasonCode: null },
+    ],
+  };
+}
+
+function valuationFixture(mode: "published" | "withheld" | "unavailable" = "published") {
+  if (mode === "withheld") {
+    return {
+      meta: {
+        contractVersion: "1.0",
+        symbol: "FPT",
+        asOf: "2026-08-17T07:15:00Z",
+        tradingDate: "2026-08-14",
+        timezone: "Asia/Ho_Chi_Minh",
+        dataStatus: "UNAVAILABLE",
+        coherenceKey: "coh-valuation-withheld",
+        sources: ["FINVERA_ACCEPTED"],
+        reasonCodes: ["NO_COMPARISON_BASIS"],
+      },
+      ruleVersion: "valuation-v1",
+      published: false,
+      classification: null,
+      score: null,
+      displayedScore: null,
+      confidence: null,
+      disclaimerCode: "QUANTITATIVE_DECISION_SUPPORT",
+      basis: {
+        usedOwnHistory: false,
+        usedSector: false,
+        sector: null,
+        sectorScheme: null,
+        sectorSchemeVersion: null,
+        sectorConstituentCount: null,
+        historyPointCount: null,
+      },
+      metrics: [],
+    };
+  }
+
+  return {
+    meta: {
+      contractVersion: "1.0",
+      symbol: "FPT",
+      asOf: "2026-08-17T07:15:00Z",
+      tradingDate: "2026-08-14",
+      timezone: "Asia/Ho_Chi_Minh",
+      dataStatus: "CURRENT",
+      coherenceKey: "coh-valuation-1",
+      sources: ["FINVERA_ACCEPTED"],
+      reasonCodes: [],
+    },
+    ruleVersion: "valuation-v1",
+    published: true,
+    classification: "FAIR_VALUED",
+    score: "48.25",
+    displayedScore: 48,
+    confidence: 72,
+    disclaimerCode: "QUANTITATIVE_DECISION_SUPPORT",
+    basis: {
+      usedOwnHistory: true,
+      usedSector: false,
+      sector: null,
+      sectorScheme: null,
+      sectorSchemeVersion: null,
+      sectorConstituentCount: null,
+      historyPointCount: 600,
+    },
+    metrics: [
+      { metricCode: "PE", value: "15.12", applicability: "DEFINED", ownHistoryPercentile: "48.25", sectorPercentile: null, effectiveWeight: "0.571428571429", reasonCode: null },
+      { metricCode: "PB", value: "2.42", applicability: "DEFINED", ownHistoryPercentile: "40.00", sectorPercentile: null, effectiveWeight: "0.428571428571", reasonCode: null },
+      { metricCode: "EV_EBITDA", value: null, applicability: "MISSING", ownHistoryPercentile: null, sectorPercentile: null, effectiveWeight: null, reasonCode: "MISSING_INPUT" },
+      { metricCode: "PEG", value: null, applicability: "MISSING", ownHistoryPercentile: null, sectorPercentile: null, effectiveWeight: null, reasonCode: "MISSING_INPUT" },
+      { metricCode: "DIVIDEND_YIELD", value: "2.89", applicability: "DEFINED", ownHistoryPercentile: null, sectorPercentile: null, effectiveWeight: null, reasonCode: null },
+    ],
   };
 }

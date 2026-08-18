@@ -17,7 +17,8 @@ test.describe("P1 market overview", () => {
     await expect(page.getByRole("article")).toHaveCount(4);
     await expect(page.getByRole("article", { name: /VN-Index: Tăng; Hiện tại/ })).toContainText("1.280,25");
     await expect(page.getByRole("article", { name: /HNX-Index: Giảm; Hiện tại/ })).toContainText("241,12");
-    await expect(page.getByText(/Ngày giao dịch 2026-08-17.*Cập nhật.*10:00.*17\/8\/26/)).toBeVisible();
+    await expect(page.getByText(/Phiên giao dịch 2026-08-17/)).toBeVisible();
+    await expect(page.getByText(/Cập nhật 10:00/)).toBeVisible();
     expect(forbiddenRequests).toEqual([]);
   });
 

@@ -1,13 +1,17 @@
 package com.minhnb.finvera_be.stock.controller;
 
 import com.minhnb.finvera_be.stock.dto.StockChartResponse;
+import com.minhnb.finvera_be.stock.dto.StockFundamentalsResponse;
 import com.minhnb.finvera_be.stock.dto.StockOverviewResponse;
 import com.minhnb.finvera_be.stock.dto.StockSearchResponse;
 import com.minhnb.finvera_be.stock.dto.StockTechnicalResponse;
+import com.minhnb.finvera_be.stock.dto.StockValuationResponse;
+import com.minhnb.finvera_be.stock.service.FundamentalReportService;
 import com.minhnb.finvera_be.stock.service.StockChartService;
 import com.minhnb.finvera_be.stock.service.StockOverviewService;
 import com.minhnb.finvera_be.stock.service.StockSearchService;
 import com.minhnb.finvera_be.stock.service.TechnicalIndicatorService;
+import com.minhnb.finvera_be.stock.service.ValuationService;
 import java.net.URI;
 import java.util.Arrays;
 import org.springframework.http.HttpStatus;
@@ -30,16 +34,22 @@ public class StockController {
     private final StockOverviewService overviewService;
     private final StockChartService chartService;
     private final TechnicalIndicatorService technicalService;
+    private final FundamentalReportService fundamentalService;
+    private final ValuationService valuationService;
 
     public StockController(
             StockSearchService searchService,
             StockOverviewService overviewService,
             StockChartService chartService,
-            TechnicalIndicatorService technicalService) {
+            TechnicalIndicatorService technicalService,
+            FundamentalReportService fundamentalService,
+            ValuationService valuationService) {
         this.searchService = searchService;
         this.overviewService = overviewService;
         this.chartService = chartService;
         this.technicalService = technicalService;
+        this.fundamentalService = fundamentalService;
+        this.valuationService = valuationService;
     }
 
     @GetMapping
@@ -81,6 +91,30 @@ public class StockController {
         }
         return ResponseEntity.ok().eTag(technical.coherenceKey())
                 .body(StockTechnicalResponse.from(symbol, technical));
+    }
+
+    @GetMapping("/{symbol}/fundamentals")
+    ResponseEntity<StockFundamentalsResponse> fundamentals(
+            @PathVariable String symbol,
+            @RequestHeader(value = "If-None-Match", required = false) String ifNoneMatch) {
+        var fundamentals = fundamentalService.findBySymbol(symbol).orElseThrow(() -> notSupported(symbol));
+        if (matches(ifNoneMatch, fundamentals.coherenceKey())) {
+            return ResponseEntity.status(304).eTag(fundamentals.coherenceKey()).build();
+        }
+        return ResponseEntity.ok().eTag(fundamentals.coherenceKey())
+                .body(StockFundamentalsResponse.from(symbol, fundamentals));
+    }
+
+    @GetMapping("/{symbol}/valuation")
+    ResponseEntity<StockValuationResponse> valuation(
+            @PathVariable String symbol,
+            @RequestHeader(value = "If-None-Match", required = false) String ifNoneMatch) {
+        var valuation = valuationService.findBySymbol(symbol).orElseThrow(() -> notSupported(symbol));
+        if (matches(ifNoneMatch, valuation.coherenceKey())) {
+            return ResponseEntity.status(304).eTag(valuation.coherenceKey()).build();
+        }
+        return ResponseEntity.ok().eTag(valuation.coherenceKey())
+                .body(StockValuationResponse.from(symbol, valuation));
     }
 
     @ExceptionHandler(StockNotSupportedException.class)

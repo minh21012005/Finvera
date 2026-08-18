@@ -12,4 +12,6 @@ public interface FundamentalReportRepository extends JpaRepository<FundamentalRe
             String source);
 
     Optional<FundamentalReportEntity> findFirstByInstrumentIdAndCurrentTrueOrderByPeriodEndDesc(UUID instrumentId);
+
+    java.util.List<FundamentalReportEntity> findAllByInstrumentIdAndCurrentTrueOrderByPeriodEndDesc(UUID instrumentId);
 }
