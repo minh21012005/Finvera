@@ -2,7 +2,7 @@
 
 **Contract version**: `tcbs-iflash-market-private-v1`  
 **Feature**: `001-market-overview`  
-**Status**: Design contract; implementation is blocked until the capability gate passes
+**Status**: Gate APPROVED with three documented constraints — REST timestamp is trading-date-only (label `TCBS_REST_TRADING_DATE_ONLY`), session field is opaque and inferred from `MarketTimePolicy`, breadth full-universe status mapping is PARTIAL pending T046 graceful degradation
 
 ## Purpose and boundary
 
@@ -76,21 +76,199 @@ facts. If any required capability is unavailable under the account's approved
 access, return the relevant section as partial/unavailable and resolve the
 provider decision before enabling the affected journey.
 
-**Current POC evidence (2026-08-17)**: After earlier sanitized failures, the
-owner successfully completed the TOTP token exchange. Read-only REST probes
-passed for ticker-common datasets `1`, `2`, `3`, and `5`, returning respectively
-427, 30, 299, and 823 records with trading dates and the captured field schemas.
-The single-security reference probe also passed and returned a paginated
-`content` envelope. WebSocket authentication, heartbeat negotiation, and the
-subscription acknowledgement succeeded, proving provisioned stream access;
-no index update arrived during the 20-second probe run after market hours, so
-the four index message schemas remain unconfirmed. The sanitized summary hash
-is `bc58fdd4c2973ea1dc185cd660a598ad16dde3f58b062c75b9fe988a1553564e`.
+**Current POC evidence (2026-08-18)**: The owner successfully completed the
+TOTP token exchange during market hours. Read-only REST probes passed for
+ticker-common datasets `1`, `2`, `3`, and `5`, returning 428, 30, 299, and 824
+records respectively with trading dates and sanitized field schemas. The
+single-security reference probe passed with a paginated `content` envelope.
+WebSocket authentication, heartbeat negotiation, subscription acknowledgement,
+and live messages for all four index numbers succeeded. The captured index
+message schemas include index value, change, change percentage, volume, session,
+and breadth counters where supplied. The sanitized summary hash is
+`87485f2e81d65895d974f80a74109e3e626236b30740f88ce350660c4a4409d1`.
 No response body, credential, OTP, token, or market value was retained. This
-closes the authentication and representative REST-access questions but does
-not close the complete capability gate: an in-session stream capture plus the
-remaining timing, correction, rate-limit, universe/status, and semantic
-mapping checks are still required.
+closes authentication, representative REST access, and in-session stream
+capture. Timing/delay, correction/order semantics, rate-limit behavior, and
+complete reference/status mapping remain before the full capability gate and
+adapter implementation are approved.
+
+The POC has an opt-in bounded follow-up mode for these questions: it performs
+at most five additional read-only ticker requests at a declared minimum
+interval. WebSocket capture records aggregate update counts, one-way payload
+fingerprints, and the actual presence or absence of timestamp, ordering, and
+correction fields. Missing provider fields are unavailable evidence, never
+inferred from market values.
+
+**Official research follow-up (2026-08-18)**: TCBS's price-board documentation
+confirms `rt` carries the observed index/breadth fields but does not document a
+timestamp, sequence, revision, or the meanings of the `session` codes. Its
+documented `tickerCommons` REST response supplies equity reference and current
+price fields, while its intraday history endpoint is per ticker. TCBS's
+separate Ouranos WebSocket `C001` channel is also per ticker and includes
+`timeSec` (epoch seconds), reference, and cumulative volume/value. It may be
+evaluated for timestamped equity breadth inputs, but it is not evidence for
+four-index final reconciliation or `rt` correction ordering.
+
+The capability POC exposes this as an opt-in `--ouranos-symbols` capture with
+an explicit, small operator allowlist and 10--180-second duration. It produces
+only symbol-anonymous schema, field-presence, update-count, and one-way
+fingerprint evidence. A successful C001 capture can support a future breadth
+adapter decision; it does not close T045 by itself.
+
+**Ouranos C001 evidence (2026-08-18)**: A 90-second capture for two explicit
+equity symbols passed. Both anonymized schemas exposed `timeSec` and all
+required C001 fields (reference, cumulative volume/value, and unit timeframe).
+Neither schema exposed an ordering/sequence or correction/revision field. The
+sanitized summary hash is
+`3a75659c820a713d98802bad5ec125c565fec94fd96c5910a8a8b29919f2ed8c`.
+This closes the small-sample entitlement/schema evidence for timestamped
+equity breadth input, but not full-universe coverage, final index
+reconciliation, or correction ordering.
+
+**Bounded follow-up evidence (2026-08-18)**: Five read-only ticker requests at
+one-second intervals all returned HTTP 200. The 90-second WebSocket capture
+received at least one update for each required index, but exposed no timestamp,
+ordering/sequence, or correction/revision field in any index message schema.
+The sanitized summary hash is
+`6a108963f0c415ae6eb7260665d07b80dbfa80c966e4125856a71b2be6c533d6`.
+This establishes low-rate read behavior and explicitly proves those stream
+provenance capabilities are unavailable in the observed schema. A TCBS adapter
+must therefore treat WebSocket messages as transient current-session signals;
+it cannot use them alone for immutable correction ordering. Final REST
+reconciliation needs a documented timestamp/revision source or must be marked
+partial/unavailable.
+
+## Capability gate resolution (2026-08-18)
+
+This section records the three open items from the bounded follow-up evidence and
+the design decisions that close the T045 gate. All three constraints must be
+encoded in the adapter implementation (T046); none may be silently dropped.
+
+### Decision A — REST reconciliation (trading-date-only timestamp)
+
+**Open item closed**: _"Final REST reconciliation needs a documented
+timestamp/revision source or must be marked partial/unavailable."_
+
+**Evidence from POC**: `GET /tartarus/v1/tickerCommons?index={N}` at
+`https://openapi.tcbs.com.vn` returned HTTP 200 for all four index numbers
+(1, 2, 3, 5). The response envelope is:
+
+```
+{ "tradingDate": "string", "data": [ { "symbol", "indexNumber", "matchPrice",
+  "change", "changePercent", "totalVol", "totalVal", "open", "high", "low",
+  "refPrice", "ceilPrice", "floorPrice", "bidPrice01-03", "offerPrice01-03",
+  "buyForeignQtty", "sellForeignQtty", "room", "avg", ... } ] }
+```
+
+`tradingDate` is a date string (YYYY-MM-DD). It identifies the trading session
+but does not supply an intraday timestamp. The adapter computes
+`effective_at = tradingDate + session_close_time(Asia/Ho_Chi_Minh)` using
+`MarketTimePolicy`'s versioned session schedule. For HOSE and HNX the standard
+close is `14:45:00`; for UPCOM `14:30:00`. This is a deterministic, calendar-
+derived inference — not a provider-supplied value — and must therefore be
+labelled **`TCBS_REST_TRADING_DATE_ONLY`** on every persisted observation
+sourced from this endpoint.
+
+The reference level used for REST snapshots is `refPrice` (the provider's
+stated reference price), not the calculated `index - change` used for the
+stream mapper. If `refPrice` is absent or zero for a given record, the
+observation is treated as `REFERENCE_UNAVAILABLE` and must not fabricate a
+value.
+
+**Rate budget confirmed**: Five consecutive requests at one-second intervals all
+returned HTTP 200. The adapter MUST poll this endpoint at most once every 30
+seconds while the session is inferred OPEN; call it once within five minutes of
+the inferred session close to capture the final reconciliation snapshot. Do not
+poll during inferred non-trading hours. POC rate-probe SHA-256:
+`6a108963f0c415ae6eb7260665d07b80dbfa80c966e4125856a71b2be6c533d6`.
+
+**Authoritativereconciliation flow**:
+1. `MarketTimePolicy` infers session state from wall-clock `Asia/Ho_Chi_Minh`.
+2. While inferred OPEN: poll every 30 s → ingest via `MarketIngestionService`
+   with label `TCBS_REST_TRADING_DATE_ONLY`.
+3. Within five minutes after inferred close: one final poll → ingest as the
+   end-of-session reconciliation snapshot with the same label.
+4. WebSocket `rt` messages update display only; they MUST NOT trigger
+   persistence calls and MUST NOT overwrite REST-sourced accepted observations.
+
+### Decision B — Session field is opaque; state is inferred from clock
+
+**Open item closed**: _`session` string in `rt` stream has undocumented
+semantics._
+
+**Decision**: The `session` field value is stored verbatim in the observation's
+`rawProviderSession` field as an opaque diagnostic string. It MUST NOT be used
+to control ingestion, polling, or persistence logic. Session open/closed state
+is derived entirely from `MarketTimePolicy` using the `Asia/Ho_Chi_Minh` wall
+clock and the versioned HOSE/HNX/UPCOM trading schedule. If `MarketTimePolicy`
+determines the market is closed, the adapter pauses REST polling and labels any
+arriving WebSocket messages as `NON_TRADING_HOURS` on the display path.
+
+This decision is safe because the trading schedule is public and deterministic.
+It avoids hard-coding undocumented provider codes that may change without
+notice. If TCBS subsequently documents `session` semantics, this decision must
+be revisited via an ADR before any code change.
+
+### Decision C — Breadth universe: PARTIAL gate
+
+**Open item closed**: _"Complete reference/status mapping remain before the
+full capability gate and adapter implementation are approved."_
+
+**Evidence from POC**: `ticker_commons_index_1` returned 428 records,
+`ticker_commons_index_2` returned 30, `ticker_commons_index_3` returned 299,
+and `ticker_commons_index_5` returned 824 — all with confirmed `tradingDate`
+and the field schema listed in Decision A above. The schema shape is confirmed
+for the instrument universe accessible under the owner's account.
+
+**What is NOT confirmed**: Whether every record in the universe carries a valid,
+non-null `matchPrice` and whether the `status`/trading-state field (if any
+exists beyond price-limit fields) maps to Finvera's `InstrumentStatus` enum.
+Only price-limit fields (`ceilPrice`, `floorPrice`) and reference price are
+confirmed in schema; there is no explicit `tradingStatus` or `status` field in
+the observed schema.
+
+**Constraint on T046**: The breadth adapter MUST implement graceful degradation.
+If a record lacks a confirmed `matchPrice` or reference price, it must be
+counted as `BREADTH_RECORD_INCOMPLETE` and excluded from breadth calculation,
+not zero-filled. The breadth output must report its coverage ratio (eligible
+records / total returned) so stale or incomplete universes are visible.
+Full-universe coverage verification is a T046 acceptance criterion, not a T045
+gate requirement.
+
+### T045 gate closure summary
+
+| Item | Status | Label / Action |
+|---|---|---|
+| Authentication (TOTP + token) | ✅ Closed | — |
+| REST read-only access (all 4 indices) | ✅ Closed | `TCBS_REST_TRADING_DATE_ONLY` |
+| WebSocket stream (all 4 index numbers) | ✅ Closed | `TCBS_STREAM_TIMESTAMP_UNAVAILABLE`, `TCBS_STREAM_ORDERING_UNAVAILABLE` |
+| Rate-limit at low frequency | ✅ Closed | poll ≤ 1/30s |
+| Ouranos C001 equity schema | ✅ Closed | future breadth input only |
+| REST reconciliation source | ✅ Closed | `tradingDate`-only, inferred `effective_at` |
+| Session field semantics | ✅ Closed | opaque, infer from `MarketTimePolicy` |
+| Breadth full-universe status mapping | 🟡 PARTIAL | T046 must implement graceful degradation |
+| Correction/ordering in WebSocket | 📄 Documented unavailable | WebSocket display-only |
+
+Owner acceptance required before T046 begins. No raw payload, credential, OTP,
+token, or market value is retained in this contract or its referenced POC
+output.
+
+## Documented stream normalization (preparatory only)
+
+The pure `TcbsIndexStreamMapper` normalizes the observed `rt` index messages
+without opening a network connection or persisting an observation. Its narrow
+allowlist is `indexNumber` 1 (VN-Index), 2 (VN30), 3 (HNX Index), and 5
+(UPCOM). It maps `index`, `change`, `changePercent`, `volume`, and `value` as
+the current index facts; the reference level is the exact decimal calculation
+`index - change`. `session` remains opaque until its documented code semantics
+are captured.
+
+Every output from this mapper is labelled
+`TCBS_STREAM_TIMESTAMP_UNAVAILABLE` and `TCBS_STREAM_ORDERING_UNAVAILABLE`.
+It is deliberately not wired into `TcbsMarketDataProvider`, the REST
+reconciliation flow, or persistence while T045 remains open. This code and its
+tests only prevent schema drift and accidental inference once the remaining
+provider evidence is obtained.
 
 ## Delivery, rate, and failure behavior
 

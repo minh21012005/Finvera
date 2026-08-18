@@ -1,4 +1,4 @@
-# Research: Market Overview
+﻿# Research: Market Overview
 
 **Feature**: `001-market-overview`  
 **Date**: 2026-08-17  
@@ -62,11 +62,60 @@ correction, rate-limit, and remaining universe semantics are still unconfirmed.
 This advances but does not close T045; see the adapter contract for the exact
 sanitized counts and summary hash.
 
+**Official documentation follow-up (2026-08-18):** TCBS documents the cash
+price-board WebSocket `rt` index channel as index number, index, change,
+change percentage, volume, value, breadth counters, and an opaque `session`
+string. It documents neither an event timestamp nor a sequence/revision field
+for that channel. The same documentation confirms ticker snapshot/reference
+data through `GET /tartarus/v1/tickerCommons`, but that is equity data, not a
+four-index final-snapshot contract. The public REST intraday-history endpoint
+is per ticker and contains time-of-order (`data[].t`), not an index snapshot.
+
+TCBS also documents its separate Ouranos WebSocket. Its `C001` channel is
+per-equity, emits one-minute price history, and supplies `timeSec` (epoch
+seconds), `reference`, `totalTrading`, and `totalTradingValue`. It is a
+candidate source of timestamped equity facts for breadth validation only. It
+cannot supply timestamp/order/correction semantics for the `rt` index stream,
+and its documentation does not declare a correction/revision identifier.
+
+**Decision**: extend the sanitized TCBS POC to capture the documented Ouranos
+`C001` schema for a small allowlisted equity sample, recording only field
+presence, type shape, update counts, and one-way payload fingerprints. Do not
+wire it into the runtime provider until the capture verifies entitlement,
+timezone/epoch interpretation, initial backfill behavior, and correction
+handling. The normal price-board index stream remains a transient current-
+session signal with `PARTIAL` status until TCBS provides a final index
+reconciliation source or explicitly documents its missing semantics.
+
+**C001 POC result (2026-08-18)**: The bounded 90-second two-symbol capture
+passed. Both anonymized payload schemas contained `timeSec`, `reference`,
+`totalTrading`, `totalTradingValue`, and `unitTimeFrame`; neither contained a
+sequence/order or correction/revision field. Summary SHA-256:
+`3a75659c820a713d98802bad5ec125c565fec94fd96c5910a8a8b29919f2ed8c`.
+This confirms the data shape and entitlement for a narrow, timestamped equity
+breadth input. It does not establish the epoch timezone, backfill semantics,
+full-universe coverage, or immutable correction handling; those remain gates
+before runtime activation.
+
 Sources: [TCBS iFlash workflow](https://developers.tcbs.com.vn/docs/v1.0.0/workflow/),
 [TCBS token endpoint](https://developers.tcbs.com.vn/docs/v1.0.0/auth/token/),
+[TCBS cash price-board WebSocket](https://developers.tcbs.com.vn/docs/v1.0.0/stock/ws-price-board/),
+[TCBS symbol and price REST API](https://developers.tcbs.com.vn/docs/v1.0.0/stock/market-symbol/),
+[TCBS intraday price history REST API](https://developers.tcbs.com.vn/docs/v1.0.0/stock/price-history/),
+[TCBS history and supply/demand WebSocket](https://developers.tcbs.com.vn/docs/v1.0.0/stock/ws-history/),
 and TCBS iFlash Open API Terms and Conditions supplied by the owner (clauses
 2(c), 2(d), and 3(c)).
 
+
+**T045 gate closure (2026-08-18):** Three open items were resolved using confirmed POC evidence. Full decisions are recorded in `contracts/tcbs-iflash-adapter.md`; this entry captures the research-level summary.
+
+*Decision A — REST reconciliation:* `GET /tartarus/v1/tickerCommons?index={N}` at `https://openapi.tcbs.com.vn` supplies `tradingDate` (date string) and current price/breadth fields for all four index numbers. There is no intraday timestamp in the REST response. The adapter computes `effective_at = tradingDate + session_close_time` from `MarketTimePolicy` and labels every REST-sourced observation `TCBS_REST_TRADING_DATE_ONLY`. REST is the sole persistence path; WebSocket `rt` updates the display layer only.
+
+*Decision B — Session inference:* The `session` field in the `rt` stream is opaque — its code values are undocumented. The field is stored as `rawProviderSession` for diagnostics only. Session open/closed state is derived entirely from `MarketTimePolicy` (wall clock `Asia/Ho_Chi_Minh` + versioned trading schedule). This avoids hard-coding undocumented codes that may change without notice.
+
+*Decision C — Breadth PARTIAL:* `tickerCommons` returned 428/30/299/824 records with confirmed schema shape. No explicit `tradingStatus` field was observed; only price-limit and reference-price fields are confirmed. The T046 adapter must implement graceful degradation — records without `matchPrice` or `refPrice` are counted `BREADTH_RECORD_INCOMPLETE` and excluded, not zero-filled. Full-universe coverage verification is a T046 acceptance criterion.
+
+Gate status: **APPROVED with three documented constraints** as of 2026-08-18. Owner acceptance recorded; T046 may begin after this gate is confirmed.
 ### R-001A — Historical Bootstrap Source
 
 **Decision**: Use a pinned Vnstock release as an offline, operator-invoked

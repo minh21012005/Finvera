@@ -63,8 +63,11 @@ To run bounded batches automatically until the checkpoint is complete:
 .\run-full-universe.ps1 -BatchSize 25 -RequestsPerMinute 30
 ```
 
-The runner stops on provider failures, malformed summaries, or the batch limit;
-it never blindly retries a failed provider batch.
+The runner stops on provider failures, malformed summaries, or the batch limit.
+If Vnstock changes the reference universe, it archives the old checkpoint under
+`poc-output/checkpoint-archive/` and starts one new consistent checkpoint; pass
+`-FailOnUniverseMismatch` to stop instead. It never deletes a checkpoint or
+blindly retries a failed provider batch.
 
 ## TCBS interactive probe
 
@@ -81,6 +84,33 @@ choose that flow:
 ```powershell
 .\.venv\Scripts\python.exe .\poc_tcbs.py --otp-method email-sms
 ```
+
+For bounded timing/rate/order evidence during an active market session, use at
+most five extra read-only calls:
+
+```powershell
+.\.venv\Scripts\python.exe .\poc_tcbs.py --otp-method totp --ws-seconds 90 --rate-probe-requests 5 --rate-probe-interval-seconds 1
+```
+
+The summary records only status counts, aggregate WebSocket update counts,
+one-way message fingerprints, and observed field names. A missing timestamp,
+ordering, or correction field is reported as unavailable; it is never inferred.
+
+### TCBS Ouranos C001 breadth evidence
+
+The documented Ouranos endpoint is a separate, per-equity stream. During an
+active session, capture only a small explicit allowlist for at least 90 seconds:
+
+```powershell
+.\.venv\Scripts\python.exe .\poc_tcbs.py --otp-method totp --ouranos-symbols TCB,VNM --ouranos-seconds 90
+```
+
+This optional probe verifies only the C001 schema and its `timeSec`, reference,
+and cumulative volume/value fields. Its output anonymizes symbols as
+`symbol_1`, `symbol_2`, records field types/counts and one-way fingerprints,
+and never writes prices or raw frames. It does not establish final index
+reconciliation, correction semantics, public-display rights, or live-provider
+approval.
 
 The Email/SMS flow invokes only TCBS's documented `request-otp` endpoint, then
 prompts for the code delivered by TCBS. Both flows exchange the token, check

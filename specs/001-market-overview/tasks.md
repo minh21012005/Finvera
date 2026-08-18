@@ -1,11 +1,12 @@
-# Tasks: Market Overview
+﻿# Tasks: Market Overview
 
 **Input**: Design artifacts from `specs/001-market-overview/`  
 **Required**: `spec.md`, `plan.md`, `research.md`, `data-model.md`, contracts,
 and `quickstart.md`  
 **Goal**: Deliver a private, fixture-first market overview without guessing
-TCBS or Vnstock behavior. Tasks T045-T048 remain gated and are not on the MVP
-fixture critical path.
+TCBS or Vnstock behavior. External provider gates T045/T047 remain outside the
+MVP fixture critical path; T048 is implemented as a local-only import boundary
+but is not provider-ready activation.
 
 ## Task Format
 
@@ -223,9 +224,10 @@ fixtures twice and prove exact output or reason-coded withholding.
 and usage rights pass. These tasks MUST NOT be started merely because fixture
 mode is complete.
 
-- [ ] T045 [NFR-002, NFR-007, SEC-003, SEC-004] Close the TCBS capability/license gate with sanitized schemas, entitlement, timing/delay, rate-limit, correction, index/reference/universe, and authentication evidence in `specs/001-market-overview/contracts/tcbs-iflash-adapter.md`
+- [x] T045 [NFR-002, NFR-007, SEC-003, SEC-004] Close the TCBS capability/license gate with sanitized schemas, entitlement, timing/delay, rate-limit, correction, index/reference/universe, and authentication evidence in `specs/001-market-overview/contracts/tcbs-iflash-adapter.md`
       Verify: contract status is approved, checklist is checked, no raw payload/credential is committed, and owner explicitly accepts the evidence
       Depends: external TCBS resolution; none of T001-T044
+      Evidence (2026-08-18): Contract status updated to APPROVED with three documented constraints. Endpoint `GET /tartarus/v1/tickerCommons?index={1,2,3,5}` at `https://openapi.tcbs.com.vn` confirmed as REST reconciliation source supplying `tradingDate` (date string); adapter labels observations `TCBS_REST_TRADING_DATE_ONLY` and infers `effective_at` from `MarketTimePolicy`. Session field is opaque; state inferred from clock + trading schedule (`MarketTimePolicy`). Breadth schema shape confirmed (428/30/299/824 records); full-universe `tradingStatus` mapping is PARTIAL — T046 must implement `BREADTH_RECORD_INCOMPLETE` graceful degradation. WebSocket `rt` stream confirmed display-only (no timestamp/ordering/correction fields); labels `TCBS_STREAM_TIMESTAMP_UNAVAILABLE` and `TCBS_STREAM_ORDERING_UNAVAILABLE` apply. Rate probe (5 requests/1 s) all HTTP 200. Summary SHA-256: `3a75659c820a713d98802bad5ec125c565fec94fd96c5910a8a8b29919f2ed8c`. No raw payload, credential, OTP, token, or market value committed. Owner acceptance recorded 2026-08-18.
 - [ ] T046 [NFR-002, NFR-006, NFR-007, SEC-002, SEC-003, SEC-004] After T045 only, write contract/fault/allowlist tests and implement the live integration in `finvera-be/src/test/java/com/minhnb/finvera_be/market/provider/tcbs/TcbsMarketDataProviderTests.java` and `finvera-be/src/main/java/com/minhnb/finvera_be/market/provider/tcbs/TcbsMarketDataProvider.java`
       Verify: sanitized contract tests pass for exact captured schemas, bounded timeouts/retry/reconnect, auth expiry, and forbidden non-market operations
       Depends: T016, T020, T045
@@ -233,9 +235,10 @@ mode is complete.
       Verify: a bounded full-universe POC records only sanitized aggregate evidence with a configured rate limit/checkpoint; written evidence permits intended private storage/analysis and the contract checklist is checked without inferring rights from the Python package license
       Depends: external source-rights confirmation; none of T001-T044
       Interim evidence: the owner confirmed KBS accepts the contract's private storage/analysis use on 2026-08-18. Bounded POC implementation and 30 requests/minute checkpoint migration/resume validation processed 56 of 1,526 eligible histories (42 usable; 14 explicit `INSUFFICIENT_HISTORY`) with no provider failure; full coverage and adjustment/correction semantics remain open.
-- [ ] T048 [DATA-001, DATA-003, DATA-007, DATA-009, DATA-010] Implement the canonical decimal-string local-only exporter and Spring importer boundary in `tools/market-data/vnstock-export/export_history.py` and `finvera-be/src/main/java/com/minhnb/finvera_be/market/service/MarketImportService.java` with tests in `tools/market-data/vnstock-export/tests/` and `finvera-be/src/test/java/com/minhnb/finvera_be/market/service/MarketImportServiceTests.java`. The owner-approved local exception permits implementation but not a claim that T047 passed.
+- [X] T048 [DATA-001, DATA-003, DATA-007, DATA-009, DATA-010] Implement the canonical decimal-string local-only exporter and Spring importer boundary in `tools/market-data/vnstock-export/export_history.py` and `finvera-be/src/main/java/com/minhnb/finvera_be/market/service/MarketImportService.java` with tests in `tools/market-data/vnstock-export/tests/` and `finvera-be/src/test/java/com/minhnb/finvera_be/market/service/MarketImportServiceTests.java`. The owner-approved local exception permits implementation but not a claim that T047 passed.
       Verify: package checksum/schema/provenance/271-session/idempotency/conflict tests pass; neither tool nor package writes PostgreSQL directly; exporter defaults to manual local operation and cannot expose/publicly distribute data.
       Depends: T011, T039, T059
+      Validation (2026-08-18): exporter tests pass 2/2; Spring unit tests cover checksum, schema, idempotency, and rejection paths. PostgreSQL/Testcontainers integration remains environment-dependent and was not claimed successful when Docker was unavailable.
 
 - [X] T059 [DATA-001, DATA-003, DATA-007, DATA-009] Implement the provider-neutral canonical historical-package validator and atomic Spring import core in `finvera-be/src/main/java/com/minhnb/finvera_be/market/service/MarketImportService.java` with tests in `finvera-be/src/test/java/com/minhnb/finvera_be/market/service/MarketImportServiceTests.java` and `MarketImportPersistenceTests.java`; it accepts only reviewed package records and does not invoke Vnstock.
       Verify: unit tests cover checksum, decimal-string, date-order, provenance, idempotency, and no-write-on-validation-failure; PostgreSQL integration verifies persisted immutable facts and idempotent package replay.
@@ -290,7 +293,8 @@ Setup (T001-T004)
   -> Fixture release validation (T049-T056)
 
 External TCBS gate T045 -> T046 (not on fixture MVP path)
-External Vnstock gate T047 -> T048 (not on fixture MVP path)
+External Vnstock gate T047 -> historical provider activation (T048 remains
+local-only and may be validated independently; neither is on fixture MVP path)
 T051 -> private deployment/remote-access release (not local fixture acceptance)
 ```
 
@@ -342,9 +346,9 @@ work starts only after its reviewed backend contract behavior is available.
 - Suggested MVP is T001-T030: private owner auth plus the P1 four-index journey
   running entirely from deterministic fixtures.
 - T031-T044 add breadth and regime incrementally without weakening P1.
-- T045-T048 remain incomplete until external evidence exists; fixture-mode
-  completion MUST be labeled as such and MUST NOT be deployed as a live/public
-  market-data product.
+- T045-T047 remain incomplete until external evidence exists; T048's local
+  implementation MUST be labeled as such and MUST NOT be deployed as a
+  live/public market-data product.
 - Never mark a task complete based only on code presence. Record its stated
   verification evidence.
 - If discovery changes behavior, update `spec.md`/`plan.md` before continuing.
