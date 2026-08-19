@@ -59,6 +59,17 @@ public class DefaultMarketReferenceDataService implements MarketReferenceDataSer
     }
 
     @Override
+    public List<InstrumentReference> findInstrumentsByIds(java.util.Collection<java.util.UUID> instrumentIds) {
+        Objects.requireNonNull(instrumentIds, "instrumentIds");
+        if (instrumentIds.isEmpty()) {
+            return List.of();
+        }
+        return instruments.findAllById(instrumentIds).stream()
+                .map(DefaultMarketReferenceDataService::toReference)
+                .toList();
+    }
+
+    @Override
     public SessionContext resolveSession(String venue, Instant at) {
         Objects.requireNonNull(venue, "venue");
         Objects.requireNonNull(at, "at");

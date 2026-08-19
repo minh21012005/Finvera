@@ -100,49 +100,13 @@ public final class FundamentalSummaryCalculator {
         addTtmSumMetric(summaryMetrics, "DIVIDEND_PER_SHARE", "DIVIDEND_PER_SHARE_TTM", currentTtmPeriods);
 
         // EPS Growth Percent
-        BigDecimal currentTtmEps = getTtmSum("EPS", currentTtmPeriods);
-        if (quarterReports.size() >= 8) {
-            List<ReportPeriod> priorTtmQuarters = quarterReports.subList(4, 8);
-            for (ReportPeriod q : priorTtmQuarters) {
-                if (q.reportId() != null) {
-                    contributingIds.add(q.reportId());
-                }
-            }
-            BigDecimal priorTtmEps = getTtmSum("EPS", priorTtmQuarters);
-            if (currentTtmEps != null && priorTtmEps != null) {
-                if (priorTtmEps.compareTo(BigDecimal.ZERO) <= 0) {
-                    summaryMetrics.add(new SummaryMetric(
-                            "EPS_GROWTH_PERCENT",
-                            null,
-                            MetricApplicability.NOT_APPLICABLE,
-                            "NEGATIVE_OR_ZERO_PRIOR_EPS"
-                    ));
-                } else {
-                    BigDecimal growthRatio = DecimalMath.divide12(currentTtmEps, priorTtmEps);
-                    BigDecimal growthPercent = growthRatio.subtract(BigDecimal.ONE).multiply(ONE_HUNDRED);
-                    summaryMetrics.add(new SummaryMetric(
-                            "EPS_GROWTH_PERCENT",
-                            growthPercent,
-                            MetricApplicability.DEFINED,
-                            null
-                    ));
-                }
-            } else {
-                summaryMetrics.add(new SummaryMetric(
-                        "EPS_GROWTH_PERCENT",
-                        null,
-                        MetricApplicability.MISSING,
-                        "INSUFFICIENT_HISTORY"
-                ));
-            }
-        } else {
-            summaryMetrics.add(new SummaryMetric(
-                    "EPS_GROWTH_PERCENT",
-                    null,
-                    MetricApplicability.MISSING,
-                    "INSUFFICIENT_HISTORY"
-            ));
-        }
+        addGrowthMetric(summaryMetrics, contributingIds, "EPS", "EPS_GROWTH_PERCENT",
+                "NEGATIVE_OR_ZERO_PRIOR_EPS", quarterReports, currentTtmPeriods);
+
+        // Revenue Growth Percent (Feature 003 research R-005: additive coverage under the
+        // unchanged fundamental-summary-v1 rule version, mirroring EPS_GROWTH_PERCENT exactly).
+        addGrowthMetric(summaryMetrics, contributingIds, "REVENUE", "REVENUE_GROWTH_PERCENT",
+                "NEGATIVE_OR_ZERO_PRIOR_REVENUE", quarterReports, currentTtmPeriods);
 
         // Newest Report Snapshot Metrics
         addLatestMetric(summaryMetrics, "ROE", newest);
@@ -181,6 +145,48 @@ public final class FundamentalSummaryCalculator {
             target.add(new SummaryMetric(targetCode, sum, MetricApplicability.DEFINED, null));
         } else {
             target.add(new SummaryMetric(targetCode, null, MetricApplicability.MISSING, "NO_DATA"));
+        }
+    }
+
+    /**
+     * Period-over-period TTM growth for one source metric, shared by EPS_GROWTH_PERCENT
+     * and REVENUE_GROWTH_PERCENT (Feature 003 research R-005) so the two never drift
+     * apart into two independently-maintained formulas.
+     */
+    private void addGrowthMetric(
+            List<SummaryMetric> summaryMetrics,
+            Set<UUID> contributingIds,
+            String sourceMetricCode,
+            String targetMetricCode,
+            String notApplicableReason,
+            List<ReportPeriod> quarterReports,
+            List<ReportPeriod> currentTtmPeriods) {
+        BigDecimal currentTtm = getTtmSum(sourceMetricCode, currentTtmPeriods);
+        if (quarterReports.size() >= 8) {
+            List<ReportPeriod> priorTtmQuarters = quarterReports.subList(4, 8);
+            for (ReportPeriod q : priorTtmQuarters) {
+                if (q.reportId() != null) {
+                    contributingIds.add(q.reportId());
+                }
+            }
+            BigDecimal priorTtm = getTtmSum(sourceMetricCode, priorTtmQuarters);
+            if (currentTtm != null && priorTtm != null) {
+                if (priorTtm.compareTo(BigDecimal.ZERO) <= 0) {
+                    summaryMetrics.add(new SummaryMetric(
+                            targetMetricCode, null, MetricApplicability.NOT_APPLICABLE, notApplicableReason));
+                } else {
+                    BigDecimal growthRatio = DecimalMath.divide12(currentTtm, priorTtm);
+                    BigDecimal growthPercent = growthRatio.subtract(BigDecimal.ONE).multiply(ONE_HUNDRED);
+                    summaryMetrics.add(new SummaryMetric(
+                            targetMetricCode, growthPercent, MetricApplicability.DEFINED, null));
+                }
+            } else {
+                summaryMetrics.add(new SummaryMetric(
+                        targetMetricCode, null, MetricApplicability.MISSING, "INSUFFICIENT_HISTORY"));
+            }
+        } else {
+            summaryMetrics.add(new SummaryMetric(
+                    targetMetricCode, null, MetricApplicability.MISSING, "INSUFFICIENT_HISTORY"));
         }
     }
 

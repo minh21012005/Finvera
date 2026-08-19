@@ -198,6 +198,139 @@ class FundamentalSummaryTests {
         assertThat(growth.applicability()).isEqualTo(MetricApplicability.NOT_APPLICABLE);
     }
 
+    // ── Revenue year-over-year growth (Feature 003 research R-005) ──────────────
+
+    @Test
+    void revenueGrowthPercentIsTtmOverPriorTtmMinus100() {
+        // Mirrors epsGrowthPercentIsTtmOverPriorTtmMinus100 exactly, on REVENUE.
+        // priorTtm = 980+1000+1050+1100 = 4130; currentTtm = 1200+1250+1300+1350 = 5100
+        // growth = (5100/4130 - 1) * 100 = 23.4866...%
+        var calculator = new FundamentalSummaryCalculator();
+
+        var q3_2024 = quarterReport(UUID.randomUUID(), 2024, 3,
+                LocalDate.of(2024, 7, 1), LocalDate.of(2024, 9, 30),
+                metric("REVENUE", "980.000000"));
+        var q4_2024 = quarterReport(UUID.randomUUID(), 2024, 4,
+                LocalDate.of(2024, 10, 1), LocalDate.of(2024, 12, 31),
+                metric("REVENUE", "1000.000000"));
+        var q1_2025 = quarterReport(UUID.randomUUID(), 2025, 1,
+                LocalDate.of(2025, 1, 1), LocalDate.of(2025, 3, 31),
+                metric("REVENUE", "1050.000000"));
+        var q2_2025 = quarterReport(UUID.randomUUID(), 2025, 2,
+                LocalDate.of(2025, 4, 1), LocalDate.of(2025, 6, 30),
+                metric("REVENUE", "1100.000000"));
+        var q3_2025 = quarterReport(UUID.randomUUID(), 2025, 3,
+                LocalDate.of(2025, 7, 1), LocalDate.of(2025, 9, 30),
+                metric("REVENUE", "1200.000000"));
+        var q4_2025 = quarterReport(UUID.randomUUID(), 2025, 4,
+                LocalDate.of(2025, 10, 1), LocalDate.of(2025, 12, 31),
+                metric("REVENUE", "1250.000000"));
+        var q1_2026 = quarterReport(UUID.randomUUID(), 2026, 1,
+                LocalDate.of(2026, 1, 1), LocalDate.of(2026, 3, 31),
+                metric("REVENUE", "1300.000000"));
+        var q2_2026 = quarterReport(UUID.randomUUID(), 2026, 2,
+                LocalDate.of(2026, 4, 1), LocalDate.of(2026, 6, 30),
+                metric("REVENUE", "1350.000000"));
+
+        var result = calculator.calculate(
+                List.of(q3_2024, q4_2024, q1_2025, q2_2025, q3_2025, q4_2025, q1_2026, q2_2026),
+                LocalDate.of(2026, 8, 14));
+
+        var growth = findSummaryMetric(result, "REVENUE_GROWTH_PERCENT");
+        assertThat(growth.applicability()).isEqualTo(MetricApplicability.DEFINED);
+        assertThat(growth.value().doubleValue()).isCloseTo(23.4866, org.assertj.core.data.Offset.offset(0.001));
+    }
+
+    @Test
+    void revenueGrowthIsNotApplicableWhenPriorTtmRevenueIsZeroOrNegative() {
+        var calculator = new FundamentalSummaryCalculator();
+        var priorQuarters = List.of(
+                quarterReport(UUID.randomUUID(), 2024, 3,
+                        LocalDate.of(2024, 7, 1), LocalDate.of(2024, 9, 30),
+                        metric("REVENUE", "-100.000000")),
+                quarterReport(UUID.randomUUID(), 2024, 4,
+                        LocalDate.of(2024, 10, 1), LocalDate.of(2024, 12, 31),
+                        metric("REVENUE", "-50.000000")),
+                quarterReport(UUID.randomUUID(), 2025, 1,
+                        LocalDate.of(2025, 1, 1), LocalDate.of(2025, 3, 31),
+                        metric("REVENUE", "20.000000")),
+                quarterReport(UUID.randomUUID(), 2025, 2,
+                        LocalDate.of(2025, 4, 1), LocalDate.of(2025, 6, 30),
+                        metric("REVENUE", "30.000000")),
+                quarterReport(UUID.randomUUID(), 2025, 3,
+                        LocalDate.of(2025, 7, 1), LocalDate.of(2025, 9, 30),
+                        metric("REVENUE", "500.000000")),
+                quarterReport(UUID.randomUUID(), 2025, 4,
+                        LocalDate.of(2025, 10, 1), LocalDate.of(2025, 12, 31),
+                        metric("REVENUE", "600.000000")),
+                quarterReport(UUID.randomUUID(), 2026, 1,
+                        LocalDate.of(2026, 1, 1), LocalDate.of(2026, 3, 31),
+                        metric("REVENUE", "700.000000")),
+                quarterReport(UUID.randomUUID(), 2026, 2,
+                        LocalDate.of(2026, 4, 1), LocalDate.of(2026, 6, 30),
+                        metric("REVENUE", "800.000000"))
+        );
+        var result = calculator.calculate(priorQuarters, LocalDate.of(2026, 8, 14));
+        var growth = findSummaryMetric(result, "REVENUE_GROWTH_PERCENT");
+        // priorTtm = -100 + -50 + 20 + 30 = -100 → growth NOT_APPLICABLE
+        assertThat(growth.applicability()).isEqualTo(MetricApplicability.NOT_APPLICABLE);
+    }
+
+    @Test
+    void revenueGrowthIsMissingWhenFewerThanEightQuartersExist() {
+        var calculator = new FundamentalSummaryCalculator();
+        var q2 = quarterReport(UUID.randomUUID(), 2026, 2,
+                LocalDate.of(2026, 4, 1), LocalDate.of(2026, 6, 30),
+                metric("REVENUE", "1300.000000"));
+
+        var result = calculator.calculate(List.of(q2), LocalDate.of(2026, 8, 14));
+
+        var growth = findSummaryMetric(result, "REVENUE_GROWTH_PERCENT");
+        assertThat(growth.applicability()).isEqualTo(MetricApplicability.MISSING);
+        assertThat(growth.qualityReason()).isEqualTo("INSUFFICIENT_HISTORY");
+    }
+
+    @Test
+    void revenueGrowthDoesNotChangeExistingEpsGrowthValue() {
+        // Guards against the refactor (research R-005) accidentally coupling
+        // the two growth metrics together.
+        var calculator = new FundamentalSummaryCalculator();
+        var q3_2024 = quarterReport(UUID.randomUUID(), 2024, 3,
+                LocalDate.of(2024, 7, 1), LocalDate.of(2024, 9, 30),
+                metric("EPS", "980.000000"), metric("REVENUE", "5000.000000"));
+        var q4_2024 = quarterReport(UUID.randomUUID(), 2024, 4,
+                LocalDate.of(2024, 10, 1), LocalDate.of(2024, 12, 31),
+                metric("EPS", "1000.000000"), metric("REVENUE", "5000.000000"));
+        var q1_2025 = quarterReport(UUID.randomUUID(), 2025, 1,
+                LocalDate.of(2025, 1, 1), LocalDate.of(2025, 3, 31),
+                metric("EPS", "1050.000000"), metric("REVENUE", "5000.000000"));
+        var q2_2025 = quarterReport(UUID.randomUUID(), 2025, 2,
+                LocalDate.of(2025, 4, 1), LocalDate.of(2025, 6, 30),
+                metric("EPS", "1100.000000"), metric("REVENUE", "5000.000000"));
+        var q3_2025 = quarterReport(UUID.randomUUID(), 2025, 3,
+                LocalDate.of(2025, 7, 1), LocalDate.of(2025, 9, 30),
+                metric("EPS", "1200.000000"), metric("REVENUE", "9000.000000"));
+        var q4_2025 = quarterReport(UUID.randomUUID(), 2025, 4,
+                LocalDate.of(2025, 10, 1), LocalDate.of(2025, 12, 31),
+                metric("EPS", "1250.000000"), metric("REVENUE", "9000.000000"));
+        var q1_2026 = quarterReport(UUID.randomUUID(), 2026, 1,
+                LocalDate.of(2026, 1, 1), LocalDate.of(2026, 3, 31),
+                metric("EPS", "1300.000000"), metric("REVENUE", "9000.000000"));
+        var q2_2026 = quarterReport(UUID.randomUUID(), 2026, 2,
+                LocalDate.of(2026, 4, 1), LocalDate.of(2026, 6, 30),
+                metric("EPS", "1350.000000"), metric("REVENUE", "9000.000000"));
+
+        var result = calculator.calculate(
+                List.of(q3_2024, q4_2024, q1_2025, q2_2025, q3_2025, q4_2025, q1_2026, q2_2026),
+                LocalDate.of(2026, 8, 14));
+
+        var epsGrowth = findSummaryMetric(result, "EPS_GROWTH_PERCENT");
+        assertThat(epsGrowth.value().doubleValue()).isCloseTo(23.4866, org.assertj.core.data.Offset.offset(0.001));
+        var revenueGrowth = findSummaryMetric(result, "REVENUE_GROWTH_PERCENT");
+        // priorTtm = 4*5000=20000, currentTtm = 4*9000=36000 -> growth = (36000/20000-1)*100 = 80
+        assertThat(revenueGrowth.value()).isEqualByComparingTo(new BigDecimal("80"));
+    }
+
     // ── Input linkage ─────────────────────────────────────────────────────────────
 
     @Test

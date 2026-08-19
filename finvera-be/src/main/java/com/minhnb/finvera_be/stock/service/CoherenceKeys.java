@@ -11,12 +11,12 @@ import java.util.List;
  * contributing row ids and revisions behind one section response. It is
  * never a security token and grants nothing.
  */
-final class CoherenceKeys {
+public final class CoherenceKeys {
 
     private CoherenceKeys() {
     }
 
-    static String of(List<String> parts) {
+    public static String of(List<String> parts) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             for (String part : parts) {

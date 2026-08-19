@@ -73,6 +73,9 @@ export function MarketOverviewPage() {
           </span>
         </div>
         <SymbolSearch onSelect={(symbol) => navigate(`/stocks/${symbol}`)} />
+        <button type="button" className="screener-nav-link" onClick={() => navigate("/screener")}>
+          Sàng lọc cổ phiếu →
+        </button>
       </header>
 
       <IndexOverview overview={state.overview} />

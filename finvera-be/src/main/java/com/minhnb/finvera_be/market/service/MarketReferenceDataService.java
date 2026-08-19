@@ -23,6 +23,13 @@ public interface MarketReferenceDataService {
     /** Active instruments whose symbol starts with the given prefix, for symbol lookup (FR-016). */
     List<InstrumentReference> searchActiveInstrumentsBySymbolPrefix(String symbolPrefix, int limit);
 
+    /**
+     * Bulk resolution of instrument identity by id, for a caller (Feature 003
+     * screener) that already knows which instrument ids it needs venue/symbol
+     * for and must not fall back to per-id lookups.
+     */
+    List<InstrumentReference> findInstrumentsByIds(java.util.Collection<UUID> instrumentIds);
+
     /** The trading-day and session-window state at an instant, for one venue. */
     SessionContext resolveSession(String venue, Instant at);
 
