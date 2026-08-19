@@ -1,0 +1,676 @@
+openapi: 3.1.0
+info:
+  title: Finvera AI Analyst Internal API (finvera-be <-> finvera-ai)
+  version: 1.0.0
+  description: >-
+    Internal, network-restricted contract for Feature 007. This is NOT a
+    public API and MUST NOT be reachable from the browser (SEC-001,
+    docs/ARCHITECTURE.md B-1/B-3). Every operation requires the shared
+    `X-Internal-Api-Key` header, validated by whichever service hosts the
+    operation (research R-003, extending Feature 006's own bidirectional
+    hardening) — no path is trusted by network position alone.
+
+    Paths are annotated with `x-hosted-by`: `/analyst/*` is hosted by
+    `finvera-ai` (the orchestrator), `/tools/*` is hosted by `finvera-be`
+    (structured-data tool endpoints the orchestrator calls back into).
+    Every request carries an explicit `ownerId` (research R-002) — neither
+    service derives it from a session, since only `finvera-be`'s public
+    endpoint (`public-api.openapi.yaml`) has one. Decimals are transported
+    as JSON strings where present; this file otherwise follows the same
+    conventions as `public-api.openapi.yaml` and Feature 006's
+    `internal-api.openapi.yaml`.
+
+    Most `/tools/*` response schemas here are intentionally minimal
+    (`additionalProperties: true`) rather than a full duplicate of the
+    owning feature's own public schema — each is noted with the feature
+    contract that remains its normative source, to avoid a second,
+    driftable copy of field definitions Features 001-005 already own
+    (the same reasoning Feature 006 research R-006 applied when it removed
+    `pageOrSection` from its own internal schema). The one exception,
+    `ScreenerExecutionRequest.filters`, references Feature 003's own filter
+    schema by description rather than a thin passthrough, since Feature
+    003's filter DSL is itself the object the natural-language conversion
+    (research R-007) must validate against exactly.
+servers:
+  - url: /internal/v1
+security:
+  - internalApiKey: []
+tags:
+  - name: Orchestration
+    description: Tool-orchestrated question answering.
+  - name: Explanation
+    description: Non-orchestrated deterministic-output explanation.
+  - name: Tools
+    description: Read-only structured-data tool endpoints hosted by finvera-be.
+
+paths:
+  /analyst/ask:
+    post:
+      operationId: orchestrateAsk
+      x-hosted-by: finvera-ai
+      summary: >-
+        Answer a natural-language question via tool orchestration
+        (FR-001 to FR-005, FR-010 to FR-011, orchestration-v1)
+      description: >-
+        `finvera-be` supplies the question and the resolved `ownerId`.
+        `finvera-ai` selects tools per `orchestration-v1`'s allowlist,
+        calls back into `finvera-be`'s `/tools/*` endpoints (and its own
+        `/internal/v1/retrieve`/`/synthesize` for the Research/RAG tool),
+        verifies every structured claim against its originating tool
+        response (`orchestration-v1` U-5), and streams the result.
+        `finvera-be` resolves document/news `chunkId` citations to their
+        public shape before relaying the final event, exactly as it
+        already does for Feature 006's `/research/ask` (research R-003 of
+        this feature reuses that resolution responsibility unchanged).
+      tags: [Orchestration]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OrchestrateAskRequest" }
+      responses:
+        "200":
+          description: >-
+            A stream of `OrchestrationStreamEvent` objects (SSE `data:`
+            frames: `tool_call`, `delta`, then one `final` event carrying
+            the verified `OrchestrationResult`).
+          content:
+            text/event-stream:
+              schema: { $ref: "#/components/schemas/OrchestrationStreamEvent" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/InvalidInternalKey" }
+        "503":
+          description: The LLM provider is unavailable.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /analyst/explain:
+    post:
+      operationId: explainDeterministicOutput
+      x-hosted-by: finvera-ai
+      summary: >-
+        Explain a caller-supplied deterministic output in plain language
+        (FR-006, orchestration-v1 faithfulness check)
+      description: >-
+        Non-orchestrated: no tool is called. `finvera-be` supplies the
+        deterministic output's own evidence factors (already fetched from
+        Feature 002/004); `finvera-ai` verifies the generated explanation
+        references only supplied factors before returning it.
+      tags: [Explanation]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExplainRequest" }
+      responses:
+        "200":
+          description: A verified explanation.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExplainResult" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/InvalidInternalKey" }
+        "503":
+          description: The LLM provider is unavailable.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /tools/market/overview:
+    get:
+      operationId: toolMarketOverview
+      x-hosted-by: finvera-be
+      summary: Market tool (research R-004) — mirrors Feature 001's public overview
+      tags: [Tools]
+      parameters:
+        - $ref: "#/components/parameters/OwnerIdQuery"
+      responses:
+        "200":
+          description: >-
+            Mirrors Feature 001's `GET /api/v1/market/overview` response
+            shape (see `specs/001-market-overview/contracts/`); not
+            redefined field-by-field here.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MarketOverviewTool" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/InvalidInternalKey" }
+
+  /tools/stocks/{symbol}:
+    parameters:
+      - $ref: "#/components/parameters/SymbolPath"
+      - $ref: "#/components/parameters/OwnerIdQuery"
+    get:
+      operationId: toolStockSummary
+      x-hosted-by: finvera-be
+      summary: Stock tool (research R-004) — mirrors Feature 002's public stock summary
+      tags: [Tools]
+      responses:
+        "200":
+          description: >-
+            Mirrors Feature 002's `GET /api/v1/stocks/{symbol}` response
+            shape (see `specs/002-stock-detail-analysis/contracts/`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StockSummaryTool" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/InvalidInternalKey" }
+        "404": { $ref: "#/components/responses/UnknownSymbol" }
+
+  /tools/stocks/{symbol}/technical:
+    parameters:
+      - $ref: "#/components/parameters/SymbolPath"
+      - $ref: "#/components/parameters/OwnerIdQuery"
+    get:
+      operationId: toolTechnical
+      x-hosted-by: finvera-be
+      summary: >-
+        Technical Analysis tool (research R-004) — mirrors Feature 002's
+        indicators plus Feature 004's signal/risk factors
+      tags: [Tools]
+      responses:
+        "200":
+          description: >-
+            Mirrors Feature 002's `GET /api/v1/stocks/{symbol}/technical`
+            and Feature 004's `GET /api/v1/stocks/{symbol}/signals`
+            response shapes, combined.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TechnicalTool" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/InvalidInternalKey" }
+        "404": { $ref: "#/components/responses/UnknownSymbol" }
+
+  /tools/stocks/{symbol}/fundamentals:
+    parameters:
+      - $ref: "#/components/parameters/SymbolPath"
+      - $ref: "#/components/parameters/OwnerIdQuery"
+    get:
+      operationId: toolFundamentals
+      x-hosted-by: finvera-be
+      summary: Fundamental Analysis tool (research R-004) — mirrors Feature 002
+      tags: [Tools]
+      responses:
+        "200":
+          description: >-
+            Mirrors Feature 002's `GET /api/v1/stocks/{symbol}/fundamentals`
+            response shape.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FundamentalsTool" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/InvalidInternalKey" }
+        "404": { $ref: "#/components/responses/UnknownSymbol" }
+
+  /tools/stocks/{symbol}/valuation:
+    parameters:
+      - $ref: "#/components/parameters/SymbolPath"
+      - $ref: "#/components/parameters/OwnerIdQuery"
+    get:
+      operationId: toolValuation
+      x-hosted-by: finvera-be
+      summary: Valuation tool (research R-004) — mirrors Feature 002
+      tags: [Tools]
+      responses:
+        "200":
+          description: >-
+            Mirrors Feature 002's `GET /api/v1/stocks/{symbol}/valuation`
+            response shape.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ValuationTool" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/InvalidInternalKey" }
+        "404": { $ref: "#/components/responses/UnknownSymbol" }
+
+  /tools/portfolios/positions:
+    get:
+      operationId: toolPortfolioPositions
+      x-hosted-by: finvera-be
+      summary: Portfolio tool (research R-004) — mirrors Feature 005 positions
+      tags: [Tools]
+      parameters:
+        - $ref: "#/components/parameters/OwnerIdQuery"
+      responses:
+        "200":
+          description: >-
+            Mirrors Feature 005's `GET /api/v1/portfolios/{id}/positions`
+            response shape, resolved for the configured owner's own
+            portfolio (no `portfolioId` needed in a single-owner
+            deployment).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PortfolioPositionsTool" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/InvalidInternalKey" }
+
+  /tools/portfolios/analytics:
+    get:
+      operationId: toolPortfolioAnalytics
+      x-hosted-by: finvera-be
+      summary: Portfolio tool (research R-004) — mirrors Feature 005 analytics
+      tags: [Tools]
+      parameters:
+        - $ref: "#/components/parameters/OwnerIdQuery"
+      responses:
+        "200":
+          description: >-
+            Mirrors Feature 005's `GET /api/v1/portfolios/{id}/analytics`
+            response shape.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PortfolioAnalyticsTool" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/InvalidInternalKey" }
+
+  /tools/research/news:
+    get:
+      operationId: toolNewsBrowse
+      x-hosted-by: finvera-be
+      summary: >-
+        News tool (research R-004) — metadata/browse only; mirrors Feature
+        006's news listing
+      description: >-
+        Returns metadata only (no `content_text`); a question needing
+        article content dispatches the Research/RAG tool
+        (`/internal/v1/retrieve`/`/synthesize`, unchanged from Feature
+        006) instead of this endpoint.
+      tags: [Tools]
+      parameters:
+        - $ref: "#/components/parameters/OwnerIdQuery"
+        - name: symbol
+          in: query
+          schema: { type: string, nullable: true }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 20, default: 5 }
+      responses:
+        "200":
+          description: Matching article metadata.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NewsBrowseTool" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/InvalidInternalKey" }
+
+  /tools/screener/executions:
+    post:
+      operationId: toolScreenerExecute
+      x-hosted-by: finvera-be
+      summary: >-
+        Screening tool (research R-004, R-007) — executes Feature 003's
+        real deterministic engine
+      description: >-
+        `filters` MUST already be validated against Feature 003's own
+        schema (`orchestration-v1` NL-conversion step 2) before this call;
+        this endpoint applies the identical validation and execution path
+        a hand-entered filter set undergoes — no LLM-specific execution
+        branch (FR-007).
+      tags: [Tools]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ScreenerExecutionRequest" }
+      responses:
+        "200":
+          description: >-
+            Mirrors Feature 003's `POST /api/v1/screener/executions`
+            response shape.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScreenerExecutionTool" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/InvalidInternalKey" }
+
+components:
+  securitySchemes:
+    internalApiKey:
+      type: apiKey
+      in: header
+      name: X-Internal-Api-Key
+      description: >-
+        Shared secret, environment-sourced with no default value
+        (docs/ARCHITECTURE.md §8), validated by the receiving service on
+        every request (research R-003).
+
+  parameters:
+    OwnerIdQuery:
+      name: ownerId
+      in: query
+      required: true
+      description: >-
+        Resolved by finvera-be from the originating session at the first
+        hop and propagated explicitly on every subsequent call (research
+        R-002) — neither service infers it from anything but this field.
+      schema: { type: string, format: uuid }
+    SymbolPath:
+      name: symbol
+      in: path
+      required: true
+      schema: { type: string, pattern: "^[A-Z0-9]{3,10}$" }
+
+  responses:
+    ValidationError:
+      description: The request failed input validation.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    InvalidInternalKey:
+      description: Missing or invalid `X-Internal-Api-Key`.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    UnknownSymbol:
+      description: Unsupported or unknown symbol.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  schemas:
+    ToolName:
+      type: string
+      enum:
+        - MARKET
+        - STOCK
+        - TECHNICAL
+        - FUNDAMENTAL
+        - VALUATION
+        - PORTFOLIO
+        - NEWS
+        - RESEARCH_RAG
+        - SCREENING
+
+    OrchestrateAskRequest:
+      type: object
+      required: [ownerId, question]
+      additionalProperties: false
+      properties:
+        ownerId: { type: string, format: uuid }
+        question: { type: string, minLength: 1, maxLength: 2000 }
+        priorTurns:
+          type: array
+          description: >-
+            Optional, client-supplied prior question/answer pairs from the
+            current browser session (FR-013) — never server-persisted.
+          items:
+            type: object
+            required: [question, answer]
+            properties:
+              question: { type: string }
+              answer: { type: string }
+          maxItems: 10
+
+    ToolCallResult:
+      type: object
+      required: [sequenceNo, toolName, arguments, status]
+      properties:
+        sequenceNo: { type: integer }
+        toolName: { $ref: "#/components/schemas/ToolName" }
+        arguments: { type: object, additionalProperties: true }
+        status: { type: string, enum: [SUCCEEDED, FAILED] }
+        failureReason: { type: string, nullable: true }
+
+    StructuredClaim:
+      type: object
+      required: [claimText, sequenceNo, fieldPath, claimedValue, asOf]
+      properties:
+        claimText: { type: string }
+        sequenceNo: { type: integer }
+        fieldPath: { type: string }
+        claimedValue: { type: string }
+        asOf:
+          type: string
+          format: date-time
+          description: >-
+            The originating tool call's own as-of/effective time, copied
+            unmodified from that tool's response (DATA-002) — never
+            recomputed or defaulted to the answer's generation time.
+
+    DocumentClaim:
+      type: object
+      required: [chunkId, claimText]
+      description: Identical shape to Feature 006's internal `Citation` schema.
+      properties:
+        chunkId: { type: string, format: uuid }
+        claimText: { type: string }
+
+    OrchestrationResult:
+      type: object
+      required:
+        - answer, structuredClaims, documentClaims, refused
+        - toolCalls, toolCallBoundReached, ruleVersion
+      properties:
+        answer: { type: string }
+        structuredClaims:
+          type: array
+          items: { $ref: "#/components/schemas/StructuredClaim" }
+        documentClaims:
+          type: array
+          items: { $ref: "#/components/schemas/DocumentClaim" }
+        refused:
+          type: boolean
+          description: >-
+            `true` when no allowlisted tool could supply relevant
+            information (AI-004); `structuredClaims` and `documentClaims`
+            MUST both be empty when `refused = true`.
+        toolCalls:
+          type: array
+          items: { $ref: "#/components/schemas/ToolCallResult" }
+        toolCallBoundReached: { type: boolean }
+        ruleVersion:
+          type: string
+          const: orchestration-v1
+
+    OrchestrationStreamEvent:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [tool_call, delta, final]
+        toolCall:
+          allOf: [{ $ref: "#/components/schemas/ToolCallResult" }]
+          nullable: true
+        textDelta: { type: string, nullable: true }
+        final:
+          allOf: [{ $ref: "#/components/schemas/OrchestrationResult" }]
+          nullable: true
+
+    EvidenceFactor:
+      type: object
+      required: [factorCode, description]
+      properties:
+        factorCode: { type: string }
+        description: { type: string }
+
+    ExplainRequest:
+      type: object
+      required: [ownerId, outputType, evidenceFactors]
+      additionalProperties: false
+      properties:
+        ownerId: { type: string, format: uuid }
+        outputType:
+          type: string
+          enum: [SIGNAL, INDICATOR_READING, VALUATION_CLASSIFICATION, RISK_FACTOR]
+        symbol: { type: string, nullable: true }
+        evidenceFactors:
+          type: array
+          items: { $ref: "#/components/schemas/EvidenceFactor" }
+          minItems: 1
+
+    ExplainResult:
+      type: object
+      required: [explanation, factorsReferenced, verified, ruleVersion]
+      properties:
+        explanation: { type: string }
+        factorsReferenced:
+          type: array
+          items: { type: string }
+          description: >-
+            Every entry MUST be a member of the request's
+            `evidenceFactors[].factorCode` (orchestration-v1 faithfulness
+            check); `verified = false` means the generic-unavailable state
+            was returned instead (FR-006).
+        verified: { type: boolean }
+        ruleVersion:
+          type: string
+          const: orchestration-v1
+
+    MarketOverviewTool:
+      type: object
+      additionalProperties: true
+      required: [vnIndexValue, vnIndexChangePercent, advancers, decliners, asOf]
+      properties:
+        vnIndexValue: { type: string }
+        vnIndexChangePercent: { type: string }
+        advancers: { type: integer }
+        decliners: { type: integer }
+        unchanged: { type: integer }
+        asOf: { type: string, format: date-time }
+
+    StockSummaryTool:
+      type: object
+      additionalProperties: true
+      required: [symbol, companyName, price, changePercent, asOf]
+      properties:
+        symbol: { type: string }
+        companyName: { type: string }
+        price: { type: string }
+        changePercent: { type: string }
+        volume: { type: integer, nullable: true }
+        asOf: { type: string, format: date-time }
+
+    TechnicalTool:
+      type: object
+      additionalProperties: true
+      required: [symbol, indicators, signal, asOf]
+      properties:
+        symbol: { type: string }
+        indicators:
+          type: object
+          additionalProperties: true
+          description: e.g. rsi, macdSignal, priceVsMa50 — Feature 002's own field set.
+        signal:
+          type: object
+          additionalProperties: true
+          required: [direction, evidenceFactors]
+          properties:
+            direction: { type: string }
+            evidenceFactors:
+              type: array
+              items: { $ref: "#/components/schemas/EvidenceFactor" }
+        riskFactors:
+          type: array
+          items: { $ref: "#/components/schemas/EvidenceFactor" }
+        asOf: { type: string, format: date-time }
+
+    FundamentalsTool:
+      type: object
+      additionalProperties: true
+      required: [symbol, period, asOf]
+      properties:
+        symbol: { type: string }
+        eps: { type: string, nullable: true }
+        roe: { type: string, nullable: true }
+        revenueGrowthPercent: { type: string, nullable: true }
+        period: { type: string }
+        asOf: { type: string, format: date-time }
+
+    ValuationTool:
+      type: object
+      additionalProperties: true
+      required: [symbol, classification, comparisonBasis, asOf]
+      properties:
+        symbol: { type: string }
+        peRatio: { type: string, nullable: true }
+        pbRatio: { type: string, nullable: true }
+        classification: { type: string }
+        comparisonBasis: { type: string }
+        asOf: { type: string, format: date-time }
+
+    PortfolioPositionsTool:
+      type: object
+      additionalProperties: true
+      required: [positions, asOf]
+      properties:
+        positions:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            properties:
+              symbol: { type: string }
+              quantity: { type: string }
+              marketValue: { type: string }
+              unrealizedPnlPercent: { type: string }
+        asOf: { type: string, format: date-time }
+
+    PortfolioAnalyticsTool:
+      type: object
+      additionalProperties: true
+      required: [totalValue, asOf]
+      properties:
+        totalValue: { type: string }
+        totalUnrealizedPnlPercent: { type: string, nullable: true }
+        asOf: { type: string, format: date-time }
+
+    NewsBrowseTool:
+      type: object
+      additionalProperties: true
+      required: [articles, asOf]
+      properties:
+        articles:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            properties:
+              id: { type: string, format: uuid }
+              title: { type: string }
+              source: { type: string }
+              publishedAt: { type: string, format: date-time }
+              category: { type: string, nullable: true }
+              sentiment: { type: string, nullable: true }
+        asOf: { type: string, format: date-time }
+
+    ScreenerExecutionRequest:
+      type: object
+      required: [filters]
+      properties:
+        filters:
+          type: object
+          additionalProperties: true
+          description: >-
+            Feature 003's exact `ScreenerExecutionRequest` filter shape
+            (see `specs/003-stock-screener/contracts/`); not redefined
+            here — Feature 003 remains its sole normative source
+            (research R-004). Validated against that schema before
+            dispatch (orchestration-v1 NL-conversion step 2).
+
+    ScreenerExecutionTool:
+      type: object
+      additionalProperties: true
+      required: [matches, totalCount, asOf]
+      properties:
+        matches:
+          type: array
+          items:
+            type: object
+            properties:
+              symbol: { type: string }
+              companyName: { type: string }
+        totalCount: { type: integer }
+        asOf: { type: string, format: date-time }
+
+    ErrorResponse:
+      type: object
+      required: [type, title, status, reasonCode, correlationId]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        reasonCode: { type: string }
+        correlationId: { type: string }
