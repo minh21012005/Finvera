@@ -1,0 +1,832 @@
+openapi: 3.1.0
+info:
+  title: Finvera Portfolio and Watchlist API
+  version: 1.0.0
+  description: >-
+    Private Spring Boot contract for Feature 005 (Portfolio and Watchlist
+    Management). Only the configured deployment owner may call these
+    endpoints (SEC-001), under the same session Features 001-004 already
+    established. Every state-changing request requires the `X-CSRF-TOKEN`
+    header; a missing token is HTTP 403 with no state change
+    (docs/ARCHITECTURE.md §5), enforced from the first implementation, not
+    discovered afterward.
+
+    Portfolio holdings, totals, and analytics are always computed on demand
+    from a portfolio's own immutable transaction ledger plus Features
+    001-004's already-accepted facts (research R-004) — no cached position
+    ever ages independently of the ledger it was derived from. Decimals are
+    transported as JSON strings (DATA-001).
+servers:
+  - url: /api/v1
+security:
+  - sessionCookie: []
+tags:
+  - name: Portfolios
+    description: Portfolio lifecycle and totals.
+  - name: Transactions
+    description: The immutable transaction ledger.
+  - name: Positions
+    description: Derived holdings.
+  - name: Analytics
+    description: Return, drawdown, concentration, risk exposure, benchmark.
+  - name: Watchlists
+    description: Research candidate tracking.
+
+paths:
+  /portfolios:
+    get:
+      operationId: listPortfolios
+      summary: List the owner's active portfolios
+      tags: [Portfolios]
+      responses:
+        "200":
+          description: Zero or more portfolios, each with its totals.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PortfolioSummary" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "500": { $ref: "#/components/responses/ServerError" }
+    post:
+      operationId: createPortfolio
+      summary: Create a named portfolio (FR-001)
+      tags: [Portfolios]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreatePortfolioRequest" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PortfolioSummary" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/CsrfRequired" }
+        "409": { $ref: "#/components/responses/DuplicatePortfolioName" }
+
+  /portfolios/{portfolioId}:
+    parameters:
+      - $ref: "#/components/parameters/PortfolioId"
+    get:
+      operationId: getPortfolio
+      summary: Get one portfolio's totals (FR-007)
+      tags: [Portfolios]
+      responses:
+        "200":
+          description: Portfolio totals.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PortfolioSummary" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/PortfolioNotFound" }
+    patch:
+      operationId: renamePortfolio
+      summary: Rename a portfolio (FR-001)
+      tags: [Portfolios]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RenamePortfolioRequest" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PortfolioSummary" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/CsrfRequired" }
+        "404": { $ref: "#/components/responses/PortfolioNotFound" }
+        "409": { $ref: "#/components/responses/DuplicatePortfolioName" }
+    delete:
+      operationId: deletePortfolio
+      summary: Soft-delete a portfolio (FR-001)
+      tags: [Portfolios]
+      responses:
+        "204": { description: Deleted; its transactions remain individually auditable. }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/CsrfRequired" }
+        "404": { $ref: "#/components/responses/PortfolioNotFound" }
+
+  /portfolios/{portfolioId}/transactions:
+    parameters:
+      - $ref: "#/components/parameters/PortfolioId"
+    get:
+      operationId: listTransactions
+      summary: List a portfolio's ledger, chronological (FR-002)
+      tags: [Transactions]
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: The ledger page, in replay order (`executed_at`, then `sequence_no`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TransactionPage" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/PortfolioNotFound" }
+    post:
+      operationId: recordTransaction
+      summary: Record a BUY, SELL, DEPOSIT, or WITHDRAW entry (FR-002)
+      description: >-
+        Rejected with `400 UNSUPPORTED_INSTRUMENT` (FR-018) when
+        `instrumentSymbol` is outside the Feature 001-003 supported
+        universe — an invalid request value, not a ledger-state conflict.
+        Rejected with `409 INSUFFICIENT_POSITION` (FR-003) or
+        `409 INSUFFICIENT_CASH_BALANCE` (FR-004) when the ledger state as of
+        this transaction's own `executedAt` cannot support it. No partial
+        effect is ever applied on any rejection.
+
+        Idempotent by construction (research R-011, SC-007): the required
+        `Idempotency-Key` header is unique per portfolio
+        (`(portfolio_id, idempotency_key)`, data-model.md); replaying the
+        same key for the same portfolio is rejected with
+        `409 DUPLICATE_SUBMISSION` referencing the original transaction's
+        id, never silently creating a second entry and never silently
+        returning the original as if nothing happened. A genuinely new,
+        separately-decided transaction — even one with identical symbol,
+        quantity, price, and `executedAt` — MUST use its own fresh key; the
+        server has no way to distinguish "the owner traded twice" from "the
+        client retried" other than this key, so the frontend client
+        generates one key per logical submit action and reuses it across
+        that action's own retries only (never across two different owner
+        decisions).
+      tags: [Transactions]
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RecordTransactionRequest" }
+      responses:
+        "201":
+          description: Recorded.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Transaction" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/CsrfRequired" }
+        "404": { $ref: "#/components/responses/PortfolioNotFound" }
+        "409": { $ref: "#/components/responses/TransactionRejected" }
+
+  /portfolios/{portfolioId}/transactions/{transactionId}/void:
+    parameters:
+      - $ref: "#/components/parameters/PortfolioId"
+      - $ref: "#/components/parameters/TransactionId"
+    post:
+      operationId: voidTransaction
+      summary: Correct a mistaken entry by voiding it (FR-005)
+      description: >-
+        Records a new `VOID` entry referencing `transactionId`; the
+        original is never edited or deleted. Rejected with
+        `409 LOT_ALREADY_CONSUMED` (`portfolio-analytics-v1` U-6) when
+        voiding a `BUY` whose lot a later `SELL` already consumed, and with
+        `409 ALREADY_VOIDED` when the target is already `VOID`ed or is
+        itself a `VOID`. Idempotent by the same `Idempotency-Key` mechanism
+        as `recordTransaction` (research R-011) — a retried void request
+        with the same key is rejected with `409 DUPLICATE_SUBMISSION`
+        rather than attempting (and correctly failing on) a second void of
+        an already-voided target.
+      tags: [Transactions]
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VoidTransactionRequest" }
+      responses:
+        "201":
+          description: The recorded `VOID` entry.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Transaction" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/CsrfRequired" }
+        "404": { $ref: "#/components/responses/TransactionNotFound" }
+        "409": { $ref: "#/components/responses/TransactionRejected" }
+
+  /portfolios/{portfolioId}/positions:
+    parameters:
+      - $ref: "#/components/parameters/PortfolioId"
+    get:
+      operationId: getPositions
+      summary: Get derived holdings (FR-006, FR-007)
+      tags: [Positions]
+      responses:
+        "200":
+          description: Every open position plus totals, computed on demand.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PositionsResponse" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/PortfolioNotFound" }
+
+  /portfolios/{portfolioId}/analytics:
+    parameters:
+      - $ref: "#/components/parameters/PortfolioId"
+    get:
+      operationId: getPortfolioAnalytics
+      summary: >-
+        Get return, drawdown, performance history, concentration, risk
+        exposure, and benchmark comparison (FR-010 to FR-015)
+      description: >-
+        A requested `from` earlier than the portfolio's first transaction
+        is clamped to the actual inception date rather than rejected or
+        computed as if history existed before it; the response's
+        `periodFrom` always states the date actually used, and
+        `periodClampedToInception` is `true` whenever it differs from the
+        requested `from` (spec.md edge case: "period before first
+        transaction").
+      tags: [Analytics]
+      parameters:
+        - name: from
+          in: query
+          schema: { type: string, format: date }
+          description: Period start (market date). Defaults to portfolio inception.
+        - name: to
+          in: query
+          schema: { type: string, format: date }
+          description: Period end (market date). Defaults to today.
+      responses:
+        "200":
+          description: Analytics for the resolved period.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PortfolioAnalyticsResponse" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/PortfolioNotFound" }
+        "422": { $ref: "#/components/responses/PeriodTooLong" }
+
+  /watchlists:
+    get:
+      operationId: listWatchlists
+      summary: List the owner's watchlists (FR-008)
+      tags: [Watchlists]
+      responses:
+        "200":
+          description: Zero or more watchlists.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/WatchlistSummary" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+    post:
+      operationId: createWatchlist
+      summary: Create a named watchlist (FR-008)
+      tags: [Watchlists]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateWatchlistRequest" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WatchlistSummary" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/CsrfRequired" }
+        "409": { $ref: "#/components/responses/DuplicateWatchlistName" }
+
+  /watchlists/{watchlistId}:
+    parameters:
+      - $ref: "#/components/parameters/WatchlistId"
+    get:
+      operationId: getWatchlist
+      summary: Get a watchlist with each item's live market and analysis context (FR-009, FR-010)
+      tags: [Watchlists]
+      responses:
+        "200":
+          description: The watchlist and its items.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WatchlistDetail" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/WatchlistNotFound" }
+    patch:
+      operationId: renameWatchlist
+      summary: Rename a watchlist (FR-008)
+      tags: [Watchlists]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RenameWatchlistRequest" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WatchlistSummary" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/CsrfRequired" }
+        "404": { $ref: "#/components/responses/WatchlistNotFound" }
+        "409": { $ref: "#/components/responses/DuplicateWatchlistName" }
+    delete:
+      operationId: deleteWatchlist
+      summary: Delete a watchlist (FR-008)
+      tags: [Watchlists]
+      responses:
+        "204": { description: Deleted; no effect on any portfolio (spec.md edge case). }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/CsrfRequired" }
+        "404": { $ref: "#/components/responses/WatchlistNotFound" }
+
+  /watchlists/{watchlistId}/items:
+    parameters:
+      - $ref: "#/components/parameters/WatchlistId"
+    post:
+      operationId: addWatchlistItem
+      summary: Add a symbol to a watchlist (FR-008)
+      description: >-
+        Adding an already-present symbol is a no-op (spec.md edge case),
+        not a duplicate row or an error. Rejected with
+        `400 UNSUPPORTED_INSTRUMENT` when the symbol is outside the
+        Feature 001-003 supported universe — the same status code
+        `recordTransaction` uses for the identical reason (F2 consistency:
+        an unsupported-instrument reference is always `400`, never `409`,
+        anywhere in this contract).
+      tags: [Watchlists]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AddWatchlistItemRequest" }
+      responses:
+        "200":
+          description: The updated watchlist.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WatchlistDetail" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/CsrfRequired" }
+        "404": { $ref: "#/components/responses/WatchlistNotFound" }
+
+  /watchlists/{watchlistId}/items/{symbol}:
+    parameters:
+      - $ref: "#/components/parameters/WatchlistId"
+      - $ref: "#/components/parameters/Symbol"
+    delete:
+      operationId: removeWatchlistItem
+      summary: Remove a symbol from a watchlist (FR-008)
+      tags: [Watchlists]
+      responses:
+        "204": { description: Removed (or already absent — idempotent). }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/CsrfRequired" }
+        "404": { $ref: "#/components/responses/WatchlistNotFound" }
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: FINVERA_SESSION
+      description: >-
+        The owner session established by the Feature 001 private owner
+        access contract. No separate authentication path exists (SEC-001).
+
+  parameters:
+    PortfolioId:
+      name: portfolioId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    TransactionId:
+      name: transactionId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    WatchlistId:
+      name: watchlistId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Symbol:
+      name: symbol
+      in: path
+      required: true
+      schema: { type: string, pattern: "^[A-Z0-9]{3,10}$" }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+    Offset:
+      name: offset
+      in: query
+      schema: { type: integer, minimum: 0, default: 0 }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: >-
+        Client-generated, opaque per-attempt key (research R-011). The
+        frontend client generates one per logical submit action and reuses
+        it across that action's own retries only; a fresh owner decision
+        always uses a fresh key. Unique per `(portfolioId, key)`.
+      schema: { type: string, minLength: 1, maxLength: 100 }
+
+  responses:
+    Unauthenticated:
+      description: Missing, expired, or invalid private owner session.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    Forbidden:
+      description: The authenticated caller is not the configured deployment owner, or does not own this resource (SEC-002 — never distinguishable from 404).
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    CsrfRequired:
+      description: Missing or invalid `X-CSRF-TOKEN`; no state change occurred.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    ValidationError:
+      description: >-
+        The request failed input validation — including a symbol outside
+        the Feature 001-003 supported universe (`UNSUPPORTED_INSTRUMENT`,
+        FR-018), on both `recordTransaction` and `addWatchlistItem`: an
+        invalid reference in the request, not a ledger-state conflict, so
+        it is `400` on every endpoint that can produce it, never `409`.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    PortfolioNotFound:
+      description: Unknown portfolio, or not owned by the caller (indistinguishable from Forbidden).
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    TransactionNotFound:
+      description: Unknown transaction within this portfolio.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    WatchlistNotFound:
+      description: Unknown watchlist, or not owned by the caller.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    DuplicatePortfolioName:
+      description: The owner already has an active portfolio with this name.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    DuplicateWatchlistName:
+      description: The owner already has a watchlist with this name.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    TransactionRejected:
+      description: >-
+        A ledger-state conflict, never an invalid input value (those are
+        `400 ValidationError`, including `UNSUPPORTED_INSTRUMENT`):
+        `INSUFFICIENT_POSITION`, `INSUFFICIENT_CASH_BALANCE`,
+        `LOT_ALREADY_CONSUMED`, `ALREADY_VOIDED`, or `DUPLICATE_SUBMISSION`
+        (research R-011 — `Idempotency-Key` already used on this portfolio;
+        `detail` names the original transaction id) — see `reasonCode`.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    PeriodTooLong:
+      description: The requested analytics period exceeds the configured maximum span (research R-006).
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    ServerError:
+      description: The service could not process the request.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  schemas:
+    Decimal:
+      type: string
+      pattern: "^-?[0-9]+(\\.[0-9]+)?$"
+      description: An exact decimal transported as a string (DATA-001).
+    Instant:
+      type: string
+      format: date-time
+    MarketDate:
+      type: string
+      format: date
+    Applicability:
+      type: string
+      enum: [DEFINED, NOT_APPLICABLE, MISSING]
+    RiskLevel:
+      type: string
+      enum: [LOW, MEDIUM, HIGH]
+    TransactionType:
+      type: string
+      enum: [BUY, SELL, DEPOSIT, WITHDRAW, VOID]
+
+    PortfolioSummary:
+      type: object
+      required: [id, name, createdAt, totalValue, cashBalance, totalUnrealizedPL, totalRealizedPL, asOf]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        createdAt: { $ref: "#/components/schemas/Instant" }
+        totalValue: { $ref: "#/components/schemas/Decimal" }
+        cashBalance: { $ref: "#/components/schemas/Decimal" }
+        totalUnrealizedPL: { $ref: "#/components/schemas/Decimal" }
+        totalRealizedPL: { $ref: "#/components/schemas/Decimal" }
+        asOf: { $ref: "#/components/schemas/Instant" }
+
+    CreatePortfolioRequest:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+
+    RenamePortfolioRequest:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+
+    Transaction:
+      type: object
+      required: [id, portfolioId, sequenceNo, transactionType, executedAt, entryAt, idempotencyKey]
+      properties:
+        id: { type: string, format: uuid }
+        portfolioId: { type: string, format: uuid }
+        sequenceNo: { type: integer }
+        transactionType: { $ref: "#/components/schemas/TransactionType" }
+        instrumentSymbol: { type: string, nullable: true }
+        quantity: { allOf: [{ $ref: "#/components/schemas/Decimal" }], nullable: true }
+        price: { allOf: [{ $ref: "#/components/schemas/Decimal" }], nullable: true }
+        fee: { $ref: "#/components/schemas/Decimal" }
+        amount: { allOf: [{ $ref: "#/components/schemas/Decimal" }], nullable: true }
+        currency:
+          type: string
+          const: VND
+        executedAt: { $ref: "#/components/schemas/Instant" }
+        entryAt: { $ref: "#/components/schemas/Instant" }
+        voidsTransactionId: { type: string, format: uuid, nullable: true }
+        voidReason: { type: string, nullable: true }
+        idempotencyKey:
+          type: string
+          description: >-
+            Echoes the `Idempotency-Key` header this entry was recorded
+            with (research R-011), for audit and client-side reconciliation.
+
+    RecordTransactionRequest:
+      type: object
+      required: [transactionType, executedAt]
+      additionalProperties: false
+      properties:
+        transactionType:
+          type: string
+          enum: [BUY, SELL, DEPOSIT, WITHDRAW]
+        instrumentSymbol: { type: string, nullable: true }
+        quantity: { type: string, nullable: true }
+        price: { type: string, nullable: true }
+        fee: { type: string, default: "0" }
+        amount: { type: string, nullable: true }
+        executedAt: { $ref: "#/components/schemas/Instant" }
+
+    VoidTransactionRequest:
+      type: object
+      required: [reason]
+      additionalProperties: false
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 200 }
+
+    TransactionPage:
+      type: object
+      required: [items, totalCount, limit, offset]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Transaction" }
+        totalCount: { type: integer }
+        limit: { type: integer }
+        offset: { type: integer }
+
+    Position:
+      type: object
+      required: [instrumentSymbol, quantity, averageCostBasis, currentPrice, unrealizedPL, realizedPL, allocation]
+      properties:
+        instrumentSymbol: { type: string }
+        quantity: { $ref: "#/components/schemas/Decimal" }
+        averageCostBasis: { $ref: "#/components/schemas/Decimal" }
+        currentPrice:
+          allOf: [{ $ref: "#/components/schemas/Decimal" }]
+          nullable: true
+        currentPriceStatus: { $ref: "#/components/schemas/Applicability" }
+        unrealizedPL:
+          allOf: [{ $ref: "#/components/schemas/Decimal" }]
+          nullable: true
+        realizedPL: { $ref: "#/components/schemas/Decimal" }
+        allocation:
+          allOf: [{ $ref: "#/components/schemas/Decimal" }]
+          nullable: true
+
+    PositionsResponse:
+      type: object
+      required: [positions, cashBalance, totalValue, coherenceKey, asOf]
+      properties:
+        positions:
+          type: array
+          items: { $ref: "#/components/schemas/Position" }
+        cashBalance: { $ref: "#/components/schemas/Decimal" }
+        totalValue: { $ref: "#/components/schemas/Decimal" }
+        coherenceKey: { type: string, pattern: "^[0-9a-f]{32}$" }
+        asOf: { $ref: "#/components/schemas/Instant" }
+
+    ConcentrationEntry:
+      type: object
+      required: [key, percentage]
+      properties:
+        key: { type: string, description: "Symbol or sector name." }
+        percentage: { $ref: "#/components/schemas/Decimal" }
+
+    PerformancePoint:
+      type: object
+      required: [date, totalValue, dataStatus]
+      properties:
+        date: { $ref: "#/components/schemas/MarketDate" }
+        totalValue: { $ref: "#/components/schemas/Decimal" }
+        dataStatus:
+          type: string
+          enum: [CURRENT, PARTIAL]
+        reasonCode: { type: string, nullable: true }
+
+    RiskExposure:
+      type: object
+      required: [coverageRatio]
+      properties:
+        riskExposureScore:
+          type: integer
+          nullable: true
+        riskExposureLevel:
+          allOf: [{ $ref: "#/components/schemas/RiskLevel" }]
+          nullable: true
+        coverageRatio: { $ref: "#/components/schemas/Decimal" }
+        reasonCode: { type: string, nullable: true }
+
+    BenchmarkComparison:
+      type: object
+      required: [portfolioReturn, benchmarkReturn, benchmarkSymbol]
+      properties:
+        portfolioReturn:
+          allOf: [{ $ref: "#/components/schemas/Decimal" }]
+          nullable: true
+        benchmarkReturn: { $ref: "#/components/schemas/Decimal" }
+        benchmarkSymbol:
+          type: string
+          const: VNINDEX
+
+    PortfolioAnalyticsResponse:
+      type: object
+      required:
+        - periodFrom, periodTo, periodClampedToInception,
+          returnSinceInception, returnOverPeriod, maxDrawdown,
+          performanceHistory, stockConcentration, sectorConcentration,
+          riskExposure, benchmark, asOf
+      properties:
+        periodFrom:
+          allOf: [{ $ref: "#/components/schemas/MarketDate" }]
+          description: >-
+            The period start actually used to compute this response — may
+            differ from the requested `from` (see `periodClampedToInception`).
+        periodTo: { $ref: "#/components/schemas/MarketDate" }
+        periodClampedToInception:
+          type: boolean
+          description: >-
+            `true` when the requested `from` predated the portfolio's
+            first transaction and `periodFrom` was clamped to the actual
+            inception date instead (F6 — spec.md edge case "period before
+            first transaction"); `false` otherwise.
+        returnSinceInception:
+          allOf: [{ $ref: "#/components/schemas/Decimal" }]
+          nullable: true
+        returnOverPeriod:
+          allOf: [{ $ref: "#/components/schemas/Decimal" }]
+          nullable: true
+        returnMethodDisclosureCode:
+          type: string
+          const: NET_CONTRIBUTED_CAPITAL_METHOD
+        maxDrawdown:
+          allOf: [{ $ref: "#/components/schemas/Decimal" }]
+          nullable: true
+        performanceHistory:
+          type: array
+          items: { $ref: "#/components/schemas/PerformancePoint" }
+        stockConcentration:
+          type: array
+          items: { $ref: "#/components/schemas/ConcentrationEntry" }
+        sectorConcentration:
+          type: array
+          items: { $ref: "#/components/schemas/ConcentrationEntry" }
+        riskExposure: { $ref: "#/components/schemas/RiskExposure" }
+        benchmark: { $ref: "#/components/schemas/BenchmarkComparison" }
+        asOf: { $ref: "#/components/schemas/Instant" }
+
+    WatchlistSummary:
+      type: object
+      required: [id, name, createdAt, itemCount]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        createdAt: { $ref: "#/components/schemas/Instant" }
+        itemCount: { type: integer }
+
+    CreateWatchlistRequest:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+
+    RenameWatchlistRequest:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+
+    AddWatchlistItemRequest:
+      type: object
+      required: [symbol]
+      additionalProperties: false
+      properties:
+        symbol: { type: string, pattern: "^[A-Z0-9]{3,10}$" }
+
+    WatchlistItem:
+      type: object
+      required: [symbol, companyName, addedAt, dataStatus]
+      properties:
+        symbol: { type: string }
+        companyName: { type: string }
+        addedAt: { $ref: "#/components/schemas/Instant" }
+        currentPrice:
+          allOf: [{ $ref: "#/components/schemas/Decimal" }]
+          nullable: true
+        dailyChangePercent:
+          allOf: [{ $ref: "#/components/schemas/Decimal" }]
+          nullable: true
+        technicalTrend:
+          type: string
+          nullable: true
+        volumeCondition:
+          type: string
+          nullable: true
+        hasCurrentSignal: { type: boolean }
+        signalDirection:
+          type: string
+          nullable: true
+        riskLevel:
+          allOf: [{ $ref: "#/components/schemas/RiskLevel" }]
+          nullable: true
+        dataStatus:
+          type: string
+          enum: [CURRENT, DELAYED, STALE, PARTIAL, UNAVAILABLE]
+        reasonCode: { type: string, nullable: true }
+
+    WatchlistDetail:
+      type: object
+      required: [id, name, items, coherenceKey, asOf]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/WatchlistItem" }
+        coherenceKey: { type: string, pattern: "^[0-9a-f]{32}$" }
+        asOf: { $ref: "#/components/schemas/Instant" }
+
+    ErrorResponse:
+      type: object
+      required: [type, title, status, reasonCode, correlationId]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        reasonCode: { type: string }
+        correlationId: { type: string }
