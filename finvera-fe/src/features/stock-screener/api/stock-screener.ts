@@ -1,3 +1,5 @@
+import { getCsrf } from "../../auth/api/owner-access";
+
 export type DataStatus = "CURRENT" | "DELAYED" | "STALE" | "PARTIAL" | "UNAVAILABLE";
 
 export type MacdSignal = "BULLISH" | "BEARISH" | "NEUTRAL";
@@ -109,10 +111,16 @@ export class ScreenerApiError extends Error {
 }
 
 export async function executeScreen(request: ScreenRequest, signal?: AbortSignal): Promise<ScreenResponse> {
+  // A POST is state-changing by HTTP method as far as Spring Security's CSRF
+  // filter is concerned, regardless of this endpoint's own read-only business
+  // semantics (research R-006) — a missing token is a 403 at the real backend
+  // (see ScreenerControllerTests.executeRequiresACsrfTokenEvenWithAnAuthenticatedOwnerSession),
+  // so this reuses the same CSRF fetch `owner-access.ts` already established.
+  const csrf = await getCsrf();
   const response = await fetch("/api/v1/screener/executions", {
     method: "POST",
     credentials: "same-origin",
-    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    headers: { Accept: "application/json", "Content-Type": "application/json", [csrf.headerName]: csrf.token },
     body: JSON.stringify(request),
     signal,
   });

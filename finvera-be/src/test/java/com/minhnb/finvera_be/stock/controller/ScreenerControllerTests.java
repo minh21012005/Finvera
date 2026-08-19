@@ -68,6 +68,20 @@ class ScreenerControllerTests {
     }
 
     @Test
+    void executeRequiresACsrfTokenEvenWithAnAuthenticatedOwnerSession() throws Exception {
+        // Architecture.md §5: "State changes: Require X-CSRF-TOKEN; a missing
+        // token is HTTP 403 with no state change." A POST is state-changing by
+        // HTTP method regardless of the screener's own read-only business
+        // semantics (research R-006) — Spring Security's CSRF filter does not
+        // know or care that this particular POST persists nothing.
+        mvc.perform(post("/api/v1/screener/executions").session(ownerSession())
+                        .contentType("application/json").content("{}"))
+                .andExpect(status().isForbidden());
+
+        org.mockito.Mockito.verifyNoInteractions(screenerService);
+    }
+
+    @Test
     void ownerReceivesTheMatchListAndCategoryDisclosures() throws Exception {
         var match = new ScreenMatch("FPT", "FPT Corp", "HOSE", "Technology", Map.of("price", "123456.000000"),
                 DataStatus.CURRENT, LocalDate.of(2026, 8, 14));

@@ -235,6 +235,16 @@ async function installAuthenticatedOwnerSession(page: Page): Promise<void> {
       }),
     });
   });
+  // executeScreen fetches a CSRF token before its POST (SEC-002 lineage —
+  // Spring Security's CSRF filter applies to every state-changing HTTP
+  // method regardless of this endpoint's own read-only semantics).
+  await page.route("**/api/v1/auth/csrf", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ token: "fixture-csrf-token-0123456789", headerName: "X-CSRF-TOKEN" }),
+    });
+  });
 }
 
 function screenResponse(overrides: {

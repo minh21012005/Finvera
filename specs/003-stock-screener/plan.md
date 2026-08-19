@@ -6,23 +6,47 @@
 **Status**: Implemented and Verified (Fixture Baseline). All 33 tasks in
 `tasks.md` are complete with recorded evidence; see
 `validation/fixture-acceptance.md` for the full command/result table and
-scenario traceability. Backend: `.\mvnw.cmd test` 317/317 (0 regressions to
+scenario traceability. Backend: `.\mvnw.cmd test` 318/318 (0 regressions to
 Features 001/002), including `ScreenerV1Tests` 22/22, `ScreenerServiceTests`
-9/9, `ScreenerControllerTests` 4/4, `ScreenerSecurityTests` 1/1,
+9/9, `ScreenerControllerTests` 5/5, `ScreenerSecurityTests` 1/1,
 `ScreenerPerformanceTests` 1/1, `ScreenerFailureTests` 2/2,
 `ScreenerReplayDeterminismTests` 1/1, and extended `FundamentalSummaryTests`
 16/16. Frontend: `npm run test` 45/45, `npm run lint` clean, `npm run build`
-clean, `npx playwright test` 42/42 (30 pre-existing + 12 new). A real defect
-was found and fixed during T028 (fault-injection testing): the pass-1 daily-
-bar fetch was bounded by a fixed 90-calendar-day window, which silently
-dropped a stock whose last accepted session was older than that window from
-every Price/Market filter — an S-4 violation, not just a test artifact.
-Fixed with `EquityDailyBarRepository.findLatestNCurrentByInstrumentIdIn` (a
-native per-instrument top-N query); see `research.md` R-002's 2026-08-19
-amendment. Research R-002's originally-stated Hibernate-statement-count
-verification for the bulk repository methods was not implemented as a
-dedicated assertion; correctness and the one-bulk-query-per-table property
-were instead verified through `ScreenerServiceTests`/`ScreenerPerformanceTests`
+clean, `npx playwright test` 42/42 (30 pre-existing + 12 new).
+
+Two real defects were found and fixed, both by tests specifically designed
+to exercise a real boundary rather than a mock of it:
+
+1. (T028) The pass-1 daily-bar fetch was bounded by a fixed 90-calendar-day
+   window, which silently dropped a stock whose last accepted session was
+   older than that window from every Price/Market filter — an S-4
+   violation, not just a test artifact. Fixed with
+   `EquityDailyBarRepository.findLatestNCurrentByInstrumentIdIn` (a native
+   per-instrument top-N query); see `research.md` R-002's 2026-08-19
+   amendment.
+2. (T030 follow-up) The frontend's `executeScreen` POST never attached a
+   CSRF token, so every screen execution would fail with 403 against the
+   real backend — invisible to every automated test because
+   `ScreenerControllerTests` always supplied `.with(csrf())` explicitly and
+   `stock-screener.spec.ts` mocks the network call before it reaches a real
+   CSRF-checking server. Caught only by re-scrutinizing the SEC boundary
+   after being asked directly whether the feature was truly complete, then
+   confirmed with a new backend regression test AND a live smoke run
+   (throwaway Postgres, real `spring-boot:run`, real `npm run dev`, zero
+   mocking) exercising the actual login → CSRF → screener POST → JSON →
+   render path end to end. Fixed by reusing the existing
+   `auth/api/owner-access.ts` CSRF-fetch pattern.
+
+This is the direct, uncomfortable lesson of both defects: a fully-mocked
+test suite proves the code behaves correctly against the *shape* of its
+dependencies, not against the *real* enforcement those dependencies apply.
+Both fixes are backed by a test that reproduces the real failure without
+mocking the boundary that hid it.
+
+Research R-002's originally-stated Hibernate-statement-count verification
+for the bulk repository methods was not implemented as a dedicated
+assertion; correctness and the one-bulk-query-per-table property were
+instead verified through `ScreenerServiceTests`/`ScreenerPerformanceTests`
 passing within the NFR-001 latency baseline, a narrower form of the same
 guarantee. No provider gate is opened or reopened by this feature; Feature
 002's G-01 to G-04 and Feature 001's T051 ingress deferral remain unchanged

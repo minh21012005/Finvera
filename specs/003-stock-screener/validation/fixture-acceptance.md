@@ -10,10 +10,10 @@ own — it reads only tables Features 001/002 already accept and persist.
 
 | Boundary | Command/evidence | Result |
 |---|---|---|
-| Spring domain, API, security, persistence, replay, performance, fault-injection | `finvera-be\.\mvnw.cmd test` | PASS — 317 tests, 0 failures/errors (full repository suite, includes Features 001/002 unchanged) |
+| Spring domain, API, security, persistence, replay, performance, fault-injection | `finvera-be\.\mvnw.cmd test` | PASS — 318 tests, 0 failures/errors (full repository suite, includes Features 001/002 unchanged) |
 | `screener-v1` engine (all four filter categories, Breakout/Trend, S-4 exclusions, replay) | `ScreenerV1Tests` | PASS — 22/22 |
 | Two-pass orchestration (Market/Price/Technical/Fundamental, coherence key, sorting) | `ScreenerServiceTests` | PASS — 9/9 |
-| Contract/security (`POST /screener/executions`) | `ScreenerControllerTests` | PASS — 4/4 |
+| Contract/security (`POST /screener/executions`), including CSRF-required-even-when-authenticated | `ScreenerControllerTests` | PASS — 5/5 |
 | Owner-only negative security | `ScreenerSecurityTests` | PASS — 1/1, `ScreenerService` never invoked when unauthenticated |
 | Latency smoke (NFR-001) | `ScreenerPerformanceTests` | PASS — p95 within the 5-second baseline across 20 multi-category screens over a 60-instrument universe |
 | Fault injection — degraded category vs. legitimate empty result (NFR-002) | `ScreenerFailureTests` | PASS — 2/2; also caught and fixed a real defect (see `research.md` R-002 amendment, `tasks.md` T028) |
@@ -44,6 +44,28 @@ own — it reads only tables Features 001/002 already accept and persist.
 | P3 | Negative-earnings P/E is `NOT_APPLICABLE`, distinct from missing | `ScreenerV1Tests.peFilterExcludesNegativeEarningsNotApplicableDistinctFromMissing` |
 | All | Non-advice framing present in the UI | `screener.test.tsx`; `stock-screener.spec.ts` (all three P1/P2/P3 groups) |
 | All | Non-color status indicators | `screener.test.tsx`; `ScreenerResults` renders text labels alongside `status-pill` classes |
+
+## Live-stack smoke verification (2026-08-19, beyond the automated suite)
+
+Every automated test above exercises a mocked or in-process boundary
+somewhere (MockMvc, `page.route`, Testcontainers-with-Spring-context). To
+close that gap, a one-off manual pass ran the real, live components
+together: a throwaway local Postgres 17 container, the real `spring-boot:run`
+backend, and the real `npm run dev` frontend, with zero network mocking.
+This is exactly how it caught a defect the fully-mocked suite structurally
+could not: `executeScreen`'s missing CSRF header (see `tasks.md` T030
+follow-up, `plan.md` header). Verified against the live stack, post-fix:
+
+| Check | Result |
+|---|---|
+| Unauthenticated `POST /screener/executions` | 403 (CSRF filter fires before authentication in the real chain ordering) |
+| Authenticated session, no CSRF token | 403 |
+| Real login form → real session cookie → real CSRF fetch → real screener POST | 200, correct `ScreenResponse` JSON, correctly parsed and rendered by the real frontend as "Kết quả (0 mã)" against the genuinely empty throwaway database |
+| Selected filter against zero candidates | `categoryDisclosures` correctly reports `UNAVAILABLE`/`NO_CANDIDATES`, matching the fixture-mode test expectation |
+
+All smoke infrastructure (the Postgres container, both dev-server processes,
+the one-off local owner account, and the throwaway test file that drove
+this) was torn down afterward; none of it is committed or persists.
 
 ## Gates and manual steps intentionally still open
 

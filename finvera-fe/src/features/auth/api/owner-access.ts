@@ -45,7 +45,7 @@ export async function logoutOwner(): Promise<void> {
   if (!response.ok) throw new OwnerAccessApiError(response.status);
 }
 
-async function getCsrf(): Promise<{ token: string; headerName: "X-CSRF-TOKEN" }> {
+export async function getCsrf(): Promise<{ token: string; headerName: "X-CSRF-TOKEN" }> {
   const response = await fetch("/api/v1/auth/csrf", {
     method: "GET",
     credentials: "same-origin",

@@ -606,6 +606,35 @@ Playwright E2E 42/42 including the 12 new screener journeys).
       found one hit, inspected and confirmed benign: the owner login form's
       `password` input attributes and `fetch(..., {credentials: "same-origin"})`
       call sites, no literal secret value.
+      Follow-up (2026-08-19, discovered after this task was first marked
+      done): the user asked "is Feature 3 really fully done" and that
+      question itself prompted re-scrutiny of exactly this SEC boundary.
+      `finvera-fe/src/features/stock-screener/api/stock-screener.ts`'s
+      `executeScreen` sent its POST with no `X-CSRF-TOKEN` header at all.
+      Every automated test had passed regardless: `ScreenerControllerTests`
+      always called `.with(csrf())` explicitly, and `stock-screener.spec.ts`
+      fully mocks `page.route("**/api/v1/screener/executions")`, intercepting
+      the request before it ever reached a real CSRF-checking backend — so
+      neither test could have caught this. Added
+      `executeRequiresACsrfTokenEvenWithAnAuthenticatedOwnerSession` to
+      `ScreenerControllerTests` first, confirmed it reproduces a real 403
+      against the actual Spring Security filter chain, then fixed
+      `executeScreen` to fetch a token via the existing
+      `auth/api/owner-access.ts` `getCsrf()` (exported for reuse) before
+      POSTing, mirroring the login/logout flow's own pattern exactly.
+      `stock-screener.spec.ts` updated to mock `GET /api/v1/auth/csrf` too.
+      Re-verified end to end against a **real, live** local stack (throwaway
+      Postgres 17 container, real `spring-boot:run`, real `npm run dev`, a
+      one-off manual owner account, zero `page.route` mocking): unauthenticated
+      POST → 403 (CSRF filter fires before authentication in the chain
+      ordering); authenticated POST without a token → 403; the real login
+      form → real session cookie → real CSRF-token-bearing screener POST →
+      real Jackson JSON response, parsed correctly by the frontend and
+      rendered as "Kết quả (0 mã)" against the genuinely empty throwaway
+      database. All smoke infrastructure (container, throwaway servers, the
+      one-off test file) was torn down afterward; nothing from it is
+      committed. Backend suite re-run after the fix: 318/318 (services and
+      Postgres containers restarted cleanly afterward).
 - [x] T031 [FR-001 to FR-014, SC-001 to SC-006] Execute and record the
       fixture-mode commands/scenarios in `quickstart.md`
       Verify: P1-P3 happy paths, degraded/failure paths, authorization
