@@ -670,6 +670,36 @@ Playwright E2E 42/42 including the 12 new screener journeys).
       `finvera-fe\npm run lint` → 0 errors/warnings; `npm run test` →
       45/45; `npm run build` → clean; `npx playwright test` → 42/42. All
       five commands run in this pass, not assumed from earlier partial runs.
+      Re-confirmed after the T030 CSRF follow-up fix: `.\mvnw.cmd test` →
+      **318/318**.
+
+## Post-Implementation Analysis (2026-08-19)
+
+`docs/SDD_WORKFLOW.md` step 6 (`/speckit-analyze`) is not registered as an
+invocable skill in this harness; performed manually against
+`.agents/skills/speckit-analyze/SKILL.md`'s own checklist instead —
+cross-referencing `spec.md`, `plan.md`, `tasks.md`, `contracts/`, and
+`.specify/memory/constitution.md`.
+
+**Findings:**
+
+| ID | Category | Severity | Location | Summary | Resolution |
+|---|---|---|---|---|---|
+| F1 | Inconsistency | MEDIUM | `plan.md` "Observability and operations" | Promised bespoke counters/gauges/timers for the screener that were never implemented | Verified Feature 002's own read-only stock-detail services (`StockOverviewService`, `TechnicalIndicatorService` read path, `FundamentalReportService`, `ValuationService`) carry none either — `StockObservabilityService` is scoped to the ingestion boundary only, by established precedent. Building bespoke screener-only metrics would have made it the *only* instrumented read path for no principled reason. `plan.md` corrected to describe the actual, precedent-consistent baseline (global `CorrelationIdFilter`, shared `ProblemDetailsAdvice`, and NFR-002 failure-class visibility carried in the response body itself) instead of adding inconsistent code. |
+| F2 | Style | LOW | `research.md`/`data-model.md`/`spec.md` | "candidate universe" / "supported universe" / "LISTED universe" used interchangeably for the same concept | Not fixed — no execution or comprehension risk; noted for awareness only |
+
+**Coverage summary**: 29/29 requirement IDs (14 FR + 4 DATA + 2 SEC + 3 NFR +
+6 SC) have at least one task in the Requirement Coverage table — 100%.
+**Constitution alignment**: no MUST violation found; F1 touched Principle
+VII but resolved as "already consistent with precedent," not a gap.
+**Unmapped tasks**: none. **Critical issues**: 0.
+
+**Outcome**: Feature 003 is closed. All 33 tasks complete with recorded
+evidence; both defects found during implementation-and-review (the 90-day
+bar-window S-4 violation, and the missing CSRF header) are fixed and
+verified against a real live stack, not only mocks; this analyze pass's one
+real finding (F1) is resolved by correcting documentation to match a
+verified, precedent-consistent implementation.
 
 ## Dependencies and Parallel Execution
 

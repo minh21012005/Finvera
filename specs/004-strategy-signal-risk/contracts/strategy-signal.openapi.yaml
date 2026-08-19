@@ -1,0 +1,327 @@
+openapi: 3.1.0
+info:
+  title: Finvera Strategy, Signal, and Risk API
+  version: 1.0.0
+  description: >-
+    Private Spring Boot contract for Feature 004 (Strategy, Signal, and Risk
+    Scenarios). Only the configured deployment owner may call these
+    endpoints (SEC-001), under the same session Features 001-003 already
+    established.
+
+    Every signal is a deterministic evaluation of already-accepted facts
+    (FR-012) — direction, levels, and risk are computed exactly once per
+    instrument/strategy/as-of date and persisted (research R-006), not
+    recomputed per request once they exist. A signal is a scenario, never a
+    guarantee or an instruction (FR-013). Decimals are transported as JSON
+    strings (DATA-002).
+servers:
+  - url: /api/v1
+security:
+  - sessionCookie: []
+tags:
+  - name: Signals
+    description: Per-stock strategy evaluation, signals, and risk.
+  - name: Strategies
+    description: Universe-wide strategy scanning.
+paths:
+  /stocks/{symbol}/signals:
+    get:
+      operationId: getStockSignals
+      summary: Get every currently triggered strategy signal for one stock
+      description: >-
+        FR-001 to FR-008. Evaluates all eight strategies; only triggered
+        ones appear as signals. A non-triggered or insufficient-history
+        strategy appears in `evaluations` with its status, never fabricated
+        as a signal.
+      tags: [Signals]
+      parameters:
+        - $ref: "#/components/parameters/Symbol"
+        - name: If-None-Match
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Zero or more current signals, plus every strategy's evaluation status.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockSignalsResponse"
+        "304": { description: Unchanged. }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/StockNotSupported" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+  /strategies/{strategyCode}/scan:
+    post:
+      operationId: scanStrategy
+      summary: Find every supported stock currently triggering one strategy
+      description: >-
+        FR-009 to FR-011. Expressed as a POST (matching Feature 003's
+        `screener-v1` convention, research R-007) even though it mutates
+        nothing — a read operation over a potentially large result set with
+        pagination.
+      tags: [Strategies]
+      parameters:
+        - $ref: "#/components/parameters/StrategyCode"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScanRequest"
+      responses:
+        "200":
+          description: The matching stocks, possibly empty (FR-010).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanResponse"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "500": { $ref: "#/components/responses/ServerError" }
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: FINVERA_SESSION
+      description: >-
+        The owner session established by the Feature 001 private owner
+        access contract. No separate authentication path exists (SEC-001).
+
+  parameters:
+    Symbol:
+      name: symbol
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[A-Z0-9]{3,10}$"
+    StrategyCode:
+      name: strategyCode
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/StrategyCode"
+
+  headers:
+    ETag:
+      description: Validator derived from the response's accepted revision vector.
+      schema:
+        type: string
+
+  responses:
+    Unauthenticated:
+      description: Missing, expired, or invalid private owner session.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    Forbidden:
+      description: The authenticated caller is not the configured deployment owner.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    StockNotSupported:
+      description: >-
+        The symbol is unknown or not supported by Finvera's accepted
+        reference data. No placeholder stock is returned.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    ServerError:
+      description: The service could not evaluate the request.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  schemas:
+    Decimal:
+      type: string
+      pattern: "^-?[0-9]+(\\.[0-9]+)?$"
+      description: An exact decimal transported as a string (DATA-002).
+    Instant:
+      type: string
+      format: date-time
+    DataStatus:
+      type: string
+      enum: [CURRENT, DELAYED, STALE, PARTIAL, UNAVAILABLE]
+    Applicability:
+      type: string
+      enum: [DEFINED, NOT_APPLICABLE, MISSING]
+    Direction:
+      type: string
+      enum: [LONG]
+    RiskLevel:
+      type: string
+      enum: [LOW, MEDIUM, HIGH]
+    SignalStrength:
+      type: string
+      enum: [WEAK, MODERATE, STRONG]
+    StrategyCode:
+      type: string
+      enum:
+        - TREND_FOLLOWING
+        - MOMENTUM
+        - BREAKOUT
+        - PULLBACK
+        - MEAN_REVERSION
+        - MA_CROSSOVER
+        - MACD_BASED
+        - RSI_BASED
+    EvaluationStatus:
+      type: string
+      enum: [SIGNAL, NO_SIGNAL, INSUFFICIENT_HISTORY, WITHHELD]
+      description: >-
+        `SIGNAL` = this strategy currently triggers (see `matches` for the
+        associated `Signal`); `NO_SIGNAL` = evaluated, condition not met
+        (FR-004); `INSUFFICIENT_HISTORY` = required indicator(s) lack
+        enough accepted bars (FR-005); `WITHHELD` = a cross-source conflict
+        on a dependency (DATA-003).
+
+    RiskFactor:
+      type: object
+      required: [factorCode, applicability]
+      properties:
+        factorCode:
+          type: string
+          enum: [VOLATILITY, ATR, DRAWDOWN, LIQUIDITY, STOP_DISTANCE, MARKET_REGIME]
+        inputValue: { $ref: "#/components/schemas/Decimal" }
+        factorScore:
+          type: integer
+          nullable: true
+        applicability: { $ref: "#/components/schemas/Applicability" }
+        reasonCode:
+          type: string
+          nullable: true
+
+    Signal:
+      type: object
+      required:
+        - strategyCode, ruleVersion, direction, entryLow, entryHigh, stopLoss,
+          target1, target2, riskReward, asOfTradingDate, calculatedAt
+      properties:
+        strategyCode: { $ref: "#/components/schemas/StrategyCode" }
+        ruleVersion:
+          type: string
+          const: strategy-signal-v1
+        direction: { $ref: "#/components/schemas/Direction" }
+        entryLow: { $ref: "#/components/schemas/Decimal" }
+        entryHigh: { $ref: "#/components/schemas/Decimal" }
+        stopLoss: { $ref: "#/components/schemas/Decimal" }
+        target1: { $ref: "#/components/schemas/Decimal" }
+        target2: { $ref: "#/components/schemas/Decimal" }
+        riskReward: { $ref: "#/components/schemas/Decimal" }
+        riskScore:
+          type: integer
+          nullable: true
+        riskLevel:
+          allOf: [{ $ref: "#/components/schemas/RiskLevel" }]
+          nullable: true
+        signalStrength:
+          allOf: [{ $ref: "#/components/schemas/SignalStrength" }]
+          nullable: true
+        riskFactors:
+          type: array
+          items: { $ref: "#/components/schemas/RiskFactor" }
+        supportingEvidence:
+          type: object
+          additionalProperties: true
+          description: >-
+            The specific accepted indicator/derivation values that
+            satisfied the entry condition, keyed by name (e.g.
+            `{"rsi14": "68.42", "trend": "UPTREND"}`).
+        reasonCodes:
+          type: array
+          items: { type: string }
+        asOfTradingDate:
+          type: string
+          format: date
+        calculatedAt: { $ref: "#/components/schemas/Instant" }
+
+    StrategyEvaluation:
+      type: object
+      required: [strategyCode, status]
+      properties:
+        strategyCode: { $ref: "#/components/schemas/StrategyCode" }
+        status: { $ref: "#/components/schemas/EvaluationStatus" }
+        reasonCode:
+          type: string
+          nullable: true
+        signal:
+          allOf: [{ $ref: "#/components/schemas/Signal" }]
+          nullable: true
+
+    StockSignalsResponse:
+      type: object
+      required: [symbol, dataStatus, evaluations, coherenceKey, asOf]
+      properties:
+        symbol: { type: string }
+        dataStatus: { $ref: "#/components/schemas/DataStatus" }
+        evaluations:
+          type: array
+          items: { $ref: "#/components/schemas/StrategyEvaluation" }
+          minItems: 8
+          maxItems: 8
+        disclaimerCode:
+          type: string
+          const: QUANTITATIVE_DECISION_SUPPORT
+        coherenceKey:
+          type: string
+          pattern: "^[0-9a-f]{32}$"
+        asOf: { $ref: "#/components/schemas/Instant" }
+
+    ScanRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+        offset:
+          type: integer
+          minimum: 0
+          default: 0
+
+    ScanMatch:
+      type: object
+      required: [symbol, companyName, exchange, signal]
+      properties:
+        symbol: { type: string }
+        companyName: { type: string }
+        exchange: { type: string }
+        signal: { $ref: "#/components/schemas/Signal" }
+
+    ScanResponse:
+      type: object
+      required: [strategyCode, matches, totalMatchCount, limit, offset, calculatedAt]
+      properties:
+        strategyCode: { $ref: "#/components/schemas/StrategyCode" }
+        matches:
+          type: array
+          items: { $ref: "#/components/schemas/ScanMatch" }
+        totalMatchCount: { type: integer }
+        limit: { type: integer }
+        offset: { type: integer }
+        excludedForInsufficientHistoryCount:
+          type: integer
+          description: FR-011 — distinguishable from "the universe simply has no match."
+        calculatedAt: { $ref: "#/components/schemas/Instant" }
+
+    ErrorResponse:
+      type: object
+      required: [type, title, status, reasonCode, correlationId]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        reasonCode: { type: string }
+        correlationId: { type: string }

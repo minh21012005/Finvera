@@ -259,25 +259,45 @@ response shapes.
 
 ### Observability and operations
 
-**Counters**: screens executed, matches returned per screen, candidates
-excluded per category and reason code.
+**Amendment (2026-08-19, found during the post-implementation analyze
+pass):** this section originally specified bespoke counters/gauges/timers
+for the screener. They were never built, and — on review — building them
+would have made the screener inconsistent with every other read path in
+this codebase rather than more observable: Feature 002's five read-only
+stock-detail sections (`StockOverviewService`, `StockChartService`,
+`TechnicalIndicatorService`'s read path, `FundamentalReportService`,
+`ValuationService`) carry none either. `StockObservabilityService`
+(counters/gauges/timers) is scoped to the ingestion/write boundary
+(`StockIngestionService`) only, by established precedent, because that is
+where the six-class failure taxonomy (provider unavailable, invalid record,
+etc.) actually applies — a pure read endpoint has no provider call to fail.
+The corrected baseline below is what the screener actually has, matching
+every sibling read endpoint:
 
-**Gauges**: candidate universe size (count of `LISTED` instruments), count
-of instruments below each Technical/Fundamental filter's minimum data
-requirement.
+- **Correlation**: every request — including
+  `POST /screener/executions` — carries `X-Correlation-ID` via the global
+  `CorrelationIdFilter` (`shared.api`), verified directly against the real
+  running backend during the live-stack smoke test (T030 follow-up).
+- **Health and errors**: standard Spring Boot Actuator health, and RFC 9457
+  `application/problem+json` errors via the shared `ProblemDetailsAdvice`
+  for the 400/401/403/500 cases (confirmed by `ScreenerControllerTests`/
+  `ScreenerSecurityTests`).
+- **Failure-class visibility (NFR-002)**: is carried in the response body
+  itself, not a separate telemetry channel — `categoryDisclosures[].status`
+  distinguishes a category with zero evaluable candidates (`UNAVAILABLE`)
+  from one that was genuinely evaluated and matched nothing (`CURRENT`),
+  the exact distinction `ScreenerFailureTests` asserts. The owner sees this
+  directly; no log correlation is needed to diagnose it.
 
-**Timers**: pass-1 SQL narrowing, pass-2 bulk fetch, `screener-v1`
-evaluation, total endpoint latency.
+If a future need arises to monitor screener load/latency in aggregate
+(e.g., after the single-owner assumption changes), add counters/timers to
+`ScreenerService` at that time — and, per the same reasoning, consider
+adding them to Feature 002's read services too, rather than leaving the
+screener as the only instrumented read path for no principled reason.
 
-**Failure classes** distinguishable in monitoring (NFR-002 lineage): a whole
-selected category unevaluable across the candidate universe, versus a
-category that evaluated normally and simply matched zero stocks — these must
-never be logged or reported identically, since one is a data-quality signal
-and the other is a legitimate answer.
-
-Every request carries the existing correlation identifier. Logs may carry
-filter category names, candidate/match counts, and timings; never a
-per-instrument value or a credential.
+Logs (from the shared filter chain and `ProblemDetailsAdvice`) may carry
+the correlation id, HTTP method/path, and status; never a per-instrument
+filter value, a matched result, or a credential.
 
 ### Test and evaluation strategy
 
