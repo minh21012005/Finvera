@@ -82,6 +82,9 @@ class StockTechnicalControllerTests {
     @MockitoBean
     private com.minhnb.finvera_be.stock.service.ValuationService valuationService;
 
+    @MockitoBean
+    private com.minhnb.finvera_be.stock.service.strategy.StrategySignalService signalService;
+
     @Test
     void technicalRequiresThePrivateOwnerSession() throws Exception {
         mvc.perform(get("/api/v1/stocks/FPT/technical"))

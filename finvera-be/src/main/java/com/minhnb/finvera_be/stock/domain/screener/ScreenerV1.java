@@ -327,7 +327,7 @@ public final class ScreenerV1 {
 
     // ── Breakout and Trend (new in screener-v1; contracts/screener-v1.md) ──────
 
-    static BreakoutResult deriveBreakout(CandidateFacts c) {
+    public static BreakoutResult deriveBreakout(CandidateFacts c) {
         List<DailyBarPoint> bars = c.recentBars();
         if (bars == null || bars.size() < BREAKOUT_LOOKBACK_SESSIONS + 1) {
             return new BreakoutResult(true, null);
@@ -351,7 +351,7 @@ public final class ScreenerV1 {
         return new BreakoutResult(false, condition);
     }
 
-    static TrendResult deriveTrend(CandidateFacts c) {
+    public static TrendResult deriveTrend(CandidateFacts c) {
         BigDecimal ma20 = componentValue(c, IndicatorCode.MA20, IndicatorComponent.VALUE);
         BigDecimal ma50 = componentValue(c, IndicatorCode.MA50, IndicatorComponent.VALUE);
         BigDecimal ma200 = componentValue(c, IndicatorCode.MA200, IndicatorComponent.VALUE);
@@ -511,9 +511,9 @@ public final class ScreenerV1 {
             List<CategoryOutcome> categoryOutcomes) {
     }
 
-    record BreakoutResult(boolean unavailable, BreakoutCondition condition) {
+    public record BreakoutResult(boolean unavailable, BreakoutCondition condition) {
     }
 
-    record TrendResult(boolean unavailable, TrendDirection direction) {
+    public record TrendResult(boolean unavailable, TrendDirection direction) {
     }
 }

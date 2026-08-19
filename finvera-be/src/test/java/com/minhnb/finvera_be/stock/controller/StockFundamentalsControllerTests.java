@@ -64,6 +64,7 @@ class StockFundamentalsControllerTests {
     @MockitoBean private com.minhnb.finvera_be.stock.service.TechnicalIndicatorService technicalService;
     @MockitoBean private FundamentalReportService fundamentalService;
     @MockitoBean private ValuationService valuationService;
+    @MockitoBean private com.minhnb.finvera_be.stock.service.strategy.StrategySignalService signalService;
 
     // ── Security ────────────────────────────────────────────────────────────────
 

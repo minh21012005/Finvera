@@ -8,4 +8,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface RegimeAssessmentRepository extends JpaRepository<MarketRegimeAssessmentEntity, UUID> {
     Optional<MarketRegimeAssessmentEntity> findFirstByTradingDateOrderByAsOfDescCalculatedAtDesc(LocalDate tradingDate);
+
+    Optional<MarketRegimeAssessmentEntity> findFirstByOrderByTradingDateDescAsOfDescCalculatedAtDesc();
 }

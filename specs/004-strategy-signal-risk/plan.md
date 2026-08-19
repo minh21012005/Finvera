@@ -3,7 +3,18 @@
 **Feature Directory**: `specs/004-strategy-signal-risk`
 **Date**: 2026-08-19
 **Spec**: [spec.md](spec.md)
-**Status**: Draft
+**Status**: Implemented and Verified (Fixture Baseline). All 34 tasks in
+`tasks.md` are complete with recorded evidence; see
+`validation/fixture-acceptance.md` for the full command/result table and
+scenario traceability. Backend: `.\mvnw.cmd test` 384/384 (0 regressions to
+Features 001-003), including `StrategySignalV1Tests` 31/31,
+`StrategySignalServiceTests` 4/4, `StrategyScanServiceTests` 4/4,
+`SignalControllerTests` 5/5, `StrategyScanControllerTests` 4/4,
+`StrategySignalSecurityTests` 3/3, `StrategySignalMigrationTests` 8/8,
+`StrategySignalPerformanceTests` 2/2, `StrategySignalFailureTests` 3/3, and
+`StrategySignalReplayDeterminismTests` 2/2. Frontend: `npm run test` 62/62
+(17 new), `npm run lint` clean, `npm run build` clean, `npx playwright test`
+55/55 (42 pre-existing + 13 new).
 
 ## Summary
 
@@ -101,8 +112,73 @@ strength R-005) before this plan was written, per Constitution Principle V.
 
 ### Post-design gate
 
-*(To be completed after implementation, mirroring Feature 003's practice of
-keeping this section honest rather than pre-filled.)*
+Completed after implementation (2026-08-19), reviewed against what was
+actually delivered rather than what was planned:
+
+- [x] **I. Deterministic finance core** — `StrategySignalV1` is delivered
+  exactly as `contracts/strategy-signal-v1.md` specifies: eight entry
+  conditions, the uniform ATR-anchored level formulas, and the six-factor
+  risk score, all `BigDecimal` arithmetic, no floating point. The
+  required-test-vector table's every row has a passing assertion in
+  `StrategySignalV1Tests` (31/31).
+- [x] **II. Evidence, provenance, temporal truth** — `strategy_signal_input`
+  links every triggered signal's exact contributing indicator/prior-day/
+  daily-bar/regime rows; `supportingEvidence` in the API response names the
+  specific values that satisfied the entry condition; every withheld
+  strategy/factor states a reason code, never a silent drop.
+- [x] **III. Explicit boundaries** — `stock` reads Feature 001's regime
+  assessment only through `MarketReferenceDataService.findCurrentRegimeAssessment`,
+  never `market.entity`/`market.repository` directly; enforced by
+  `StockModuleArchitectureTests` (4/4, unchanged pass).
+- [x] **IV. Security, privacy, responsible decision support** — both
+  endpoints require the existing owner session; the scan `POST` requires
+  CSRF from the first implementation (`StrategyScanControllerTests`,
+  `StrategySignalSecurityTests`), closing the exact gap class Feature 003's
+  T030 finding discovered after the fact. Every signal response carries the
+  `QUANTITATIVE_DECISION_SUPPORT` disclaimer; the frontend never renders a
+  buy/sell instruction (`signals.test.tsx`, `stock-signals.spec.ts`).
+- [x] **V. Specification and traceability before code** — implementation
+  matched the reviewed `strategy-signal-v1.md`/`strategy-signal.openapi.yaml`
+  contracts with zero deviation discovered; no contract edit was needed
+  (T026).
+- [x] **VI. Risk-based testing** — every risk class named in the pre-research
+  gate has recorded evidence: numerical boundaries and the risk-factor floor
+  (`StrategySignalV1Tests`), persistence/revision
+  (`StrategySignalServiceTests`), authorization
+  (`StrategySignalSecurityTests`), degradation
+  (`StrategySignalFailureTests`), timing (`StrategySignalPerformanceTests`),
+  and replay (`StrategySignalReplayDeterminismTests`).
+- [x] **VII. Resilience and observability** — matches the plan's own
+  decided-up-front baseline; no bespoke counters were added, consistent
+  with Feature 002/003's own read-path precedent. Verified, not merely
+  planned.
+- [x] **VIII. Modular simplicity** — no new module, table beyond the three
+  planned, datastore, or AI dependency was added. One deliberate
+  in-implementation simplification beyond what research.md anticipated:
+  `RiskFactorInputAssembler` was factored out of `StrategySignalService`
+  during implementation (not originally named in research.md) so
+  `StrategyScanService` could reuse the identical six-factor risk-input
+  assembly rather than duplicating ~90 lines of bulk-fetch logic — the
+  simpler outcome, not a complexity addition.
+
+**Findings corrected during implementation** (recorded here rather than
+hidden, per `AGENTS.md`):
+1. `FinveraBeApplicationTests` (the full-context-load smoke test) failed to
+   start once the three new `Strategy*Repository` beans existed, because
+   that test excludes real JPA/DataSource autoconfiguration and instead
+   mocks every repository bean by hand — the three new repositories were
+   simply missing from its mock list. Fixed by adding them; this is
+   maintenance debt inherent to that test's own design (Feature 003 hit the
+   identical pattern for its own new repositories), not a defect in this
+   feature's production code.
+2. The first draft of `StrategySignalPerformanceTests` applied the scan's
+   5-second baseline (NFR-002) to the single-stock signal view test too,
+   instead of NFR-001's own 3-second baseline. Caught by re-reading
+   `spec.md` against the test during this gate, not by the test itself
+   (both baselines happened to pass either way at fixture scale) — fixed
+   before closing the feature.
+
+**Result**: PASS.
 
 ## System Context and Boundaries
 

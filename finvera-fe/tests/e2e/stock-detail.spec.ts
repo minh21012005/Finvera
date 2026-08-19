@@ -238,6 +238,23 @@ async function installStockDetailFixtures(
   await page.route("**/api/v1/stocks/FPT/valuation", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(valuationFixture(valuationMode)) });
   });
+  await page.route("**/api/v1/stocks/FPT/signals", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(emptySignalsFixture()) });
+  });
+}
+
+function emptySignalsFixture() {
+  return {
+    symbol: "FPT",
+    dataStatus: "CURRENT",
+    evaluations: [
+      "TREND_FOLLOWING", "MOMENTUM", "BREAKOUT", "PULLBACK", "MEAN_REVERSION",
+      "MA_CROSSOVER", "MACD_BASED", "RSI_BASED",
+    ].map((strategyCode) => ({ strategyCode, status: "NO_SIGNAL", reasonCode: null, signal: null })),
+    disclaimerCode: "QUANTITATIVE_DECISION_SUPPORT",
+    coherenceKey: "coh-signal-empty",
+    asOf: "2026-08-17T07:15:01Z",
+  };
 }
 
 async function installMarketOverviewSearchFixture(page: Page): Promise<void> {

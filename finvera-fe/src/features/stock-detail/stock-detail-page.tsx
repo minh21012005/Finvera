@@ -12,11 +12,13 @@ import {
   type StockTechnical as StockTechnicalData,
   type StockValuation as StockValuationData,
 } from "./api/stock-detail";
+import { getStockSignals, type StockSignals as StockSignalsData } from "./api/stock-signals";
 import { StockOverview } from "./components/stock-overview";
 import { StockChart } from "./components/stock-chart";
 import { StockTechnical } from "./components/stock-technical";
 import { StockFundamentals } from "./components/stock-fundamentals";
 import { StockValuation } from "./components/stock-valuation";
+import { StockSignals } from "./components/stock-signals";
 import { SymbolSearch } from "./components/symbol-search";
 import { navigate } from "../../router";
 
@@ -46,12 +48,18 @@ type ValuationState =
   | { kind: "ready"; valuation: StockValuationData }
   | { kind: "unavailable" };
 
+type SignalsState =
+  | { kind: "loading" }
+  | { kind: "ready"; signals: StockSignalsData }
+  | { kind: "unavailable" };
+
 export function StockDetailPage({ symbol }: { symbol: string }) {
   const [overviewState, setOverviewState] = useState<OverviewState>({ kind: "loading" });
   const [chartState, setChartState] = useState<ChartState>({ kind: "loading" });
   const [technicalState, setTechnicalState] = useState<TechnicalState>({ kind: "loading" });
   const [fundamentalsState, setFundamentalsState] = useState<FundamentalsState>({ kind: "loading" });
   const [valuationState, setValuationState] = useState<ValuationState>({ kind: "loading" });
+  const [signalsState, setSignalsState] = useState<SignalsState>({ kind: "loading" });
 
   useEffect(() => {
     const controller = new AbortController();
@@ -94,6 +102,13 @@ export function StockDetailPage({ symbol }: { symbol: string }) {
       .catch(() => {
         if (controller.signal.aborted) return;
         setValuationState({ kind: "unavailable" });
+      });
+
+    getStockSignals(symbol, controller.signal)
+      .then((signals) => setSignalsState({ kind: "ready", signals }))
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        setSignalsState({ kind: "unavailable" });
       });
 
     return () => controller.abort();
@@ -158,6 +173,15 @@ export function StockDetailPage({ symbol }: { symbol: string }) {
             </section>
           )}
           {valuationState.kind === "ready" && <StockValuation valuation={valuationState.valuation} />}
+
+          {signalsState.kind === "loading" && <p aria-busy="true">Đang tải tín hiệu chiến lược…</p>}
+          {signalsState.kind === "unavailable" && (
+            <section aria-labelledby="stock-signals-heading" className="stock-signals-card">
+              <h2 id="stock-signals-heading">Tín hiệu chiến lược giao dịch</h2>
+              <p role="status">Tín hiệu chiến lược tạm thời không có dữ liệu.</p>
+            </section>
+          )}
+          {signalsState.kind === "ready" && <StockSignals signals={signalsState.signals} />}
 
           <footer className="provenance-footer">
             <span>

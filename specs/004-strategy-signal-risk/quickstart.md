@@ -1,8 +1,9 @@
 # Quickstart and Acceptance: Strategy, Signal, and Risk Scenarios
 
 **Feature**: `004-strategy-signal-risk`
-**Status**: Planned; implementation not started. Commands below do not
-exist until their task lands.
+**Status**: Implemented and verified against fixture-mode data. Every
+command below is real; see `validation/fixture-acceptance.md` for the
+recorded evidence.
 
 Every command below runs against `127.0.0.1` only, per the same Tailscale
 Serve-only ingress runbook Features 001-003 already require.

@@ -1,5 +1,6 @@
 package com.minhnb.finvera_be.market.service;
 
+import com.minhnb.finvera_be.market.domain.model.MarketTypes.DataStatus;
 import com.minhnb.finvera_be.market.domain.model.MarketTypes.SessionState;
 import com.minhnb.finvera_be.market.domain.model.MarketTypes.Venue;
 import com.minhnb.finvera_be.market.domain.time.MarketTimePolicy;
@@ -9,6 +10,7 @@ import com.minhnb.finvera_be.market.entity.MarketInstrumentEntity;
 import com.minhnb.finvera_be.market.repository.MarketCalendarDayRepository;
 import com.minhnb.finvera_be.market.repository.MarketInstrumentRepository;
 import com.minhnb.finvera_be.market.repository.MarketSessionWindowRepository;
+import com.minhnb.finvera_be.market.repository.RegimeAssessmentRepository;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
@@ -25,15 +27,18 @@ public class DefaultMarketReferenceDataService implements MarketReferenceDataSer
     private final MarketInstrumentRepository instruments;
     private final MarketCalendarDayRepository calendarDays;
     private final MarketSessionWindowRepository sessionWindows;
+    private final RegimeAssessmentRepository regimeAssessments;
     private final MarketTimePolicy timePolicy;
 
     public DefaultMarketReferenceDataService(
             MarketInstrumentRepository instruments,
             MarketCalendarDayRepository calendarDays,
-            MarketSessionWindowRepository sessionWindows) {
+            MarketSessionWindowRepository sessionWindows,
+            RegimeAssessmentRepository regimeAssessments) {
         this.instruments = instruments;
         this.calendarDays = calendarDays;
         this.sessionWindows = sessionWindows;
+        this.regimeAssessments = regimeAssessments;
         this.timePolicy = new MarketTimePolicy(MARKET_ZONE);
     }
 
@@ -97,6 +102,13 @@ public class DefaultMarketReferenceDataService implements MarketReferenceDataSer
                 .toList();
         SessionState state = timePolicy.sessionAt(at, calendarDay, windows);
         return new SessionContext(state, tradingDate);
+    }
+
+    @Override
+    public Optional<RegimeAssessmentReference> findCurrentRegimeAssessment() {
+        return regimeAssessments.findFirstByOrderByTradingDateDescAsOfDescCalculatedAtDesc()
+                .map(entity -> new RegimeAssessmentReference(entity.getId(), entity.getTradingDate(),
+                        entity.getScore(), DataStatus.valueOf(entity.getDataStatus())));
     }
 
     private static InstrumentReference toReference(MarketInstrumentEntity entity) {

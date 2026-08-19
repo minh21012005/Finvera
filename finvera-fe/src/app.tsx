@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { MarketOverviewPage } from "./features/market-overview/market-overview-page";
 import { StockDetailPage } from "./features/stock-detail/stock-detail-page";
 import { StockScreenerPage } from "./features/stock-screener/stock-screener-page";
+import { StockStrategyPage } from "./features/stock-strategy/stock-strategy-page";
 import { OwnerAccessGate } from "./features/auth/owner-access-gate";
-import { isScreenerPath, parseStockSymbolFromPath } from "./router";
+import { isScreenerPath, isStrategyScanPath, parseStockSymbolFromPath } from "./router";
 
 export function App() {
   const [pathname, setPathname] = useState(() => window.location.pathname);
@@ -22,6 +23,8 @@ export function App() {
         <StockDetailPage key={symbol} symbol={symbol} />
       ) : isScreenerPath(pathname) ? (
         <StockScreenerPage />
+      ) : isStrategyScanPath(pathname) ? (
+        <StockStrategyPage />
       ) : (
         <MarketOverviewPage />
       )}

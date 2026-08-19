@@ -60,4 +60,27 @@ public final class StockTypes {
     public enum Unit {
         VND, SHARES, PERCENT, RATIO, POINTS, COUNT
     }
+
+    /** Feature 004 {@code strategy-signal-v1}: fixed, code-defined (data-model.md). */
+    public enum StrategyCode {
+        TREND_FOLLOWING, MOMENTUM, BREAKOUT, PULLBACK, MEAN_REVERSION, MA_CROSSOVER, MACD_BASED, RSI_BASED
+    }
+
+    /** Single value in this feature (spec.md Assumptions); an enum so a future value is additive. */
+    public enum Direction {
+        LONG
+    }
+
+    public enum RiskLevel {
+        LOW, MEDIUM, HIGH
+    }
+
+    /** Derived from {@link RiskLevel} at read time (research R-005); never independently stored. */
+    public enum SignalStrength {
+        WEAK, MODERATE, STRONG
+    }
+
+    public enum RiskFactorCode {
+        VOLATILITY, ATR, DRAWDOWN, LIQUIDITY, STOP_DISTANCE, MARKET_REGIME
+    }
 }

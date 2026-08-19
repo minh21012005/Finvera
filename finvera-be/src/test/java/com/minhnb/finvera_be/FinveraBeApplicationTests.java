@@ -116,6 +116,15 @@ class FinveraBeApplicationTests {
 	@MockitoBean
 	com.minhnb.finvera_be.stock.repository.ValuationAssessmentInputRepository valuationAssessmentInputRepository;
 
+	@MockitoBean
+	com.minhnb.finvera_be.stock.repository.StrategySignalRepository strategySignalRepository;
+
+	@MockitoBean
+	com.minhnb.finvera_be.stock.repository.StrategySignalRiskFactorRepository strategySignalRiskFactorRepository;
+
+	@MockitoBean
+	com.minhnb.finvera_be.stock.repository.StrategySignalInputRepository strategySignalInputRepository;
+
 	@DynamicPropertySource
 	static void ownerProperties(DynamicPropertyRegistry registry) {
 		registry.add("finvera.security.owner.id", UUID::randomUUID);

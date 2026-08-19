@@ -1,5 +1,6 @@
 package com.minhnb.finvera_be.market.service;
 
+import com.minhnb.finvera_be.market.domain.model.MarketTypes.DataStatus;
 import com.minhnb.finvera_be.market.domain.model.MarketTypes.SessionState;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -33,6 +34,14 @@ public interface MarketReferenceDataService {
     /** The trading-day and session-window state at an instant, for one venue. */
     SessionContext resolveSession(String venue, Instant at);
 
+    /**
+     * The most recently accepted market regime assessment across every
+     * trading date (Feature 004's {@code MARKET_REGIME} risk factor), not
+     * scoped to one instrument — regime is a market-wide fact. Empty when no
+     * assessment has ever been accepted.
+     */
+    Optional<RegimeAssessmentReference> findCurrentRegimeAssessment();
+
     record InstrumentReference(
             UUID instrumentId,
             String venue,
@@ -42,5 +51,12 @@ public interface MarketReferenceDataService {
     }
 
     record SessionContext(SessionState state, LocalDate tradingDate) {
+    }
+
+    record RegimeAssessmentReference(
+            UUID id,
+            LocalDate tradingDate,
+            Integer score,
+            DataStatus dataStatus) {
     }
 }
