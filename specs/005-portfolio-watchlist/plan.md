@@ -1,10 +1,9 @@
 # Implementation Plan: Portfolio and Watchlist Management
 
 **Feature Directory**: `specs/005-portfolio-watchlist`
-**Date**: 2026-08-19
+**Date**: 2026-08-19 (Delivered: 2026-08-20)
 **Spec**: [spec.md](spec.md)
-**Status**: Draft — design complete, not yet implemented. `tasks.md` has
-not been generated.
+**Status**: Delivered & Verified. All phases (Foundation, US1, US2, US3, Phase 5) completed with full test coverage.
 
 ## Summary
 

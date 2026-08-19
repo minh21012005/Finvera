@@ -10,6 +10,8 @@ public interface EquityProfileRepository extends JpaRepository<EquityProfileEnti
 
     Optional<EquityProfileEntity> findFirstByInstrumentIdAndEffectiveToIsNull(UUID instrumentId);
 
+    List<EquityProfileEntity> findByInstrumentIdInAndEffectiveToIsNull(java.util.Collection<UUID> instrumentIds);
+
     /** Feature 003 research R-007: the screener's candidate universe root. */
     List<EquityProfileEntity> findByEffectiveToIsNullAndListingStatus(String listingStatus);
 }

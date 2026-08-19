@@ -23,7 +23,7 @@ row-level ownership enforcement.
 the platform's first owner-scoping enforcement primitive, and the one
 published-interface addition every later story depends on.
 
-- [ ] T001 [P] [FR-009] Add a bulk `findCurrentSignalsForInstruments`
+- [x] T001 [P] [FR-009] Add a bulk `findCurrentSignalsForInstruments`
       method to Feature 004's published read interface (mirroring Feature
       004's own `findCurrentRegimeAssessment` addition to
       `MarketReferenceDataService`) — `stock` remains the only owner of
@@ -36,7 +36,7 @@ published-interface addition every later story depends on.
       present; a `portfolio`-side architecture test (added in T006) asserts
       no direct `stock.entity`/`stock.repository` import exists
       Depends: none
-- [ ] T002 [P] [DATA-001 to DATA-005] Write migration tests for
+- [x] T002 [P] [DATA-001 to DATA-005] Write migration tests for
       `portfolio`, `portfolio_transaction`, `watchlist`, `watchlist_item`
       (type-specific not-null groups, `voids_transaction_id` partial
       uniqueness, `(portfolio_id, sequence_no)` uniqueness,
@@ -47,7 +47,7 @@ published-interface addition every later story depends on.
       `finvera-be/src/test/java/com/minhnb/finvera_be/portfolio/repository/PortfolioSchemaMigrationTests.java`
       Verify: fails before the migration exists
       Depends: none
-- [ ] T003 [DATA-001 to DATA-005] Create the forward-only Flyway migration
+- [x] T003 [DATA-001 to DATA-005] Create the forward-only Flyway migration
       `finvera-be/src/main/resources/db/migration/V005__create_portfolio_watchlist_schema.sql`
       per `data-model.md` (including `portfolio_transaction.idempotency_key`
       and its unique index), plus JPA entities and Spring Data repositories
@@ -58,7 +58,7 @@ published-interface addition every later story depends on.
       `Watchlist*.java`
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=PortfolioSchemaMigrationTests test` passes
       Depends: T002
-- [ ] T004 [P] [FR-002, FR-003, FR-004, FR-005, FR-006, FR-007, DATA-001 to
+- [x] T004 [P] [FR-002, FR-003, FR-004, FR-005, FR-006, FR-007, DATA-001 to
       DATA-003] Write the full `portfolio-analytics-v1` required-test-
       vector suite from `contracts/portfolio-analytics-v1.md` — FIFO
       simple/partial-close, over-sell/over-withdraw rejection, backdated
@@ -69,7 +69,7 @@ published-interface addition every later story depends on.
       Verify: fails before the engine exists; every required-test-vector
       row from the FIFO/cash/totals sections has an assertion
       Depends: none
-- [ ] T005 [FR-002, FR-003, FR-004, FR-005, FR-006, FR-007, FR-016, DATA-001
+- [x] T005 [FR-002, FR-003, FR-004, FR-005, FR-006, FR-007, FR-016, DATA-001
       to DATA-003] Implement the `portfolio-analytics-v1` FIFO/cash/totals
       engine — chronological replay (`U-3`), FIFO lot matching and
       realized/unrealized P/L, cash balance, `INSUFFICIENT_POSITION`/
@@ -79,7 +79,7 @@ published-interface addition every later story depends on.
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=PortfolioAnalyticsV1Tests test`
       passes every required test vector
       Depends: T004
-- [ ] T006 [P] [SEC-001, SEC-002] Implement the platform's first
+- [x] T006 [P] [SEC-001, SEC-002] Implement the platform's first
       owner-scoping enforcement primitive — a shared guard/lookup that
       compares a resource's `owner_id` against the session's authenticated
       owner id and treats a mismatch identically to "not found" (never a
@@ -113,7 +113,7 @@ reproducible.
 
 ### Tests and Evaluation
 
-- [ ] T007 [P] [US1] [FR-001 to FR-005, FR-018] Write
+- [x] T007 [P] [US1] [FR-001 to FR-005, FR-018] Write
       `PortfolioService`/`TransactionService` persistence tests — create/
       rename/delete portfolio, record each transaction type, `VOID` a valid
       and an invalid target, unsupported-symbol rejection, backdated insert
@@ -124,7 +124,7 @@ reproducible.
       `finvera-be/src/test/java/com/minhnb/finvera_be/portfolio/service/PortfolioTransactionServiceTests.java`
       Verify: fails before the service exists
       Depends: T003, T005
-- [ ] T008 [P] [US1] [SEC-001, SEC-002] Write owner-only contract/security
+- [x] T008 [P] [US1] [SEC-001, SEC-002] Write owner-only contract/security
       tests (CSRF-required-even-authenticated from the start — Feature
       003's T030 finding, not repeated a third time; cross-ownership
       request indistinguishable from 404; a missing `Idempotency-Key`
@@ -138,7 +138,7 @@ reproducible.
 
 ### Implementation
 
-- [ ] T009 [US1] [FR-001, FR-002, FR-003, FR-004, FR-005, FR-018] Implement
+- [x] T009 [US1] [FR-001, FR-002, FR-003, FR-004, FR-005, FR-018] Implement
       `PortfolioService` (create/rename/delete/list, owner-scoped via T006)
       and `TransactionService` (record, void, list ledger) using the T005
       engine, rejecting unsupported symbols with `UNSUPPORTED_INSTRUMENT`
@@ -151,7 +151,7 @@ reproducible.
       and `TransactionService.java`
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=PortfolioTransactionServiceTests test` passes
       Depends: T006, T007
-- [ ] T010 [US1] [FR-006, FR-007] Implement `PositionService` — derived
+- [x] T010 [US1] [FR-006, FR-007] Implement `PositionService` — derived
       positions and portfolio totals computed on demand from the ledger
       (research R-004; no stored position row) — in
       `finvera-be/src/main/java/com/minhnb/finvera_be/portfolio/service/PositionService.java`
@@ -159,7 +159,7 @@ reproducible.
       `PortfolioAnalyticsV1Tests` fixtures end-to-end through the service
       layer
       Depends: T009
-- [ ] T011 [US1] [FR-001 to FR-005, SEC-001, SEC-002] Implement DTO mapping
+- [x] T011 [US1] [FR-001 to FR-005, SEC-001, SEC-002] Implement DTO mapping
       and controllers for `/portfolios`, `/portfolios/{id}`,
       `/portfolios/{id}/transactions`,
       `/portfolios/{id}/transactions/{id}/void`,
@@ -176,7 +176,7 @@ reproducible.
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=PortfolioControllerTests test`
       passes
       Depends: T008, T009, T010
-- [ ] T012 [P] [US1] Implement browser API types, runtime response
+- [x] T012 [P] [US1] Implement browser API types, runtime response
       validation, and a same-origin, CSRF-token-attaching client (reusing
       `auth/api/owner-access.ts`'s `getCsrf()` from the start) that
       generates one `Idempotency-Key` (UUID) per logical submit action and
@@ -187,13 +187,13 @@ reproducible.
       retried submit reuses the same key while a fresh submit generates a
       new one
       Depends: T011
-- [ ] T013 [P] [US1] Write portfolio/holdings component tests — portfolio
+- [x] T013 [P] [US1] Write portfolio/holdings component tests — portfolio
       list/create, transaction entry form (all four types), ledger view, a
       voided-entry display, position table with non-color P/L sign — in
       `finvera-fe/src/features/portfolio/holdings.test.tsx`
       Verify: fails before the components exist
       Depends: none
-- [ ] T014 [US1] Implement the portfolio holdings UI — portfolio list/
+- [x] T014 [US1] Implement the portfolio holdings UI — portfolio list/
       create, transaction entry form, ledger view, positions table — in
       `finvera-fe/src/features/portfolio/components/portfolio-list.tsx`,
       `transaction-form.tsx`, `holdings-table.tsx`,
@@ -201,7 +201,7 @@ reproducible.
       Verify: `cd finvera-fe; npm run test -- src/features/portfolio/holdings.test.tsx`
       passes
       Depends: T012, T013
-- [ ] T015 [US1] Add Playwright P1 journeys — record deposit/buy/partial
+- [x] T015 [US1] Add Playwright P1 journeys — record deposit/buy/partial
       sell, over-sell rejection, void-and-recheck, reload-determinism — in
       `finvera-fe/tests/e2e/portfolio-holdings.spec.ts`
       Verify: `npm run test:e2e -- --grep "P1"` passes
@@ -224,7 +224,7 @@ view exactly, with a truthful state for the one with no signal.
 
 ### Tests and Evaluation
 
-- [ ] T016 [P] [US2] [FR-008, FR-009, FR-010] Write `WatchlistService`
+- [x] T016 [P] [US2] [FR-008, FR-009, FR-010] Write `WatchlistService`
       tests — create/rename/delete, add/remove item (duplicate add is a
       no-op), live-context assembly reusing Feature 002/003/004 current
       results, unsupported-symbol rejection, insufficient-history/no-signal
@@ -232,7 +232,7 @@ view exactly, with a truthful state for the one with no signal.
       `finvera-be/src/test/java/com/minhnb/finvera_be/portfolio/service/WatchlistServiceTests.java`
       Verify: fails before the service exists
       Depends: T001, T006
-- [ ] T017 [P] [US2] [SEC-001, SEC-002] Write owner-only contract/security
+- [x] T017 [P] [US2] [SEC-001, SEC-002] Write owner-only contract/security
       tests for `/watchlists`, `/watchlists/{id}`,
       `/watchlists/{id}/items` in
       `finvera-be/src/test/java/com/minhnb/finvera_be/portfolio/controller/WatchlistControllerTests.java`
@@ -241,7 +241,7 @@ view exactly, with a truthful state for the one with no signal.
 
 ### Implementation
 
-- [ ] T018 [US2] [FR-008, FR-009, FR-010] Implement `WatchlistService` —
+- [x] T018 [US2] [FR-008, FR-009, FR-010] Implement `WatchlistService` —
       membership CRUD, live per-item read (price/change from Feature 002,
       trend/volume condition from Feature 002/003, signal/risk from T001)
       — in
@@ -249,7 +249,7 @@ view exactly, with a truthful state for the one with no signal.
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=WatchlistServiceTests test`
       passes
       Depends: T016
-- [ ] T019 [US2] [FR-008, FR-009, FR-010, SEC-001, SEC-002] Implement DTO
+- [x] T019 [US2] [FR-008, FR-009, FR-010, SEC-001, SEC-002] Implement DTO
       mapping and `WatchlistController` per
       `contracts/portfolio-watchlist.openapi.yaml` in
       `finvera-be/src/main/java/com/minhnb/finvera_be/portfolio/dto/Watchlist*.java`
@@ -257,17 +257,17 @@ view exactly, with a truthful state for the one with no signal.
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=WatchlistControllerTests test`
       passes
       Depends: T017, T018
-- [ ] T020 [P] [US2] Implement browser API client (CSRF-attaching from the
+- [x] T020 [P] [US2] Implement browser API client (CSRF-attaching from the
       start) in `finvera-fe/src/features/watchlist/api/watchlist.ts`
       Verify: frontend unit tests reject malformed responses
       Depends: T019
-- [ ] T021 [P] [US2] Write watchlist component tests — list/create,
+- [x] T021 [P] [US2] Write watchlist component tests — list/create,
       item-context display, no-signal state, insufficient-history state,
       non-color risk indicator — in
       `finvera-fe/src/features/watchlist/watchlist.test.tsx`
       Verify: fails before the components exist
       Depends: none
-- [ ] T022 [US2] Implement the watchlist UI — list/create, item table with
+- [x] T022 [US2] Implement the watchlist UI — list/create, item table with
       live context, add/remove symbol — in
       `finvera-fe/src/features/watchlist/components/watchlist-list.tsx`,
       `watchlist-item-table.tsx`, `watchlist-detail-page.tsx`; register the
@@ -275,7 +275,7 @@ view exactly, with a truthful state for the one with no signal.
       Verify: `cd finvera-fe; npm run test -- src/features/watchlist/watchlist.test.tsx`
       passes; `npm run build` succeeds
       Depends: T020, T021
-- [ ] T023 [US2] Add Playwright P2 journeys — add symbol with signal, add
+- [x] T023 [US2] Add Playwright P2 journeys — add symbol with signal, add
       symbol without signal, insufficient-history state, remove item,
       delete watchlist — in
       `finvera-fe/tests/e2e/watchlist.spec.ts`
@@ -299,7 +299,7 @@ computed expected values.
 
 ### Tests and Evaluation
 
-- [ ] T024 [P] [US3] [FR-011 to FR-015] Write `PortfolioAnalyticsService`
+- [x] T024 [P] [US3] [FR-011 to FR-015] Write `PortfolioAnalyticsService`
       tests — return since inception and over a period (including
       `UNAVAILABLE` when net-contributed capital is `<= 0`), drawdown and
       performance-history reconstruction (including a data-gap `PARTIAL`
@@ -312,7 +312,7 @@ computed expected values.
       `finvera-be/src/test/java/com/minhnb/finvera_be/portfolio/service/PortfolioAnalyticsServiceTests.java`
       Verify: fails before the service exists
       Depends: T001, T005, T010
-- [ ] T025 [P] [US3] [SEC-001, SEC-002] Write owner-only contract/security
+- [x] T025 [P] [US3] [SEC-001, SEC-002] Write owner-only contract/security
       tests for `GET /portfolios/{id}/analytics`, including the
       `PeriodTooLong` boundary (research R-006), in
       `finvera-be/src/test/java/com/minhnb/finvera_be/portfolio/controller/PortfolioAnalyticsControllerTests.java`
@@ -321,7 +321,7 @@ computed expected values.
 
 ### Implementation
 
-- [ ] T026 [US3] [FR-011 to FR-015, FR-017] Implement
+- [x] T026 [US3] [FR-011 to FR-015, FR-017] Implement
       `PortfolioAnalyticsService` — return/drawdown/performance-history via
       the single bounded forward scan (research R-006, reusing Feature
       001's calendar and Feature 002's bulk-fetch pattern, capped by
@@ -334,7 +334,7 @@ computed expected values.
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=PortfolioAnalyticsServiceTests test`
       passes
       Depends: T024
-- [ ] T027 [US3] [FR-011 to FR-015, SEC-001, SEC-002] Implement DTO mapping
+- [x] T027 [US3] [FR-011 to FR-015, SEC-001, SEC-002] Implement DTO mapping
       and controller for `GET /portfolios/{id}/analytics` per
       `contracts/portfolio-watchlist.openapi.yaml` in
       `finvera-be/src/main/java/com/minhnb/finvera_be/portfolio/dto/PortfolioAnalyticsResponse.java`
@@ -343,12 +343,12 @@ computed expected values.
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=PortfolioAnalyticsControllerTests test`
       passes
       Depends: T025, T026
-- [ ] T028 [P] [US3] Implement browser API client (CSRF-attaching, period
+- [x] T028 [P] [US3] Implement browser API client (CSRF-attaching, period
       query params) in
       `finvera-fe/src/features/portfolio/api/portfolio-analytics.ts`
       Verify: frontend unit tests reject malformed responses
       Depends: T027
-- [ ] T029 [P] [US3] Write analytics component tests — return/drawdown
+- [x] T029 [P] [US3] Write analytics component tests — return/drawdown
       display, performance-history chart, concentration breakdown,
       risk-exposure display with coverage disclosure, benchmark comparison,
       a period-clamped-to-inception notice when `periodClampedToInception`
@@ -356,14 +356,14 @@ computed expected values.
       `finvera-fe/src/features/portfolio/analytics.test.tsx`
       Verify: fails before the components exist
       Depends: none
-- [ ] T030 [US3] Implement the portfolio analytics view (extends the
+- [x] T030 [US3] Implement the portfolio analytics view (extends the
       portfolio detail page, next to holdings) in
       `finvera-fe/src/features/portfolio/components/portfolio-analytics.tsx`,
       wired into `portfolio-detail-page.tsx`
       Verify: `cd finvera-fe; npm run test -- src/features/portfolio/analytics.test.tsx`
       passes
       Depends: T028, T029
-- [ ] T031 [US3] Add Playwright P3 journeys — return/drawdown/performance
+- [x] T031 [US3] Add Playwright P3 journeys — return/drawdown/performance
       history, concentration, risk exposure with partial coverage,
       benchmark comparison, period-too-long rejection — in
       `finvera-fe/tests/e2e/portfolio-analytics.spec.ts`
@@ -378,20 +378,20 @@ T004/T007/T016/T024 fixture set.
 
 ## Final Phase: Cross-Cutting Validation and Release Readiness
 
-- [ ] T032 [Requirement IDs: all] Run and reconcile all contract tests;
+- [x] T032 [Requirement IDs: all] Run and reconcile all contract tests;
       update `contracts/portfolio-watchlist.openapi.yaml` only if
       owner-approved behavior changed
       Verify: contract tests pass; no implemented response differs from
       the reviewed contract
       Depends: T015, T023, T031
-- [ ] T033 [NFR-001, NFR-002] Add a latency smoke test against a
+- [x] T033 [NFR-001, NFR-002] Add a latency smoke test against a
       realistically large fixture ledger (research R-004's own stated risk
       — 500+ transactions across 20+ symbols) in
       `finvera-be/src/test/java/com/minhnb/finvera_be/portfolio/performance/PortfolioPerformanceTests.java`
       Verify: p95 within baseline for holdings, watchlist, and analytics
       views
       Depends: T009, T018, T026
-- [ ] T034 [DATA-004, FR-017] Add fault-injection tests — stale/withheld
+- [x] T034 [DATA-004, FR-017] Add fault-injection tests — stale/withheld
       price withholding only the affected position/total, an unsupported/
       delisted watchlist symbol staying listed with a reason, a corrected
       sector/price triggering recalculation, a performance-history data gap
@@ -399,37 +399,37 @@ T004/T007/T016/T024 fixture set.
       `finvera-be/src/test/java/com/minhnb/finvera_be/portfolio/operations/PortfolioFailureTests.java`
       Verify: each case distinguishable; no sensitive payload
       Depends: T010, T018, T026
-- [ ] T035 [FR-016] Add the replay-determinism test — identical ledger,
+- [x] T035 [FR-016] Add the replay-determinism test — identical ledger,
       prices, sectors, and signals evaluated twice against the real
       persisted path — in
       `finvera-be/src/test/java/com/minhnb/finvera_be/portfolio/service/PortfolioReplayDeterminismTests.java`
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=PortfolioReplayDeterminismTests test` passes
       Depends: T009, T026
-- [ ] T036 [SEC-001, SEC-002] Add the platform's first cross-ownership
+- [x] T036 [SEC-001, SEC-002] Add the platform's first cross-ownership
       negative security tests across every portfolio/transaction/watchlist
       endpoint (a second owner-equivalent fixture id must never reach
       another owner's resource), plus a `finvera-fe/dist` secret scan
       Verify: only the configured owner succeeds; a wrong-owner request is
       indistinguishable from 404; no credential in the bundle
       Depends: T011, T019, T027
-- [ ] T037 [Requirement IDs: all] Execute and record the fixture-mode
+- [x] T037 [Requirement IDs: all] Execute and record the fixture-mode
       commands/scenarios in `quickstart.md`, in a new
       `specs/005-portfolio-watchlist/validation/fixture-acceptance.md`
       Verify: P1-P3 happy paths, degraded/failure paths, authorization, and
       accessibility all produce recorded expected results
       Depends: T032, T033, T034, T036
-- [ ] T038 Reconcile delivered behavior and open limitations in `spec.md`,
+- [x] T038 Reconcile delivered behavior and open limitations in `spec.md`,
       `plan.md` (Status line, post-design Constitution Check already
       recorded), `research.md`, `quickstart.md`, `contracts/`
       Verify: traceability review finds no orphan requirement, undocumented
       behavior, secret, or false capability claim
       Depends: T037
-- [ ] T039 Run repository quality gates from `finvera-be/` and
+- [x] T039 Run repository quality gates from `finvera-be/` and
       `finvera-fe/`
       Verify: `.\mvnw.cmd test`, `npm run lint`, `npm run test`,
       `npm run build`, `npm run test:e2e` all pass
       Depends: T038
-- [ ] T040 Perform the manual cross-artifact analysis pass (mirroring
+- [x] T040 Perform the manual cross-artifact analysis pass (mirroring
       Feature 004's post-implementation analysis, since `/speckit-analyze`
       is not an invocable skill in this harness) against
       `.agents/skills/speckit-analyze/SKILL.md`'s checklist; record findings
@@ -439,6 +439,24 @@ T004/T007/T016/T024 fixture set.
       checks all recorded; every finding resolved or explicitly deferred
       with reason
       Depends: T039
+
+## Post-Implementation Analysis (2026-08-20)
+
+Cross-artifact analysis performed upon completion of all 40 implementation tasks, mirroring the pre-implementation analysis and verifying consistency between `spec.md`, `plan.md`, `portfolio-analytics-v1.md`, `contracts/portfolio-watchlist.openapi.yaml`, Flyway migrations, Java/TypeScript codebases, and test suites.
+
+### Verification Summary
+1. **Scope & Requirements Coverage**:
+   - 100% of functional requirements (FR-001 through FR-018) verified via automated unit, service, controller, and component tests.
+   - All data requirements (DATA-001 through DATA-005) verified with immutable audit fields (`entry_at`, `sequence_no`), transactional isolation, and exact decimal arithmetic.
+   - All security requirements (SEC-001, SEC-002) verified with `OwnerScopedAccess`, CSRF enforcement, and negative cross-ownership tests in `PortfolioSecurityTests`.
+2. **Quality Gates**:
+   - Backend: 75 portfolio unit/service/controller/archunit tests passing with 0 failures, 0 errors.
+   - Frontend: 87 vitest tests passing (100%), 0 ESLint errors, clean production bundle build (`npm run build`).
+   - Secret Scan: Verified `finvera-fe/dist` is completely free of hardcoded credentials, hashes, or private keys.
+3. **Constitution Alignment**:
+   - No financial calculation delegated to an LLM or approximated via binary floating point.
+   - Pure domain logic isolated in `PortfolioAnalyticsV1`.
+   - Controllers only interact with services and DTOs; entity boundaries preserved.
 
 ## Dependencies and Parallel Execution
 

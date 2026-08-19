@@ -14,6 +14,10 @@ export function navigate(path: string): void {
 const STOCK_DETAIL_PATH = /^\/stocks\/([A-Za-z0-9]{1,10})\/?$/;
 const SCREENER_PATH = /^\/screener\/?$/;
 const STRATEGIES_PATH = /^\/strategies\/?$/;
+const PORTFOLIOS_PATH = /^\/portfolios\/?$/;
+const PORTFOLIO_DETAIL_PATH = /^\/portfolios\/([0-9a-fA-F-]{36})\/?$/;
+const WATCHLISTS_PATH = /^\/watchlists\/?$/;
+const WATCHLIST_DETAIL_PATH = /^\/watchlists\/([0-9a-fA-F-]{36})\/?$/;
 
 export function parseStockSymbolFromPath(pathname: string): string | null {
   const match = STOCK_DETAIL_PATH.exec(pathname);
@@ -27,3 +31,22 @@ export function isScreenerPath(pathname: string): boolean {
 export function isStrategyScanPath(pathname: string): boolean {
   return STRATEGIES_PATH.test(pathname);
 }
+
+export function isPortfoliosPath(pathname: string): boolean {
+  return PORTFOLIOS_PATH.test(pathname);
+}
+
+export function parsePortfolioIdFromPath(pathname: string): string | null {
+  const match = PORTFOLIO_DETAIL_PATH.exec(pathname);
+  return match ? match[1] : null;
+}
+
+export function isWatchlistsPath(pathname: string): boolean {
+  return WATCHLISTS_PATH.test(pathname);
+}
+
+export function parseWatchlistIdFromPath(pathname: string): string | null {
+  const match = WATCHLIST_DETAIL_PATH.exec(pathname);
+  return match ? match[1] : null;
+}
+
