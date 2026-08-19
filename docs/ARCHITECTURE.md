@@ -239,6 +239,7 @@ delivery failure.
 | Access and ingress | Tailscale plus local owner session | [ADR-0005](adr/0005-use-tailscale-and-local-owner-session.md) |
 | Web client | React with Vite, not Next.js | [ADR-0006](adr/0006-use-react-vite-for-private-web-client.md) |
 | Module internals | Layered architecture within modules | [ADR-0007](adr/0007-use-layered-architecture-within-backend-modules.md) |
+| Embedding provider | Gemini-family embeddings for RAG v1 | [ADR-0008](adr/0008-use-gemini-embeddings-for-rag-v1.md) |
 
 SRS section 57 maps the SRS's original architectural baseline to these ADRs where
 the two differ. The ADR is the engineering authority; the SRS remains the product

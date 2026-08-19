@@ -1,0 +1,584 @@
+openapi: 3.1.0
+info:
+  title: Finvera Research (News and Financial-Report RAG) API
+  version: 1.0.0
+  description: >-
+    Private Spring Boot contract for Feature 006. Only the configured
+    deployment owner may call these endpoints (SEC-001), under the same
+    session Features 001-005 already established. The browser calls only
+    this API — never `finvera-ai` directly (docs/ARCHITECTURE.md B-1).
+
+    Every state-changing request requires `X-CSRF-TOKEN`; a missing token
+    is HTTP 403 with no state change. `/research/ask` streams
+    (`text/event-stream`) to satisfy NFR-002. Every answer and retrieval
+    result is grounded in the owner's own corpus and carries citations
+    (AI-001); a response with no relevant evidence states so rather than
+    fabricating (AI-002, FR-010).
+servers:
+  - url: /api/v1
+security:
+  - sessionCookie: []
+tags:
+  - name: Documents
+    description: Research document upload, browsing, and deletion.
+  - name: News
+    description: News article submission, browsing, and deletion.
+  - name: Retrieval
+    description: Cited passage retrieval and grounded question answering.
+
+paths:
+  /research/documents:
+    get:
+      operationId: listDocuments
+      summary: Browse the owner's research documents (FR-015)
+      tags: [Documents]
+      parameters:
+        - $ref: "#/components/parameters/Symbol"
+        - name: documentType
+          in: query
+          schema: { $ref: "#/components/schemas/DocumentType" }
+        - $ref: "#/components/parameters/DateFrom"
+        - $ref: "#/components/parameters/DateTo"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Matching documents.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DocumentPage" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+    post:
+      operationId: submitDocument
+      summary: Upload or paste a research document (FR-001, FR-003)
+      description: >-
+        Exactly one of `file` or `pastedText` is required. Returns
+        immediately with `PENDING` status; processing is asynchronous
+        (NFR-003). A document with no extractable text later reaches
+        `FAILED` (FR-004), never a fabricated `READY`. Idempotent by the
+        required `Idempotency-Key` header (research R-013): replaying the
+        same key for this owner is rejected with `409
+        DUPLICATE_SUBMISSION` referencing the original document's id,
+        never silently creating a second corpus entry.
+      tags: [Documents]
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: "#/components/schemas/SubmitDocumentRequest" }
+      responses:
+        "201":
+          description: Accepted; `PENDING`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Document" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/CsrfRequired" }
+        "409": { $ref: "#/components/responses/DuplicateSubmission" }
+
+  /research/documents/{documentId}:
+    parameters:
+      - $ref: "#/components/parameters/DocumentId"
+    get:
+      operationId: getDocument
+      summary: Get one document's metadata and ingestion status
+      tags: [Documents]
+      responses:
+        "200":
+          description: The document.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Document" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/DocumentNotFound" }
+    delete:
+      operationId: deleteDocument
+      summary: Delete a document and its derived chunks/vectors (FR-016, DATA-004)
+      tags: [Documents]
+      responses:
+        "204": { description: Deleted; chunks and vector-index entries removed in the same operation. }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/CsrfRequired" }
+        "404": { $ref: "#/components/responses/DocumentNotFound" }
+
+  /research/news:
+    get:
+      operationId: listNewsArticles
+      summary: Browse the owner's news articles (FR-015)
+      tags: [News]
+      parameters:
+        - $ref: "#/components/parameters/Symbol"
+        - name: category
+          in: query
+          schema: { $ref: "#/components/schemas/NewsCategory" }
+        - name: sentiment
+          in: query
+          schema: { $ref: "#/components/schemas/Sentiment" }
+        - $ref: "#/components/parameters/DateFrom"
+        - $ref: "#/components/parameters/DateTo"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Matching articles.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NewsArticlePage" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+    post:
+      operationId: submitNewsArticle
+      summary: Submit a pasted news article (FR-002, FR-003)
+      description: >-
+        `referenceUrl`, if given, is stored for display only and never
+        fetched by the system (spec.md Assumptions). Classification
+        (FR-013) is produced asynchronously; fields are `null` with
+        `UNDETERMINED` applicability until processing completes or if
+        confidence is insufficient (FR-014). Idempotent by the required
+        `Idempotency-Key` header (research R-013), identically to
+        `submitDocument`.
+      tags: [News]
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubmitNewsArticleRequest" }
+      responses:
+        "201":
+          description: Accepted; `PENDING`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NewsArticle" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/CsrfRequired" }
+        "409": { $ref: "#/components/responses/DuplicateSubmission" }
+
+  /research/news/{newsArticleId}:
+    parameters:
+      - $ref: "#/components/parameters/NewsArticleId"
+    get:
+      operationId: getNewsArticle
+      summary: Get one news article's metadata, status, and classification
+      tags: [News]
+      responses:
+        "200":
+          description: The article.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NewsArticle" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NewsArticleNotFound" }
+    delete:
+      operationId: deleteNewsArticle
+      summary: Delete an article and its derived chunks/vectors (FR-016, DATA-004)
+      tags: [News]
+      responses:
+        "204": { description: Deleted; chunks and vector-index entries removed in the same operation. }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/CsrfRequired" }
+        "404": { $ref: "#/components/responses/NewsArticleNotFound" }
+
+  /research/retrieve:
+    post:
+      operationId: retrievePassages
+      summary: Retrieve ranked, cited passages from the owner's corpus (FR-005 to FR-008)
+      tags: [Retrieval]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RetrieveRequest" }
+      responses:
+        "200":
+          description: Ranked passages, possibly empty (FR-008).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RetrieveResponse" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/CsrfRequired" }
+        "503": { $ref: "#/components/responses/RetrievalUnavailable" }
+
+  /research/ask:
+    post:
+      operationId: askQuestion
+      summary: Ask a question and get a grounded, cited, streamed answer (FR-009 to FR-012, AI-001 to AI-003)
+      description: >-
+        Streams `text/event-stream` so the response begins within
+        NFR-002's 15-second budget even if full generation takes longer.
+        The final event's `refused = true` means no sufficiently relevant
+        passage existed (FR-010) — never a fabricated answer. A question
+        asking for a structured financial value is identified as outside
+        this capability (FR-011) rather than approximated.
+      tags: [Retrieval]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AskRequest" }
+      responses:
+        "200":
+          description: "A stream of `AskStreamEvent` objects ending in one `type: final` event."
+          content:
+            text/event-stream:
+              schema: { $ref: "#/components/schemas/AskStreamEvent" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/CsrfRequired" }
+        "503": { $ref: "#/components/responses/RetrievalUnavailable" }
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: FINVERA_SESSION
+      description: >-
+        The owner session established by the Feature 001 private owner
+        access contract. No separate authentication path exists (SEC-001).
+
+  parameters:
+    DocumentId:
+      name: documentId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    NewsArticleId:
+      name: newsArticleId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Symbol:
+      name: symbol
+      in: query
+      schema: { type: string, pattern: "^[A-Z0-9]{3,10}$" }
+    DateFrom:
+      name: dateFrom
+      in: query
+      schema: { type: string, format: date }
+    DateTo:
+      name: dateTo
+      in: query
+      schema: { type: string, format: date }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    Offset:
+      name: offset
+      in: query
+      schema: { type: integer, minimum: 0, default: 0 }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: >-
+        Client-generated, opaque per-attempt key (research R-013). The
+        frontend client generates one per logical submit action and reuses
+        it across that action's own retries only; a genuinely new
+        submission always uses a fresh key. Unique per owner.
+      schema: { type: string, minLength: 1, maxLength: 100 }
+
+  responses:
+    Unauthenticated:
+      description: Missing, expired, or invalid private owner session.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    Forbidden:
+      description: The authenticated caller is not the configured deployment owner, or does not own this resource (SEC-002 — never distinguishable from 404).
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    CsrfRequired:
+      description: Missing or invalid `X-CSRF-TOKEN`; no state change occurred.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    ValidationError:
+      description: The request failed input validation.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    DocumentNotFound:
+      description: Unknown document, or not owned by the caller (indistinguishable from Forbidden).
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    DuplicateSubmission:
+      description: >-
+        `Idempotency-Key` already used by this owner (research R-013);
+        `detail` names the original item's id. No new corpus entry or
+        ingestion job was created.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    NewsArticleNotFound:
+      description: Unknown article, or not owned by the caller.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    RetrievalUnavailable:
+      description: >-
+        The embedding provider, Qdrant, or the LLM provider is degraded or
+        unavailable; retrieval/answering is temporarily unavailable, never
+        silently returned as an empty-corpus result.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  schemas:
+    Instant:
+      type: string
+      format: date-time
+    MarketDate:
+      type: string
+      format: date
+    Applicability:
+      type: string
+      enum: [DEFINED, NOT_APPLICABLE, MISSING]
+    IngestionStatus:
+      type: string
+      enum: [PENDING, PROCESSING, READY, FAILED]
+    DocumentType:
+      type: string
+      enum:
+        - ANNUAL_REPORT
+        - QUARTERLY_REPORT
+        - FINANCIAL_REPORT
+        - ECONOMIC_REPORT
+        - INVESTOR_PRESENTATION
+        - CORPORATE_DISCLOSURE
+        - OTHER
+    NewsCategory:
+      type: string
+      enum: [COMPANY, SECTOR, MARKET, MACRO, REGULATION]
+    Sentiment:
+      type: string
+      enum: [POSITIVE, NEUTRAL, NEGATIVE]
+    ImpactLevel:
+      type: string
+      enum: [LOW, MEDIUM, HIGH]
+
+    SubmitDocumentRequest:
+      type: object
+      required: [title, documentType, year, source, publicationDate]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 300 }
+        symbol: { type: string, nullable: true }
+        documentType: { $ref: "#/components/schemas/DocumentType" }
+        year: { type: integer }
+        quarter: { type: integer, minimum: 1, maximum: 4, nullable: true }
+        source: { type: string, minLength: 1, maxLength: 200 }
+        publicationDate: { $ref: "#/components/schemas/MarketDate" }
+        file:
+          type: string
+          format: binary
+          nullable: true
+        pastedText:
+          type: string
+          nullable: true
+
+    Document:
+      type: object
+      required:
+        - id, title, documentType, year, source, publicationDate,
+          ingestionStatus, submittedAt
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        symbol: { type: string, nullable: true }
+        documentType: { $ref: "#/components/schemas/DocumentType" }
+        year: { type: integer }
+        quarter: { type: integer, nullable: true }
+        source: { type: string }
+        publicationDate: { $ref: "#/components/schemas/MarketDate" }
+        ingestionStatus: { $ref: "#/components/schemas/IngestionStatus" }
+        ingestionFailureReason: { type: string, nullable: true }
+        submittedAt: { $ref: "#/components/schemas/Instant" }
+        processedAt:
+          allOf: [{ $ref: "#/components/schemas/Instant" }]
+          nullable: true
+
+    DocumentPage:
+      type: object
+      required: [items, totalCount, limit, offset]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Document" }
+        totalCount: { type: integer }
+        limit: { type: integer }
+        offset: { type: integer }
+
+    SubmitNewsArticleRequest:
+      type: object
+      required: [title, source, publishedAt, body]
+      additionalProperties: false
+      properties:
+        title: { type: string, minLength: 1, maxLength: 300 }
+        source: { type: string, minLength: 1, maxLength: 200 }
+        publishedAt: { $ref: "#/components/schemas/Instant" }
+        body: { type: string, minLength: 1 }
+        referenceUrl: { type: string, nullable: true }
+
+    NewsArticle:
+      type: object
+      required:
+        - id, title, source, publishedAt, ingestionStatus, submittedAt,
+          categoryApplicability, sentimentApplicability, impactApplicability
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        source: { type: string }
+        publishedAt: { $ref: "#/components/schemas/Instant" }
+        referenceUrl: { type: string, nullable: true }
+        category:
+          allOf: [{ $ref: "#/components/schemas/NewsCategory" }]
+          nullable: true
+        categoryApplicability: { $ref: "#/components/schemas/Applicability" }
+        sentiment:
+          allOf: [{ $ref: "#/components/schemas/Sentiment" }]
+          nullable: true
+        sentimentApplicability: { $ref: "#/components/schemas/Applicability" }
+        impactLevel:
+          allOf: [{ $ref: "#/components/schemas/ImpactLevel" }]
+          nullable: true
+        impactApplicability: { $ref: "#/components/schemas/Applicability" }
+        sector: { type: string, nullable: true }
+        mentionedSymbols:
+          type: array
+          items: { type: string }
+        ingestionStatus: { $ref: "#/components/schemas/IngestionStatus" }
+        ingestionFailureReason: { type: string, nullable: true }
+        submittedAt: { $ref: "#/components/schemas/Instant" }
+        processedAt:
+          allOf: [{ $ref: "#/components/schemas/Instant" }]
+          nullable: true
+
+    NewsArticlePage:
+      type: object
+      required: [items, totalCount, limit, offset]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/NewsArticle" }
+        totalCount: { type: integer }
+        limit: { type: integer }
+        offset: { type: integer }
+
+    RetrieveFilter:
+      type: object
+      additionalProperties: false
+      properties:
+        symbol: { type: string, nullable: true }
+        documentType:
+          allOf: [{ $ref: "#/components/schemas/DocumentType" }]
+          nullable: true
+        newsCategory:
+          allOf: [{ $ref: "#/components/schemas/NewsCategory" }]
+          nullable: true
+        dateFrom: { allOf: [{ $ref: "#/components/schemas/MarketDate" }], nullable: true }
+        dateTo: { allOf: [{ $ref: "#/components/schemas/MarketDate" }], nullable: true }
+
+    RetrieveRequest:
+      type: object
+      required: [query]
+      additionalProperties: false
+      properties:
+        query: { type: string, minLength: 1, maxLength: 2000 }
+        filters: { $ref: "#/components/schemas/RetrieveFilter" }
+
+    SourceType:
+      type: string
+      enum: [DOCUMENT, NEWS_ARTICLE]
+
+    Passage:
+      type: object
+      required: [sourceType, sourceId, sourceTitle, location, source, excerpt, score]
+      properties:
+        sourceType: { $ref: "#/components/schemas/SourceType" }
+        sourceId: { type: string, format: uuid }
+        sourceTitle: { type: string }
+        location:
+          type: string
+          description: e.g. "Page 87" for a document, "Paragraph 3" for an article.
+        source: { type: string }
+        publicationDate:
+          allOf: [{ $ref: "#/components/schemas/MarketDate" }]
+          nullable: true
+        excerpt: { type: string }
+        score: { type: number }
+
+    RetrieveResponse:
+      type: object
+      required: [passages, asOf]
+      properties:
+        passages:
+          type: array
+          items: { $ref: "#/components/schemas/Passage" }
+        asOf: { $ref: "#/components/schemas/Instant" }
+
+    AskRequest:
+      type: object
+      required: [query]
+      additionalProperties: false
+      properties:
+        query: { type: string, minLength: 1, maxLength: 2000 }
+        filters: { $ref: "#/components/schemas/RetrieveFilter" }
+
+    Citation:
+      type: object
+      required: [claimText, sourceType, sourceId, sourceTitle, location, source]
+      properties:
+        claimText: { type: string }
+        sourceType: { $ref: "#/components/schemas/SourceType" }
+        sourceId: { type: string, format: uuid }
+        sourceTitle: { type: string }
+        location: { type: string }
+        source: { type: string }
+
+    AskFinalResult:
+      type: object
+      required: [answer, citations, refused]
+      properties:
+        answer: { type: string }
+        citations:
+          type: array
+          items: { $ref: "#/components/schemas/Citation" }
+          description: MUST be empty when `refused = true` (F6).
+        refused:
+          type: boolean
+          description: >-
+            `true` when no sufficiently relevant passage existed (FR-010);
+            `answer` then states that no relevant information was found.
+
+    AskStreamEvent:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [delta, final]
+        textDelta: { type: string, nullable: true }
+        final:
+          allOf: [{ $ref: "#/components/schemas/AskFinalResult" }]
+          nullable: true
+
+    ErrorResponse:
+      type: object
+      required: [type, title, status, reasonCode, correlationId]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        reasonCode: { type: string }
+        correlationId: { type: string }

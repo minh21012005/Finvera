@@ -1,0 +1,454 @@
+openapi: 3.1.0
+info:
+  title: Finvera Research Internal API (finvera-be <-> finvera-ai)
+  version: 1.0.0
+  description: >-
+    Internal, network-restricted contract for Feature 006. This is NOT a
+    public API and MUST NOT be reachable from the browser (SEC-001,
+    docs/ARCHITECTURE.md B-1/B-3). Every operation requires the shared
+    `X-Internal-Api-Key` header (research R-003); both services run on the
+    same private network only (ADR-0005's posture, extended here).
+
+    Paths are annotated with `x-hosted-by` to show which service exposes
+    them, since this feature's ingestion flow is a bidirectional
+    conversation (finvera-be submits a job; finvera-ai calls back when
+    done) rather than a one-directional client/server contract. Decimals
+    are transported as JSON strings where present; this file otherwise
+    follows the same conventions as `public-api.openapi.yaml`.
+servers:
+  - url: /internal/v1
+security:
+  - internalApiKey: []
+tags:
+  - name: Ingestion
+    description: Document/article parsing, chunking, and embedding.
+  - name: Retrieval
+    description: Ranked chunk lookup (metadata only, no content text).
+  - name: Synthesis
+    description: Grounded, cited answer generation from caller-supplied passages.
+  - name: Vectors
+    description: Qdrant point lifecycle.
+
+paths:
+  /ingestions:
+    post:
+      operationId: submitIngestion
+      x-hosted-by: finvera-ai
+      summary: Accept a document or news article for async processing (FR-003)
+      description: >-
+        Accepts immediately (202) and processes on a background task
+        (research R-004) — never synchronously, per NFR-003. Calls back
+        `PATCH /internal/v1/ingestions/{researchItemId}/callback` on
+        `finvera-be` when the job reaches a terminal state. A caller MUST
+        NOT poll for status; `finvera-be` owns the authoritative status.
+      tags: [Ingestion]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [researchItemId, itemType, ownerId]
+              properties:
+                researchItemId: { type: string, format: uuid }
+                itemType: { $ref: "#/components/schemas/ResearchItemType" }
+                ownerId: { type: string, format: uuid }
+                content:
+                  type: string
+                  format: binary
+                  description: >-
+                    The original file (e.g. a PDF), required when `itemType
+                    = DOCUMENT` and the owner uploaded a file rather than
+                    pasted text.
+                text:
+                  type: string
+                  description: >-
+                    Pasted plain text — required when `itemType =
+                    NEWS_ARTICLE` (the article body), or when `itemType =
+                    DOCUMENT` and the owner pasted text instead of
+                    uploading a file.
+                mimeType:
+                  type: string
+                  nullable: true
+      responses:
+        "202":
+          description: Accepted; processing has started asynchronously.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IngestionAccepted" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/InvalidInternalKey" }
+        "409":
+          description: A job for this `researchItemId` is already in progress.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /ingestions/{researchItemId}/callback:
+    parameters:
+      - name: researchItemId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      operationId: reportIngestionResult
+      x-hosted-by: finvera-be
+      summary: Report a terminal ingestion outcome (called by finvera-ai only)
+      description: >-
+        `finvera-ai` calls this exactly once per job, with the terminal
+        state. `finvera-be` persists `READY`'s chunks/classification or
+        `FAILED`'s reason to PostgreSQL — this is the only path by which
+        ingestion results become authoritative (research R-004:
+        `finvera-ai` never writes PostgreSQL directly). A callback that
+        never arrives within the configured processing timeout is marked
+        `FAILED` with `PROCESSING_TIMEOUT` by `finvera-be` itself, not by
+        this endpoint.
+
+        **`finvera-be` validates `X-Internal-Api-Key` on this endpoint
+        exactly as `finvera-ai` validates it on every endpoint it hosts**
+        (research R-003, F1) — this is `finvera-be`'s own hosted internal
+        endpoint, not a trusted-by-network-position exception. A request
+        without a valid key is `401`, identically to every other path in
+        this contract.
+      tags: [Ingestion]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IngestionCallback" }
+      responses:
+        "204": { description: Recorded. }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/InvalidInternalKey" }
+        "404":
+          description: Unknown `researchItemId`.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /retrieve:
+    post:
+      operationId: retrieveChunks
+      x-hosted-by: finvera-ai
+      summary: Rank chunks relevant to a query (FR-005 to FR-008, rag-v1)
+      description: >-
+        Returns chunk ids, scores, and Qdrant-payload metadata only —
+        never `content_text` (research R-006: `finvera-ai` does not read
+        PostgreSQL). `finvera-be` resolves `content_text` for the returned
+        chunk ids from its own `research_chunk` table before showing
+        results to the owner or calling `/synthesize`.
+      tags: [Retrieval]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RetrieveRequest" }
+      responses:
+        "200":
+          description: Ranked chunk metadata per `rag-v1`'s scoring formula.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RetrieveResponse" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/InvalidInternalKey" }
+        "503":
+          description: Qdrant or the embedding provider is unavailable.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /synthesize:
+    post:
+      operationId: synthesizeAnswer
+      x-hosted-by: finvera-ai
+      summary: >-
+        Generate a grounded, cited answer from caller-supplied passages
+        (FR-009 to FR-012, AI-001 to AI-003, rag-v1)
+      description: >-
+        The caller (`finvera-be`) supplies the exact passage set (chunk id
+        + resolved `contentText`) already produced by `/retrieve` plus its
+        own PostgreSQL lookup — `finvera-ai` never fetches content itself.
+        Response streams as Server-Sent Events (`text/event-stream`) so
+        the public `/ask` endpoint can satisfy NFR-002's "begin streaming
+        within 15 seconds." Citation verification (`rag-v1` steps 1-5)
+        happens inside this call before any event is emitted as final.
+
+        **The final event's `citations` carry only `{chunkId, claimText}`
+        — `finvera-ai` never resolves a source's title/location/type
+        (research R-008, F3), since that requires PostgreSQL it does not
+        read.** The caller (`finvera-be`) MUST resolve each `chunkId` to
+        its parent document/article (via its own `research_chunk` lookup)
+        before building the public-facing citation shape
+        (`public-api.openapi.yaml`'s `Citation`) — this is not a
+        pass-through/relay for the final event, only `delta` events are.
+      tags: [Synthesis]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SynthesizeRequest" }
+      responses:
+        "200":
+          description: >-
+            A stream of `SynthesizeStreamEvent` objects (SSE `data:`
+            frames), ending with one `type: final` event carrying the
+            verified `AnswerResult`.
+          content:
+            text/event-stream:
+              schema: { $ref: "#/components/schemas/SynthesizeStreamEvent" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/InvalidInternalKey" }
+        "503":
+          description: The LLM provider is unavailable.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /vectors:
+    delete:
+      operationId: deleteVectors
+      x-hosted-by: finvera-ai
+      summary: Bulk-delete Qdrant points by id (FR-016, DATA-004)
+      description: >-
+        `finvera-be` calls this with the `vector_point_id`s it already
+        knows from the `research_chunk` rows being deleted, in the same
+        operation as the PostgreSQL cascade delete (`data-model.md`). This
+        endpoint is intentionally generic (raw point ids only) — `finvera-ai`
+        does not need to know which document/article they belonged to.
+      tags: [Vectors]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DeleteVectorsRequest" }
+      responses:
+        "200":
+          description: Deletion result, including any point ids that did not exist.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeleteVectorsResponse" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/InvalidInternalKey" }
+
+components:
+  securitySchemes:
+    internalApiKey:
+      type: apiKey
+      in: header
+      name: X-Internal-Api-Key
+      description: >-
+        Shared secret, environment-sourced with no default value
+        (docs/ARCHITECTURE.md §8), validated by the receiving service on
+        every request (research R-003).
+
+  responses:
+    ValidationError:
+      description: The request failed input validation.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    InvalidInternalKey:
+      description: Missing or invalid `X-Internal-Api-Key`.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  schemas:
+    ResearchItemType:
+      type: string
+      enum: [DOCUMENT, NEWS_ARTICLE]
+
+    IngestionAccepted:
+      type: object
+      required: [researchItemId, accepted]
+      properties:
+        researchItemId: { type: string, format: uuid }
+        accepted: { type: boolean, const: true }
+
+    ChunkResult:
+      type: object
+      required: [chunkIndex, contentHash, vectorPointId, embeddingVersion]
+      properties:
+        chunkIndex: { type: integer }
+        pageNumber: { type: integer, nullable: true }
+        paragraphIndex: { type: integer, nullable: true }
+        contentText: { type: string }
+        contentHash: { type: string, pattern: "^[0-9a-f]{64}$" }
+        vectorPointId: { type: string, format: uuid }
+        embeddingVersion: { type: string }
+
+    NewsClassification:
+      type: object
+      properties:
+        category:
+          type: string
+          enum: [COMPANY, SECTOR, MARKET, MACRO, REGULATION]
+          nullable: true
+        categoryConfident: { type: boolean }
+        sentiment:
+          type: string
+          enum: [POSITIVE, NEUTRAL, NEGATIVE]
+          nullable: true
+        sentimentConfident: { type: boolean }
+        impactLevel:
+          type: string
+          enum: [LOW, MEDIUM, HIGH]
+          nullable: true
+        impactConfident: { type: boolean }
+        sector: { type: string, nullable: true }
+        mentionedSymbols:
+          type: array
+          items: { type: string }
+
+    IngestionCallback:
+      type: object
+      required: [itemType, status]
+      properties:
+        itemType: { $ref: "#/components/schemas/ResearchItemType" }
+        status:
+          type: string
+          enum: [READY, FAILED]
+        failureReason: { type: string, nullable: true }
+        extractedText:
+          type: string
+          nullable: true
+          description: Documents only.
+        chunks:
+          type: array
+          items: { $ref: "#/components/schemas/ChunkResult" }
+        classification:
+          allOf: [{ $ref: "#/components/schemas/NewsClassification" }]
+          nullable: true
+          description: News articles only.
+
+    RetrieveFilter:
+      type: object
+      additionalProperties: false
+      properties:
+        symbol: { type: string, nullable: true }
+        documentType: { type: string, nullable: true }
+        newsCategory: { type: string, nullable: true }
+        publishedFrom: { type: string, format: date, nullable: true }
+        publishedTo: { type: string, format: date, nullable: true }
+
+    RetrieveRequest:
+      type: object
+      required: [ownerId, query]
+      additionalProperties: false
+      properties:
+        ownerId: { type: string, format: uuid }
+        query: { type: string, minLength: 1, maxLength: 2000 }
+        filters: { $ref: "#/components/schemas/RetrieveFilter" }
+        limit: { type: integer, minimum: 1, maximum: 20, default: 8 }
+
+    RetrievedChunkMeta:
+      type: object
+      required: [chunkId, researchItemId, itemType, score]
+      description: >-
+        Deliberately excludes a formatted location/page string (F4,
+        research R-006): `finvera-be` always formats `location` from its
+        own authoritative `research_chunk.pageNumber`/`paragraphIndex`,
+        never from a Qdrant-derived value, so there is exactly one source
+        of truth for citation location.
+      properties:
+        chunkId: { type: string, format: uuid }
+        researchItemId: { type: string, format: uuid }
+        itemType: { $ref: "#/components/schemas/ResearchItemType" }
+        score: { type: number }
+        symbol: { type: string, nullable: true }
+
+    RetrieveResponse:
+      type: object
+      required: [results, ruleVersion, embeddingVersion]
+      properties:
+        results:
+          type: array
+          items: { $ref: "#/components/schemas/RetrievedChunkMeta" }
+        ruleVersion:
+          type: string
+          const: rag-v1
+        embeddingVersion: { type: string }
+
+    SynthesizePassage:
+      type: object
+      required: [chunkId, contentText]
+      properties:
+        chunkId: { type: string, format: uuid }
+        contentText: { type: string }
+
+    SynthesizeRequest:
+      type: object
+      required: [ownerId, query, passages]
+      additionalProperties: false
+      properties:
+        ownerId: { type: string, format: uuid }
+        query: { type: string, minLength: 1, maxLength: 2000 }
+        passages:
+          type: array
+          items: { $ref: "#/components/schemas/SynthesizePassage" }
+          maxItems: 20
+
+    Citation:
+      type: object
+      required: [chunkId, claimText]
+      properties:
+        chunkId: { type: string, format: uuid }
+        claimText: { type: string }
+
+    AnswerResult:
+      type: object
+      required: [answer, citations, refused, ruleVersion]
+      properties:
+        answer: { type: string }
+        citations:
+          type: array
+          items: { $ref: "#/components/schemas/Citation" }
+          description: >-
+            MUST be empty when `refused = true` (`rag-v1` step 4 — F6: no
+            claim survives citation verification in a refusal).
+        refused: { type: boolean }
+        ruleVersion:
+          type: string
+          const: rag-v1
+
+    SynthesizeStreamEvent:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [delta, final]
+        textDelta: { type: string, nullable: true }
+        final:
+          allOf: [{ $ref: "#/components/schemas/AnswerResult" }]
+          nullable: true
+
+    DeleteVectorsRequest:
+      type: object
+      required: [pointIds]
+      properties:
+        pointIds:
+          type: array
+          items: { type: string, format: uuid }
+          minItems: 1
+          maxItems: 500
+
+    DeleteVectorsResponse:
+      type: object
+      required: [deletedCount, notFoundPointIds]
+      properties:
+        deletedCount: { type: integer }
+        notFoundPointIds:
+          type: array
+          items: { type: string, format: uuid }
+
+    ErrorResponse:
+      type: object
+      required: [type, title, status, reasonCode, correlationId]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        reasonCode: { type: string }
+        correlationId: { type: string }
