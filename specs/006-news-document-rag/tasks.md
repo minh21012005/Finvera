@@ -24,7 +24,7 @@ code in that service), the internal API boundary, the `rag-v1`
 chunking/embedding/retrieval engine, and the async ingestion pipeline —
 everything every user story depends on.
 
-- [ ] T001 [P] [DATA-001 to DATA-003] Write migration tests for
+- [X] T001 [P] [DATA-001 to DATA-003] Write migration tests for
       `research_document`, `news_article`, `news_article_symbol`,
       `research_chunk` (type-specific not-null groups, the "exactly one
       parent" check on `research_chunk`, cascade-delete behavior,
@@ -33,7 +33,7 @@ everything every user story depends on.
       `finvera-be/src/test/java/com/minhnb/finvera_be/research/repository/ResearchSchemaMigrationTests.java`
       Verify: fails before the migration exists
       Depends: none
-- [ ] T002 [DATA-001 to DATA-003] Create the forward-only Flyway migration
+- [X] T002 [DATA-001 to DATA-003] Create the forward-only Flyway migration
       `finvera-be/src/main/resources/db/migration/V006__create_research_schema.sql`
       per `data-model.md` (including both tables' `idempotency_key` column
       and unique index), plus JPA entities and Spring Data repositories in
@@ -41,7 +41,7 @@ everything every user story depends on.
       and `.../research/repository/*.java`
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=ResearchSchemaMigrationTests test` passes
       Depends: T001
-- [ ] T003 [P] Reuse Feature 005's owner-scoping enforcement (research
+- [X] T003 [P] Reuse Feature 005's owner-scoping enforcement (research
       R-002) for the `research` module — an `OwnerScopedAccess`-style
       guard and a module architecture test asserting no direct
       cross-module entity/repository access, in
@@ -51,7 +51,7 @@ everything every user story depends on.
       Verify: unit tests confirm a wrong-owner id and a nonexistent id
       produce the identical outcome, matching Feature 005's own tests
       Depends: T002
-- [ ] T004 [P] Scaffold the `finvera-ai` package structure
+- [X] T004 [P] Scaffold the `finvera-ai` package structure
       `finvera-ai/AGENTS.md` already specifies — `app/api`, `app/core`
       (settings, internal-API-key auth dependency), `app/features/document`,
       `app/features/rag`, `app/infrastructure/llm`,
@@ -61,14 +61,14 @@ everything every user story depends on.
       Verify: `cd finvera-ai; uv run python -m compileall .` passes; the
       app starts and responds to a health check
       Depends: none
-- [ ] T005 [P] Add `pypdf`, a Qdrant client, and a Gemini SDK to
+- [X] T005 [P] Add `pypdf`, a Qdrant client, and a Gemini SDK to
       `finvera-ai/pyproject.toml`; pin the exact generally-available
       Gemini generation and embedding model versions (ADR-0008, plan.md
       Open Item 1) in `app/core/settings.py`
       Verify: `cd finvera-ai; uv sync` succeeds; `uv run python -m
       compileall .` passes
       Depends: T004
-- [ ] T006 [P] [SEC-001, SEC-002] Implement the internal-API-key
+- [X] T006 [P] [SEC-001, SEC-002] Implement the internal-API-key
       authentication **in both directions** (research R-003, hardened
       during pre-implementation analysis — F1): (a) `finvera-ai`'s
       inbound dependency (`app/core/auth.py`, rejecting any request
@@ -87,7 +87,7 @@ everything every user story depends on.
       rejected on `finvera-ai`'s endpoints, on `finvera-be`'s own hosted
       callback endpoint, and that the outbound client attaches a valid key
       Depends: T004, T005
-- [ ] T007 [P] [FR-005 to FR-008, FR-012, AI-003] Write the full `rag-v1`
+- [X] T007 [P] [FR-005 to FR-008, FR-012, AI-003] Write the full `rag-v1`
       required-test-vector suite from `contracts/rag-v1.md` — chunking
       (page/paragraph boundaries, overlap, sub-20-token discard), the
       rerank score formula, citation verification (steps 1-5, including
@@ -96,14 +96,14 @@ everything every user story depends on.
       Verify: fails before the engine exists; every required-test-vector
       row from `rag-v1.md` has an assertion
       Depends: T004
-- [ ] T008 [FR-001, FR-003, FR-004] Implement PDF/text extraction and
+- [X] T008 [FR-001, FR-003, FR-004] Implement PDF/text extraction and
       chunking (`app/infrastructure/loaders/pdf.py`,
       `app/features/document/chunking.py`) per `rag-v1.md`'s chunking
       rules, including the unparseable-PDF failure path
       Verify: unit tests confirm known-content PDF/text fixtures chunk
       correctly and a no-text PDF fails with a stated reason
       Depends: T005, T007
-- [ ] T009 [DATA-002] Implement the Qdrant collection setup
+- [X] T009 [DATA-002] Implement the Qdrant collection setup
       (`app/infrastructure/qdrant/collection.py`, `research_chunks_v1`
       per `data-model.md`) and the Gemini embedding adapter
       (`app/infrastructure/llm/embedding.py`, document vs. query task
@@ -111,14 +111,14 @@ everything every user story depends on.
       Verify: integration test against a local/fixture Qdrant confirms a
       point upsert and a filtered nearest-neighbor query round-trip
       Depends: T005
-- [ ] T010 [FR-003, FR-005 to FR-007] Implement retrieval and the
+- [X] T010 [FR-003, FR-005 to FR-007] Implement retrieval and the
       deterministic reranker (`app/features/rag/retrieval.py`) per
       `rag-v1.md`'s scoring formula, and
       `POST /internal/v1/retrieve` per `contracts/internal-api.openapi.yaml`
       Verify: `cd finvera-ai; uv run pytest app/features/rag` passes the
       T007 suite's retrieval/rerank cases
       Depends: T008, T009
-- [ ] T011 [FR-003, NFR-003] Implement ingestion orchestration
+- [X] T011 [FR-003, NFR-003] Implement ingestion orchestration
       (`app/features/document/ingestion.py`: parse -> chunk -> embed ->
       index, run via FastAPI `BackgroundTasks`, research R-004) and
       `POST /internal/v1/ingestions` per
@@ -127,7 +127,7 @@ everything every user story depends on.
       the background job reach a terminal state without blocking the
       request
       Depends: T008, T009, T006
-- [ ] T012 [FR-003, NFR-003, SEC-001] Implement the `finvera-be` side of
+- [X] T012 [FR-003, NFR-003, SEC-001] Implement the `finvera-be` side of
       the ingestion callback —
       `PATCH /internal/v1/ingestions/{researchItemId}/callback` handler
       (behind T006's inbound `InternalApiKeyFilter` — this endpoint MUST

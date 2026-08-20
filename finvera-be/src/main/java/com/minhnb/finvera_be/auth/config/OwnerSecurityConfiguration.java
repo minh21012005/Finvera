@@ -28,16 +28,19 @@ public class OwnerSecurityConfiguration {
     SecurityFilterChain ownerSecurityFilterChain(
             HttpSecurity http,
             OwnerSessionExpiryFilter expiryFilter,
-            CorrelationIdFilter correlationIdFilter) throws Exception {
+            CorrelationIdFilter correlationIdFilter,
+            com.minhnb.finvera_be.research.config.InternalApiKeyFilter internalApiKeyFilter) throws Exception {
         var csrfRepository = new HttpSessionCsrfTokenRepository();
         csrfRepository.setHeaderName("X-CSRF-TOKEN");
 
         return http
-                .csrf(csrf -> csrf.csrfTokenRepository(csrfRepository))
+                .csrf(csrf -> csrf.csrfTokenRepository(csrfRepository)
+                        .ignoringRequestMatchers("/internal/v1/**"))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.GET, "/api/v1/auth/csrf").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/session").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                        .requestMatchers("/internal/v1/**").permitAll()
                         .anyRequest().hasRole("OWNER"))
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint((request, response, exception) ->
@@ -48,6 +51,7 @@ public class OwnerSecurityConfiguration {
                                         "ACCESS_DENIED", "Access denied")))
                 .requestCache(cache -> cache.disable())
                 .addFilterBefore(correlationIdFilter, SecurityContextHolderFilter.class)
+                .addFilterBefore(internalApiKeyFilter, AuthorizationFilter.class)
                 .addFilterBefore(expiryFilter, AuthorizationFilter.class)
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())
@@ -91,6 +95,14 @@ public class OwnerSecurityConfiguration {
     @Bean
     FilterRegistrationBean<CorrelationIdFilter> disableCorrelationFilterAutoRegistration(
             CorrelationIdFilter filter) {
+        var registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
+    FilterRegistrationBean<com.minhnb.finvera_be.research.config.InternalApiKeyFilter> disableInternalApiKeyFilterAutoRegistration(
+            com.minhnb.finvera_be.research.config.InternalApiKeyFilter filter) {
         var registration = new FilterRegistrationBean<>(filter);
         registration.setEnabled(false);
         return registration;
