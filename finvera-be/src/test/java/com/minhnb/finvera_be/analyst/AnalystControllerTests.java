@@ -21,6 +21,7 @@ import com.minhnb.finvera_be.research.config.ResearchProperties;
 import com.minhnb.finvera_be.shared.api.CorrelationIdFilter;
 import com.minhnb.finvera_be.shared.api.ProblemDetailsAdvice;
 import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -100,5 +101,43 @@ class AnalystControllerTests {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM));
+    }
+
+    @Test
+    void explain_unauthenticated_returnsUnauthorized() throws Exception {
+        var req = new com.minhnb.finvera_be.analyst.dto.AskAnalystDto.ExplainRequest(
+                "SIGNAL",
+                "HPG",
+                List.of(new com.minhnb.finvera_be.analyst.dto.AskAnalystDto.EvidenceFactorDto("RSI", "RSI 70")));
+
+        mockMvc.perform(post("/api/v1/analyst/explanations")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void explain_validRequest_returns200AndExplanation() throws Exception {
+        UUID ownerId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        when(ownerScopedAccess.getAuthenticatedOwnerId()).thenReturn(ownerId);
+
+        var expectedRes = new com.minhnb.finvera_be.analyst.dto.AskAnalystDto.ExplainResponse(
+                "Tín hiệu mua do RSI 70",
+                true);
+        when(analystService.explainOutput(any(), any())).thenReturn(expectedRes);
+
+        var req = new com.minhnb.finvera_be.analyst.dto.AskAnalystDto.ExplainRequest(
+                "SIGNAL",
+                "HPG",
+                List.of(new com.minhnb.finvera_be.analyst.dto.AskAnalystDto.EvidenceFactorDto("RSI", "RSI 70")));
+
+        mockMvc.perform(post("/api/v1/analyst/explanations")
+                        .with(csrf())
+                        .with(user("owner-test").roles("OWNER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
     }
 }

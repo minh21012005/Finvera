@@ -147,3 +147,51 @@ export async function streamAskAnalyst(
     throw error;
   }
 }
+
+export interface EvidenceFactor {
+  factorCode: string;
+  description: string;
+}
+
+export interface ExplainRequest {
+  outputType: 'SIGNAL' | 'INDICATOR_READING' | 'VALUATION_CLASSIFICATION' | 'RISK_FACTOR';
+  symbol?: string;
+  evidenceFactors: EvidenceFactor[];
+}
+
+export interface ExplainResponse {
+  explanation: string;
+  verified: boolean;
+}
+
+export async function explainOutput(request: ExplainRequest): Promise<ExplainResponse> {
+  const csrf = await getCsrf();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (csrf && csrf.token) {
+    headers[csrf.headerName] = csrf.token;
+  }
+
+  const response = await fetch('/api/v1/analyst/explanations', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers,
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    let errorDetail = `Yêu cầu giải thích thất bại (mã ${response.status})`;
+    try {
+      const errJson = await response.json();
+      if (errJson.detail) {
+        errorDetail = errJson.detail;
+      }
+    } catch {
+      // Ignore
+    }
+    throw new Error(errorDetail);
+  }
+
+  return response.json();
+}

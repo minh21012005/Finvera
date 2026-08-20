@@ -170,4 +170,46 @@ public class AnalystService {
             emitter.completeWithError(e);
         }
     }
+
+    public com.minhnb.finvera_be.analyst.dto.AskAnalystDto.ExplainResponse explainOutput(
+            UUID ownerId,
+            com.minhnb.finvera_be.analyst.dto.AskAnalystDto.ExplainRequest request) {
+        if (request == null || request.outputType() == null || request.outputType().isBlank()) {
+            throw new IllegalArgumentException("outputType must not be blank");
+        }
+        if (request.evidenceFactors() == null || request.evidenceFactors().isEmpty()) {
+            throw new IllegalArgumentException("evidenceFactors must contain at least 1 item");
+        }
+
+        UUID queryId = UUID.randomUUID();
+        String summary = "Explain " + request.outputType() + (request.symbol() != null ? " (" + request.symbol() + ")" : "");
+        queryService.recordQueryStart(queryId, ownerId, AnalystRequestType.EXPLAIN, summary);
+
+        try {
+            var internalRequest = new com.minhnb.finvera_be.analyst.dto.AskAnalystDto.InternalExplainRequest(
+                    ownerId,
+                    request.outputType(),
+                    request.symbol(),
+                    request.evidenceFactors());
+
+            var result = aiClient.explain(internalRequest);
+            if (result == null) {
+                queryService.recordQueryCompletion(queryId, AnalystQueryOutcome.FAILED, false);
+                return new com.minhnb.finvera_be.analyst.dto.AskAnalystDto.ExplainResponse(
+                        "Không thể tạo giải thích tự động.",
+                        false);
+            }
+
+            AnalystQueryOutcome outcome = result.verified() ? AnalystQueryOutcome.COMPLETED : AnalystQueryOutcome.REFUSED;
+            queryService.recordQueryCompletion(queryId, outcome, false);
+
+            return new com.minhnb.finvera_be.analyst.dto.AskAnalystDto.ExplainResponse(
+                    result.explanation(),
+                    result.verified());
+        } catch (Exception e) {
+            log.error("Error during explain output for queryId {}", queryId, e);
+            queryService.recordQueryCompletion(queryId, AnalystQueryOutcome.FAILED, false);
+            throw new RuntimeException("Explain service failed", e);
+        }
+    }
 }

@@ -82,4 +82,34 @@ public final class AskAnalystDto {
             boolean toolCallBoundReached,
             String ruleVersion) {
     }
+
+    public record EvidenceFactorDto(
+            String factorCode,
+            String description) {
+    }
+
+    public record ExplainRequest(
+            String outputType,
+            String symbol,
+            List<EvidenceFactorDto> evidenceFactors) {
+    }
+
+    public record InternalExplainRequest(
+            UUID ownerId,
+            String outputType,
+            String symbol,
+            List<EvidenceFactorDto> evidenceFactors) {
+    }
+
+    public record InternalExplainResult(
+            String explanation,
+            List<String> factorsReferenced,
+            boolean verified,
+            String ruleVersion) {
+    }
+
+    public record ExplainResponse(
+            String explanation,
+            boolean verified) {
+    }
 }

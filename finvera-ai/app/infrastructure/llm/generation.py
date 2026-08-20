@@ -57,6 +57,19 @@ class GeminiGenerationAdapter:
         for chunk in self._offline_stream(prompt):
             yield chunk
 
+    async def generate_text(
+        self,
+        prompt: str,
+        system_instruction: Optional[str] = None,
+    ) -> str:
+        """
+        Generates full text string.
+        """
+        parts = []
+        async for chunk in self.generate_stream(prompt, system_instruction):
+            parts.append(chunk)
+        return "".join(parts)
+
     def _offline_stream(self, prompt: str) -> AsyncIterator[str]:
         """
         Produces realistic grounded streaming tokens for testing without external API calls.

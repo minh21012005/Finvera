@@ -5,11 +5,19 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "finvera.analyst")
 public record AnalystProperties(
+        String aiServiceUrl,
+        String internalApiKey,
         int maxToolCalls,
         Duration toolCallTimeout,
         Duration askTimeout) {
 
     public AnalystProperties {
+        if (aiServiceUrl == null || aiServiceUrl.isBlank()) {
+            aiServiceUrl = "http://127.0.0.1:8000";
+        }
+        if (internalApiKey == null || internalApiKey.isBlank()) {
+            internalApiKey = "dev-internal-key-change-in-prod";
+        }
         if (maxToolCalls <= 0) {
             maxToolCalls = 10;
         }

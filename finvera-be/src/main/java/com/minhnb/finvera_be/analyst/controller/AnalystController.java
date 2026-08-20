@@ -30,4 +30,11 @@ public class AnalystController {
         UUID ownerId = ownerScopedAccess.getAuthenticatedOwnerId();
         return analystService.askStream(ownerId, request);
     }
+
+    @PostMapping("/explanations")
+    public com.minhnb.finvera_be.analyst.dto.AskAnalystDto.ExplainResponse explain(
+            @RequestBody com.minhnb.finvera_be.analyst.dto.AskAnalystDto.ExplainRequest request) {
+        UUID ownerId = ownerScopedAccess.getAuthenticatedOwnerId();
+        return analystService.explainOutput(ownerId, request);
+    }
 }

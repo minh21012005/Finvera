@@ -4,21 +4,18 @@ from typing import AsyncIterator
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from fastapi.responses import StreamingResponse
 
+from app.core.auth import verify_internal_api_key
 from app.core.settings import settings
+from app.features.analysis.explain import (
+    ExplainRequest,
+    ExplainResult,
+    explain_deterministic_output,
+)
 from app.features.chat.service import ChatOrchestrationService, OrchestrateAskRequest
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/analyst", tags=["analyst"])
-
-
-def verify_internal_key(x_internal_api_key: str = Header(..., alias="X-Internal-Api-Key")) -> None:
-    expected = settings.internal_api_key
-    if not expected or x_internal_api_key != expected:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or missing X-Internal-Api-Key header",
-        )
 
 
 async def sse_event_generator(
@@ -46,7 +43,7 @@ async def sse_event_generator(
         yield f"data: {json.dumps(error_event)}\n\n"
 
 
-@router.post("/ask", dependencies=[Depends(verify_internal_key)])
+@router.post("/ask", dependencies=[Depends(verify_internal_api_key)])
 async def ask_analyst_stream(
     request: OrchestrateAskRequest,
 ) -> StreamingResponse:
@@ -63,3 +60,14 @@ async def ask_analyst_stream(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+@router.post("/explain", dependencies=[Depends(verify_internal_api_key)])
+async def explain_output(
+    request: ExplainRequest,
+) -> ExplainResult:
+    """
+    FR-006: Internal endpoint for explaining a deterministic financial output using supplied evidence factors.
+    """
+    return await explain_deterministic_output(request)
+

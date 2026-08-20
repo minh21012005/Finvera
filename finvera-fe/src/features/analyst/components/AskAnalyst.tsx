@@ -176,9 +176,25 @@ export const AskAnalyst: React.FC = () => {
                       {tc.status === 'SUCCEEDED' ? '[Thành công]' : '[Thất bại]'}
                     </span>
                   </div>
-                  <div className="mt-2 text-slate-400 font-mono text-[11px] truncate">
-                    {JSON.stringify(tc.arguments)}
-                  </div>
+                  {tc.toolName === 'SCREENING' && tc.arguments?.filters ? (
+                    <div className="mt-2 space-y-1">
+                      <div className="text-slate-300 font-sans text-[11px] font-medium">
+                        Bộ lọc đã chuyển đổi:
+                      </div>
+                      <div className="p-1.5 rounded bg-slate-950/60 font-mono text-[10px] text-indigo-300 overflow-x-auto">
+                        {JSON.stringify(tc.arguments.filters, null, 2)}
+                      </div>
+                      {Boolean(tc.arguments?.ambiguityNote) && (
+                        <div className="p-2 rounded bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px]">
+                          <strong>[Lưu ý mơ hồ]:</strong> {String(tc.arguments.ambiguityNote)}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="mt-2 text-slate-400 font-mono text-[11px] truncate">
+                      {JSON.stringify(tc.arguments)}
+                    </div>
+                  )}
                   <div className="mt-1 text-[10px] text-slate-500 text-right">
                     Độ trễ: {tc.latencyMs}ms
                   </div>

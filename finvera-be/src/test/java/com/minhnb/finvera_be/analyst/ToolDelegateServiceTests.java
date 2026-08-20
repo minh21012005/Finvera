@@ -214,4 +214,26 @@ class ToolDelegateServiceTests {
         assertThat(response.articles()).isEmpty();
         assertThat(response.asOf()).isNotNull();
     }
+
+    @Test
+    void executeScreener_delegatesDirectlyToScreenerService() {
+        var mockResult = new com.minhnb.finvera_be.stock.service.screener.ScreenerService.ScreenExecutionResult(
+                List.of(new com.minhnb.finvera_be.stock.service.screener.ScreenerService.ScreenMatch(
+                        "HPG", "Hòa Phát", "HOSE", "Thép", Collections.emptyMap(), DataStatus.CURRENT, LocalDate.of(2026, 8, 20))),
+                1,
+                Collections.emptyList(),
+                "HPG_COH",
+                Instant.parse("2026-08-20T10:00:00Z"));
+
+        when(screenerService.execute(any(), any(), any(), eq(50), eq(0))).thenReturn(mockResult);
+
+        var request = new com.minhnb.finvera_be.stock.dto.ScreenRequest(
+                null, null, null, null, null, null, 50, 0);
+
+        var response = toolDelegateService.executeScreener(request);
+
+        assertThat(response.totalMatches()).isEqualTo(1);
+        assertThat(response.matches()).hasSize(1);
+        assertThat(response.matches().getFirst().get("symbol")).isEqualTo("HPG");
+    }
 }

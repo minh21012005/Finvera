@@ -52,4 +52,14 @@ public class AnalystAiClient {
                     return null;
                 });
     }
+
+    public com.minhnb.finvera_be.analyst.dto.AskAnalystDto.InternalExplainResult explain(
+            com.minhnb.finvera_be.analyst.dto.AskAnalystDto.InternalExplainRequest request) {
+        return restClient.post()
+                .uri("/internal/v1/analyst/explain")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .retrieve()
+                .body(com.minhnb.finvera_be.analyst.dto.AskAnalystDto.InternalExplainResult.class);
+    }
 }

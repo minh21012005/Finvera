@@ -293,7 +293,7 @@ factors.
 
 ### Tests and Evaluation
 
-- [ ] T030 [P] [US3] [FR-006] Unit test — an explanation attempt that
+- [X] T030 [P] [US3] [FR-006] Unit test — an explanation attempt that
       references a factor not in the supplied input is rejected, retried
       once, then returns the generic explanation-unavailable state on a
       second failure
@@ -301,20 +301,20 @@ factors.
 
 ### Implementation
 
-- [ ] T031 [US3] [FR-006] Implement `finvera-ai`'s non-orchestrated
+- [X] T031 [US3] [FR-006] Implement `finvera-ai`'s non-orchestrated
       `POST /internal/v1/analyst/explain` in
       `finvera-ai/app/features/analysis/explain.py` (single generation
       call plus the faithfulness check, `orchestration-v1`)
       Verify: T030 passes
       Depends: T030
-- [ ] T032 [US3] [FR-006] Implement `finvera-be`'s
+- [X] T032 [US3] [FR-006] Implement `finvera-be`'s
       `POST /api/v1/analyst/explanations` in
       `finvera-be/.../analyst/controller/AnalystController.java` — session/
       CSRF-gated, calls `finvera-ai`'s `/internal/v1/analyst/explain`, no
       orchestration
       Verify: contract test against `public-api.openapi.yaml`
       Depends: T031
-- [ ] T033 [US3] Add an "Explain" trigger on the existing signal/valuation
+- [X] T033 [US3] Add an "Explain" trigger on the existing signal/valuation
       displays (`finvera-fe/src/features/stock-detail` and
       `strategy-signal` components from Features 002/004), sending their
       already-fetched evidence factors to
@@ -337,32 +337,32 @@ screener given those same filters directly.
 
 ### Tests and Evaluation
 
-- [ ] T034 [P] [US4] [FR-007, FR-008] Integration test — an unambiguous
+- [X] T034 [P] [US4] [FR-007, FR-008] Integration test — an unambiguous
       natural-language criterion converts to structured filters shown in
       the `tool_call` event, and the results are identical to calling
       Feature 003's screener directly with those filters
       Depends: T012
-- [ ] T035 [P] [US4] [FR-009] Unit test — a criterion the conversion scores
+- [X] T035 [P] [US4] [FR-009] Unit test — a criterion the conversion scores
       below the 0.6 confidence floor carries a disclosed `ambiguityNote`,
       never a silent guess
       Depends: T012
 
 ### Implementation
 
-- [ ] T036 [US4] [FR-007] Implement natural-language-to-filter conversion
+- [X] T036 [US4] [FR-007] Implement natural-language-to-filter conversion
       in `finvera-ai/app/features/orchestration/screener_conversion.py`
       (`orchestration-v1` NL-conversion steps 1-2), validated against
       Feature 003's real filter schema before dispatch
       Verify: T034, T035 pass
       Depends: T012
-- [ ] T037 [US4] [FR-007] Implement `finvera-be`'s
+- [X] T037 [US4] [FR-007] Implement `finvera-be`'s
       `POST /internal/v1/tools/screener/executions` in
       `finvera-be/.../analyst/controller/ToolController.java`, delegating
       to Feature 003's existing screener engine unmodified
       Verify: integration test — identical results to Feature 003's own
       public endpoint given the same filters
       Depends: T010, T036
-- [ ] T038 [US4] [FR-008, FR-009] Surface the converted filters and any
+- [X] T038 [US4] [FR-008, FR-009] Surface the converted filters and any
       `ambiguityNote` in the Screening `tool_call` event's UI rendering
       Verify: Vitest/Playwright component test
       Depends: T037, T023
@@ -373,39 +373,39 @@ screener given those same filters directly.
 
 ## Final Phase: Cross-Cutting Validation and Release Readiness
 
-- [ ] T039 [none] Run and reconcile all contract tests across changed
+- [X] T039 [none] Run and reconcile all contract tests across changed
       boundaries (`orchestration-v1.md`'s full test-vector table,
       `internal-api.openapi.yaml`, `public-api.openapi.yaml`)
       Verify: `uv run pytest`, Spring contract tests, and the YAML/`$ref`
       validation script all pass
       Depends: T014-T038
-- [ ] T040 [DATA-001] Validate the `V007` migration and its rollback: drop
+- [X] T040 [DATA-001] Validate the `V007` migration and its rollback: drop
       and recreate `analyst_query`/`analyst_tool_call`, confirming no
       business-data dependency on either table
       Verify: migration up/down test
       Depends: T002
-- [ ] T041 [SEC-001, SEC-002, FR-015] Run a bidirectional internal-API
+- [X] T041 [SEC-001, SEC-002, FR-015] Run a bidirectional internal-API
       security sweep across every new endpoint added by this feature
       (`/internal/v1/tools/*` and `/internal/v1/analyst/*`, both hosting
       directions), plus the `ownerId`-substitution case
       Verify: security integration tests — every case rejects correctly
       Depends: T006, T008
-- [ ] T042 [none] Run `quickstart.md`'s P1 to P4 acceptance paths, degraded
+- [X] T042 [none] Run `quickstart.md`'s P1 to P4 acceptance paths, degraded
       paths, and authorization checks end to end
       Verify: expected results recorded
       Depends: T039, T041
-- [ ] T043 [SC-001 to SC-005] Run the `analyst-eval-v1` AI evaluation
+- [X] T043 [SC-001 to SC-005] Run the `analyst-eval-v1` AI evaluation
       dataset (structured-only, combined, out-of-capability, NL-screener,
       and reused Feature 006 injection fixtures) against SC-001 to SC-005's
       thresholds
       Verify: eval report meets 100%/100%/100%/100%/0%-deviation
       thresholds respectively
       Depends: T039
-- [ ] T044 [none] Traceability review: confirm every FR/DATA/SEC/AI/NFR ID
+- [X] T044 [none] Traceability review: confirm every FR/DATA/SEC/AI/NFR ID
       in `spec.md` maps to at least one task above and no orphan IDs remain
       Verify: cross-reference against the Requirement Coverage table below
       Depends: T042, T043
-- [ ] T045 [none] Run relevant repository quality gates
+- [X] T045 [none] Run relevant repository quality gates
       Verify: `.\mvnw.cmd test`, `npm run lint`, `npm run build`,
       `npx playwright test`, `uv run python -m compileall .`,
       `uv run pytest`

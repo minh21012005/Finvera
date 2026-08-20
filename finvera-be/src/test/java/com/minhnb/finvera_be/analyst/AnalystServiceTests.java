@@ -82,4 +82,86 @@ class AnalystServiceTests {
         verify(queryService).recordToolCall(any(UUID.class), eq((short) 1), eq(ToolName.STOCK), anyString(), eq(ToolCallStatus.SUCCEEDED), any(), eq(120), any());
         verify(queryService).recordQueryCompletion(any(UUID.class), eq(AnalystQueryOutcome.COMPLETED), eq(false));
     }
+
+    @Test
+    void explainOutput_blankOutputType_throwsException() {
+        UUID ownerId = UUID.randomUUID();
+        ExplainRequest req = new ExplainRequest("  ", "HPG", List.of(new EvidenceFactorDto("RSI", "RSI 70")));
+
+        assertThatThrownBy(() -> analystService.explainOutput(ownerId, req))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("outputType must not be blank");
+    }
+
+    @Test
+    void explainOutput_emptyEvidenceFactors_throwsException() {
+        UUID ownerId = UUID.randomUUID();
+        ExplainRequest req = new ExplainRequest("SIGNAL", "HPG", List.of());
+
+        assertThatThrownBy(() -> analystService.explainOutput(ownerId, req))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("evidenceFactors must contain at least 1 item");
+    }
+
+    @Test
+    void explainOutput_successfulVerification_recordsCompletedAuditAndReturnsResponse() {
+        UUID ownerId = UUID.randomUUID();
+        ExplainRequest req = new ExplainRequest(
+                "SIGNAL",
+                "HPG",
+                List.of(new EvidenceFactorDto("RSI_14", "RSI 70")));
+
+        when(aiClient.explain(any())).thenReturn(new InternalExplainResult(
+                "Tín hiệu mua kỹ thuật",
+                List.of("RSI_14"),
+                true,
+                "orchestration-v1"));
+
+        ExplainResponse response = analystService.explainOutput(ownerId, req);
+
+        assertThat(response.verified()).isTrue();
+        assertThat(response.explanation()).isEqualTo("Tín hiệu mua kỹ thuật");
+        verify(queryService).recordQueryStart(any(UUID.class), eq(ownerId), eq(AnalystRequestType.EXPLAIN), eq("Explain SIGNAL (HPG)"));
+        verify(queryService).recordQueryCompletion(any(UUID.class), eq(AnalystQueryOutcome.COMPLETED), eq(false));
+    }
+
+    @Test
+    void explainOutput_unverified_recordsRefusedAuditAndReturnsResponse() {
+        UUID ownerId = UUID.randomUUID();
+        ExplainRequest req = new ExplainRequest(
+                "VALUATION_CLASSIFICATION",
+                null,
+                List.of(new EvidenceFactorDto("PE", "PE 12")));
+
+        when(aiClient.explain(any())).thenReturn(new InternalExplainResult(
+                "Hiện chưa có sẵn phần giải thích tự động.",
+                List.of(),
+                false,
+                "orchestration-v1"));
+
+        ExplainResponse response = analystService.explainOutput(ownerId, req);
+
+        assertThat(response.verified()).isFalse();
+        assertThat(response.explanation()).contains("Hiện chưa có sẵn");
+        verify(queryService).recordQueryStart(any(UUID.class), eq(ownerId), eq(AnalystRequestType.EXPLAIN), eq("Explain VALUATION_CLASSIFICATION"));
+        verify(queryService).recordQueryCompletion(any(UUID.class), eq(AnalystQueryOutcome.REFUSED), eq(false));
+    }
+
+    @Test
+    void explainOutput_aiClientException_recordsFailedAuditAndRethrows() {
+        UUID ownerId = UUID.randomUUID();
+        ExplainRequest req = new ExplainRequest(
+                "RISK_FACTOR",
+                "VND",
+                List.of(new EvidenceFactorDto("BETA", "Beta 1.5")));
+
+        when(aiClient.explain(any())).thenThrow(new RuntimeException("AI service timeout"));
+
+        assertThatThrownBy(() -> analystService.explainOutput(ownerId, req))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Explain service failed");
+
+        verify(queryService).recordQueryStart(any(UUID.class), eq(ownerId), eq(AnalystRequestType.EXPLAIN), eq("Explain RISK_FACTOR (VND)"));
+        verify(queryService).recordQueryCompletion(any(UUID.class), eq(AnalystQueryOutcome.FAILED), eq(false));
+    }
 }

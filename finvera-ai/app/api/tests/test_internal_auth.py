@@ -82,3 +82,52 @@ def test_synthesize_endpoint_rejects_missing_or_invalid_key():
     )
     assert res2.status_code == 401
 
+
+def test_analyst_ask_rejects_missing_or_invalid_key():
+    res1 = client.post("/internal/v1/analyst/ask", json={"question": "Giá HPG", "ownerId": str(uuid.uuid4())})
+    assert res1.status_code == 401
+
+    res2 = client.post(
+        "/internal/v1/analyst/ask",
+        json={"question": "Giá HPG", "ownerId": str(uuid.uuid4())},
+        headers={"X-Internal-Api-Key": "wrong-key"},
+    )
+    assert res2.status_code == 401
+
+
+def test_analyst_explain_rejects_missing_or_invalid_key():
+    payload = {
+        "ownerId": str(uuid.uuid4()),
+        "outputType": "SIGNAL",
+        "symbol": "HPG",
+        "evidenceFactors": [{"factorCode": "RSI", "description": "RSI 70"}],
+    }
+    res1 = client.post("/internal/v1/analyst/explain", json=payload)
+    assert res1.status_code == 401
+
+    res2 = client.post(
+        "/internal/v1/analyst/explain",
+        json=payload,
+        headers={"X-Internal-Api-Key": "wrong-key"},
+    )
+    assert res2.status_code == 401
+
+
+def test_analyst_explain_accepts_valid_key():
+    payload = {
+        "ownerId": str(uuid.uuid4()),
+        "outputType": "SIGNAL",
+        "symbol": "HPG",
+        "evidenceFactors": [{"factorCode": "RSI", "description": "RSI 70"}],
+    }
+    res = client.post(
+        "/internal/v1/analyst/explain",
+        json=payload,
+        headers={"X-Internal-Api-Key": settings.internal_api_key},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert "explanation" in data
+    assert "verified" in data
+
+

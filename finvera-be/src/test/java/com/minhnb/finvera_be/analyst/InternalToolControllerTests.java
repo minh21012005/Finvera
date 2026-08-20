@@ -1,5 +1,6 @@
 package com.minhnb.finvera_be.analyst;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -103,5 +104,22 @@ class InternalToolControllerTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.symbol").value("HPG"))
                 .andExpect(jsonPath("$.price").value("28500"));
+    }
+
+    @Test
+    void validInternalApiKey_screenerExecutions_returns200() throws Exception {
+        when(toolDelegateService.executeScreener(any())).thenReturn(
+                new com.minhnb.finvera_be.analyst.dto.ToolResponseDtos.ScreenerExecutionToolResponse(
+                        java.util.List.of(java.util.Map.of("symbol", "HPG", "companyName", "Hòa Phát")),
+                        1,
+                        Instant.parse("2026-08-20T10:00:00Z")));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/internal/v1/tools/screener/executions")
+                        .header("X-Internal-Api-Key", VALID_KEY)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"fundamental\":{\"peMax\":\"10\"}}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalMatches").value(1))
+                .andExpect(jsonPath("$.matches[0].symbol").value("HPG"));
     }
 }

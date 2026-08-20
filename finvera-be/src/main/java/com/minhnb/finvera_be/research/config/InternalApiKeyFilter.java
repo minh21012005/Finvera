@@ -24,8 +24,9 @@ public class InternalApiKeyFilter extends OncePerRequestFilter {
 
     private final ResearchProperties researchProperties;
 
-    public InternalApiKeyFilter(ResearchProperties researchProperties) {
-        this.researchProperties = researchProperties;
+    public InternalApiKeyFilter(
+            @org.springframework.beans.factory.annotation.Autowired(required = false) ResearchProperties researchProperties) {
+        this.researchProperties = researchProperties != null ? researchProperties : new ResearchProperties(null, null, null, 0);
     }
 
     @Override

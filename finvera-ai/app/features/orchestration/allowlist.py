@@ -86,6 +86,7 @@ class ResearchRagToolArgs(BaseModel):
 class ScreeningToolArgs(BaseModel):
     owner_id: uuid.UUID
     filters: Dict[str, Any] = Field(default_factory=dict)
+    ambiguityNote: Optional[str] = None
 
 
 TOOL_ARG_SCHEMAS: Dict[ToolName, type[BaseModel]] = {

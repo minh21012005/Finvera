@@ -138,4 +138,59 @@ describe('AskAnalyst Component (User Story 1: P1)', () => {
       expect(screen.getByText(/Trang 15/i)).toBeDefined();
     });
   });
+
+  it('renders converted screening filters and ambiguity note (User Story 4: P4)', async () => {
+    const mockStream = vi.mocked(analystApi.streamAskAnalyst);
+    mockStream.mockImplementation(async (_req, callbacks) => {
+      callbacks.onToolCall?.({
+        sequenceNo: 1,
+        toolName: 'SCREENING',
+        arguments: {
+          filters: {
+            fundamental: { peMax: '10', roeMin: '15' },
+          },
+          ambiguityNote: 'Tiêu chí ngành chưa được chỉ định cụ thể, áp dụng toàn bộ thị trường.',
+        },
+        status: 'SUCCEEDED',
+        latencyMs: 150,
+      });
+
+      callbacks.onFinal?.({
+        answer: 'Đã tìm thấy 5 mã cổ phiếu thỏa mãn tiêu chí P/E dưới 10 và ROE trên 15%.',
+        structuredClaims: [],
+        documentClaims: [],
+        refused: false,
+        toolCalls: [
+          {
+            sequenceNo: 1,
+            toolName: 'SCREENING',
+            arguments: {
+              filters: {
+                fundamental: { peMax: '10', roeMin: '15' },
+              },
+              ambiguityNote: 'Tiêu chí ngành chưa được chỉ định cụ thể, áp dụng toàn bộ thị trường.',
+            },
+            status: 'SUCCEEDED',
+            latencyMs: 150,
+          },
+        ],
+        toolCallBoundReached: false,
+        ruleVersion: 'orchestration-v1',
+      });
+    });
+
+    render(<AskAnalyst />);
+    const input = screen.getByPlaceholderText(/Hỏi trợ lý phân tích/i);
+    fireEvent.change(input, { target: { value: 'Tìm các mã P/E dưới 10 và ROE trên 15%' } });
+
+    const submitBtn = screen.getByText(/Gửi/i);
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Bộ lọc đã chuyển đổi:/i)).toBeDefined();
+      expect(screen.getByText(/\[Lưu ý mơ hồ\]:/i)).toBeDefined();
+      expect(screen.getByText(/Tiêu chí ngành chưa được chỉ định cụ thể/i)).toBeDefined();
+      expect(screen.getByText(/Đã tìm thấy 5 mã cổ phiếu thỏa mãn/i)).toBeDefined();
+    });
+  });
 });

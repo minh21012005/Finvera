@@ -20,6 +20,9 @@ from app.features.orchestration.dispatch import (
     DispatchedToolCall,
     OrchestrationDispatcher,
 )
+from app.features.orchestration.screener_conversion import (
+    convert_natural_language_to_filters,
+)
 from app.infrastructure.llm.generation import GeminiGenerationAdapter
 
 logger = logging.getLogger(__name__)
@@ -111,14 +114,18 @@ class ChatOrchestrationService:
                 args["symbol"] = matched_symbol
             proposed.append({"tool_name": "NEWS", "arguments": args})
 
-        # 8. RESEARCH_RAG (Specific document questions)
+        # 8. SCREENING (Screening / Filtering stocks)
+        if any(k in q_upper for k in ("LỌC CỔ PHIẾU", "TÌM CỔ PHIẾU", "LỌC MÃ", "MÃ NÀO CÓ", "CỔ PHIẾU CÓ", "TÌM MÃ", "SCREENER", "SCREENING", "DANH SÁCH CỔ PHIẾU", "CỔ PHIẾU NÀO", "CÁC MÃ CÓ", "CỔ PHIẾU THOẢ")):
+            proposed.append({"tool_name": "SCREENING", "arguments": {"query": question}})
+
+        # 9. RESEARCH_RAG (Specific document questions)
         if any(k in q_upper for k in ("BÁO CÁO THƯỜNG NIÊN", "TÀI LIỆU", "PDF", "TRÍCH XUẤT", "TRÍCH LỤC", "ĐỌC ĐƯỢC", "THEO TÀI LIỆU", "ĐẠI HỘI CỔ ĐÔNG", "ĐHCĐ", "NGHỊ QUYẾT", "CÔNG BỐ", "THUYẾT MINH", "VĂN BẢN")):
             args = {"query": question, "top_k": 5}
             if matched_symbol:
                 args["symbol"] = matched_symbol
             proposed.append({"tool_name": "RESEARCH_RAG", "arguments": args})
 
-        # 9. STOCK Summary fallback
+        # 10. STOCK Summary fallback
         if matched_symbol and not proposed:
             proposed.append({"tool_name": "STOCK", "arguments": {"symbol": matched_symbol}})
 
@@ -164,10 +171,23 @@ class ChatOrchestrationService:
                 bound_reached = True
                 break
 
+            tool_name = call_req["tool_name"]
+            arguments = dict(call_req["arguments"])
+
+            # If SCREENING tool, run natural language conversion first (FR-007, FR-009)
+            if tool_name == "SCREENING" and "filters" not in arguments:
+                conv_result = await convert_natural_language_to_filters(
+                    arguments.get("query", request.question),
+                    self.llm_adapter,
+                )
+                arguments["filters"] = conv_result.filters
+                if conv_result.ambiguityNote:
+                    arguments["ambiguityNote"] = conv_result.ambiguityNote
+
             dispatched = await self.dispatcher.dispatch_single_tool(
                 sequence_no=i,
-                tool_name_raw=call_req["tool_name"],
-                arguments_raw=call_req["arguments"],
+                tool_name_raw=tool_name,
+                arguments_raw=arguments,
                 session_owner_id=request.ownerId,
             )
             dispatched_calls.append(dispatched)
