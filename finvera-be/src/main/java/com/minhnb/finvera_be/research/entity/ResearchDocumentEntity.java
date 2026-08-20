@@ -1,5 +1,7 @@
 package com.minhnb.finvera_be.research.entity;
 
+import com.minhnb.finvera_be.research.domain.DocumentType;
+import com.minhnb.finvera_be.research.domain.IngestionStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

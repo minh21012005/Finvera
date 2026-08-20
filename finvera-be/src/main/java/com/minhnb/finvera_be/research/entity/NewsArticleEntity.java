@@ -1,5 +1,10 @@
 package com.minhnb.finvera_be.research.entity;
 
+import com.minhnb.finvera_be.research.domain.Applicability;
+import com.minhnb.finvera_be.research.domain.ImpactLevel;
+import com.minhnb.finvera_be.research.domain.IngestionStatus;
+import com.minhnb.finvera_be.research.domain.NewsCategory;
+import com.minhnb.finvera_be.research.domain.Sentiment;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;

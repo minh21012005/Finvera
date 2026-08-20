@@ -1,4 +1,4 @@
-package com.minhnb.finvera_be.research.entity;
+package com.minhnb.finvera_be.research.domain;
 
 public enum IngestionStatus {
     PENDING,

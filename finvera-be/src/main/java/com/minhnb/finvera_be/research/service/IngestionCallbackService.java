@@ -1,16 +1,16 @@
 package com.minhnb.finvera_be.research.service;
 
 import com.minhnb.finvera_be.research.config.ResearchProperties;
+import com.minhnb.finvera_be.research.domain.Applicability;
+import com.minhnb.finvera_be.research.domain.ImpactLevel;
+import com.minhnb.finvera_be.research.domain.IngestionStatus;
+import com.minhnb.finvera_be.research.domain.NewsCategory;
+import com.minhnb.finvera_be.research.domain.ResearchItemType;
+import com.minhnb.finvera_be.research.domain.Sentiment;
 import com.minhnb.finvera_be.research.dto.IngestionCallbackRequest;
-import com.minhnb.finvera_be.research.entity.Applicability;
-import com.minhnb.finvera_be.research.entity.ImpactLevel;
-import com.minhnb.finvera_be.research.entity.IngestionStatus;
 import com.minhnb.finvera_be.research.entity.NewsArticleEntity;
-import com.minhnb.finvera_be.research.entity.NewsCategory;
 import com.minhnb.finvera_be.research.entity.ResearchChunkEntity;
 import com.minhnb.finvera_be.research.entity.ResearchDocumentEntity;
-import com.minhnb.finvera_be.research.entity.ResearchItemType;
-import com.minhnb.finvera_be.research.entity.Sentiment;
 import com.minhnb.finvera_be.research.repository.NewsArticleRepository;
 import com.minhnb.finvera_be.research.repository.ResearchChunkRepository;
 import com.minhnb.finvera_be.research.repository.ResearchDocumentRepository;

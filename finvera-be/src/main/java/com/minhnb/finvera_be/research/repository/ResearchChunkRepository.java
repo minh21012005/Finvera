@@ -13,7 +13,11 @@ public interface ResearchChunkRepository extends JpaRepository<ResearchChunkEnti
 
     List<ResearchChunkEntity> findByResearchDocumentIdOrderByChunkIndexAsc(UUID researchDocumentId);
 
+    List<ResearchChunkEntity> findByResearchDocumentIdAndOwnerId(UUID researchDocumentId, UUID ownerId);
+
     List<ResearchChunkEntity> findByNewsArticleIdOrderByChunkIndexAsc(UUID newsArticleId);
+
+    List<ResearchChunkEntity> findByNewsArticleIdAndOwnerId(UUID newsArticleId, UUID ownerId);
 
     List<ResearchChunkEntity> findByIdInAndOwnerId(Collection<UUID> ids, UUID ownerId);
 

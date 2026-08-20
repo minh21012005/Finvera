@@ -85,6 +85,9 @@ export function MarketOverviewPage() {
         <button type="button" className="screener-nav-link" onClick={() => navigate("/watchlists")}>
           Danh sách theo dõi →
         </button>
+        <button type="button" className="screener-nav-link" onClick={() => navigate("/research")}>
+          Nghiên cứu & RAG →
+        </button>
       </header>
 
       <IndexOverview overview={state.overview} />

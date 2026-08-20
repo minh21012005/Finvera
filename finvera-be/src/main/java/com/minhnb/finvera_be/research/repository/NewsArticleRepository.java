@@ -1,8 +1,8 @@
 package com.minhnb.finvera_be.research.repository;
 
+import com.minhnb.finvera_be.research.domain.NewsCategory;
+import com.minhnb.finvera_be.research.domain.Sentiment;
 import com.minhnb.finvera_be.research.entity.NewsArticleEntity;
-import com.minhnb.finvera_be.research.entity.NewsCategory;
-import com.minhnb.finvera_be.research.entity.Sentiment;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;

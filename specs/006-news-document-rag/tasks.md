@@ -160,7 +160,7 @@ passage; upload a no-text PDF and verify `FAILED`.
 
 ### Tests and Evaluation
 
-- [ ] T013 [P] [US1] [FR-001, FR-003, FR-004, FR-016] Write
+- [X] T013 [P] [US1] [FR-001, FR-003, FR-004, FR-016] Write
       `ResearchDocumentService` tests — submit (file and pasted-text
       paths), status transitions, delete with chunk/vector cascade, a
       replayed `Idempotency-Key` rejected `DUPLICATE_SUBMISSION` with zero
@@ -169,13 +169,13 @@ passage; upload a no-text PDF and verify `FAILED`.
       `finvera-be/src/test/java/com/minhnb/finvera_be/research/service/ResearchDocumentServiceTests.java`
       Verify: fails before the service exists
       Depends: T002, T012
-- [ ] T014 [P] [US1] [FR-005 to FR-008, FR-015] Write `RetrievalService`
+- [X] T014 [P] [US1] [FR-005 to FR-008, FR-015] Write `RetrievalService`
       integration tests — filter application, `content_text` resolution
       from PostgreSQL, empty-result truthfulness — in
       `finvera-be/src/test/java/com/minhnb/finvera_be/research/service/RetrievalServiceTests.java`
       Verify: fails before the service exists
       Depends: T010
-- [ ] T015 [P] [US1] [SEC-001, SEC-002] Write owner-only contract/security
+- [X] T015 [P] [US1] [SEC-001, SEC-002] Write owner-only contract/security
       tests for `POST/GET /research/documents`, `DELETE
       /research/documents/{id}`, `POST /research/retrieve` in
       `finvera-be/src/test/java/com/minhnb/finvera_be/research/controller/ResearchDocumentControllerTests.java`
@@ -184,7 +184,7 @@ passage; upload a no-text PDF and verify `FAILED`.
 
 ### Implementation
 
-- [ ] T016 [US1] [FR-001, FR-003, FR-004, FR-016, FR-018] Implement
+- [X] T016 [US1] [FR-001, FR-003, FR-004, FR-016, FR-018] Implement
       `ResearchDocumentService` (submit via T006's client, checking
       `(owner_id, idempotency_key)` before creating any row or ingestion
       job — research R-013 — list, get, delete with
@@ -192,7 +192,7 @@ passage; upload a no-text PDF and verify `FAILED`.
       `finvera-be/src/main/java/com/minhnb/finvera_be/research/service/ResearchDocumentService.java`
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=ResearchDocumentServiceTests test` passes
       Depends: T003, T013
-- [ ] T017 [US1] [FR-005 to FR-008, FR-015] Implement `RetrievalService`
+- [X] T017 [US1] [FR-005 to FR-008, FR-015] Implement `RetrievalService`
       (call T010's `/internal/v1/retrieve`, resolve `content_text` and
       format `location` from `research_chunk.pageNumber`/`paragraphIndex`
       — the sole authoritative source, never a Qdrant-derived string, F4
@@ -200,7 +200,7 @@ passage; upload a no-text PDF and verify `FAILED`.
       `finvera-be/src/main/java/com/minhnb/finvera_be/research/service/RetrievalService.java`
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=RetrievalServiceTests test` passes
       Depends: T010, T014
-- [ ] T018 [US1] [FR-001 to FR-008, FR-015, FR-016, SEC-001, SEC-002]
+- [X] T018 [US1] [FR-001 to FR-008, FR-015, FR-016, SEC-001, SEC-002]
       Implement DTO mapping and controllers for `/research/documents`,
       `/research/documents/{id}`, `/research/retrieve` per
       `contracts/public-api.openapi.yaml` — including binding the required
@@ -210,7 +210,7 @@ passage; upload a no-text PDF and verify `FAILED`.
       and `ResearchDocumentController.java`, `ResearchRetrievalController.java`
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=ResearchDocumentControllerTests test` passes
       Depends: T015, T016, T017
-- [ ] T019 [P] [US1] Implement browser API types, runtime response
+- [X] T019 [P] [US1] Implement browser API types, runtime response
       validation, and a same-origin, CSRF-token-attaching client (reusing
       `auth/api/owner-access.ts`'s `getCsrf()`) that generates one
       `Idempotency-Key` (UUID) per logical submit action and resends the
@@ -221,13 +221,13 @@ passage; upload a no-text PDF and verify `FAILED`.
       retried submit reuses the same key while a fresh submit generates a
       new one
       Depends: T018
-- [ ] T020 [P] [US1] Write document-upload and retrieval-results component
+- [X] T020 [P] [US1] Write document-upload and retrieval-results component
       tests — upload form (file and pasted text), status display,
       citation display, empty-result state, non-color status indicator —
       in `finvera-fe/src/features/research/documents.test.tsx`
       Verify: fails before the components exist
       Depends: none
-- [ ] T021 [US1] Implement the documents/retrieval UI — upload form,
+- [X] T021 [US1] Implement the documents/retrieval UI — upload form,
       document list, retrieval search box and cited results — in
       `finvera-fe/src/features/research/components/document-upload.tsx`,
       `document-list.tsx`, `retrieval-results.tsx`,
@@ -235,7 +235,7 @@ passage; upload a no-text PDF and verify `FAILED`.
       Verify: `cd finvera-fe; npm run test -- src/features/research/documents.test.tsx`
       passes
       Depends: T019, T020
-- [ ] T022 [US1] Add Playwright P1 journeys — upload, wait for `READY`,
+- [X] T022 [US1] Add Playwright P1 journeys — upload, wait for `READY`,
       retrieve with a correct citation, upload a no-text PDF and see
       `FAILED`, filter by symbol/type/date, delete and confirm absence —
       in `finvera-fe/tests/e2e/research-documents.spec.ts`

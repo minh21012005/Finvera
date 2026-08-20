@@ -1,6 +1,6 @@
 package com.minhnb.finvera_be.research.repository;
 
-import com.minhnb.finvera_be.research.entity.DocumentType;
+import com.minhnb.finvera_be.research.domain.DocumentType;
 import com.minhnb.finvera_be.research.entity.ResearchDocumentEntity;
 import java.time.LocalDate;
 import java.util.Optional;

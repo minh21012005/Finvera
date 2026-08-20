@@ -7,10 +7,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.minhnb.finvera_be.research.config.ResearchProperties;
+import com.minhnb.finvera_be.research.domain.DocumentType;
+import com.minhnb.finvera_be.research.domain.IngestionStatus;
 import com.minhnb.finvera_be.research.dto.IngestionCallbackRequest;
 import com.minhnb.finvera_be.research.dto.IngestionCallbackRequest.IngestedChunkDto;
-import com.minhnb.finvera_be.research.entity.DocumentType;
-import com.minhnb.finvera_be.research.entity.IngestionStatus;
 import com.minhnb.finvera_be.research.entity.ResearchDocumentEntity;
 import com.minhnb.finvera_be.research.repository.NewsArticleRepository;
 import com.minhnb.finvera_be.research.repository.ResearchChunkRepository;

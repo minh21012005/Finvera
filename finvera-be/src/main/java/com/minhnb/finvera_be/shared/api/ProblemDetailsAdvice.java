@@ -96,6 +96,27 @@ public class ProblemDetailsAdvice {
         return response(request, HttpStatus.BAD_REQUEST, "INVALID_REQUEST", ex.getMessage());
     }
 
+    @ExceptionHandler(com.minhnb.finvera_be.research.service.ResearchExceptions.DocumentNotFoundException.class)
+    ResponseEntity<ProblemDetail> documentNotFound(HttpServletRequest request, Exception ex) {
+        return response(request, HttpStatus.NOT_FOUND, "DOCUMENT_NOT_FOUND", ex.getMessage());
+    }
+
+    @ExceptionHandler(com.minhnb.finvera_be.research.service.ResearchExceptions.NewsArticleNotFoundException.class)
+    ResponseEntity<ProblemDetail> newsArticleNotFound(HttpServletRequest request, Exception ex) {
+        return response(request, HttpStatus.NOT_FOUND, "NEWS_ARTICLE_NOT_FOUND", ex.getMessage());
+    }
+
+    @ExceptionHandler(com.minhnb.finvera_be.research.service.ResearchExceptions.DuplicateSubmissionException.class)
+    ResponseEntity<ProblemDetail> duplicateResearchSubmission(HttpServletRequest request, com.minhnb.finvera_be.research.service.ResearchExceptions.DuplicateSubmissionException ex) {
+        return response(request, HttpStatus.CONFLICT, "DUPLICATE_SUBMISSION",
+                "Original item id: " + ex.getExistingItemId());
+    }
+
+    @ExceptionHandler(com.minhnb.finvera_be.research.service.ResearchExceptions.RetrievalUnavailableException.class)
+    ResponseEntity<ProblemDetail> retrievalUnavailable(HttpServletRequest request, Exception ex) {
+        return response(request, HttpStatus.SERVICE_UNAVAILABLE, "RETRIEVAL_UNAVAILABLE", ex.getMessage());
+    }
+
     @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
     ResponseEntity<ProblemDetail> dataIntegrityViolation(HttpServletRequest request) {
         return response(request, HttpStatus.CONFLICT, "CONFLICT",
