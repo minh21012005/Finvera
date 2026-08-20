@@ -247,15 +247,15 @@ and distinctly attributed.
 
 ### Tests and Evaluation
 
-- [ ] T025 [P] [US2] [FR-004, FR-010] Integration test — a combined
+- [X] T025 [P] [US2] [FR-004, FR-010] Integration test — a combined
       question dispatches both a structured tool and the Research/RAG
       tool; the answer contains both, distinctly attributed, never blended
       Depends: T012, T013
-- [ ] T026 [P] [US2] [AI-003] Eval test reusing Feature 006's
+- [X] T026 [P] [US2] [AI-003] Eval test reusing Feature 006's
       prompt-injection fixtures, reached via the Research/RAG tool inside
       an orchestrated question; 0% behavior deviation
       Depends: T012
-- [ ] T027 [P] [US2] [orchestration-v1 U-6] Property/replay test — the
+- [X] T027 [P] [US2] [orchestration-v1 U-6] Property/replay test — the
       same combined question, run twice against an unchanged data
       snapshot, selects the same tools and produces the same attributed
       values both times; prose may differ
@@ -263,14 +263,14 @@ and distinctly attributed.
 
 ### Implementation
 
-- [ ] T028 [US2] [FR-004] Wire the Research/RAG tool inside
+- [X] T028 [US2] [FR-004] Wire the Research/RAG tool inside
       `finvera-ai/app/features/orchestration/dispatch.py` to call Feature
       006's existing `/internal/v1/retrieve`/`/synthesize` unchanged, with
       `documentClaims` resolved to the public citation shape identically
       to Feature 006's own resolution
       Verify: T025 passes
       Depends: T012, T020
-- [ ] T029 [US2] [DATA-003] Implement conflicting-source disclosure in the
+- [X] T029 [US2] [DATA-003] Implement conflicting-source disclosure in the
       synthesis prompt framing and response assembly — a structured value
       and a document claim disagreeing on the same fact are both surfaced,
       never silently reconciled

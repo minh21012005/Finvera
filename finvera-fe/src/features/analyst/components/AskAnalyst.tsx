@@ -243,6 +243,45 @@ export const AskAnalyst: React.FC = () => {
                 </div>
               </div>
             )}
+
+            {/* Document Claims Citations Badges (US2: P2) */}
+            {finalResult && finalResult.documentClaims && finalResult.documentClaims.length > 0 && (
+              <div className="space-y-2 mt-3 pt-3 border-t border-slate-800/60">
+                <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center space-x-2">
+                  <span>Trích dẫn tài liệu & BCTC ({finalResult.documentClaims.length} văn bản)</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {finalResult.documentClaims.map((docClaim, idx) => (
+                    <div
+                      key={idx}
+                      className="p-2.5 rounded-lg bg-slate-800/60 border border-blue-500/30 flex flex-col justify-between space-y-1"
+                    >
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-blue-300 truncate">
+                          📄 {docClaim.title || 'Tài liệu công bố'}
+                        </span>
+                        {docClaim.pageNumber && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-300 font-mono">
+                            Trang {docClaim.pageNumber}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-slate-300 line-clamp-2">
+                        {docClaim.claimText}
+                      </div>
+                      <div className="text-[10px] text-slate-400 flex items-center justify-between mt-1">
+                        <span className="font-mono text-[9px] text-slate-500 truncate max-w-[180px]">
+                          ID: {docClaim.chunkId}
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          [{docClaim.source || 'DOCUMENT'}]
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

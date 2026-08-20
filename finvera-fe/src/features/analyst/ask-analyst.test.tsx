@@ -92,4 +92,50 @@ describe('AskAnalyst Component (User Story 1: P1)', () => {
       expect(screen.getByText(/\[Giới hạn 10 công cụ\]/i)).toBeDefined();
     });
   });
+
+  it('renders both structured claims and document citations distinctly for combined question (User Story 2: P2)', async () => {
+    const mockStream = vi.mocked(analystApi.streamAskAnalyst);
+    mockStream.mockImplementation(async (_req, callbacks) => {
+      callbacks.onFinal?.({
+        answer: 'Giá HPG là 28500. Kế hoạch doanh thu 150000 tỷ theo Báo cáo thường niên 2025.',
+        structuredClaims: [
+          {
+            claimText: 'Giá 28500',
+            toolName: 'STOCK',
+            sourceField: 'price',
+            claimedValue: '28500',
+            asOf: '2026-08-20T10:00:00Z',
+          },
+        ],
+        documentClaims: [
+          {
+            chunkId: '11111111-1111-1111-1111-111111111111',
+            claimText: 'Theo Báo cáo thường niên 2025: Doanh thu 150.000 tỷ',
+            title: 'Báo cáo thường niên 2025 HPG',
+            source: 'DOCUMENT',
+            pageNumber: 15,
+          },
+        ],
+        refused: false,
+        toolCalls: [],
+        toolCallBoundReached: false,
+        ruleVersion: 'orchestration-v1',
+      });
+    });
+
+    render(<AskAnalyst />);
+    const input = screen.getByPlaceholderText(/Hỏi trợ lý phân tích/i);
+    fireEvent.change(input, { target: { value: 'Giá HPG và tài liệu BCTN 2025' } });
+
+    const submitBtn = screen.getByText(/Gửi/i);
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Dữ liệu đã được kiểm chứng/i)).toBeDefined();
+      expect(screen.getByText(/Giá 28500/i)).toBeDefined();
+      expect(screen.getByText(/Trích dẫn tài liệu & BCTC/i)).toBeDefined();
+      expect(screen.getByText(/Báo cáo thường niên 2025 HPG/i)).toBeDefined();
+      expect(screen.getByText(/Trang 15/i)).toBeDefined();
+    });
+  });
 });

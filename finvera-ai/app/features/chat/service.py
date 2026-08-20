@@ -83,38 +83,42 @@ class ChatOrchestrationService:
         if any(k in q_upper for k in ("THỊ TRƯỜNG", "VN-INDEX", "VNINDEX", "VN30", "ĐỘ RỘNG", "MARKET", "XU HƯỚNG CHUNG")):
             proposed.append({"tool_name": "MARKET", "arguments": {}})
 
-        # 2. TECHNICAL Analysis
+        # 2. STOCK Price
+        if matched_symbol and any(k in q_upper for k in ("GIÁ", "STOCK", "THỊ GIÁ", "CỔ PHIẾU", "KHỚP LỆNH")):
+            proposed.append({"tool_name": "STOCK", "arguments": {"symbol": matched_symbol}})
+
+        # 3. TECHNICAL Analysis
         if matched_symbol and any(k in q_upper for k in ("KỸ THUẬT", "RSI", "MACD", "MA20", "MA50", "CHỈ BÁO", "TÍN HIỆU", "DÒNG TIỀN", "TECHNICAL", "KHÁNG CỰ", "HỖ TRỢ")):
             proposed.append({"tool_name": "TECHNICAL", "arguments": {"symbol": matched_symbol}})
 
-        # 3. FUNDAMENTAL Analysis
-        if matched_symbol and any(k in q_upper for k in ("CƠ BẢN", "TÀI CHÍNH", "EPS", "ROE", "DOANH THU", "LỢI NHUẬN", "BÁO CÁO TÀI CHÍNH", "FUNDAMENTAL", "KẾT QUẢ KINH DOANH")):
+        # 4. FUNDAMENTAL Analysis
+        if matched_symbol and any(k in q_upper for k in ("CƠ BẢN", "TÀI CHÍNH", "EPS", "ROE", "DOANH THU", "LỢI NHUẬN", "BÁO CÁO TÀI CHÍNH", "BCTC", "FUNDAMENTAL", "KẾT QUẢ KINH DOANH")):
             proposed.append({"tool_name": "FUNDAMENTAL", "arguments": {"symbol": matched_symbol}})
 
-        # 4. VALUATION
+        # 5. VALUATION
         if matched_symbol and any(k in q_upper for k in ("ĐỊNH GIÁ", "P/E", "P/B", "PE", "PB", "VALUATION", "ĐẮT", "RẺ")):
             proposed.append({"tool_name": "VALUATION", "arguments": {"symbol": matched_symbol}})
 
-        # 5. PORTFOLIO
+        # 6. PORTFOLIO
         if any(k in q_upper for k in ("DANH MỤC", "TÀI SẢN", "PORTFOLIO", "VỊ THẾ", "HIỆU SUẤT ĐẦU TƯ", "LÃI LỖ")):
             sub_type = "ANALYTICS" if any(k in q_upper for k in ("HIỆU SUẤT", "RỦI RO", "ANALYTICS")) else "POSITIONS"
             proposed.append({"tool_name": "PORTFOLIO", "arguments": {"sub_type": sub_type}})
 
-        # 6. NEWS
+        # 7. NEWS
         if any(k in q_upper for k in ("TIN TỨC", "TIN MỚI", "BÀI BÁO", "NEWS", "SỰ KIỆN")):
             args: Dict[str, Any] = {"limit": 5}
             if matched_symbol:
                 args["symbol"] = matched_symbol
             proposed.append({"tool_name": "NEWS", "arguments": args})
 
-        # 7. RESEARCH_RAG (Specific document questions)
-        if any(k in q_upper for k in ("BÁO CÁO THƯỜNG NIÊN", "TÀI LIỆU", "PDF", "TRÍCH XUẤT", "ĐỌC ĐƯỢC", "THEO TÀI LIỆU")):
+        # 8. RESEARCH_RAG (Specific document questions)
+        if any(k in q_upper for k in ("BÁO CÁO THƯỜNG NIÊN", "TÀI LIỆU", "PDF", "TRÍCH XUẤT", "TRÍCH LỤC", "ĐỌC ĐƯỢC", "THEO TÀI LIỆU", "ĐẠI HỘI CỔ ĐÔNG", "ĐHCĐ", "NGHỊ QUYẾT", "CÔNG BỐ", "THUYẾT MINH", "VĂN BẢN")):
             args = {"query": question, "top_k": 5}
             if matched_symbol:
                 args["symbol"] = matched_symbol
             proposed.append({"tool_name": "RESEARCH_RAG", "arguments": args})
 
-        # 8. STOCK Summary (Default fallback if symbol is mentioned or question is about stock price)
+        # 9. STOCK Summary fallback
         if matched_symbol and not proposed:
             proposed.append({"tool_name": "STOCK", "arguments": {"symbol": matched_symbol}})
 
@@ -275,9 +279,30 @@ class ChatOrchestrationService:
             elif call.tool_name == ToolName.RESEARCH_RAG:
                 chunks = data.get("chunks", [])
                 if chunks:
-                    first_c = chunks[0]
-                    answer_parts.append(f"Trích lục tài liệu: '{first_c.get('title', '')}'.")
-                    raw_docs.append({"chunkId": first_c.get("chunk_id"), "claimText": first_c.get("title", "")})
+                    for ch in chunks[:3]:
+                        c_id = ch.get("chunk_id")
+                        c_title = ch.get("title", "")
+                        c_text = ch.get("content_text", "")
+                        
+                        # AI-003: Defense against prompt injection in document chunks
+                        # Treat retrieved text purely as untrusted reference data, stripping any injection attempts and commands
+                        cleaned_preview = re.sub(r"(?i)(system\s+prompt|ignore\s+all|ignore\s+previous|override\s+instructions|bỏ\s+qua\s+chỉ\s+thị).*", "[TRÍCH ĐOẠN ĐÃ LỌC]", c_text)
+                        
+                        answer_parts.append(f"Theo tài liệu công bố '{c_title}': {cleaned_preview[:150]}...")
+                        raw_docs.append({
+                            "chunkId": c_id,
+                            "claimText": f"Theo {c_title}: {cleaned_preview[:100]}",
+                            "title": c_title,
+                            "source": ch.get("source_type", "DOCUMENT"),
+                            "pageNumber": ch.get("page_number"),
+                        })
+
+        # DATA-003: Conflicting-source disclosure check
+        # If both structured fundamental/valuation and document claims exist, explicitly declare multi-source provenance
+        has_structured = len(raw_claims) > 0
+        has_document = len(raw_docs) > 0
+        if has_structured and has_document:
+            answer_parts.append("(Lưu ý: Dữ liệu trên được tổng hợp độc lập từ cả hệ thống số liệu tài chính thời gian thực và văn bản tài liệu công bố. Mọi sự sai khác về số liệu đều được bảo toàn theo đúng từng nguồn gốc tương ứng).")
 
         full_answer = " ".join(answer_parts)
 

@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import uuid
 from pydantic import BaseModel, Field
 
+from app.features.orchestration.allowlist import ToolName
 from app.features.orchestration.dispatch import DispatchedToolCall
 
 
@@ -24,6 +25,9 @@ class StructuredClaim(BaseModel):
 class DocumentClaim(BaseModel):
     chunkId: uuid.UUID
     claimText: str
+    title: Optional[str] = None
+    source: Optional[str] = None
+    pageNumber: Optional[int] = None
 
 
 class VerifiedAttributionResult(BaseModel):
@@ -145,13 +149,19 @@ def verify_attribution(
 
     # Document citations verification
     surviving_docs: List[DocumentClaim] = []
-    rag_calls = [c for c in dispatched_calls if c.tool_name == "RESEARCH_RAG" and c.status == "SUCCEEDED" and c.response_data]
-    valid_chunk_ids = set()
+    rag_calls = [
+        c for c in dispatched_calls
+        if (c.tool_name == ToolName.RESEARCH_RAG or str(c.tool_name) == "RESEARCH_RAG")
+        and c.status == "SUCCEEDED"
+        and c.response_data
+    ]
+    valid_chunks_map = {}
     for rag in rag_calls:
         for ch in rag.response_data.get("chunks", []):
             if ch.get("chunk_id"):
                 try:
-                    valid_chunk_ids.add(str(uuid.UUID(ch["chunk_id"])))
+                    c_uuid = uuid.UUID(str(ch["chunk_id"]))
+                    valid_chunks_map[str(c_uuid)] = ch
                 except (ValueError, TypeError):
                     pass
 
@@ -163,8 +173,17 @@ def verify_attribution(
 
         try:
             parsed_chunk_id = uuid.UUID(str(c_id_raw))
-            if str(parsed_chunk_id) in valid_chunk_ids:
-                surviving_docs.append(DocumentClaim(chunkId=parsed_chunk_id, claimText=claim_text))
+            if str(parsed_chunk_id) in valid_chunks_map:
+                ch_info = valid_chunks_map[str(parsed_chunk_id)]
+                surviving_docs.append(
+                    DocumentClaim(
+                        chunkId=parsed_chunk_id,
+                        claimText=claim_text,
+                        title=doc_claim_raw.get("title") or ch_info.get("title"),
+                        source=doc_claim_raw.get("source") or ch_info.get("source_type"),
+                        pageNumber=doc_claim_raw.get("pageNumber") or ch_info.get("page_number"),
+                    )
+                )
         except (ValueError, TypeError):
             continue
 
