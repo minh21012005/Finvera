@@ -32,5 +32,11 @@ class Settings(BaseSettings):
     # Ingestion Callback (finvera-be URL)
     backend_internal_api_url: str = "http://127.0.0.1:8080/internal/v1"
 
+    # Feature 007 - AI Analyst (research R-005, R-010)
+    analyst_max_tool_calls: int = 10
+    analyst_tool_call_timeout_seconds: float = 10.0
+    analyst_ask_timeout_seconds: float = 30.0
+
 
 settings = Settings()
+

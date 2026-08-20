@@ -68,7 +68,7 @@ was introduced.
 
 **Purpose**: Complete prerequisites that block every in-scope user story.
 
-- [ ] T006 [SEC-002] Extend Feature 006's `InternalApiKeyFilter`
+- [X] T006 [SEC-002] Extend Feature 006's `InternalApiKeyFilter`
       (`finvera-be`) and its `finvera-ai` counterpart to require and
       validate `X-Internal-Api-Key` on every new path this feature adds —
       `/internal/v1/tools/**` (hosted by `finvera-be`) and
@@ -77,7 +77,7 @@ was introduced.
       Verify: security test — a request to each new endpoint with a
       missing/invalid key returns `401` on both services
       Depends: T003, T004
-- [ ] T007 [FR-002] Implement the `ToolName` allowlist and code-level
+- [X] T007 [FR-002] Implement the `ToolName` allowlist and code-level
       argument-schema validation in
       `finvera-ai/app/features/orchestration/allowlist.py`
       (`orchestration-v1` U-1) — rejects any proposed tool/argument the
@@ -85,7 +85,7 @@ was introduced.
       Verify: unit test — a proposed call with an unlisted tool name or a
       malformed argument is rejected before dispatch
       Depends: T004
-- [ ] T008 [none, research R-002] Implement explicit `ownerId` propagation
+- [X] T008 [none, research R-002] Implement explicit `ownerId` propagation
       and mismatch rejection across all three hops (`finvera-be` ->
       `finvera-ai` -> `finvera-be`'s tool endpoints), in
       `finvera-be/.../analyst/service` and
@@ -95,13 +95,13 @@ was introduced.
       than the originating session's is rejected identically to an invalid
       argument
       Depends: T006
-- [ ] T009 [none] Add `finvera.analyst.max-tool-calls` (default 10,
+- [X] T009 [none] Add `finvera.analyst.max-tool-calls` (default 10,
       research R-005) and `finvera.analyst.tool-call-timeout` (default
       10s, research R-010) configuration to `finvera-be`'s and
       `finvera-ai`'s settings
       Verify: config test — defaults load; both values are overridable
       Depends: T003
-- [ ] T010 [DATA-001, DATA-002] Implement the nine thin `ToolService`
+- [X] T010 [DATA-001, DATA-002] Implement the nine thin `ToolService`
       delegates in `finvera-be/.../analyst/service/` (Market, Stock,
       Technical, Fundamental, Valuation, Portfolio positions/analytics,
       News, Screening), each calling its owning Feature 001-005 service
@@ -111,7 +111,7 @@ was introduced.
       the owning feature's existing service directly, including its
       unmodified `asOf`/effective-time field (DATA-002)
       Depends: T006, T009
-- [ ] T011 [AI-002] Implement `AnalystQueryService`/`AnalystToolCallService`
+- [X] T011 [AI-002] Implement `AnalystQueryService`/`AnalystToolCallService`
       audit-logging (research R-011) in
       `finvera-be/.../analyst/service/AnalystQueryService.java` — writes
       `analyst_query` (truncated `questionPreview` + `questionHash`, never
@@ -119,7 +119,7 @@ was introduced.
       Verify: unit test — the full raw question/answer text is never
       persisted, only the truncated preview and hash
       Depends: T002
-- [ ] T012 [none, research R-005] Implement the orchestration dispatch loop
+- [X] T012 [none, research R-005] Implement the orchestration dispatch loop
       in `finvera-ai/app/features/orchestration/dispatch.py` (Gemini
       native function-calling, allowlist/bound enforcement from T007/T009,
       per-call timeout, calling back into `finvera-be`'s `/tools/*` and
@@ -128,7 +128,7 @@ was introduced.
       Verify: `orchestration-v1.md`'s required test-vector table cases for
       allowlist rejection, bound reached, and per-call timeout
       Depends: T007, T008, T010
-- [ ] T013 [AI-001, DATA-002] Implement structured-claim attribution
+- [X] T013 [AI-001, DATA-002] Implement structured-claim attribution
       verification (`orchestration-v1` steps 1-6) in
       `finvera-ai/app/features/orchestration/attribution.py`, including
       setting each surviving claim's `asOf` programmatically from its tool
