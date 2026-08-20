@@ -343,20 +343,20 @@ to a document.
 
 ### Tests and Evaluation
 
-- [ ] T031 [P] [US3] [FR-002, FR-013, FR-014] Write news classification
+- [X] T031 [P] [US3] [FR-002, FR-013, FR-014] Write news classification
       tests — entities/symbols, sector, sentiment, impact, category, and
       the `MISSING`/undetermined path on low confidence — in
       `finvera-ai/app/features/document/tests/test_news_classification.py`
       Verify: fails before classification exists
       Depends: T007, T011
-- [ ] T032 [P] [US3] [FR-002, FR-003, FR-015] Write `NewsArticleService`
+- [X] T032 [P] [US3] [FR-002, FR-003, FR-015] Write `NewsArticleService`
       tests — submit, status transitions, list/filter by symbol/category/
       sentiment/date, the same `Idempotency-Key` replay/fresh-key behavior
       as `ResearchDocumentServiceTests` (research R-013) — in
       `finvera-be/src/test/java/com/minhnb/finvera_be/research/service/NewsArticleServiceTests.java`
       Verify: fails before the service exists
       Depends: T002, T012
-- [ ] T033 [P] [US3] [SEC-001, SEC-002] Write owner-only contract/security
+- [X] T033 [P] [US3] [SEC-001, SEC-002] Write owner-only contract/security
       tests for `/research/news` in
       `finvera-be/src/test/java/com/minhnb/finvera_be/research/controller/NewsArticleControllerTests.java`
       Verify: fails before the controller exists
@@ -364,21 +364,21 @@ to a document.
 
 ### Implementation
 
-- [ ] T034 [US3] [FR-013, FR-014] Implement news classification
+- [X] T034 [US3] [FR-013, FR-014] Implement news classification
       (`app/features/document/classification.py`, a schema-validated
       Gemini call) wired into T011's ingestion pipeline for
       `itemType = NEWS_ARTICLE`
       Verify: `cd finvera-ai; uv run pytest app/features/document/tests/test_news_classification.py`
       passes
       Depends: T031
-- [ ] T035 [US3] [FR-002, FR-003, FR-015] Implement `NewsArticleService`
+- [X] T035 [US3] [FR-002, FR-003, FR-015] Implement `NewsArticleService`
       (submit — checking `(owner_id, idempotency_key)` per research R-013
       before creating any row or ingestion job — list/filter, get, delete
       with vector cleanup) in
       `finvera-be/src/main/java/com/minhnb/finvera_be/research/service/NewsArticleService.java`
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=NewsArticleServiceTests test` passes
       Depends: T032, T034
-- [ ] T036 [US3] [FR-002, FR-013 to FR-015, SEC-001, SEC-002] Implement
+- [X] T036 [US3] [FR-002, FR-013 to FR-015, SEC-001, SEC-002] Implement
       DTO mapping and controller for `/research/news` per
       `contracts/public-api.openapi.yaml` — including binding the required
       `Idempotency-Key` header on `submitNewsArticle` and mapping
@@ -387,25 +387,25 @@ to a document.
       and `NewsArticleController.java`
       Verify: `cd finvera-be; .\mvnw.cmd -Dtest=NewsArticleControllerTests test` passes
       Depends: T033, T035
-- [ ] T037 [P] [US3] Implement browser API client for news (generating and
+- [X] T037 [P] [US3] Implement browser API client for news (generating and
       reusing an `Idempotency-Key` per submit action, identically to
       T019 — research R-013) in
       `finvera-fe/src/features/research/api/news.ts`
       Verify: frontend unit tests reject malformed responses
       Depends: T036
-- [ ] T038 [P] [US3] Write news component tests — submit form, list with
+- [X] T038 [P] [US3] Write news component tests — submit form, list with
       filters, classification display including undetermined state — in
       `finvera-fe/src/features/research/news.test.tsx`
       Verify: fails before the components exist
       Depends: none
-- [ ] T039 [US3] Implement the news UI — submit form, filterable list,
+- [X] T039 [US3] Implement the news UI — submit form, filterable list,
       classification display — in
       `finvera-fe/src/features/research/components/news-submit.tsx`,
       `news-list.tsx`; wire into `research-page.tsx`
       Verify: `cd finvera-fe; npm run test -- src/features/research/news.test.tsx`
       passes; `npm run build` succeeds
       Depends: T037, T038
-- [ ] T040 [US3] Add Playwright P3 journeys — submit and see
+- [X] T040 [US3] Add Playwright P3 journeys — submit and see
       classification, undetermined-confidence display, cross-type
       retrieval (document + article), filter by symbol/category/
       sentiment/date — in `finvera-fe/tests/e2e/research-news.spec.ts`

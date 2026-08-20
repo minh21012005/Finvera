@@ -69,11 +69,11 @@ export async function streamAskQuestion(
       body: JSON.stringify(request),
       signal,
     });
-  } catch (err: any) {
-    if (err.name === 'AbortError') {
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'AbortError') {
       return;
     }
-    const error = new Error(err.message || 'Lỗi mạng khi kết nối trợ lý AI');
+    const error = err instanceof Error ? err : new Error('Lỗi mạng khi kết nối trợ lý AI');
     callbacks.onError?.(error);
     throw error;
   }
@@ -142,11 +142,11 @@ export async function streamAskQuestion(
         }
       }
     }
-  } catch (err: any) {
-    if (err.name === 'AbortError') {
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'AbortError') {
       return;
     }
-    const error = new Error(err.message || 'Lỗi khi đọc luồng dữ liệu.');
+    const error = err instanceof Error ? err : new Error('Lỗi khi đọc luồng dữ liệu.');
     callbacks.onError?.(error);
     throw error;
   }

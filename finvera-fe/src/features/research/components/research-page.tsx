@@ -3,19 +3,21 @@ import { Document, DocumentType, listDocuments } from "../api/documents";
 import { AskPanel } from "./ask-panel";
 import { DocumentList } from "./document-list";
 import { DocumentUpload } from "./document-upload";
+import { NewsList } from "./news-list";
+import { NewsSubmit } from "./news-submit";
 import { RetrievalResults } from "./retrieval-results";
 
 export function ResearchPage() {
-  const [activeTab, setActiveTab] = useState<"documents" | "retrieval" | "ask">("documents");
+  const [activeTab, setActiveTab] = useState<"documents" | "news" | "retrieval" | "ask">("documents");
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [symbolFilter, setSymbolFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
+  const [newsReloadKey, setNewsReloadKey] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
-    setLoading(true);
 
     listDocuments(
       {
@@ -25,15 +27,16 @@ export function ResearchPage() {
       controller.signal,
     )
       .then((data) => {
-        setDocuments(data.items || []);
+        if (!controller.signal.aborted) {
+          setDocuments(data.items || []);
+          setLoading(false);
+        }
       })
       .catch(() => {
-        if (controller.signal.aborted) return;
-        setDocuments([]);
-      })
-      .finally(() => {
-        if (controller.signal.aborted) return;
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setDocuments([]);
+          setLoading(false);
+        }
       });
 
     return () => controller.abort();
@@ -61,10 +64,10 @@ export function ResearchPage() {
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex items-center rounded-lg bg-slate-900 border border-slate-800 p-1">
+        <div className="flex flex-wrap items-center rounded-lg bg-slate-900 border border-slate-800 p-1">
           <button
             type="button"
-            className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${
+            className={`px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
               activeTab === "documents"
                 ? "bg-cyan-600 text-white shadow-sm"
                 : "text-slate-400 hover:text-slate-200"
@@ -75,7 +78,18 @@ export function ResearchPage() {
           </button>
           <button
             type="button"
-            className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${
+            className={`px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              activeTab === "news"
+                ? "bg-cyan-600 text-white shadow-sm"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+            onClick={() => setActiveTab("news")}
+          >
+            Tin Tức Thị Trường
+          </button>
+          <button
+            type="button"
+            className={`px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
               activeTab === "retrieval"
                 ? "bg-cyan-600 text-white shadow-sm"
                 : "text-slate-400 hover:text-slate-200"
@@ -86,7 +100,7 @@ export function ResearchPage() {
           </button>
           <button
             type="button"
-            className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${
+            className={`px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
               activeTab === "ask"
                 ? "bg-cyan-600 text-white shadow-sm"
                 : "text-slate-400 hover:text-slate-200"
@@ -112,6 +126,13 @@ export function ResearchPage() {
             typeFilter={typeFilter}
             onTypeFilterChange={setTypeFilter}
           />
+        </div>
+      )}
+
+      {activeTab === "news" && (
+        <div className="space-y-6">
+          <NewsSubmit onSubmitted={() => setNewsReloadKey((k) => k + 1)} />
+          <NewsList refreshTrigger={newsReloadKey} />
         </div>
       )}
 

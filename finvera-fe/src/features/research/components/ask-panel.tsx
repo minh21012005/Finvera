@@ -134,7 +134,7 @@ export const AskPanel: React.FC = () => {
               </label>
               <select
                 value={documentType}
-                onChange={(e) => setDocumentType(e.target.value as any)}
+                onChange={(e) => setDocumentType(e.target.value as DocumentType | "")}
                 className="w-full bg-slate-950/70 border border-slate-700/80 rounded-xl px-3.5 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition"
               >
                 <option value="">Tất cả loại tài liệu</option>

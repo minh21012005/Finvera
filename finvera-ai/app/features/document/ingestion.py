@@ -9,6 +9,8 @@ from app.infrastructure.llm.embedding import embedding_adapter
 from app.infrastructure.loaders.pdf import PdfExtractionError, extract_text_from_pdf
 from app.infrastructure.qdrant.collection import qdrant_service
 
+from app.features.document.classification import classify_news_article
+
 logger = logging.getLogger(__name__)
 
 
@@ -129,6 +131,15 @@ async def process_ingestion_job(
         # Upsert into Qdrant
         qdrant_service.upsert_chunks(points)
 
+        classification_data: Optional[Dict[str, Any]] = None
+        if item_type == "NEWS_ARTICLE":
+            classification_res = await classify_news_article(
+                headline=full_text[:200],
+                body_text=full_text,
+                symbol=symbol,
+            )
+            classification_data = classification_res.to_dict()
+
         # Notify finvera-be with READY status
         await send_callback(
             research_item_id=research_item_id,
@@ -136,7 +147,7 @@ async def process_ingestion_job(
             failure_reason=None,
             extracted_text=full_text,
             chunks=chunks,
-            classification=None,
+            classification=classification_data,
         )
 
     except PdfExtractionError as e:
