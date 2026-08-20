@@ -57,3 +57,28 @@ def test_delete_vectors_accepts_valid_key():
         headers={"X-Internal-Api-Key": settings.internal_api_key},
     )
     assert response.status_code == 204
+
+
+def test_ingest_endpoint_rejects_missing_or_invalid_key():
+    res1 = client.post("/internal/v1/ingestions", data={"researchItemId": str(uuid.uuid4())})
+    assert res1.status_code == 401
+
+    res2 = client.post(
+        "/internal/v1/ingestions",
+        data={"researchItemId": str(uuid.uuid4())},
+        headers={"X-Internal-Api-Key": "wrong-key"},
+    )
+    assert res2.status_code == 401
+
+
+def test_synthesize_endpoint_rejects_missing_or_invalid_key():
+    res1 = client.post("/internal/v1/synthesize", json={"query": "test"})
+    assert res1.status_code == 401
+
+    res2 = client.post(
+        "/internal/v1/synthesize",
+        json={"query": "test"},
+        headers={"X-Internal-Api-Key": "wrong-key"},
+    )
+    assert res2.status_code == 401
+

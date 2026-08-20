@@ -3,8 +3,7 @@
 **Feature Directory**: `specs/006-news-document-rag`
 **Date**: 2026-08-20
 **Spec**: [spec.md](spec.md)
-**Status**: Draft — design complete, not yet implemented. `tasks.md` has
-not been generated.
+**Status**: Implemented — complete and fully validated across all three tiers (`finvera-ai`, `finvera-be`, `finvera-fe`). All 50 tasks in `tasks.md` verified.
 
 ## Summary
 
