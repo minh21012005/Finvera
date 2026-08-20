@@ -1,0 +1,95 @@
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { AskAnalyst } from './components/AskAnalyst';
+import * as analystApi from './api/analyst';
+
+vi.mock('./api/analyst', () => ({
+  streamAskAnalyst: vi.fn(),
+}));
+
+describe('AskAnalyst Component (User Story 1: P1)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders input bar, suggested chips, and initial empty state', () => {
+    render(<AskAnalyst />);
+    expect(screen.getByPlaceholderText(/Hỏi trợ lý phân tích/i)).toBeDefined();
+    expect(screen.getByPlaceholderText(/Mã/i)).toBeDefined();
+    expect(screen.getByText(/Giá và Kỹ thuật HPG/i)).toBeDefined();
+    expect(screen.getByText(/Chưa có câu hỏi nào được đưa ra/i)).toBeDefined();
+  });
+
+  it('renders tool calls progress and verified structured claims on success', async () => {
+    const mockStream = vi.mocked(analystApi.streamAskAnalyst);
+    mockStream.mockImplementation(async (_req, callbacks) => {
+      callbacks.onToolCall?.({
+        sequenceNo: 1,
+        toolName: 'STOCK',
+        arguments: { symbol: 'HPG' },
+        status: 'SUCCEEDED',
+        latencyMs: 150,
+      });
+      callbacks.onDelta?.('Giá HPG là 28500.');
+      callbacks.onFinal?.({
+        answer: 'Giá HPG là 28500.',
+        structuredClaims: [
+          {
+            claimText: 'Giá 28500',
+            toolName: 'STOCK',
+            sourceField: 'price',
+            claimedValue: '28500',
+            asOf: '2026-08-20T10:00:00Z',
+          },
+        ],
+        documentClaims: [],
+        refused: false,
+        toolCalls: [],
+        toolCallBoundReached: false,
+        ruleVersion: 'orchestration-v1',
+      });
+    });
+
+    render(<AskAnalyst />);
+    const input = screen.getByPlaceholderText(/Hỏi trợ lý phân tích/i);
+    fireEvent.change(input, { target: { value: 'Giá HPG bao nhiêu?' } });
+
+    const submitBtn = screen.getByText(/Gửi/i);
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Công cụ được kích hoạt/i)).toBeDefined();
+      expect(screen.getByText(/#1 STOCK/i)).toBeDefined();
+      expect(screen.getByText(/\[Thành công\]/i)).toBeDefined();
+      expect(screen.getByText(/Giá HPG là 28500\./i)).toBeDefined();
+      expect(screen.getByText(/Dữ liệu đã được kiểm chứng/i)).toBeDefined();
+      expect(screen.getByText(/Giá 28500/i)).toBeDefined();
+    });
+  });
+
+  it('renders bound reached disclosure notice when toolCallBoundReached is true', async () => {
+    const mockStream = vi.mocked(analystApi.streamAskAnalyst);
+    mockStream.mockImplementation(async (_req, callbacks) => {
+      callbacks.onFinal?.({
+        answer: 'Dữ liệu tổng hợp từ 10 công cụ.',
+        structuredClaims: [],
+        documentClaims: [],
+        refused: false,
+        toolCalls: [],
+        toolCallBoundReached: true,
+        ruleVersion: 'orchestration-v1',
+      });
+    });
+
+    render(<AskAnalyst />);
+    const input = screen.getByPlaceholderText(/Hỏi trợ lý phân tích/i);
+    fireEvent.change(input, { target: { value: 'Phân tích tổng hợp' } });
+
+    const submitBtn = screen.getByText(/Gửi/i);
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/\[Giới hạn 10 công cụ\]/i)).toBeDefined();
+    });
+  });
+});

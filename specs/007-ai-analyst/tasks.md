@@ -157,38 +157,38 @@ unlisted capability and verify a stated limitation.
 
 ### Tests and Evaluation
 
-- [ ] T014 [P] [US1] [FR-001, FR-002, FR-003, AI-001] Contract/integration
+- [X] T014 [P] [US1] [FR-001, FR-002, FR-003, AI-001] Contract/integration
       test for `POST /internal/v1/analyst/ask` — a single-structured-tool
       question, asserting the returned claim exactly matches that tool's
       actual response field
       Verify: test fails before T012/T013 exist; passes after
       Depends: T012, T013
-- [ ] T015 [P] [US1] [FR-005, AI-004] Unit test — a question needing no
+- [X] T015 [P] [US1] [FR-005, AI-004] Unit test — a question needing no
       allowlisted tool returns the "outside current capability" state
       (`orchestration-v1` step 5), not a fabricated answer
       Depends: T012
-- [ ] T016 [P] [US1] [FR-011, NFR-003] Integration test — a question
+- [X] T016 [P] [US1] [FR-011, NFR-003] Integration test — a question
       engineered to require more than `finvera.analyst.max-tool-calls`
       dispatches stops at the bound; `toolCallBoundReached = true`;
       disclosed partial answer
       Depends: T009, T012
-- [ ] T017 [P] [US1] [FR-012] Integration test — one allowlisted tool call
+- [X] T017 [P] [US1] [FR-012] Integration test — one allowlisted tool call
       simulated to fail/time out; answer discloses that part as degraded
       while other successful tool results still contribute
       Depends: T012
-- [ ] T018 [P] [US1] [FR-013] Unit test — two sequential, unrelated
+- [X] T018 [P] [US1] [FR-013] Unit test — two sequential, unrelated
       questions (no `priorTurns` supplied) show no cross-question memory:
       the second question's dispatch/attribution is unaffected by the
       first
       Depends: T012
-- [ ] T019 [P] [US1] [FR-014, NFR-001] Integration test — `/analyst/ask`
+- [X] T019 [P] [US1] [FR-014, NFR-001] Integration test — `/analyst/ask`
       begins streaming (`tool_call` or `delta` event) within the
       20-second/NFR-001 budget for a representative multi-tool question
       Depends: T012
 
 ### Implementation
 
-- [ ] T020 [US1] [FR-001, FR-014] Implement `finvera-be`'s public
+- [X] T020 [US1] [FR-001, FR-014] Implement `finvera-be`'s public
       `POST /api/v1/analyst/ask` in
       `finvera-be/.../analyst/controller/AnalystController.java` — session/
       CSRF-gated, resolves `ownerId`, calls `finvera-ai`'s
@@ -201,7 +201,7 @@ unlisted capability and verify a stated limitation.
       Verify: contract test against `public-api.openapi.yaml`, asserting
       the `final` event never reaches the client unresolved
       Depends: T014
-- [ ] T021 [US1] [FR-003, DATA-002] Implement `finvera-be`'s resolution of
+- [X] T021 [US1] [FR-003, DATA-002] Implement `finvera-be`'s resolution of
       the internal `StructuredClaim{sequenceNo, fieldPath, claimedValue,
       asOf}` into the public `StructuredClaim{toolName, sourceField,
       asOf}` shape (research R-009's public-resolution note), cross-
@@ -212,21 +212,21 @@ unlisted capability and verify a stated limitation.
       Verify: unit test — public shape and `asOf` correctly resolved for
       every surviving structured claim
       Depends: T020
-- [ ] T022 [US1] [SEC-001, SEC-002, SEC-003] Wire session/CSRF/owner-only
+- [X] T022 [US1] [SEC-001, SEC-002, SEC-003] Wire session/CSRF/owner-only
       enforcement on `/analyst/ask` and confirm provider requests carry
       only the current question's tool results/context (data-minimization
       review)
       Verify: security tests (unauthenticated -> 401, missing CSRF -> 403,
       cross-owner attempt -> 401/404-equivalent)
       Depends: T020
-- [ ] T023 [US1] Implement the frontend Analyst chat entry point
+- [X] T023 [US1] Implement the frontend Analyst chat entry point
       (`finvera-fe/src/features/analyst/AskAnalyst.tsx`): question input,
       streamed answer rendering, `tool_call` progress indicators,
       per-claim attribution display
       Verify: Vitest component test; manual streaming check against the
       local runtime
       Depends: T020
-- [ ] T024 [US1] [NFR-004] Add non-colour indicators for attribution/
+- [X] T024 [US1] [NFR-004] Add non-colour indicators for attribution/
       degraded/limitation states in the chat component
       Verify: accessibility review
       Depends: T023
