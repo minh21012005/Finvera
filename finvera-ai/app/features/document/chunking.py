@@ -137,11 +137,18 @@ def chunk_document(pages: List[Tuple[int, str]]) -> List[ChunkItem]:
     return items
 
 
-def chunk_news_article(body: str) -> List[ChunkItem]:
+def chunk_news_article(
+    body: str,
+    target_min_tokens: int = 500,
+    target_max_tokens: int = 800,
+) -> List[ChunkItem]:
     """
     Chunks a news article, preserving paragraph boundaries where possible.
-    paragraph_index is 0-based within the article body.
-    Discards chunks under 20 tokens.
+    Consecutive short paragraphs are merged toward target_min_tokens-target_max_tokens
+    (rag-v1) rather than each paragraph becoming its own undersized chunk; a single
+    paragraph exceeding target_max_tokens is split on its own via chunk_text_by_tokens.
+    paragraph_index is the 0-based index of the first paragraph contributing to the
+    chunk. Discards chunks under 20 tokens.
     """
     paragraphs = [p.strip() for p in body.split("\n\n") if p.strip()]
     if not paragraphs:
@@ -152,19 +159,57 @@ def chunk_news_article(body: str) -> List[ChunkItem]:
     items: List[ChunkItem] = []
     chunk_idx = 0
 
-    for p_idx, p_text in enumerate(paragraphs):
-        p_chunks = chunk_text_by_tokens(p_text)
-        for chunk_text in p_chunks:
-            if estimate_token_count(chunk_text) >= 20:
-                items.append(
-                    ChunkItem(
-                        chunk_index=chunk_idx,
-                        page_number=None,
-                        paragraph_index=p_idx,
-                        content_text=chunk_text,
-                        content_hash=compute_sha256(chunk_text),
-                    )
+    def emit(text: str, paragraph_index: int) -> None:
+        nonlocal chunk_idx
+        if estimate_token_count(text) >= 20:
+            items.append(
+                ChunkItem(
+                    chunk_index=chunk_idx,
+                    page_number=None,
+                    paragraph_index=paragraph_index,
+                    content_text=text,
+                    content_hash=compute_sha256(text),
                 )
-                chunk_idx += 1
+            )
+            chunk_idx += 1
+
+    def flush(paragraph_index: int, buffered: List[str]) -> None:
+        if not buffered:
+            return
+        combined = "\n\n".join(buffered)
+        if estimate_token_count(combined) <= target_max_tokens:
+            emit(combined, paragraph_index)
+        else:
+            # Only reachable for a single oversized paragraph passed in on its own.
+            for sub_chunk in chunk_text_by_tokens(combined, target_min_tokens, target_max_tokens):
+                emit(sub_chunk, paragraph_index)
+
+    buffer: List[str] = []
+    buffer_start_idx = 0
+    buffer_tokens = 0
+
+    for p_idx, p_text in enumerate(paragraphs):
+        p_tokens = estimate_token_count(p_text)
+
+        if p_tokens > target_max_tokens:
+            flush(buffer_start_idx, buffer)
+            buffer, buffer_tokens = [], 0
+            flush(p_idx, [p_text])
+            continue
+
+        if buffer and buffer_tokens + p_tokens > target_max_tokens:
+            flush(buffer_start_idx, buffer)
+            buffer, buffer_tokens = [], 0
+
+        if not buffer:
+            buffer_start_idx = p_idx
+        buffer.append(p_text)
+        buffer_tokens += p_tokens
+
+        if buffer_tokens >= target_min_tokens:
+            flush(buffer_start_idx, buffer)
+            buffer, buffer_tokens = [], 0
+
+    flush(buffer_start_idx, buffer)
 
     return items

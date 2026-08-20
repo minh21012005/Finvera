@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -47,6 +48,20 @@ class ProblemDetailsTests {
                 .andExpect(jsonPath("$.detail").value("Live provider authentication is unavailable"));
     }
 
+    @Test
+    void mapsResearchIdempotencyConstraintRaceToDuplicateSubmission() throws Exception {
+        mvc.perform(get("/failure/research-idempotency-race"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.reasonCode").value("DUPLICATE_SUBMISSION"));
+    }
+
+    @Test
+    void mapsUnrelatedDataIntegrityViolationToGenericConflict() throws Exception {
+        mvc.perform(get("/failure/other-conflict"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.reasonCode").value("CONFLICT"));
+    }
+
     @RestController
     static class FailureController {
 
@@ -58,6 +73,18 @@ class ProblemDetailsTests {
         @GetMapping("/failure/provider")
         void providerFailure() {
             throw new ProblemDetailsAdvice.ProviderAuthRequiredException();
+        }
+
+        @GetMapping("/failure/research-idempotency-race")
+        void researchIdempotencyRace() {
+            Throwable rootCause = new RuntimeException(
+                    "ERROR: duplicate key value violates unique constraint \"idx_rd_owner_idempotency\"");
+            throw new DataIntegrityViolationException("could not execute statement", rootCause);
+        }
+
+        @GetMapping("/failure/other-conflict")
+        void otherConflict() {
+            throw new DataIntegrityViolationException("some other constraint violation");
         }
     }
 }

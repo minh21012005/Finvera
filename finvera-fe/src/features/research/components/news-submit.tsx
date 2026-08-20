@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { SubmitNewsArticleRequest, submitNewsArticle } from "../api/news";
+import { SubmitNewsArticleRequest, submitNewsArticle, generateIdempotencyKey } from "../api/news";
 
 interface NewsSubmitProps {
   onSubmitted?: () => void;
@@ -16,6 +16,9 @@ export const NewsSubmit: React.FC<NewsSubmitProps> = ({ onSubmitted }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  // One key per logical submit action, reused across that action's own retries
+  // (research R-013) and regenerated only after a confirmed success.
+  const [idempotencyKey, setIdempotencyKey] = useState<string>(() => generateIdempotencyKey());
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,13 +41,16 @@ export const NewsSubmit: React.FC<NewsSubmitProps> = ({ onSubmitted }) => {
         body: body.trim(),
       };
 
-      await submitNewsArticle(payload);
+      await submitNewsArticle(payload, idempotencyKey);
       setSuccess(true);
       setTitle("");
       setSource("");
       setSymbol("");
       setReferenceUrl("");
       setBody("");
+      // Confirmed success: the next submit is a genuinely new article, so it needs a
+      // fresh key rather than reusing the one that just succeeded.
+      setIdempotencyKey(generateIdempotencyKey());
       if (onSubmitted) {
         onSubmitted();
       }

@@ -3,6 +3,7 @@ package com.minhnb.finvera_be.research.controller;
 import com.minhnb.finvera_be.research.dto.RetrieveRequest;
 import com.minhnb.finvera_be.research.dto.RetrieveResponse;
 import com.minhnb.finvera_be.research.service.RetrievalService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -20,7 +21,7 @@ public class ResearchRetrievalController {
     }
 
     @PostMapping
-    public ResponseEntity<RetrieveResponse> retrievePassages(@RequestBody RetrieveRequest request) {
+    public ResponseEntity<RetrieveResponse> retrievePassages(@Valid @RequestBody RetrieveRequest request) {
         RetrieveResponse response = retrievalService.retrievePassages(request);
         return ResponseEntity.ok(response);
     }

@@ -8,8 +8,10 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.sql.Types;
 import java.time.Instant;
 import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
 
 @Entity
 @Table(name = "analyst_query")
@@ -28,7 +30,8 @@ public class AnalystQueryEntity {
     @Column(name = "question_preview", nullable = false, length = 300)
     private String questionPreview;
 
-    @Column(name = "question_hash", nullable = false, length = 64)
+    @Column(name = "question_hash", nullable = false, length = 64, columnDefinition = "char(64)")
+    @JdbcTypeCode(Types.CHAR)
     private String questionHash;
 
     @Enumerated(EnumType.STRING)

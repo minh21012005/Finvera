@@ -58,6 +58,39 @@ export function generateIdempotencyKey(): string {
   return crypto.randomUUID();
 }
 
+const DOCUMENT_TYPES: readonly DocumentType[] = [
+  "ANNUAL_REPORT",
+  "QUARTERLY_REPORT",
+  "FINANCIAL_REPORT",
+  "ECONOMIC_REPORT",
+  "INVESTOR_PRESENTATION",
+  "CORPORATE_DISCLOSURE",
+  "OTHER",
+];
+const INGESTION_STATUSES: readonly IngestionStatus[] = ["PENDING", "PROCESSING", "READY", "FAILED"];
+
+function assertDocumentShape(value: unknown): asserts value is Document {
+  const d = value as Partial<Document> | null;
+  if (
+    !d ||
+    typeof d.id !== "string" ||
+    typeof d.title !== "string" ||
+    !DOCUMENT_TYPES.includes(d.documentType as DocumentType) ||
+    !INGESTION_STATUSES.includes(d.ingestionStatus as IngestionStatus) ||
+    typeof d.submittedAt !== "string"
+  ) {
+    throw new Error("Phản hồi tài liệu từ máy chủ không đúng định dạng.");
+  }
+}
+
+function assertDocumentPageShape(value: unknown): asserts value is DocumentPage {
+  const p = value as Partial<DocumentPage> | null;
+  if (!p || !Array.isArray(p.items) || typeof p.totalCount !== "number") {
+    throw new Error("Phản hồi danh sách tài liệu từ máy chủ không đúng định dạng.");
+  }
+  p.items.forEach(assertDocumentShape);
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   if (response.status === 204) {
     return {} as T;
@@ -121,7 +154,9 @@ export async function submitDocument(
     signal,
   });
 
-  return handleResponse<Document>(response);
+  const result = await handleResponse<Document>(response);
+  assertDocumentShape(result);
+  return result;
 }
 
 export async function listDocuments(
@@ -150,7 +185,9 @@ export async function listDocuments(
     signal,
   });
 
-  return handleResponse<DocumentPage>(response);
+  const result = await handleResponse<DocumentPage>(response);
+  assertDocumentPageShape(result);
+  return result;
 }
 
 export async function getDocument(documentId: string, signal?: AbortSignal): Promise<Document> {
@@ -161,7 +198,9 @@ export async function getDocument(documentId: string, signal?: AbortSignal): Pro
     signal,
   });
 
-  return handleResponse<Document>(response);
+  const result = await handleResponse<Document>(response);
+  assertDocumentShape(result);
+  return result;
 }
 
 export async function deleteDocument(documentId: string, signal?: AbortSignal): Promise<void> {

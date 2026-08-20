@@ -32,6 +32,24 @@ export interface RetrieveResponse {
   asOf: string;
 }
 
+function assertRetrieveResponseShape(value: unknown): asserts value is RetrieveResponse {
+  const r = value as Partial<RetrieveResponse> | null;
+  if (!r || !Array.isArray(r.passages) || typeof r.asOf !== "string") {
+    throw new Error("Phản hồi truy xuất từ máy chủ không đúng định dạng.");
+  }
+  for (const p of r.passages) {
+    if (
+      typeof p.sourceId !== "string" ||
+      typeof p.sourceTitle !== "string" ||
+      typeof p.location !== "string" ||
+      typeof p.excerpt !== "string" ||
+      typeof p.score !== "number"
+    ) {
+      throw new Error("Phản hồi truy xuất từ máy chủ không đúng định dạng.");
+    }
+  }
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     let error: ErrorResponse;
@@ -71,5 +89,7 @@ export async function retrievePassages(
     signal,
   });
 
-  return handleResponse<RetrieveResponse>(response);
+  const result = await handleResponse<RetrieveResponse>(response);
+  assertRetrieveResponseShape(result);
+  return result;
 }

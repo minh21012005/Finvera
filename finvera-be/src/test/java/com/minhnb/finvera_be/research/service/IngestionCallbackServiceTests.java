@@ -7,10 +7,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.minhnb.finvera_be.research.config.ResearchProperties;
+import com.minhnb.finvera_be.research.domain.Applicability;
 import com.minhnb.finvera_be.research.domain.DocumentType;
 import com.minhnb.finvera_be.research.domain.IngestionStatus;
+import com.minhnb.finvera_be.research.domain.NewsCategory;
 import com.minhnb.finvera_be.research.dto.IngestionCallbackRequest;
 import com.minhnb.finvera_be.research.dto.IngestionCallbackRequest.IngestedChunkDto;
+import com.minhnb.finvera_be.research.dto.IngestionCallbackRequest.IngestedNewsClassificationDto;
+import com.minhnb.finvera_be.research.entity.NewsArticleEntity;
 import com.minhnb.finvera_be.research.entity.ResearchDocumentEntity;
 import com.minhnb.finvera_be.research.repository.NewsArticleRepository;
 import com.minhnb.finvera_be.research.repository.ResearchChunkRepository;
@@ -18,6 +22,7 @@ import com.minhnb.finvera_be.research.repository.ResearchDocumentRepository;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -37,7 +42,8 @@ class IngestionCallbackServiceTests {
         documentRepository = mock(ResearchDocumentRepository.class);
         newsRepository = mock(NewsArticleRepository.class);
         chunkRepository = mock(ResearchChunkRepository.class);
-        properties = new ResearchProperties("test-key", "http://localhost:8000/internal/v1", Duration.ofMinutes(10), 20971520L);
+        properties = new ResearchProperties(
+                "test-key", "http://localhost:8000/internal/v1", Duration.ofMinutes(10), Duration.ofMinutes(1), 20971520L);
         service = new IngestionCallbackService(documentRepository, newsRepository, chunkRepository, properties);
     }
 
@@ -112,5 +118,37 @@ class IngestionCallbackServiceTests {
         assertThat(doc.getIngestionFailureReason()).isEqualTo("PROCESSING_TIMEOUT");
 
         verify(documentRepository).save(doc);
+    }
+
+    @Test
+    void reclassificationWithUndeterminedCategoryResetsPreviouslyDefinedFieldsToMissing() {
+        UUID articleId = UUID.randomUUID();
+        UUID ownerId = UUID.randomUUID();
+        NewsArticleEntity article = new NewsArticleEntity(
+                articleId, ownerId, "Test Article", "Source", Instant.now(), "Body", null,
+                NewsCategory.COMPANY, Applicability.DEFINED,
+                com.minhnb.finvera_be.research.domain.Sentiment.POSITIVE, Applicability.DEFINED,
+                com.minhnb.finvera_be.research.domain.ImpactLevel.HIGH, Applicability.DEFINED,
+                "Technology", IngestionStatus.READY, null, Instant.now(), Instant.now(), "idem-reclass",
+                new HashSet<>());
+
+        when(documentRepository.findById(articleId)).thenReturn(Optional.empty());
+        when(newsRepository.findById(articleId)).thenReturn(Optional.of(article));
+
+        IngestedNewsClassificationDto undeterminedClassification = new IngestedNewsClassificationDto(
+                null, null, null, null, null, null, null, null);
+        IngestionCallbackRequest request = new IngestionCallbackRequest(
+                "READY", null, null, List.of(), undeterminedClassification);
+
+        service.handleCallback(articleId, request);
+
+        assertThat(article.getCategory()).isNull();
+        assertThat(article.getCategoryApplicability()).isEqualTo(Applicability.MISSING);
+        assertThat(article.getSentiment()).isNull();
+        assertThat(article.getSentimentApplicability()).isEqualTo(Applicability.MISSING);
+        assertThat(article.getImpactLevel()).isNull();
+        assertThat(article.getImpactApplicability()).isEqualTo(Applicability.MISSING);
+
+        verify(newsRepository).save(article);
     }
 }

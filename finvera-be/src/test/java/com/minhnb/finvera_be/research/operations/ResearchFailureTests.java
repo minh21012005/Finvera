@@ -64,6 +64,7 @@ class ResearchFailureTests {
                 "test-api-key",
                 "http://localhost:8001",
                 Duration.ofMinutes(15),
+                Duration.ofMinutes(1),
                 20 * 1024 * 1024L);
 
         when(ownerAccess.getAuthenticatedOwnerId()).thenReturn(ownerId);

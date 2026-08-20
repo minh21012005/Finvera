@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -195,5 +197,59 @@ class NewsArticleServiceTests {
 
         verify(aiClient).deleteVectors(List.of(vectorPointId));
         verify(newsRepository).delete(article);
+    }
+
+    @Test
+    void deleteNewsArticle_vectorCleanupFails_doesNotDeletePostgresRowAndPropagates() {
+        UUID articleId = UUID.randomUUID();
+        NewsArticleEntity article = new NewsArticleEntity(
+                articleId,
+                ownerId,
+                "Tiêu đề",
+                "Nguồn",
+                Instant.now(),
+                "Nội dung",
+                null,
+                null,
+                Applicability.MISSING,
+                null,
+                Applicability.MISSING,
+                null,
+                Applicability.MISSING,
+                null,
+                IngestionStatus.READY,
+                null,
+                Instant.now(),
+                Instant.now(),
+                "idem-del-fail",
+                new HashSet<>());
+
+        when(newsRepository.findByIdAndOwnerId(articleId, ownerId)).thenReturn(Optional.of(article));
+
+        UUID vectorPointId = UUID.randomUUID();
+        ResearchChunkEntity chunk = new ResearchChunkEntity(
+                UUID.randomUUID(),
+                ownerId,
+                ResearchItemType.NEWS_ARTICLE,
+                null,
+                articleId,
+                (short) 0,
+                null,
+                (short) 0,
+                "Đoạn văn",
+                "hash",
+                vectorPointId,
+                "v1",
+                Instant.now());
+
+        when(chunkRepository.findByNewsArticleIdAndOwnerId(articleId, ownerId)).thenReturn(List.of(chunk));
+        doThrow(new RuntimeException("Qdrant unreachable")).when(aiClient).deleteVectors(List.of(vectorPointId));
+
+        assertThatThrownBy(() -> newsService.deleteNewsArticle(articleId))
+                .isInstanceOf(ResearchExceptions.VectorCleanupFailedException.class);
+
+        verify(newsRepository, never()).delete(any());
+        // The still-present chunk row (with its vectorPointId) is what a retried cleanup needs.
+        verify(chunkRepository, never()).delete(any());
     }
 }

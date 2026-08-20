@@ -37,4 +37,16 @@ public final class ResearchExceptions {
             super(message, cause);
         }
     }
+
+    /**
+     * Raised when deleting a research item's vectors in Qdrant fails. The Postgres row (and its
+     * {@code research_chunk.vectorPointId} rows) is deliberately left in place in this case so the
+     * still-known vector ids remain available for a retried cleanup (DATA-004/SC-006): deleting the
+     * Postgres row after a failed vector delete would permanently orphan those vectors.
+     */
+    public static class VectorCleanupFailedException extends RuntimeException {
+        public VectorCleanupFailedException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
 }

@@ -2,6 +2,7 @@ from datetime import date, datetime, timezone
 from typing import List, Optional
 import uuid
 from pydantic import BaseModel, Field
+from app.core.settings import settings
 from app.infrastructure.llm.embedding import embedding_adapter
 from app.infrastructure.qdrant.collection import qdrant_service
 
@@ -101,6 +102,7 @@ def retrieve_ranked_chunks(
         news_category=request.news_category,
         date_from=request.date_from,
         date_to=request.date_to,
+        embedding_version=settings.embedding_version,
         limit=30,
     )
 

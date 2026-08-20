@@ -47,7 +47,38 @@ async def test_classify_negative_news():
 def test_classify_offline_market_news():
     headline = "Tổng quan VN-Index phiên giao dịch đầu tuần"
     body = "Thị trường biến động giằng co với thanh khoản duy trì ở mức trung bình."
-    
+
     result = classify_news_offline(headline, body)
     assert result.category == "MARKET"
     assert result.sentiment == "NEUTRAL"
+
+
+def test_classify_offline_undetermined_when_no_signal_and_no_symbol():
+    """FR-014/AI-004: a field the classifier has no basis to determine is undetermined
+    (None here, mapped to Applicability.MISSING by finvera-be), never a guessed default."""
+    headline = "Ghi chú nội bộ"
+    body = "Bản tin không đề cập nội dung cụ thể nào cần xử lý thêm."
+
+    result = classify_news_offline(headline, body, symbol=None)
+    assert result.category is None
+    assert result.impactLevel is None
+
+
+def test_classify_offline_conflicting_sentiment_is_undetermined():
+    """A genuine tie between positive and negative signal is conflicting evidence, not
+    neutral evidence, and MUST be undetermined rather than defaulted to NEUTRAL."""
+    headline = "Kết quả kinh doanh trái chiều"
+    body = "Hoạt động kinh doanh có phần khởi sắc nhưng vẫn đối mặt nhiều khó khăn trong quý này."
+
+    result = classify_news_offline(headline, body)
+    assert result.sentiment is None
+
+
+def test_classify_offline_company_category_from_symbol_association():
+    """A symbol association is real evidence of COMPANY category even with no topical
+    keyword match, so it MUST NOT collapse to undetermined."""
+    headline = "Thông báo giao dịch nội bộ"
+    body = "Doanh nghiệp công bố thông tin theo quy định hiện hành."
+
+    result = classify_news_offline(headline, body, symbol="FPT")
+    assert result.category == "COMPANY"

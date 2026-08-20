@@ -510,6 +510,82 @@ Post-implementation cross-artifact analysis performed against all artifacts of F
   - `finvera-be`: 50/50 unit, slice, and ArchUnit architecture tests passing.
   - `finvera-fe`: 101/101 tests passing across 22 suites; ESLint 0 errors / 0 warnings; production bundle build clean.
 
+## Post-Review Remediation (2026-08-21)
+
+An independent, evidence-based code-quality review (four parallel reviews of
+`finvera-ai`, `finvera-be` schema/security, `finvera-be` service/controller,
+and `finvera-fe`, each verified against the exact text of `rag-v1.md` and
+`data-model.md`, with the highest-severity findings re-verified by hand
+against the actual code before being accepted) found that several delivered
+behaviors did not match this feature's own contracts, despite the
+Post-Implementation Analysis above reporting 100% coverage and all tests
+passing. The review and subsequent fixes are recorded here per `AGENTS.md`:
+"Update the spec or plan when behavior changes; never let code become an
+undocumented second specification."
+
+**Findings confirmed and fixed** (file:line evidence verified directly, not
+inferred from tests, since several of the affected code paths had no
+assertion that would have caught the defect):
+
+| Severity | Requirement | Defect | Fix |
+|---|---|---|---|
+| Critical | FR-014, AI-004 | `Applicability.MISSING` (data-model.md's "undetermined" state) was unreachable: `classification.py`'s offline and online paths always returned a concrete category/sentiment/impact value, never `null`, so every article was shown as confidently classified even with zero evidence. | `classify_news_offline`/`classify_news_article` (`finvera-ai/app/features/document/classification.py`) now return `None` when there is no keyword/model evidence for a field, with a symbol association counted as real evidence for `COMPANY` category and a genuine positive/negative tie counted as conflicting (undetermined) evidence rather than defaulted to `NEUTRAL`. `NewsClassificationResult`'s three AI-derived fields are now `Optional`. |
+| Critical | FR-003, FR-004 | `IngestionCallbackService.checkAndFailStuckProcessingItems()` was fully implemented and unit-tested but never invoked by the running application — no `@Scheduled`/`@EnableScheduling` existed anywhere in `finvera-be/src/main`. A stuck `PROCESSING` item never reached `FAILED`/`PROCESSING_TIMEOUT` in production. | `@EnableScheduling` added to `FinveraBeApplication`; `ResearchConfiguration` now implements `SchedulingConfigurer` and registers the reaper as a fixed-delay task on a new `finvera.research.ingestion-timeout-check-interval` property (`ResearchProperties`, default 1 minute — meaningfully shorter than the 10-minute timeout it checks). A new `IngestionTimeoutSchedulerTests` (`@SpringBootTest`, real scheduler, short test-only interval, bounded poll) proves the scheduler itself fires rather than only the method being directly callable — see the blocker noted below. |
+| Critical | Research R-013 | `news-submit.tsx` never passed its held `idempotencyKey` into `submitNewsArticle(...)`, so every call (including a retry of a failed submit) generated a brand-new key — the duplicate-submission guard was completely inert for news articles (documents were unaffected). | `news-submit.tsx` now holds one key per logical submit action via a new `generateIdempotencyKey` export from `api/news.ts`, reused across retries and regenerated only after a confirmed success, mirroring `document-upload.tsx`. Regression test added in `news.test.tsx`. |
+| High | rag-v1 chunking | `chunk_news_article` chunked each paragraph independently, so a typical news paragraph (~70-180 tokens) became its own chunk, never reaching the 500-800 token target. | Rewrote `chunk_news_article` (`chunking.py`) to greedily merge consecutive paragraphs toward the target, splitting only a paragraph that alone exceeds the max; a single oversized paragraph still falls back to sentence-level splitting. Old test that asserted the buggy per-paragraph behavior replaced with tests asserting target-size merging and paragraph-boundary alignment. |
+| High | rag-v1 U-1 | Qdrant retrieval never filtered by `embedding_version`, though the field was stored on every payload; a future re-embed migration could silently mix incompatible vector spaces in one result set. | `search_chunks` (`collection.py`) accepts and filters on `embedding_version`; `retrieve_ranked_chunks` (`retrieval.py`) now passes `settings.embedding_version`; a payload index was added. |
+| High | public-api.openapi.yaml | `AskStreamEvent`'s final-event field serialized as `finalResult`, not the contract's documented `final` key (Java cannot name a record component `final`, and no `@JsonProperty` override existed). Worked end-to-end only because the frontend happened to read the same wrong key. | `@JsonProperty("final")` added to `AskStreamEvent.java`; `ask.ts` updated to read `parsed.final`; new `AskStreamEventTests.java` asserts the wire key directly. |
+| High | rag-v1 step 2 | Citation/refusal extraction from the LLM's streamed prose used a broad hardcoded Vietnamese/English keyword list to guess `refused`, contrary to the contract's "schema-validated response" instruction; risked misclassifying a legitimate answer that happened to contain a refusal-sounding phrase. | Refusal is now derived purely from the citation-verification math (`verify_citation_claims` step 4: zero surviving claims ⇒ refusal), which was already correct and is what rag-v1 calls "mechanically enforced." One narrow, precisely-scoped exception remains: FR-011's structured-financial-value redirect message is detected via its own fixed system-prompt phrase so its specific wording is preserved rather than collapsed into the generic refusal text. **Known remaining gap, deliberately not fixed in this pass**: synthesis still does not request a true schema-validated (`response_schema`) LLM response as rag-v1 step 2 specifies — that would require either sacrificing the streamed-answer UX or a second non-streaming LLM call per question, a real architecture/cost decision outside the scope of a bug-fix pass. Flagged here for a future `research.md` decision rather than silently left undocumented. |
+| High | UX/SSE reliability | If the SSE stream closed without ever sending a `final` event (a real code path already existed in `AskService.java`), the frontend's `isStreaming` state never reset, hanging the UI indefinitely. | `ask.ts` now tracks whether a `final` event was seen and calls `onError` if the stream ends without one, which `ask-panel.tsx` already handles by resetting `isStreaming` and showing an error. |
+| High | Data integrity | `ResearchDocumentService.deleteDocument` called `aiClient.deleteVectors(...)` and only logged a warning on failure before deleting the Postgres row regardless, risking permanently orphaned Qdrant vectors (the only record of `vectorPointId` is the row about to be deleted). | Vector-delete failure now throws instead of proceeding to remove the Postgres row, keeping it (and its `research_chunk.vectorPointId` values) retryable. |
+| Medium | UI correctness | `ask-panel.tsx`'s document-type filter offered two non-existent enum values and omitted three real ones. | Corrected to the real seven-value `DocumentType` enum, matching `document-upload.tsx`. |
+| Medium | Type correctness | `ask.ts` locally redeclared `NewsCategory` with an entirely different (unused) value set than the real enum in `news.ts`. | `ask.ts` now imports `NewsCategory` from `news.ts` instead of redeclaring it. |
+| High | Data integrity | Same delete methods above also affected `NewsArticleService.deleteNewsArticle`. | Same fail-closed fix; a failed `deleteVectors` throws `ResearchExceptions.VectorCleanupFailedException` (mapped to 502 `VECTOR_CLEANUP_FAILED` in `ProblemDetailsAdvice`) instead of proceeding to delete the Postgres row. |
+| Medium | Consistency | A genuine concurrent-race duplicate submission (caught as `DataIntegrityViolationException` on the `(owner_id, idempotency_key)` unique index) returned `reasonCode = "CONFLICT"`, a different code than the sequential-check path's `"DUPLICATE_SUBMISSION"` for the same real situation. | `ProblemDetailsAdvice.dataIntegrityViolation` now inspects the cause chain for `idx_rd_owner_idempotency`/`idx_na_owner_idempotency` and maps that specific case to `DUPLICATE_SUBMISSION`; other constraint violations keep the generic `CONFLICT` fallback. |
+| Medium | Principle VII | `ResearchAiClient`'s outbound calls to finvera-ai had timeouts but no retry for transient failures. | Added a bounded 3-attempt/300ms-backoff retry on 5xx/connection failures (never 4xx) for `retrieveChunks`, `deleteVectors`, and `streamSynthesize`. **`submitIngestion` was deliberately left unretried** (a decision made during this remediation's own verification pass, after the first draft retried it too): each `ChunkItem` gets a fresh random `vector_point_id` (`chunking.py`), so a retried submission that actually reached finvera-ai (response merely lost in transit) would start a second background ingestion job for the same `research_item_id` with a disjoint chunk/vector set — risking orphaned Qdrant points or a second terminal callback overwriting the first. The submission is already deduplicated one layer up by the `(owner_id, idempotency_key)` guard; a bare transport-level retry of this one call isn't safe the way the other three are. |
+| Medium | Ops visibility | Both `finvera-be`/`finvera-ai` silently default `internalApiKey` to the same placeholder literal with no signal if an operator forgets to override it. | Added a `WARN`-level startup log (`ResearchConfiguration`'s `warnIfInternalApiKeyIsDefault` `ApplicationRunner`) when the effective key still equals the placeholder. Deliberately not a hard startup failure, to avoid breaking local dev/test. |
+| Low | Contract enforcement | `/research/retrieve` had no `@Valid`/length validation on `query`, unlike `/research/ask`. | `RetrieveRequest.query` gained `@NotBlank`/`@Size(max = 2000)` matching `AskRequest`; the controller now binds `@Valid @RequestBody`. |
+| Low | Robustness only, not reachable in current code | `RetrievalService`/`AskService` built citation `location` as `"Page " + chunk.getPageNumber()` with no null-guard. Initially flagged as a live bug; verified against `V006__create_research_schema.sql`'s `chk_rc_page_number` CHECK constraint and `ingestion.py`'s chunking calls — a DOCUMENT chunk cannot have a null `page_number` in the current schema/ingestion code, so this is not reachable today. Left unfixed as a documented, low-priority defensive gap rather than a live defect. |
+
+**Pre-existing, cross-feature blocker discovered, confirmed, and fixed with
+explicit owner approval**: `V007__create_analyst_audit_tables.sql` (Feature
+7, already committed in `4134652`) defines `analyst_query.question_hash` as
+`CHAR(64)`, but `AnalystQueryEntity.questionHash` mapped it as a plain
+`String`/`varchar(64)`. Under `ddl-auto=validate`, Hibernate failed to build
+the application's single shared `entityManagerFactory` for **any**
+`@SpringBootTest` that boots the full context against real Postgres — not
+just Feature 7's own tests. Reproduced independently via `git stash` against
+the unmodified base commit, confirming it predates this remediation and
+affected 20 unrelated `@SpringBootTest` classes across `market`/`stock`/
+`portfolio`, plus this feature's own new `IngestionTimeoutSchedulerTests`.
+
+Investigating the fix surfaced a **second, independent instance of the exact
+same defect class inside Feature 6 itself**: `research_chunk.content_hash`
+is also `CHAR(64)` in `V006__create_research_schema.sql`, and
+`ResearchChunkEntity.contentHash` had the identical plain-`String` mapping
+bug — latent and undetected because `ResearchSchemaMigrationTests` (T001)
+validates the migration via raw JDBC/Flyway, never booting Hibernate's
+`EntityManagerFactory`, so no test in this feature's own suite had ever
+exercised `ResearchChunkEntity` under `ddl-auto=validate`.
+
+Fixed both, following the pattern already established elsewhere in this
+codebase (`MarketImportBatchEntity.packageSha256`): `columnDefinition =
+"char(64)"` alone is insufficient — Hibernate's schema **validator** (as
+opposed to its DDL generator) compares its computed JDBC type, which for a
+plain `String` field stays `VARCHAR` regardless of `columnDefinition`.
+`@JdbcTypeCode(java.sql.Types.CHAR)` (`org.hibernate.annotations`) is what
+actually changes the type used for validation. Applied to both
+`AnalystQueryEntity.questionHash` and `ResearchChunkEntity.contentHash`.
+Verified: `IngestionTimeoutSchedulerTests`, `MarketRepositoryTests`, and
+`ResearchSchemaMigrationTests` all pass; a full `mvnw test` afterward ran
+566 tests with only one unrelated, pre-existing failure remaining
+(`PortfolioSchemaMigrationTests.enforcesCompositePrimaryKeyOnWatchlistItemPreventingDuplicates`
+— a Feature 5 test fixture inserting a `base_currency` column that does not
+exist on `market_instrument`; confirmed pre-existing and untouched by this
+session, left unfixed as explicitly out of scope for a Feature 6 pass).
+
+**Explicitly out of scope for this remediation pass**: `finvera-ai/app/features/orchestration/dispatch.py`'s `RESEARCH_RAG` tool branch calls `retrieve_ranked_chunks` with a signature and a `RankedChunk` field set that do not match `retrieval.py`'s actual implementation (would raise `TypeError` if invoked), and separately cannot obtain chunk `content_text` from `retrieval.py` at all (Qdrant payloads deliberately never carry chunk text per `data-model.md`; only `finvera-be`'s Postgres-backed `RetrievalService` can resolve it). This is Feature 7 (AI Analyst orchestration) code reaching into Feature 6's retrieval engine, not a Feature 6 defect, and the correct fix (routing `RESEARCH_RAG` through the same internal-tool-call mechanism used for the other tools, or another Feature-7-side design) belongs to Feature 7's own review rather than being patched ad hoc here.
+
 ## Dependencies and Parallel Execution
 
 ### Phase Dependencies

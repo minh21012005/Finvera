@@ -117,10 +117,36 @@ public class ProblemDetailsAdvice {
         return response(request, HttpStatus.SERVICE_UNAVAILABLE, "RETRIEVAL_UNAVAILABLE", ex.getMessage());
     }
 
+    @ExceptionHandler(com.minhnb.finvera_be.research.service.ResearchExceptions.VectorCleanupFailedException.class)
+    ResponseEntity<ProblemDetail> vectorCleanupFailed(HttpServletRequest request, Exception ex) {
+        return response(request, HttpStatus.BAD_GATEWAY, "VECTOR_CLEANUP_FAILED", ex.getMessage());
+    }
+
     @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
-    ResponseEntity<ProblemDetail> dataIntegrityViolation(HttpServletRequest request) {
+    ResponseEntity<ProblemDetail> dataIntegrityViolation(
+            HttpServletRequest request, org.springframework.dao.DataIntegrityViolationException ex) {
+        if (isResearchIdempotencyConstraintViolation(ex)) {
+            // Same real-world situation as the app-level check-then-create idempotency check
+            // (ResearchExceptions.DuplicateSubmissionException) — just lost the race to it. Report it
+            // with the same reason code so callers see one consistent outcome regardless of timing.
+            return response(request, HttpStatus.CONFLICT, "DUPLICATE_SUBMISSION",
+                    "Duplicate submission for the same idempotency key");
+        }
         return response(request, HttpStatus.CONFLICT, "CONFLICT",
                 "The request conflicts with existing data (e.g. a concurrent duplicate submission)");
+    }
+
+    private static boolean isResearchIdempotencyConstraintViolation(Throwable ex) {
+        Throwable current = ex;
+        while (current != null) {
+            String message = current.getMessage();
+            if (message != null
+                    && (message.contains("idx_rd_owner_idempotency") || message.contains("idx_na_owner_idempotency"))) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     public static void write(

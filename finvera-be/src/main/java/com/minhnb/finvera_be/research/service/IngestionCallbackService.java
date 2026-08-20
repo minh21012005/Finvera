@@ -114,6 +114,11 @@ public class IngestionCallbackService {
                         article.setCategoryApplicability(Applicability.DEFINED);
                     } catch (Exception ignored) {
                     }
+                } else {
+                    // Reclassification may come back undetermined even though a prior classification
+                    // was DEFINED; reset explicitly rather than leaving the stale value in place.
+                    article.setCategory(null);
+                    article.setCategoryApplicability(Applicability.MISSING);
                 }
                 if (cls.sentiment() != null) {
                     try {
@@ -121,6 +126,9 @@ public class IngestionCallbackService {
                         article.setSentimentApplicability(Applicability.DEFINED);
                     } catch (Exception ignored) {
                     }
+                } else {
+                    article.setSentiment(null);
+                    article.setSentimentApplicability(Applicability.MISSING);
                 }
                 if (cls.impactLevel() != null) {
                     try {
@@ -128,6 +136,9 @@ public class IngestionCallbackService {
                         article.setImpactApplicability(Applicability.DEFINED);
                     } catch (Exception ignored) {
                     }
+                } else {
+                    article.setImpactLevel(null);
+                    article.setImpactApplicability(Applicability.MISSING);
                 }
                 if (cls.sector() != null) {
                     article.setSector(cls.sector());

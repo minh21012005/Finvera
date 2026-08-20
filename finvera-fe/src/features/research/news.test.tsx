@@ -4,11 +4,15 @@ import { NewsSubmit } from "./components/news-submit";
 import { NewsList } from "./components/news-list";
 import * as newsApi from "./api/news";
 
-vi.mock("./api/news", () => ({
-  submitNewsArticle: vi.fn(),
-  listNewsArticles: vi.fn(),
-  deleteNewsArticle: vi.fn(),
-}));
+vi.mock("./api/news", () => {
+  let keyCounter = 0;
+  return {
+    submitNewsArticle: vi.fn(),
+    listNewsArticles: vi.fn(),
+    deleteNewsArticle: vi.fn(),
+    generateIdempotencyKey: vi.fn(() => `test-key-${++keyCounter}`),
+  };
+});
 
 describe("NewsSubmit Component", () => {
   beforeEach(() => {
@@ -49,7 +53,8 @@ describe("NewsSubmit Component", () => {
           title: "FPT công bố lợi nhuận quý 4",
           source: "VnExpress",
           body: "Nội dung bài viết chi tiết về FPT...",
-        })
+        }),
+        expect.stringMatching(/^test-key-\d+$/)
       );
       expect(onSubmitted).toHaveBeenCalledTimes(1);
     });
@@ -81,6 +86,69 @@ describe("NewsSubmit Component", () => {
     await waitFor(() => {
       expect(screen.getByRole("alert")).toHaveTextContent("Lỗi trùng lặp bài báo (409)");
     });
+  });
+
+  it("reuses the same idempotency key when a failed submit is retried, and generates a new one after a confirmed success (research R-013)", async () => {
+    vi.mocked(newsApi.submitNewsArticle).mockRejectedValueOnce(new Error("Lỗi mạng"));
+    vi.mocked(newsApi.submitNewsArticle).mockResolvedValueOnce({
+      id: "news-2",
+      title: "Bài viết ổn định",
+      source: "VnExpress",
+      publishedAt: new Date().toISOString(),
+      categoryApplicability: "MISSING",
+      sentimentApplicability: "MISSING",
+      impactApplicability: "MISSING",
+      ingestionStatus: "PENDING",
+      submittedAt: new Date().toISOString(),
+    });
+    vi.mocked(newsApi.submitNewsArticle).mockResolvedValueOnce({
+      id: "news-3",
+      title: "Bài viết khác",
+      source: "VnExpress",
+      publishedAt: new Date().toISOString(),
+      categoryApplicability: "MISSING",
+      sentimentApplicability: "MISSING",
+      impactApplicability: "MISSING",
+      ingestionStatus: "PENDING",
+      submittedAt: new Date().toISOString(),
+    });
+
+    render(<NewsSubmit />);
+
+    fireEvent.change(screen.getByLabelText(/Tiêu đề bài báo/i), {
+      target: { value: "Bài viết ổn định" },
+    });
+    fireEvent.change(screen.getByLabelText(/Nguồn \/ Nhà xuất bản/i), {
+      target: { value: "VnExpress" },
+    });
+    fireEvent.change(screen.getByLabelText(/Nội dung bài viết/i), {
+      target: { value: "Nội dung ổn định." },
+    });
+
+    // First attempt fails (e.g. network error).
+    fireEvent.click(screen.getByRole("button", { name: /Gửi Bài Viết/i }));
+    await waitFor(() => expect(newsApi.submitNewsArticle).toHaveBeenCalledTimes(1));
+    const keyOnFirstAttempt = vi.mocked(newsApi.submitNewsArticle).mock.calls[0][1];
+    expect(keyOnFirstAttempt).toEqual(expect.any(String));
+
+    // Retry with identical content must reuse the same key, not mint a new one.
+    fireEvent.click(screen.getByRole("button", { name: /Gửi Bài Viết/i }));
+    await waitFor(() => expect(newsApi.submitNewsArticle).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(newsApi.submitNewsArticle).mock.calls[1][1]).toBe(keyOnFirstAttempt);
+
+    // A genuinely new submission after the confirmed success must use a fresh key.
+    fireEvent.change(screen.getByLabelText(/Tiêu đề bài báo/i), {
+      target: { value: "Bài viết khác" },
+    });
+    fireEvent.change(screen.getByLabelText(/Nguồn \/ Nhà xuất bản/i), {
+      target: { value: "VnExpress" },
+    });
+    fireEvent.change(screen.getByLabelText(/Nội dung bài viết/i), {
+      target: { value: "Nội dung khác." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Gửi Bài Viết/i }));
+    await waitFor(() => expect(newsApi.submitNewsArticle).toHaveBeenCalledTimes(3));
+    expect(vi.mocked(newsApi.submitNewsArticle).mock.calls[2][1]).not.toBe(keyOnFirstAttempt);
   });
 });
 

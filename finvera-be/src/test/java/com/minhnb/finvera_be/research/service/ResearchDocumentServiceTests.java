@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -152,5 +154,31 @@ class ResearchDocumentServiceTests {
 
         verify(aiClient).deleteVectors(List.of(vectorId1, vectorId2));
         verify(documentRepository).delete(doc);
+    }
+
+    @Test
+    void deleteDocument_vectorCleanupFails_doesNotDeletePostgresRowAndPropagates() {
+        UUID docId = UUID.randomUUID();
+        ResearchDocumentEntity doc = new ResearchDocumentEntity(
+                docId, ownerId, null, "Test Doc", DocumentType.ANNUAL_REPORT, (short) 2025, null, "Source",
+                LocalDate.of(2026, 3, 15), "file.pdf", "data".getBytes(), "application/pdf", null, IngestionStatus.READY,
+                null, Instant.now(), Instant.now(), "idem-del-fail");
+
+        when(documentRepository.findByIdAndOwnerId(docId, ownerId)).thenReturn(Optional.of(doc));
+
+        UUID vectorId1 = UUID.randomUUID();
+        ResearchChunkEntity c1 = new ResearchChunkEntity(
+                UUID.randomUUID(), ownerId, ResearchItemType.DOCUMENT, docId, null, (short) 0, (short) 1, null,
+                "Chunk 1", "hash1", vectorId1, "gemini-embedding-v1", Instant.now());
+
+        when(chunkRepository.findByResearchDocumentIdAndOwnerId(docId, ownerId)).thenReturn(List.of(c1));
+        doThrow(new RuntimeException("Qdrant unreachable")).when(aiClient).deleteVectors(List.of(vectorId1));
+
+        assertThatThrownBy(() -> service.deleteDocument(docId))
+                .isInstanceOf(ResearchExceptions.VectorCleanupFailedException.class);
+
+        verify(documentRepository, never()).delete(any());
+        // The still-present chunk row (with its vectorPointId) is what a retried cleanup needs.
+        verify(chunkRepository, never()).delete(any());
     }
 }

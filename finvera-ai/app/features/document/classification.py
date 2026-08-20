@@ -20,9 +20,11 @@ VALID_IMPACT_LEVELS = {"HIGH", "MEDIUM", "LOW"}
 
 
 class NewsClassificationResult(BaseModel):
-    category: str
-    sentiment: str
-    impactLevel: str
+    # None means the system could not confidently determine this field (FR-014/AI-004) —
+    # finvera-be maps None to Applicability.MISSING, never a guessed/default value.
+    category: Optional[str] = None
+    sentiment: Optional[str] = None
+    impactLevel: Optional[str] = None
     sector: Optional[str] = None
     entities: List[str] = []
 
@@ -86,8 +88,15 @@ def classify_news_offline(headline: str, body_text: str, symbol: Optional[str] =
         category = "SECTOR"
     elif any(k in full_text for k in ["vn-index", "thị trường", "phiên giao dịch", "khối ngoại", "thanh khoản", "toàn sàn"]):
         category = "MARKET"
-    else:
+    elif symbol:
+        # No topical keyword bucket matched, but the owner associated this article with a
+        # specific instrument — that association is itself real evidence the article
+        # concerns that company, not a guess (FR-014 only forbids values with no basis).
         category = "COMPANY"
+    else:
+        # No keyword bucket matched and no symbol association: no basis to pick a
+        # category, so this is undetermined (FR-014/AI-004) rather than a guessed default.
+        category = None
 
     # Sentiment Detection
     positive_words = ["tăng trưởng", "kỷ lục", "vượt kế hoạch", "khởi sắc", "tích cực", "đột phá", "khả quan", "lợi nhuận tăng"]
@@ -100,8 +109,14 @@ def classify_news_offline(headline: str, body_text: str, symbol: Optional[str] =
         sentiment = "POSITIVE"
     elif neg_score > pos_score:
         sentiment = "NEGATIVE"
-    else:
+    elif pos_score == 0 and neg_score == 0:
+        # Absence of any charged language across the whole article is itself evidence of a
+        # neutral, factual tone, not an absence of evidence.
         sentiment = "NEUTRAL"
+    else:
+        # A genuine tie with both positive and negative signal present is conflicting
+        # evidence, not neutral evidence: undetermined (FR-014/AI-004).
+        sentiment = None
 
     # Impact Level
     if any(k in full_text for k in ["đột biến", "kỷ lục", "ảnh hưởng lớn", "thay đổi cấu trúc", "phá sản", "sáp nhập"]):
@@ -109,7 +124,9 @@ def classify_news_offline(headline: str, body_text: str, symbol: Optional[str] =
     elif any(k in full_text for k in ["đáng kể", "mở rộng", "điều chỉnh", "tăng trưởng tốt"]):
         impact_level = "MEDIUM"
     else:
-        impact_level = "LOW"
+        # No impact keyword matched: there is no basis to conclude LOW specifically,
+        # so this is undetermined (FR-014/AI-004) rather than a default guess.
+        impact_level = None
 
     # Sector Detection
     sector = None
@@ -164,14 +181,19 @@ async def classify_news_article(
 
             if response.text:
                 data = json.loads(response.text)
-                cat = data.get("category", "GENERAL").upper()
-                sent = data.get("sentiment", "NEUTRAL").upper()
-                imp = data.get("impactLevel", "MEDIUM").upper()
+                raw_cat = data.get("category")
+                raw_sent = data.get("sentiment")
+                raw_imp = data.get("impactLevel")
+                cat = raw_cat.upper() if isinstance(raw_cat, str) else None
+                sent = raw_sent.upper() if isinstance(raw_sent, str) else None
+                imp = raw_imp.upper() if isinstance(raw_imp, str) else None
 
+                # A missing or schema-invalid value is undetermined (FR-014/AI-004),
+                # never coerced to an arbitrary in-range default.
                 return NewsClassificationResult(
-                    category=cat if cat in VALID_CATEGORIES else "GENERAL",
-                    sentiment=sent if sent in VALID_SENTIMENTS else "NEUTRAL",
-                    impactLevel=imp if imp in VALID_IMPACT_LEVELS else "MEDIUM",
+                    category=cat if cat in VALID_CATEGORIES else None,
+                    sentiment=sent if sent in VALID_SENTIMENTS else None,
+                    impactLevel=imp if imp in VALID_IMPACT_LEVELS else None,
                     sector=data.get("sector"),
                     entities=data.get("entities", []),
                 )

@@ -138,11 +138,13 @@ export const AskPanel: React.FC = () => {
                 className="w-full bg-slate-950/70 border border-slate-700/80 rounded-xl px-3.5 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 transition"
               >
                 <option value="">Tất cả loại tài liệu</option>
-                <option value="FINANCIAL_REPORT">Báo cáo tài chính</option>
-                <option value="ANNUAL_REPORT">Báo cáo thường niên</option>
-                <option value="EARNINGS_PRESENTATION">Thuyết trình kết quả kinh doanh</option>
-                <option value="RESEARCH_REPORT">Báo cáo phân tích</option>
-                <option value="OTHER">Tài liệu khác</option>
+                <option value="ANNUAL_REPORT">Báo cáo Thường niên</option>
+                <option value="QUARTERLY_REPORT">Báo cáo Quý</option>
+                <option value="FINANCIAL_REPORT">Báo cáo Tài chính</option>
+                <option value="ECONOMIC_REPORT">Báo cáo Kinh tế/Vĩ mô</option>
+                <option value="INVESTOR_PRESENTATION">Tài liệu Thuyết trình NĐT</option>
+                <option value="CORPORATE_DISCLOSURE">Công bố Thông tin</option>
+                <option value="OTHER">Khác</option>
               </select>
             </div>
           </div>

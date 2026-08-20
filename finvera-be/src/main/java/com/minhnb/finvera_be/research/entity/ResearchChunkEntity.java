@@ -7,8 +7,10 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.sql.Types;
 import java.time.Instant;
 import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
 
 @Entity
 @Table(name = "research_chunk")
@@ -42,7 +44,8 @@ public class ResearchChunkEntity {
     @Column(name = "content_text", nullable = false)
     private String contentText;
 
-    @Column(name = "content_hash", nullable = false, length = 64)
+    @Column(name = "content_hash", nullable = false, length = 64, columnDefinition = "char(64)")
+    @JdbcTypeCode(Types.CHAR)
     private String contentHash;
 
     @Column(name = "vector_point_id", nullable = false, unique = true)

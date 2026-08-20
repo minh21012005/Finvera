@@ -112,25 +112,31 @@ async def synthesize_answer_stream(
             "textDelta": delta,
         }
 
-    # Extract claims & verify citations per rag-v1 steps 1-5
+    # Extract claims & verify citations per rag-v1 steps 1-5. Whether the response is a
+    # refusal is derived from the citation math (step 4: zero surviving claims =>
+    # refusal), not a broad keyword guess at the model's intent — rag-v1 requires
+    # refusal to be mechanically enforced, and a substring heuristic over free-form
+    # model text is exactly what that mechanism is meant to not depend on.
+    #
+    # The one narrow exception is FR-011: a structured-financial-value question MUST be
+    # identified as out of scope with that specific message (never approximated), and
+    # SYSTEM_INSTRUCTION rule 4 asks the model to say so in its own words with no block
+    # citation, so raw_claims is legitimately empty here too. To preserve that specific,
+    # actionable wording instead of collapsing it into the generic "no relevant
+    # information" refusal text, detect only this one well-defined signal (the fixed
+    # phrase this feature's own offline/online prompts are instructed to use), not a
+    # broad list of refusal-sounding phrases.
     raw_claims = extract_claims_and_citations(accumulated_text)
-    
-    # Check if answer indicates refusal or calculation redirection
-    refusal_keywords = [
-        "không tìm thấy",
-        "no relevant information",
-        "insufficient information",
-        "không có thông tin",
-        "tính toán bằng engine tài chính tất định",
-    ]
-    model_refused = any(k in accumulated_text.lower() for k in refusal_keywords) and not raw_claims
+    is_structured_value_redirect = (
+        not raw_claims and "tính toán bằng engine tài chính tất định" in accumulated_text.lower()
+    )
 
     verification = verify_citation_claims(
         raw_answer=accumulated_text,
         raw_claims=raw_claims,
         total_blocks_k=total_blocks_k,
         block_to_chunk_id_map=block_map,
-        model_refused=model_refused,
+        model_refused=is_structured_value_redirect,
     )
 
     clean_answer = re.sub(r"\[Block\s*[^\]]+\]", "", verification.answer, flags=re.IGNORECASE).strip()

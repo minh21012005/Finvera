@@ -1,14 +1,6 @@
 import { getCsrf } from '../../auth/api/owner-access';
 import type { DocumentType } from './documents';
-
-export type NewsCategory =
-  | 'EARNINGS'
-  | 'MACRO'
-  | 'INDUSTRY'
-  | 'REGULATORY'
-  | 'CORP_ACTION'
-  | 'MARKET_RUMOR'
-  | 'GENERAL';
+import type { NewsCategory } from './news';
 
 export interface RetrieveFilter {
   symbol?: string;
@@ -102,6 +94,7 @@ export async function streamAskQuestion(
   const reader = response.body.getReader();
   const decoder = new TextDecoder('utf-8');
   let buffer = '';
+  let sawFinalEvent = false;
 
   try {
     while (true) {
@@ -129,11 +122,12 @@ export async function streamAskQuestion(
           const parsed = JSON.parse(dataStr);
           if (parsed.type === 'delta' && parsed.textDelta) {
             callbacks.onDelta?.(parsed.textDelta);
-          } else if (parsed.type === 'final' && parsed.finalResult) {
+          } else if (parsed.type === 'final' && parsed.final) {
+            sawFinalEvent = true;
             const finalRes: AskFinalResult = {
-              answer: parsed.finalResult.answer || '',
-              citations: parsed.finalResult.citations || [],
-              refused: Boolean(parsed.finalResult.refused),
+              answer: parsed.final.answer || '',
+              citations: parsed.final.citations || [],
+              refused: Boolean(parsed.final.refused),
             };
             callbacks.onFinal?.(finalRes);
           }
@@ -149,5 +143,15 @@ export async function streamAskQuestion(
     const error = err instanceof Error ? err : new Error('Lỗi khi đọc luồng dữ liệu.');
     callbacks.onError?.(error);
     throw error;
+  }
+
+  if (!sawFinalEvent) {
+    // The stream closed cleanly but never sent a `final` event (e.g. AskService.java's
+    // "stream ended without final event" path) — surface it as an error so the caller
+    // can leave its "answering" state rather than waiting forever for an event that will
+    // never arrive.
+    callbacks.onError?.(
+      new Error('Luồng trả lời đã kết thúc trước khi nhận được kết quả cuối cùng.')
+    );
   }
 }

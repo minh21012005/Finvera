@@ -173,7 +173,12 @@ public class ResearchDocumentService {
             try {
                 aiClient.deleteVectors(vectorIds);
             } catch (Exception e) {
-                log.warn("Failed to delete vectors for document {}: {}", documentId, e.getMessage());
+                // Fail closed: do not delete the Postgres row if vector cleanup failed, or the
+                // research_chunk.vectorPointId rows (the only record of what to clean up) would be
+                // lost and those vectors would become permanently unreachable orphans (DATA-004/SC-006).
+                log.error("Failed to delete vectors for document {}: {}", documentId, e.getMessage());
+                throw new ResearchExceptions.VectorCleanupFailedException(
+                        "Failed to delete vectors for document " + documentId, e);
             }
         }
 

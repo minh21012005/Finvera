@@ -38,7 +38,7 @@ class QdrantService:
                 ),
             )
             # Create payload indexes for filtering (research R-006)
-            for field in ["owner_id", "symbol", "document_type", "news_category", "item_type", "research_item_id"]:
+            for field in ["owner_id", "symbol", "document_type", "news_category", "item_type", "research_item_id", "embedding_version"]:
                 try:
                     self._client.create_payload_index(
                         collection_name=self.collection_name,
@@ -68,10 +68,14 @@ class QdrantService:
         news_category: Optional[str] = None,
         date_from: Optional[str] = None,
         date_to: Optional[str] = None,
+        embedding_version: Optional[str] = None,
         limit: int = 30,
     ) -> List[qmodels.ScoredPoint]:
         """
         Performs vector search in Qdrant with owner-scoping and optional metadata filtering (FR-006, U-2).
+        embedding_version, when supplied, restricts candidates to chunks embedded under
+        that exact model version (rag-v1 U-1) so a future re-embed migration cannot mix
+        two incompatible vector spaces in one result set.
         """
         must_filters: List[qmodels.FieldCondition] = [
             qmodels.FieldCondition(
@@ -79,6 +83,14 @@ class QdrantService:
                 match=qmodels.MatchValue(value=str(owner_id)),
             )
         ]
+
+        if embedding_version:
+            must_filters.append(
+                qmodels.FieldCondition(
+                    key="embedding_version",
+                    match=qmodels.MatchValue(value=embedding_version),
+                )
+            )
 
         if symbol:
             must_filters.append(

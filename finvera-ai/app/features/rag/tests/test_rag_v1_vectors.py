@@ -57,7 +57,9 @@ def test_chunking_never_crosses_page_boundaries():
         assert "page one" not in c.content_text
 
 
-def test_news_chunking_preserves_paragraphs():
+def test_news_chunking_merges_short_paragraphs_toward_target():
+    """rag-v1 targets 500-800 tokens per chunk; two short paragraphs (well under target)
+    must be merged into one chunk rather than each becoming its own undersized chunk."""
     body = (
         "First news paragraph about market movements and trading volume across the exchange. " * 5
         + "\n\n"
@@ -65,9 +67,35 @@ def test_news_chunking_preserves_paragraphs():
     )
 
     chunks = chunk_news_article(body)
-    assert len(chunks) >= 2
+
+    assert len(chunks) == 1
     assert chunks[0].paragraph_index == 0
-    assert chunks[1].paragraph_index == 1
+    assert "First news paragraph" in chunks[0].content_text
+    assert "Second news paragraph" in chunks[0].content_text
+
+
+def test_news_chunking_respects_paragraph_boundaries_and_target_size():
+    """Six paragraphs well over the 500-800 token target combined must split on paragraph
+    boundaries (never mid-paragraph) and merge toward, not stop far short of, the target."""
+    paragraph_text = "Doanh nghiệp công bố kết quả kinh doanh quý mới nhất với nhiều chỉ số đáng chú ý. " * 12
+    paragraphs = [f"Đoạn {i}: {paragraph_text}".strip() for i in range(6)]
+    body = "\n\n".join(paragraphs)
+
+    chunks = chunk_news_article(body)
+
+    assert len(chunks) >= 2
+    # Every chunk's text is an exact join of one or more complete source paragraphs —
+    # never a fragment that splits a paragraph mid-sentence.
+    for c in chunks:
+        parts = c.content_text.split("\n\n")
+        assert all(p in paragraphs for p in parts)
+    # Every chunk but the trailing leftover reaches rag-v1's 500-token floor.
+    for c in chunks[:-1]:
+        assert estimate_token_count(c.content_text) >= 500
+    # paragraph_index tracks the first paragraph in each chunk, in order.
+    indices = [c.paragraph_index for c in chunks]
+    assert indices == sorted(indices)
+    assert indices[0] == 0
 
 
 # Test Vector 6: Scanned / no-text PDF failure

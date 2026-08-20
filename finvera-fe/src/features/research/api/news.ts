@@ -52,11 +52,43 @@ export interface ListNewsFilter {
   offset?: number;
 }
 
+export function generateIdempotencyKey(): string {
+  return crypto.randomUUID();
+}
+
+const INGESTION_STATUSES: readonly IngestionStatus[] = ["PENDING", "PROCESSING", "READY", "FAILED"];
+const APPLICABILITIES: readonly Applicability[] = ["DEFINED", "NOT_APPLICABLE", "MISSING"];
+
+function assertNewsArticleShape(value: unknown): asserts value is NewsArticle {
+  const a = value as Partial<NewsArticle> | null;
+  if (
+    !a ||
+    typeof a.id !== "string" ||
+    typeof a.title !== "string" ||
+    typeof a.source !== "string" ||
+    typeof a.publishedAt !== "string" ||
+    !INGESTION_STATUSES.includes(a.ingestionStatus as IngestionStatus) ||
+    !APPLICABILITIES.includes(a.categoryApplicability as Applicability) ||
+    !APPLICABILITIES.includes(a.sentimentApplicability as Applicability) ||
+    !APPLICABILITIES.includes(a.impactApplicability as Applicability)
+  ) {
+    throw new Error("Phản hồi bài báo từ máy chủ không đúng định dạng.");
+  }
+}
+
+function assertNewsArticlePageShape(value: unknown): asserts value is NewsArticlePage {
+  const p = value as Partial<NewsArticlePage> | null;
+  if (!p || !Array.isArray(p.items) || typeof p.totalCount !== "number") {
+    throw new Error("Phản hồi danh sách bài báo từ máy chủ không đúng định dạng.");
+  }
+  p.items.forEach(assertNewsArticleShape);
+}
+
 export async function submitNewsArticle(
   data: SubmitNewsArticleRequest,
   idempotencyKey?: string
 ): Promise<NewsArticle> {
-  const key = idempotencyKey || crypto.randomUUID();
+  const key = idempotencyKey || generateIdempotencyKey();
   const csrf = await getCsrf();
 
   const res = await fetch("/api/v1/research/news", {
@@ -74,7 +106,9 @@ export async function submitNewsArticle(
     throw new Error(errorBody.detail || errorBody.message || `Lỗi khi gửi bài báo (${res.status})`);
   }
 
-  return res.json();
+  const result = await res.json();
+  assertNewsArticleShape(result);
+  return result;
 }
 
 export async function listNewsArticles(filter?: ListNewsFilter): Promise<NewsArticlePage> {
@@ -90,6 +124,7 @@ export async function listNewsArticles(filter?: ListNewsFilter): Promise<NewsArt
   const url = `/api/v1/research/news${params.toString() ? `?${params.toString()}` : ""}`;
   const res = await fetch(url, {
     method: "GET",
+    credentials: "same-origin",
     headers: {
       Accept: "application/json",
     },
@@ -100,12 +135,15 @@ export async function listNewsArticles(filter?: ListNewsFilter): Promise<NewsArt
     throw new Error(errorBody.detail || errorBody.message || `Lỗi khi tải danh sách tin tức (${res.status})`);
   }
 
-  return res.json();
+  const result = await res.json();
+  assertNewsArticlePageShape(result);
+  return result;
 }
 
 export async function getNewsArticle(id: string): Promise<NewsArticle> {
   const res = await fetch(`/api/v1/research/news/${id}`, {
     method: "GET",
+    credentials: "same-origin",
     headers: {
       Accept: "application/json",
     },
@@ -116,13 +154,16 @@ export async function getNewsArticle(id: string): Promise<NewsArticle> {
     throw new Error(errorBody.detail || errorBody.message || `Lỗi khi lấy chi tiết bài báo (${res.status})`);
   }
 
-  return res.json();
+  const result = await res.json();
+  assertNewsArticleShape(result);
+  return result;
 }
 
 export async function deleteNewsArticle(id: string): Promise<void> {
   const csrf = await getCsrf();
   const res = await fetch(`/api/v1/research/news/${id}`, {
     method: "DELETE",
+    credentials: "same-origin",
     headers: {
       [csrf.headerName]: csrf.token,
     },
