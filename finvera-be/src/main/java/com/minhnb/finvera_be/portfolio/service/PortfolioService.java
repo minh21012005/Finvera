@@ -38,9 +38,7 @@ public class PortfolioService {
     public List<PortfolioSummaryResponse> listPortfolios() {
         UUID ownerId = ownerScopedAccess.getAuthenticatedOwnerId();
         List<PortfolioEntity> entities = portfolioRepository.findByOwnerIdAndDeletedAtIsNullOrderByCreatedAtAsc(ownerId);
-        return entities.stream()
-                .map(p -> positionService.calculatePortfolioTotals(p.getId(), p.getName(), p.getCreatedAt()))
-                .toList();
+        return positionService.calculatePortfolioSummaries(entities);
     }
 
     @Transactional

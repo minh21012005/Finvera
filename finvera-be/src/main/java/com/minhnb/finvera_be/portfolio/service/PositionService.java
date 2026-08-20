@@ -117,6 +117,60 @@ public class PositionService {
                 asOf);
     }
 
+    @Transactional(readOnly = true)
+    public List<PortfolioSummaryResponse> calculatePortfolioSummaries(List<PortfolioEntity> portfolios) {
+        if (portfolios == null || portfolios.isEmpty()) {
+            return List.of();
+        }
+
+        List<UUID> portfolioIds = portfolios.stream().map(PortfolioEntity::getId).toList();
+        List<PortfolioTransactionEntity> allTxs =
+                transactionRepository.findByPortfolioIdInOrderByExecutedAtAscSequenceNoAsc(portfolioIds);
+
+        Map<UUID, List<PortfolioTransactionEntity>> txsByPortfolio = allTxs.stream()
+                .collect(Collectors.groupingBy(PortfolioTransactionEntity::getPortfolioId));
+
+        Set<UUID> allInstrumentIds = allTxs.stream()
+                .map(PortfolioTransactionEntity::getInstrumentId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Map<UUID, String> symbolMap = new HashMap<>();
+        Map<UUID, BigDecimal> currentPriceMap = new HashMap<>();
+
+        if (!allInstrumentIds.isEmpty()) {
+            for (InstrumentReference inst : marketReferenceData.findInstrumentsByIds(allInstrumentIds)) {
+                symbolMap.put(inst.instrumentId(), inst.symbol());
+            }
+            for (DailyBarReference bar : stockReferenceData.findLatestDailyBars(allInstrumentIds)) {
+                if (bar.closePrice() != null) {
+                    currentPriceMap.put(bar.instrumentId(), bar.closePrice());
+                }
+            }
+        }
+
+        Instant asOf = Instant.now(clock);
+
+        return portfolios.stream().map(p -> {
+            List<PortfolioTransactionEntity> rawTxs = txsByPortfolio.getOrDefault(p.getId(), List.of());
+            List<TransactionInput> inputs = rawTxs.stream()
+                    .map(tx -> toTransactionInput(tx, symbolMap.get(tx.getInstrumentId())))
+                    .toList();
+
+            PortfolioHoldingsState state = PortfolioAnalyticsV1.replayHoldings(inputs, currentPriceMap, symbolMap);
+
+            return new PortfolioSummaryResponse(
+                    p.getId(),
+                    p.getName(),
+                    p.getCreatedAt(),
+                    formatDecimal(state.totals().totalValue()),
+                    formatDecimal(state.totals().cashBalance()),
+                    formatDecimal(state.totals().totalUnrealizedPL()),
+                    formatDecimal(state.totals().totalRealizedPL()),
+                    asOf);
+        }).toList();
+    }
+
     public static String formatDecimal(BigDecimal value) {
         if (value == null) {
             return null;

@@ -73,12 +73,22 @@ public class WatchlistService {
     public List<WatchlistSummaryResponse> listWatchlists() {
         UUID ownerId = ownerScopedAccess.getAuthenticatedOwnerId();
         List<WatchlistEntity> entities = watchlistRepository.findByOwnerIdOrderByCreatedAtAsc(ownerId);
+        if (entities.isEmpty()) {
+            return List.of();
+        }
+
+        List<UUID> watchlistIds = entities.stream().map(WatchlistEntity::getId).toList();
+        Map<UUID, Integer> counts = watchlistItemRepository.countByWatchlistIds(watchlistIds).stream()
+                .collect(Collectors.toMap(
+                        WatchlistItemRepository.WatchlistItemCount::getWatchlistId,
+                        WatchlistItemRepository.WatchlistItemCount::getItemCount));
+
         return entities.stream()
                 .map(w -> new WatchlistSummaryResponse(
                         w.getId(),
                         w.getName(),
                         w.getCreatedAt(),
-                        watchlistItemRepository.countByIdWatchlistId(w.getId())))
+                        counts.getOrDefault(w.getId(), 0)))
                 .toList();
     }
 

@@ -90,16 +90,11 @@ public class PortfolioAnalyticsService {
         List<PortfolioTransactionEntity> rawTxEntities =
                 transactionRepository.findByPortfolioIdOrderByExecutedAtAscSequenceNoAsc(portfolioId);
 
-        // Filter out voided transactions and void markers for analytics replay
-        Set<UUID> voidedIds = rawTxEntities.stream()
-                .filter(t -> t.getVoidsTransactionId() != null)
-                .map(PortfolioTransactionEntity::getVoidsTransactionId)
-                .collect(Collectors.toSet());
-
-        List<TransactionInput> txInputs = rawTxEntities.stream()
-                .filter(t -> !voidedIds.contains(t.getId()) && t.getVoidsTransactionId() == null)
+        List<TransactionInput> allInputs = rawTxEntities.stream()
                 .map(tx -> PositionService.toTransactionInput(tx, null))
                 .toList();
+
+        List<TransactionInput> txInputs = PortfolioAnalyticsV1.filterAndSortChronologically(allInputs);
 
         LocalDate today = LocalDate.now(clock.withZone(MARKET_ZONE));
         LocalDate periodTo = requestedTo != null ? requestedTo : today;

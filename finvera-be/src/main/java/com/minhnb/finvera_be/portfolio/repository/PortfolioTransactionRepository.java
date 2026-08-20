@@ -10,6 +10,8 @@ public interface PortfolioTransactionRepository extends JpaRepository<PortfolioT
 
     List<PortfolioTransactionEntity> findByPortfolioIdOrderByExecutedAtAscSequenceNoAsc(UUID portfolioId);
 
+    List<PortfolioTransactionEntity> findByPortfolioIdInOrderByExecutedAtAscSequenceNoAsc(java.util.Collection<UUID> portfolioIds);
+
     List<PortfolioTransactionEntity> findByPortfolioIdOrderBySequenceNoAsc(UUID portfolioId);
 
     Optional<PortfolioTransactionEntity> findByPortfolioIdAndIdempotencyKey(UUID portfolioId, String idempotencyKey);

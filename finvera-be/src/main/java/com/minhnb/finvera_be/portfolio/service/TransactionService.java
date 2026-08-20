@@ -112,11 +112,7 @@ public class TransactionService {
         }
 
         // Validate ledger replay consistency
-        List<PortfolioTransactionEntity> existingEntities =
-                transactionRepository.findByPortfolioIdOrderByExecutedAtAscSequenceNoAsc(portfolioId);
-        List<TransactionInput> existingInputs = existingEntities.stream()
-                .map(tx -> PositionService.toTransactionInput(tx, null))
-                .toList();
+        List<TransactionInput> existingInputs = loadExistingTransactionInputs(portfolioId);
 
         UUID newTxId = UUID.randomUUID();
         long nextSeq = nextSequenceNo(portfolioId);
@@ -183,11 +179,7 @@ public class TransactionService {
         PortfolioTransactionEntity target = transactionRepository.findByIdAndPortfolioId(transactionId, portfolioId)
                 .orElseThrow(() -> new TransactionNotFoundException(transactionId));
 
-        List<PortfolioTransactionEntity> existingEntities =
-                transactionRepository.findByPortfolioIdOrderByExecutedAtAscSequenceNoAsc(portfolioId);
-        List<TransactionInput> existingInputs = existingEntities.stream()
-                .map(tx -> PositionService.toTransactionInput(tx, null))
-                .toList();
+        List<TransactionInput> existingInputs = loadExistingTransactionInputs(portfolioId);
 
         UUID voidTxId = UUID.randomUUID();
         long nextSeq = nextSequenceNo(portfolioId);
@@ -266,6 +258,13 @@ public class TransactionService {
                 .toList();
 
         return new TransactionPageResponse(responses, totalCount, safeLimit, safeOffset);
+    }
+
+    private List<TransactionInput> loadExistingTransactionInputs(UUID portfolioId) {
+        return transactionRepository.findByPortfolioIdOrderByExecutedAtAscSequenceNoAsc(portfolioId)
+                .stream()
+                .map(tx -> PositionService.toTransactionInput(tx, null))
+                .toList();
     }
 
     /**

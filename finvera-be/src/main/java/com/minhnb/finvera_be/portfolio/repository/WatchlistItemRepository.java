@@ -13,6 +13,16 @@ public interface WatchlistItemRepository extends JpaRepository<WatchlistItemEnti
 
     int countByIdWatchlistId(UUID watchlistId);
 
+    interface WatchlistItemCount {
+        UUID getWatchlistId();
+        int getItemCount();
+    }
+
+    @org.springframework.data.jpa.repository.Query(
+            "SELECT w.id.watchlistId AS watchlistId, CAST(COUNT(w) AS int) AS itemCount "
+                    + "FROM WatchlistItemEntity w WHERE w.id.watchlistId IN :watchlistIds GROUP BY w.id.watchlistId")
+    List<WatchlistItemCount> countByWatchlistIds(@org.springframework.data.repository.query.Param("watchlistIds") java.util.Collection<UUID> watchlistIds);
+
     void deleteByIdWatchlistId(UUID watchlistId);
 
     Optional<WatchlistItemEntity> findByIdWatchlistIdAndIdInstrumentId(UUID watchlistId, UUID instrumentId);
