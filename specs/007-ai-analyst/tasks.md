@@ -29,7 +29,7 @@ description: "Executable, traceable task list for a Finvera feature"
 **Purpose**: Establish only the structure and contracts required by this
 feature.
 
-- [ ] T001 [none] Machine-validate `contracts/orchestration-v1.md`'s
+- [X] T001 [none] Machine-validate `contracts/orchestration-v1.md`'s
       required test-vector table is complete and `contracts/internal-
       api.openapi.yaml`/`contracts/public-api.openapi.yaml` parse with zero
       missing `$ref`s
@@ -37,24 +37,24 @@ feature.
       `$ref`-resolution check used for Features 005/006, run against both
       files in `specs/007-ai-analyst/contracts/`
       Depends: none
-- [ ] T002 [DATA-001] Add Flyway migration
+- [X] T002 [DATA-001] Add Flyway migration
       `finvera-be/src/main/resources/db/migration/V007__create_analyst_audit_tables.sql`
       creating `analyst_query`/`analyst_tool_call` exactly per
       `data-model.md` (audit-only, no business data)
       Verify: migration test asserting the schema (columns, checks,
       indexes) matches `data-model.md`
       Depends: T001
-- [ ] T003 [none] Scaffold the `finvera-be` `analyst` module package
+- [X] T003 [none] Scaffold the `finvera-be` `analyst` module package
       structure (`analyst/{entity,repository,service,controller,dto,
       provider}`) per ADR-0007 layering, empty of business logic
       Verify: `.\mvnw.cmd compile`
       Depends: T002
-- [ ] T004 [P] [none] Scaffold `finvera-ai/app/features/{chat,analysis,
+- [X] T004 [P] [none] Scaffold `finvera-ai/app/features/{chat,analysis,
       orchestration}/` per `finvera-ai/AGENTS.md`'s already-reserved
       structure, empty of business logic
       Verify: `uv run python -m compileall .`
       Depends: none
-- [ ] T005 [P] [none] Scaffold `finvera-fe/src/features/analyst/` folder
+- [X] T005 [P] [none] Scaffold `finvera-fe/src/features/analyst/` folder
       structure
       Verify: `npm run build`
       Depends: none
