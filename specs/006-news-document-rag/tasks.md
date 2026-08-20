@@ -260,7 +260,7 @@ alter behavior.
 
 ### Tests and Evaluation
 
-- [ ] T023 [P] [US2] [FR-009 to FR-012, AI-001 to AI-003] Write synthesis
+- [X] T023 [P] [US2] [FR-009 to FR-012, AI-001 to AI-003] Write synthesis
       and citation-verification tests — grounded answer with correct
       citations, refusal on no-relevant-content, a structured-financial-
       value question identified as out of scope, an out-of-range
@@ -269,7 +269,7 @@ alter behavior.
       Verify: fails before synthesis exists; every `rag-v1` synthesis
       test vector has an assertion
       Depends: T007, T010
-- [ ] T024 [P] [US2] [SEC-001, SEC-002] Write owner-only contract/security
+- [X] T024 [P] [US2] [SEC-001, SEC-002] Write owner-only contract/security
       tests for the streamed `POST /research/ask` in
       `finvera-be/src/test/java/com/minhnb/finvera_be/research/controller/ResearchAskControllerTests.java`
       Verify: fails before the controller exists
@@ -277,7 +277,7 @@ alter behavior.
 
 ### Implementation
 
-- [ ] T025 [US2] [FR-009 to FR-012, AI-001 to AI-003] Implement Gemini
+- [X] T025 [US2] [FR-009 to FR-012, AI-001 to AI-003] Implement Gemini
       synthesis and the citation-verification algorithm (`rag-v1` steps
       1-5) in `app/features/rag/synthesis.py`, and
       `POST /internal/v1/synthesize` (SSE) per
@@ -285,7 +285,7 @@ alter behavior.
       Verify: `cd finvera-ai; uv run pytest app/features/rag/tests/test_synthesis.py`
       passes
       Depends: T023
-- [ ] T026 [US2] [FR-009 to FR-012, FR-018, SEC-001, SEC-002] Implement
+- [X] T026 [US2] [FR-009 to FR-012, FR-018, SEC-001, SEC-002] Implement
       `AskService` (call `RetrievalService`, resolve passage text, call
       T025's `/synthesize`) and the streamed `POST /research/ask`
       controller per `contracts/public-api.openapi.yaml`. **`delta` events
@@ -302,23 +302,23 @@ alter behavior.
       passes, including an assertion that the final event's citations carry
       full source metadata, not raw `chunkId`s
       Depends: T017, T024, T025
-- [ ] T027 [P] [US2] Implement a browser SSE-consuming API client (CSRF-
+- [X] T027 [P] [US2] Implement a browser SSE-consuming API client (CSRF-
       attaching) in `finvera-fe/src/features/research/api/ask.ts`
       Verify: frontend unit tests reject malformed stream events
       Depends: T026
-- [ ] T028 [P] [US2] Write ask-view component tests — streamed answer
+- [X] T028 [P] [US2] Write ask-view component tests — streamed answer
       display, citation list, refusal state, non-color indicators — in
       `finvera-fe/src/features/research/ask.test.tsx`
       Verify: fails before the components exist
       Depends: none
-- [ ] T029 [US2] Implement the ask UI (question box, streamed answer,
+- [X] T029 [US2] Implement the ask UI (question box, streamed answer,
       citation list, refusal state) in
       `finvera-fe/src/features/research/components/ask-panel.tsx`, wired
       into `research-page.tsx`
       Verify: `cd finvera-fe; npm run test -- src/features/research/ask.test.tsx`
       passes
       Depends: T027, T028
-- [ ] T030 [US2] Add Playwright P2 journeys — grounded answer with
+- [X] T030 [US2] Add Playwright P2 journeys — grounded answer with
       citations, refusal on no-evidence, structured-value question
       identified as out of scope — in
       `finvera-fe/tests/e2e/research-ask.spec.ts`

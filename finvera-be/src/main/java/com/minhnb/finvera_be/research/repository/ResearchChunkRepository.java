@@ -21,6 +21,8 @@ public interface ResearchChunkRepository extends JpaRepository<ResearchChunkEnti
 
     List<ResearchChunkEntity> findByIdInAndOwnerId(Collection<UUID> ids, UUID ownerId);
 
+    Optional<ResearchChunkEntity> findByIdAndOwnerId(UUID id, UUID ownerId);
+
     Optional<ResearchChunkEntity> findByVectorPointId(UUID vectorPointId);
 
     void deleteByResearchDocumentId(UUID researchDocumentId);

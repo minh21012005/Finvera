@@ -37,12 +37,14 @@ def verify_citation_claims(
     4. If 0 surviving claims remain or model_refused is True, return refusal state.
     5. Resolve surviving blockRefs to chunk IDs.
     """
+    default_refusal = "No relevant information was found in the provided research documents or news articles."
+
     if model_refused:
         return CitationVerificationResult(
-            answer="No relevant information was found in the provided research documents or news articles.",
+            answer=raw_answer.strip() if raw_answer and raw_answer.strip() else default_refusal,
             citations=[],
             refused=True,
-            refusal_reason="Model refused / insufficient grounded evidence",
+            refusal_reason="Model refused / out of scope calculation",
             surviving_claims_count=0,
         )
 
@@ -70,7 +72,7 @@ def verify_citation_claims(
     if not surviving_claims:
         # Zero surviving claims -> return refusal state (rag-v1 step 4)
         return CitationVerificationResult(
-            answer="No relevant information was found in the provided research documents or news articles.",
+            answer=raw_answer.strip() if (model_refused and raw_answer) else default_refusal,
             citations=[],
             refused=True,
             refusal_reason="No verifiable claims survived citation filtering",

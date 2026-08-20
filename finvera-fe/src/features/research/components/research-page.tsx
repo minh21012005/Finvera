@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Document, DocumentType, listDocuments } from "../api/documents";
+import { AskPanel } from "./ask-panel";
 import { DocumentList } from "./document-list";
 import { DocumentUpload } from "./document-upload";
 import { RetrievalResults } from "./retrieval-results";
 
 export function ResearchPage() {
-  const [activeTab, setActiveTab] = useState<"documents" | "retrieval">("documents");
+  const [activeTab, setActiveTab] = useState<"documents" | "retrieval" | "ask">("documents");
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [symbolFilter, setSymbolFilter] = useState("");
@@ -81,13 +82,24 @@ export function ResearchPage() {
             }`}
             onClick={() => setActiveTab("retrieval")}
           >
-            Truy vấn Trích dẫn
+            Truy vấn Đoạn trích
+          </button>
+          <button
+            type="button"
+            className={`px-4 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              activeTab === "ask"
+                ? "bg-cyan-600 text-white shadow-sm"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+            onClick={() => setActiveTab("ask")}
+          >
+            Hỏi Đáp AI Analyst
           </button>
         </div>
       </div>
 
       {/* Main Content */}
-      {activeTab === "documents" ? (
+      {activeTab === "documents" && (
         <div className="space-y-6">
           <DocumentUpload onDocumentSubmitted={handleDocumentSubmitted} />
           <DocumentList
@@ -101,9 +113,17 @@ export function ResearchPage() {
             onTypeFilterChange={setTypeFilter}
           />
         </div>
-      ) : (
+      )}
+
+      {activeTab === "retrieval" && (
         <div className="space-y-6">
           <RetrievalResults />
+        </div>
+      )}
+
+      {activeTab === "ask" && (
+        <div className="space-y-6">
+          <AskPanel />
         </div>
       )}
     </div>

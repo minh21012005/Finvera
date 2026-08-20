@@ -49,20 +49,15 @@ public final class AiInternalDto {
             List<UUID> vectorPointIds) {
     }
 
-    public record SynthesizeContextChunk(
+    public record SynthesizePassageDto(
             UUID chunkId,
-            int blockIndex,
-            String itemType,
-            String title,
-            String source,
-            String publicationDate,
             String contentText) {
     }
 
     public record SynthesizeRequest(
-            String question,
             UUID ownerId,
-            List<SynthesizeContextChunk> contextChunks) {
+            String query,
+            List<SynthesizePassageDto> passages) {
     }
 
     public record InternalCitation(
@@ -74,6 +69,12 @@ public final class AiInternalDto {
             String answer,
             List<InternalCitation> citations,
             boolean refused,
-            String refusalReason) {
+            String ruleVersion) {
+    }
+
+    public record InternalSynthesizeStreamEvent(
+            String type,
+            String textDelta,
+            InternalAnswerResult finalResult) {
     }
 }
