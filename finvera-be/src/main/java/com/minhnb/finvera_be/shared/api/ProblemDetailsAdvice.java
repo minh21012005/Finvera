@@ -91,6 +91,17 @@ public class ProblemDetailsAdvice {
         return response(request, HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "Request validation failed");
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    ResponseEntity<ProblemDetail> invalidArgument(HttpServletRequest request, Exception ex) {
+        return response(request, HttpStatus.BAD_REQUEST, "INVALID_REQUEST", ex.getMessage());
+    }
+
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    ResponseEntity<ProblemDetail> dataIntegrityViolation(HttpServletRequest request) {
+        return response(request, HttpStatus.CONFLICT, "CONFLICT",
+                "The request conflicts with existing data (e.g. a concurrent duplicate submission)");
+    }
+
     public static void write(
             HttpServletResponse response,
             HttpServletRequest request,

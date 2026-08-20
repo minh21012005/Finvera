@@ -19,4 +19,6 @@ public interface PortfolioTransactionRepository extends JpaRepository<PortfolioT
     boolean existsByVoidsTransactionId(UUID voidsTransactionId);
 
     Optional<PortfolioTransactionEntity> findByIdAndPortfolioId(UUID id, UUID portfolioId);
+
+    Optional<PortfolioTransactionEntity> findFirstByPortfolioIdOrderBySequenceNoDesc(UUID portfolioId);
 }

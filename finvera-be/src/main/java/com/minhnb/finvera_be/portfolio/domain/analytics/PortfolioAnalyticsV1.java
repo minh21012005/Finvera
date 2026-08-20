@@ -33,6 +33,9 @@ public final class PortfolioAnalyticsV1 {
     public static final int RATIO_SCALE = 4;
     public static final int INTERNAL_SCALE = 12;
 
+    /** Market-facing dates use Vietnam time, never host/UTC (AGENTS.md, Constitution). */
+    private static final java.time.ZoneId MARKET_ZONE = java.time.ZoneId.of("Asia/Ho_Chi_Minh");
+
     private static final Comparator<TransactionInput> CHRONOLOGICAL_ORDER =
             Comparator.comparing(TransactionInput::executedAt)
                     .thenComparingLong(TransactionInput::sequenceNo);
@@ -588,7 +591,7 @@ public final class PortfolioAnalyticsV1 {
         if (periodFrom != null && periodTo != null && totalValueAtT0 != null && totalValueAtT1 != null) {
             BigDecimal netContributedPeriod = BigDecimal.ZERO;
             for (TransactionInput tx : activeTx) {
-                LocalDate txDate = tx.executedAt().atZone(java.time.ZoneOffset.UTC).toLocalDate();
+                LocalDate txDate = tx.executedAt().atZone(MARKET_ZONE).toLocalDate();
                 if (txDate.isAfter(periodFrom) && !txDate.isAfter(periodTo)) {
                     if (tx.type() == TransactionType.DEPOSIT) {
                         netContributedPeriod = netContributedPeriod.add(tx.amount());
@@ -624,7 +627,7 @@ public final class PortfolioAnalyticsV1 {
                     requestedFrom, requestedTo, false, BigDecimal.ZERO, Collections.emptyList());
         }
 
-        LocalDate inceptionDate = activeTx.get(0).executedAt().atZone(java.time.ZoneOffset.UTC).toLocalDate();
+        LocalDate inceptionDate = activeTx.get(0).executedAt().atZone(MARKET_ZONE).toLocalDate();
         boolean clamped = requestedFrom != null && requestedFrom.isBefore(inceptionDate);
         LocalDate resolvedFrom = clamped ? inceptionDate : (requestedFrom != null ? requestedFrom : inceptionDate);
         LocalDate resolvedTo = requestedTo != null ? requestedTo : tradingDates.get(tradingDates.size() - 1);
@@ -648,7 +651,7 @@ public final class PortfolioAnalyticsV1 {
         for (LocalDate date : periodDates) {
             // Find all transactions executed on or before end of this trading date
             List<TransactionInput> asOfTx = activeTx.stream()
-                    .filter(tx -> !tx.executedAt().atZone(java.time.ZoneOffset.UTC).toLocalDate().isAfter(date))
+                    .filter(tx -> !tx.executedAt().atZone(MARKET_ZONE).toLocalDate().isAfter(date))
                     .toList();
 
             // Resolve prices on this date
@@ -656,9 +659,15 @@ public final class PortfolioAnalyticsV1 {
             boolean isPartial = false;
             String partialSymbol = null;
 
-            // Get all instruments held as of this date
+            // Get all instruments actually open (quantity > 0) as of this date — a
+            // fully-closed position's price is irrelevant to this date's valuation
+            // and must not trigger a spurious PARTIAL flag for an unrelated gap.
             PortfolioHoldingsState intermediateState = replayHoldings(asOfTx, Collections.emptyMap());
-            for (UUID instId : intermediateState.positions().keySet()) {
+            for (PositionResult openPos : intermediateState.positions().values()) {
+                if (openPos.quantity().signum() <= 0) {
+                    continue;
+                }
+                UUID instId = openPos.instrumentId();
                 Map<LocalDate, BigDecimal> instCloses = dailyClosesByInstrument.getOrDefault(instId, Collections.emptyMap());
                 BigDecimal close = instCloses.get(date);
                 if (close != null) {
@@ -669,7 +678,7 @@ public final class PortfolioAnalyticsV1 {
                     datePrices.put(instId, lastKnownCloses.get(instId));
                     isPartial = true;
                     if (partialSymbol == null) {
-                        partialSymbol = intermediateState.positions().get(instId).symbol();
+                        partialSymbol = openPos.symbol();
                     }
                 }
             }

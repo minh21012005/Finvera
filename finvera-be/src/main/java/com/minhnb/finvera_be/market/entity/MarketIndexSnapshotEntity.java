@@ -72,6 +72,7 @@ public class MarketIndexSnapshotEntity {
 
     public UUID getId() { return id; }
     public UUID getIndexId() { return indexId; }
+    public LocalDate getTradingDate() { return tradingDate; }
     public Instant getObservedAt() { return observedAt; }
     public BigDecimal getIndexLevel() { return indexLevel; }
     public BigDecimal getAbsoluteChange() { return absoluteChange; }

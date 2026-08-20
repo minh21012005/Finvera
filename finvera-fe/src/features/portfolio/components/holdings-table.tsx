@@ -7,10 +7,6 @@ interface HoldingsTableProps {
 }
 
 export function HoldingsTable({ positions, cashBalance, totalValue }: HoldingsTableProps) {
-  const totalValNum = parseFloat(totalValue || "0");
-  const cashNum = parseFloat(cashBalance || "0");
-  const cashAlloc = totalValNum > 0 ? ((cashNum / totalValNum) * 100).toFixed(2) : "0.00";
-
   return (
     <div className="holdings-section" style={{ marginBottom: "32px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
@@ -29,7 +25,6 @@ export function HoldingsTable({ positions, cashBalance, totalValue }: HoldingsTa
         <div style={{ padding: "16px", background: "var(--bg-card)", border: "1px solid var(--border-color)", borderRadius: "8px" }}>
           <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "block" }}>Tiền mặt khả dụng</span>
           <strong style={{ fontSize: "1.25rem" }}>{Number(cashBalance).toLocaleString("vi-VN")} đ</strong>
-          <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginLeft: "6px" }}>({cashAlloc}%)</span>
         </div>
       </div>
 

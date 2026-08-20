@@ -16,6 +16,13 @@ import com.minhnb.finvera_be.portfolio.repository.WatchlistRepository;
 import com.minhnb.finvera_be.portfolio.service.PortfolioExceptions.DuplicateWatchlistNameException;
 import com.minhnb.finvera_be.portfolio.service.PortfolioExceptions.UnsupportedInstrumentException;
 import com.minhnb.finvera_be.portfolio.service.PortfolioExceptions.WatchlistNotFoundException;
+import com.minhnb.finvera_be.stock.domain.model.StockTypes.IndicatorCode;
+import com.minhnb.finvera_be.stock.domain.model.StockTypes.IndicatorComponent;
+import com.minhnb.finvera_be.stock.domain.model.StockTypes.MetricApplicability;
+import com.minhnb.finvera_be.stock.domain.screener.ScreenerV1;
+import com.minhnb.finvera_be.stock.domain.screener.ScreenerV1.CandidateFacts;
+import com.minhnb.finvera_be.stock.domain.screener.ScreenerV1.IndicatorSnapshot;
+import com.minhnb.finvera_be.stock.domain.screener.ScreenerV1.TrendResult;
 import com.minhnb.finvera_be.stock.service.StockReferenceDataService;
 import com.minhnb.finvera_be.stock.service.StockReferenceDataService.DailyBarReference;
 import com.minhnb.finvera_be.stock.service.StockReferenceDataService.EquityProfileReference;
@@ -111,6 +118,7 @@ public class WatchlistService {
         Map<UUID, EquityProfileReference> profiles = new HashMap<>();
         Map<UUID, DailyBarReference> latestBars = new HashMap<>();
         Map<UUID, SignalReference> signals = new HashMap<>();
+        Map<UUID, Map<IndicatorCode, IndicatorSnapshot>> indicatorsByInstrument = Map.of();
 
         if (!instrumentIds.isEmpty()) {
             for (InstrumentReference inst : marketReferenceData.findInstrumentsByIds(instrumentIds)) {
@@ -125,6 +133,7 @@ public class WatchlistService {
             for (SignalReference sig : stockReferenceData.findCurrentSignalsForInstruments(instrumentIds)) {
                 signals.put(sig.instrumentId(), sig);
             }
+            indicatorsByInstrument = stockReferenceData.findLatestTechnicalIndicators(instrumentIds);
         }
 
         List<WatchlistItemResponse> itemResponses = new ArrayList<>();
@@ -165,10 +174,36 @@ public class WatchlistService {
                     dailyChangePercent = PositionService.formatDecimal(changePct);
                 }
 
-                technicalTrend = bar.closePrice() != null && bar.openPrice() != null
-                        ? (bar.closePrice().compareTo(bar.openPrice()) >= 0 ? "BULLISH" : "BEARISH")
+                // Reuse Feature 002/003's own persisted technical-indicators-v1 snapshot
+                // (research R-009/FR-009) — never recompute trend/volume condition here.
+                Map<IndicatorCode, IndicatorSnapshot> indicators =
+                        indicatorsByInstrument.getOrDefault(instId, Map.of());
+                CandidateFacts trendFacts = new CandidateFacts(
+                        instId, symbol, companyName, null, null, null, null, null, null,
+                        null, null, null, null, indicators, null, false, null);
+                TrendResult trend = ScreenerV1.deriveTrend(trendFacts);
+                if (!trend.unavailable() && trend.direction() != null) {
+                    technicalTrend = trend.direction().name();
+                } else {
+                    reasonCode = "INSUFFICIENT_HISTORY";
+                }
+
+                IndicatorSnapshot relativeVolume = indicators.get(IndicatorCode.RELATIVE_VOLUME);
+                BigDecimal relativeVolumeRatio = relativeVolume != null
+                        && relativeVolume.applicability() == MetricApplicability.DEFINED
+                        ? relativeVolume.components().get(IndicatorComponent.VALUE)
                         : null;
-                volumeCondition = bar.volume() != null && bar.volume() > 100000 ? "NORMAL" : "LOW_VOLUME";
+                if (relativeVolumeRatio != null) {
+                    if (relativeVolumeRatio.compareTo(BigDecimal.valueOf(1.5)) >= 0) {
+                        volumeCondition = "HIGH";
+                    } else if (relativeVolumeRatio.compareTo(BigDecimal.valueOf(0.5)) <= 0) {
+                        volumeCondition = "LOW";
+                    } else {
+                        volumeCondition = "NORMAL";
+                    }
+                } else if (reasonCode == null) {
+                    reasonCode = "INSUFFICIENT_HISTORY";
+                }
             } else {
                 reasonCode = "NO_BARS_AVAILABLE";
             }
@@ -270,7 +305,11 @@ public class WatchlistService {
         watchlistRepository.findByIdAndOwnerId(watchlistId, ownerId)
                 .orElseThrow(() -> new WatchlistNotFoundException(watchlistId));
 
-        Optional<InstrumentReference> inst = marketReferenceData.findActiveInstrumentBySymbol(symbol.trim().toUpperCase());
+        // Resolve regardless of active/delisted status (spec.md edge case: a
+        // delisted watchlist symbol must remain removable), not just active
+        // instruments — findActiveInstrumentBySymbol would silently no-op here.
+        Optional<InstrumentReference> inst =
+                marketReferenceData.findInstrumentBySymbolIncludingDelisted(symbol.trim().toUpperCase());
         if (inst.isPresent()) {
             WatchlistItemId itemId = new WatchlistItemId(watchlistId, inst.get().instrumentId());
             watchlistItemRepository.deleteById(itemId);

@@ -21,6 +21,14 @@ public interface MarketReferenceDataService {
     /** The currently listed instrument for a symbol, if one is known and active. */
     Optional<InstrumentReference> findActiveInstrumentBySymbol(String symbol);
 
+    /**
+     * The most recently listed instrument for a symbol regardless of active
+     * status, for callers that must resolve a symbol that may have since
+     * been delisted (e.g. Feature 005's watchlist item removal — a delisted
+     * symbol must remain removable).
+     */
+    Optional<InstrumentReference> findInstrumentBySymbolIncludingDelisted(String symbol);
+
     /** Active instruments whose symbol starts with the given prefix, for symbol lookup (FR-016). */
     List<InstrumentReference> searchActiveInstrumentsBySymbolPrefix(String symbolPrefix, int limit);
 
@@ -42,6 +50,15 @@ public interface MarketReferenceDataService {
      */
     Optional<RegimeAssessmentReference> findCurrentRegimeAssessment();
 
+    /**
+     * The latest accepted index snapshot on or before {@code date} for the
+     * given index code (e.g. {@code "VN_INDEX"}), for benchmark-comparison
+     * callers (Feature 005 FR-015) that need an as-of index level rather
+     * than the single latest one. Empty when the index is unknown or has no
+     * accepted snapshot on or before that date.
+     */
+    Optional<IndexSnapshotReference> findIndexSnapshotOnOrBefore(String indexCode, LocalDate date);
+
     record InstrumentReference(
             UUID instrumentId,
             String venue,
@@ -58,5 +75,11 @@ public interface MarketReferenceDataService {
             LocalDate tradingDate,
             Integer score,
             DataStatus dataStatus) {
+    }
+
+    record IndexSnapshotReference(
+            String indexCode,
+            LocalDate tradingDate,
+            java.math.BigDecimal indexLevel) {
     }
 }

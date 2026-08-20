@@ -14,4 +14,7 @@ public interface MarketIndexSnapshotRepository extends JpaRepository<MarketIndex
 
     Optional<MarketIndexSnapshotEntity> findFirstByIndexIdAndTradingDateAndObservedAtOrderByRevisionDesc(
             UUID indexId, LocalDate tradingDate, Instant observedAt);
+
+    Optional<MarketIndexSnapshotEntity> findFirstByIndexIdAndTradingDateLessThanEqualOrderByTradingDateDescObservedAtDescRevisionDesc(
+            UUID indexId, LocalDate onOrBefore);
 }

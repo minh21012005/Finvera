@@ -76,9 +76,13 @@ export function PortfolioAnalyticsView({ portfolioId }: PortfolioAnalyticsViewPr
   const retInception = formatPercent(analytics.returnSinceInception);
   const retPeriod = formatPercent(analytics.returnOverPeriod);
   const benchRet = formatPercent(analytics.benchmark.benchmarkReturn);
-  const maxDd = analytics.maxDrawdown
-    ? `(-) -${(Number(analytics.maxDrawdown) * 100).toFixed(2)}%`
-    : "—";
+  const maxDrawdownNum = analytics.maxDrawdown != null ? Number(analytics.maxDrawdown) : null;
+  const maxDd =
+    maxDrawdownNum != null && maxDrawdownNum !== 0
+      ? `(-) -${(maxDrawdownNum * 100).toFixed(2)}%`
+      : maxDrawdownNum === 0
+        ? "0.00%"
+        : "—";
 
   return (
     <div className="analytics-view-container" style={{ display: "flex", flexDirection: "column", gap: "24px" }}>

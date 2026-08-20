@@ -12,6 +12,8 @@ public interface MarketInstrumentRepository extends JpaRepository<MarketInstrume
 
     Optional<MarketInstrumentEntity> findFirstBySymbolAndListedToIsNull(String symbol);
 
+    Optional<MarketInstrumentEntity> findFirstBySymbolOrderByListedFromDesc(String symbol);
+
     List<MarketInstrumentEntity> findByListedToIsNullAndSymbolStartingWithIgnoreCaseOrderBySymbolAsc(
             String symbolPrefix, Limit limit);
 }

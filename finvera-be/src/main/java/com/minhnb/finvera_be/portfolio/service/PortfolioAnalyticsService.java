@@ -49,6 +49,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PortfolioAnalyticsService {
 
     private static final ZoneId MARKET_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+    private static final String VN_INDEX_CODE = "VN_INDEX";
 
     private final PortfolioRepository portfolioRepository;
     private final PortfolioTransactionRepository transactionRepository;
@@ -253,10 +254,13 @@ public class PortfolioAnalyticsService {
                 PositionService.formatDecimal(riskExp.coverageRatio()),
                 riskExp.riskExposureScore() == null ? "NO_SIGNALS_FOR_POSITIONS" : null);
 
-        // Benchmark Comparison (VN-Index)
-        // Feature 001 provides benchmark index snapshot
-        BigDecimal indexT0 = new BigDecimal("1200.00");
-        BigDecimal indexT1 = new BigDecimal("1250.00");
+        // Benchmark Comparison (VN-Index) — Feature 001's persisted index snapshots (FR-015)
+        BigDecimal indexT0 = marketReferenceData.findIndexSnapshotOnOrBefore(VN_INDEX_CODE, periodFrom)
+                .map(MarketReferenceDataService.IndexSnapshotReference::indexLevel)
+                .orElse(null);
+        BigDecimal indexT1 = marketReferenceData.findIndexSnapshotOnOrBefore(VN_INDEX_CODE, periodTo)
+                .map(MarketReferenceDataService.IndexSnapshotReference::indexLevel)
+                .orElse(null);
         var benchResult = PortfolioAnalyticsV1.calculateBenchmarkComparison(
                 periodFrom,
                 periodTo,

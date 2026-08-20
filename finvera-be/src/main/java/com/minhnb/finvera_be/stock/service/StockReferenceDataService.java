@@ -1,10 +1,13 @@
 package com.minhnb.finvera_be.stock.service;
 
+import com.minhnb.finvera_be.stock.domain.model.StockTypes.IndicatorCode;
+import com.minhnb.finvera_be.stock.domain.screener.ScreenerV1.IndicatorSnapshot;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -50,6 +53,16 @@ public interface StockReferenceDataService {
      * Bulk resolution of active equity profiles for the given instruments.
      */
     List<EquityProfileReference> findEquityProfiles(Collection<UUID> instrumentIds);
+
+    /**
+     * Bulk resolution of each instrument's latest current {@code
+     * technical-indicators-v1} snapshot (research R-009 / FR-009): the same
+     * persisted indicator values {@code screener-v1}'s {@code deriveTrend}
+     * and {@code RELATIVE_VOLUME} read, so a caller (e.g. Feature 005's
+     * watchlist) can reuse the exact same formulas instead of recomputing
+     * trend/volume condition independently.
+     */
+    Map<UUID, Map<IndicatorCode, IndicatorSnapshot>> findLatestTechnicalIndicators(Collection<UUID> instrumentIds);
 
     record SignalReference(
             UUID id,

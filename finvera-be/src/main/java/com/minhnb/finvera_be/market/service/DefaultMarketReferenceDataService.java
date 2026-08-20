@@ -8,10 +8,13 @@ import com.minhnb.finvera_be.market.domain.time.MarketTimePolicy.CalendarDay;
 import com.minhnb.finvera_be.market.domain.time.MarketTimePolicy.SessionWindow;
 import com.minhnb.finvera_be.market.entity.MarketInstrumentEntity;
 import com.minhnb.finvera_be.market.repository.MarketCalendarDayRepository;
+import com.minhnb.finvera_be.market.repository.MarketIndexRepository;
+import com.minhnb.finvera_be.market.repository.MarketIndexSnapshotRepository;
 import com.minhnb.finvera_be.market.repository.MarketInstrumentRepository;
 import com.minhnb.finvera_be.market.repository.MarketSessionWindowRepository;
 import com.minhnb.finvera_be.market.repository.RegimeAssessmentRepository;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Objects;
@@ -28,17 +31,23 @@ public class DefaultMarketReferenceDataService implements MarketReferenceDataSer
     private final MarketCalendarDayRepository calendarDays;
     private final MarketSessionWindowRepository sessionWindows;
     private final RegimeAssessmentRepository regimeAssessments;
+    private final MarketIndexRepository indexes;
+    private final MarketIndexSnapshotRepository indexSnapshots;
     private final MarketTimePolicy timePolicy;
 
     public DefaultMarketReferenceDataService(
             MarketInstrumentRepository instruments,
             MarketCalendarDayRepository calendarDays,
             MarketSessionWindowRepository sessionWindows,
-            RegimeAssessmentRepository regimeAssessments) {
+            RegimeAssessmentRepository regimeAssessments,
+            MarketIndexRepository indexes,
+            MarketIndexSnapshotRepository indexSnapshots) {
         this.instruments = instruments;
         this.calendarDays = calendarDays;
         this.sessionWindows = sessionWindows;
         this.regimeAssessments = regimeAssessments;
+        this.indexes = indexes;
+        this.indexSnapshots = indexSnapshots;
         this.timePolicy = new MarketTimePolicy(MARKET_ZONE);
     }
 
@@ -46,6 +55,13 @@ public class DefaultMarketReferenceDataService implements MarketReferenceDataSer
     public Optional<InstrumentReference> findActiveInstrumentBySymbol(String symbol) {
         Objects.requireNonNull(symbol, "symbol");
         return instruments.findFirstBySymbolAndListedToIsNull(symbol.toUpperCase())
+                .map(DefaultMarketReferenceDataService::toReference);
+    }
+
+    @Override
+    public Optional<InstrumentReference> findInstrumentBySymbolIncludingDelisted(String symbol) {
+        Objects.requireNonNull(symbol, "symbol");
+        return instruments.findFirstBySymbolOrderByListedFromDesc(symbol.toUpperCase())
                 .map(DefaultMarketReferenceDataService::toReference);
     }
 
@@ -109,6 +125,18 @@ public class DefaultMarketReferenceDataService implements MarketReferenceDataSer
         return regimeAssessments.findFirstByOrderByTradingDateDescAsOfDescCalculatedAtDesc()
                 .map(entity -> new RegimeAssessmentReference(entity.getId(), entity.getTradingDate(),
                         entity.getScore(), DataStatus.valueOf(entity.getDataStatus())));
+    }
+
+    @Override
+    public Optional<IndexSnapshotReference> findIndexSnapshotOnOrBefore(String indexCode, LocalDate date) {
+        Objects.requireNonNull(indexCode, "indexCode");
+        Objects.requireNonNull(date, "date");
+        return indexes.findByCode(indexCode)
+                .flatMap(index -> indexSnapshots
+                        .findFirstByIndexIdAndTradingDateLessThanEqualOrderByTradingDateDescObservedAtDescRevisionDesc(
+                                index.getId(), date))
+                .map(snapshot -> new IndexSnapshotReference(
+                        indexCode, snapshot.getTradingDate(), snapshot.getIndexLevel()));
     }
 
     private static InstrumentReference toReference(MarketInstrumentEntity entity) {

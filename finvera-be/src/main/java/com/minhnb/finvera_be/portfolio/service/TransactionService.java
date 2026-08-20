@@ -116,11 +116,7 @@ public class TransactionService {
                 .toList();
 
         UUID newTxId = UUID.randomUUID();
-        long nextSeq = existingEntities.isEmpty()
-                ? 1L
-                : (existingEntities.get(existingEntities.size() - 1).getSequenceNo() != null
-                        ? existingEntities.get(existingEntities.size() - 1).getSequenceNo() + 1
-                        : (long) (existingEntities.size() + 1));
+        long nextSeq = nextSequenceNo(portfolioId);
         TransactionInput newInput = new TransactionInput(
                 newTxId,
                 nextSeq,
@@ -191,11 +187,7 @@ public class TransactionService {
                 .toList();
 
         UUID voidTxId = UUID.randomUUID();
-        long nextSeq = existingEntities.isEmpty()
-                ? 1L
-                : (existingEntities.get(existingEntities.size() - 1).getSequenceNo() != null
-                        ? existingEntities.get(existingEntities.size() - 1).getSequenceNo() + 1
-                        : (long) (existingEntities.size() + 1));
+        long nextSeq = nextSequenceNo(portfolioId);
         TransactionInput voidInput = new TransactionInput(
                 voidTxId,
                 nextSeq,
@@ -271,6 +263,22 @@ public class TransactionService {
                 .toList();
 
         return new TransactionPageResponse(responses, totalCount, safeLimit, safeOffset);
+    }
+
+    /**
+     * A preview sequence number for validation input only (the real value is
+     * DB-assigned via {@code sequence_no BIGSERIAL}, {@code insertable=false}
+     * on the entity, and discarded on insert). MUST be derived from the true
+     * max {@code sequence_no} in this portfolio, not the last element of a
+     * list sorted by {@code executed_at} — a backdated transaction can sort
+     * before a later-sequenced row, which previously made this collide with
+     * an already-used sequence number and corrupted same-timestamp tie-break
+     * validation (contract U-3).
+     */
+    private long nextSequenceNo(UUID portfolioId) {
+        return transactionRepository.findFirstByPortfolioIdOrderBySequenceNoDesc(portfolioId)
+                .map(tx -> tx.getSequenceNo() != null ? tx.getSequenceNo() + 1 : 1L)
+                .orElse(1L);
     }
 
     private static TransactionResponse toResponse(PortfolioTransactionEntity entity, String symbol) {
