@@ -204,6 +204,12 @@ public class WatchlistService {
                 } else if (reasonCode == null) {
                     reasonCode = "INSUFFICIENT_HISTORY";
                 }
+
+                // Price is current, but trend/volume are not fully available —
+                // PARTIAL, not CURRENT, so the item doesn't overstate completeness.
+                if (reasonCode != null) {
+                    dataStatus = "PARTIAL";
+                }
             } else {
                 reasonCode = "NO_BARS_AVAILABLE";
             }

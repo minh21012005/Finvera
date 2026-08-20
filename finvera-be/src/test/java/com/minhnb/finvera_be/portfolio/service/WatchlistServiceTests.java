@@ -22,6 +22,10 @@ import com.minhnb.finvera_be.portfolio.repository.WatchlistItemRepository;
 import com.minhnb.finvera_be.portfolio.repository.WatchlistRepository;
 import com.minhnb.finvera_be.portfolio.service.PortfolioExceptions.DuplicateWatchlistNameException;
 import com.minhnb.finvera_be.portfolio.service.PortfolioExceptions.UnsupportedInstrumentException;
+import com.minhnb.finvera_be.stock.domain.model.StockTypes.IndicatorCode;
+import com.minhnb.finvera_be.stock.domain.model.StockTypes.IndicatorComponent;
+import com.minhnb.finvera_be.stock.domain.model.StockTypes.MetricApplicability;
+import com.minhnb.finvera_be.stock.domain.screener.ScreenerV1.IndicatorSnapshot;
 import com.minhnb.finvera_be.stock.service.StockReferenceDataService;
 import com.minhnb.finvera_be.stock.service.StockReferenceDataService.DailyBarReference;
 import com.minhnb.finvera_be.stock.service.StockReferenceDataService.EquityProfileReference;
@@ -33,6 +37,7 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -156,6 +161,23 @@ class WatchlistServiceTests {
                 2000000L, new BigDecimal("120000000000"), "TCBS", Instant.now(clock));
         when(stockReferenceData.findLatestDailyBars(any())).thenReturn(List.of(fptBar));
 
+        // FPT has full technical-indicators-v1 coverage (uptrend, normal relative volume);
+        // VNM has no bar at all so its indicators are irrelevant.
+        IndicatorSnapshot ma20 = new IndicatorSnapshot(MetricApplicability.DEFINED,
+                Map.of(IndicatorComponent.VALUE, new BigDecimal("62000")), null);
+        IndicatorSnapshot ma50 = new IndicatorSnapshot(MetricApplicability.DEFINED,
+                Map.of(IndicatorComponent.VALUE, new BigDecimal("59000")), null);
+        IndicatorSnapshot ma200 = new IndicatorSnapshot(MetricApplicability.DEFINED,
+                Map.of(IndicatorComponent.VALUE, new BigDecimal("55000")), null);
+        IndicatorSnapshot relativeVolume = new IndicatorSnapshot(MetricApplicability.DEFINED,
+                Map.of(IndicatorComponent.VALUE, new BigDecimal("1.0")), null);
+        when(stockReferenceData.findLatestTechnicalIndicators(any())).thenReturn(Map.of(
+                fptId, Map.of(
+                        IndicatorCode.MA20, ma20,
+                        IndicatorCode.MA50, ma50,
+                        IndicatorCode.MA200, ma200,
+                        IndicatorCode.RELATIVE_VOLUME, relativeVolume)));
+
         // Signal only for FPT, VNM has no signal
         SignalReference fptSig = new SignalReference(
                 UUID.randomUUID(), fptId, "MOMENTUM_BREAKOUT", "strategy-signal-v1",
@@ -174,6 +196,8 @@ class WatchlistServiceTests {
         assertThat(fptItem.companyName()).isEqualTo("Tập đoàn FPT");
         assertThat(fptItem.currentPrice()).isEqualTo("60000");
         assertThat(fptItem.dataStatus()).isEqualTo("CURRENT");
+        assertThat(fptItem.technicalTrend()).isEqualTo("UPTREND");
+        assertThat(fptItem.volumeCondition()).isEqualTo("NORMAL");
         assertThat(fptItem.hasCurrentSignal()).isTrue();
         assertThat(fptItem.signalDirection()).isEqualTo("BULLISH");
         assertThat(fptItem.riskLevel()).isEqualTo("LOW");
@@ -187,5 +211,39 @@ class WatchlistServiceTests {
         assertThat(vnmItem.reasonCode()).isEqualTo("NO_BARS_AVAILABLE");
         assertThat(vnmItem.hasCurrentSignal()).isFalse();
         assertThat(vnmItem.signalDirection()).isNull();
+    }
+
+    @Test
+    @DisplayName("watchlist item with a price but no technical-indicators-v1 coverage is PARTIAL, never a fabricated trend")
+    void getWatchlistItemWithPriceButNoIndicatorsIsPartial() {
+        UUID wlId = UUID.randomUUID();
+        WatchlistEntity entity = new WatchlistEntity(wlId, ownerId, "My Watchlist", Instant.now(clock));
+        when(watchlistRepository.findByIdAndOwnerId(wlId, ownerId)).thenReturn(Optional.of(entity));
+
+        WatchlistItemEntity itemFpt = new WatchlistItemEntity(new WatchlistItemId(wlId, fptId), Instant.parse("2026-08-10T00:00:00Z"));
+        when(watchlistItemRepository.findByIdWatchlistIdOrderByAddedAtAsc(wlId)).thenReturn(List.of(itemFpt));
+
+        when(marketReferenceData.findInstrumentsByIds(any())).thenReturn(List.of(
+                new InstrumentReference(fptId, "HOSE", "FPT", "EQUITY", "ACTIVE")));
+        when(stockReferenceData.findEquityProfiles(any())).thenReturn(List.of(
+                new EquityProfileReference(fptId, "Tập đoàn FPT", "FPT Corp", UUID.randomUUID(), "Công nghệ", "Tech")));
+
+        DailyBarReference fptBar = new DailyBarReference(
+                UUID.randomUUID(), fptId, LocalDate.parse("2026-08-14"), new BigDecimal("58000"),
+                new BigDecimal("61000"), new BigDecimal("58000"), new BigDecimal("60000"),
+                2000000L, new BigDecimal("120000000000"), "TCBS", Instant.now(clock));
+        when(stockReferenceData.findLatestDailyBars(any())).thenReturn(List.of(fptBar));
+        // No stub for findLatestTechnicalIndicators — Mockito's default is an empty map,
+        // representing a symbol that lacks the 200-day history technical-indicators-v1 needs.
+        when(stockReferenceData.findCurrentSignalsForInstruments(any())).thenReturn(List.of());
+
+        WatchlistDetailResponse detail = watchlistService.getWatchlist(wlId);
+
+        var fptItem = detail.items().get(0);
+        assertThat(fptItem.currentPrice()).isEqualTo("60000");
+        assertThat(fptItem.dataStatus()).isEqualTo("PARTIAL");
+        assertThat(fptItem.reasonCode()).isEqualTo("INSUFFICIENT_HISTORY");
+        assertThat(fptItem.technicalTrend()).isNull();
+        assertThat(fptItem.volumeCondition()).isNull();
     }
 }

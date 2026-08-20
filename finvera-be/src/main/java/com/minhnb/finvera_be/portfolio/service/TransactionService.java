@@ -64,7 +64,10 @@ public class TransactionService {
         Objects.requireNonNull(request, "request");
 
         UUID ownerId = ownerScopedAccess.getAuthenticatedOwnerId();
-        portfolioRepository.findByIdAndOwnerIdAndDeletedAtIsNull(portfolioId, ownerId)
+        // Row lock held for this whole method: serializes concurrent writes to
+        // the same portfolio so two racing requests can't both validate against
+        // the same pre-write ledger snapshot (see PortfolioRepository javadoc).
+        portfolioRepository.findByIdAndOwnerIdAndDeletedAtIsNullForUpdate(portfolioId, ownerId)
                 .orElseThrow(() -> new PortfolioNotFoundException(portfolioId));
 
         // Check duplicate submission
@@ -169,7 +172,7 @@ public class TransactionService {
         Objects.requireNonNull(request, "request");
 
         UUID ownerId = ownerScopedAccess.getAuthenticatedOwnerId();
-        portfolioRepository.findByIdAndOwnerIdAndDeletedAtIsNull(portfolioId, ownerId)
+        portfolioRepository.findByIdAndOwnerIdAndDeletedAtIsNullForUpdate(portfolioId, ownerId)
                 .orElseThrow(() -> new PortfolioNotFoundException(portfolioId));
 
         var duplicate = transactionRepository.findByPortfolioIdAndIdempotencyKey(portfolioId, idempotencyKey);

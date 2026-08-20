@@ -258,6 +258,10 @@ public final class PortfolioAnalyticsV1 {
                 }
                 case BUY -> {
                     BigDecimal cost = tx.quantity().multiply(tx.price()).add(tx.fee());
+                    if (cost.compareTo(runningCash) > 0) {
+                        throw new PortfolioValidationException(ReasonCode.INSUFFICIENT_CASH_BALANCE,
+                                "Cannot void target because a subsequent BUY depends on its cash balance");
+                    }
                     runningCash = runningCash.subtract(cost);
                     runningHoldings.merge(tx.instrumentId(), tx.quantity(), BigDecimal::add);
                 }

@@ -143,7 +143,7 @@ class PortfolioTransactionServiceTests {
     void recordDepositAndBuy() {
         UUID pfId = UUID.randomUUID();
         PortfolioEntity entity = new PortfolioEntity(pfId, ownerId, "Trading", Instant.now(clock), null);
-        when(portfolioRepository.findByIdAndOwnerIdAndDeletedAtIsNull(pfId, ownerId)).thenReturn(Optional.of(entity));
+        when(portfolioRepository.findByIdAndOwnerIdAndDeletedAtIsNullForUpdate(pfId, ownerId)).thenReturn(Optional.of(entity));
         when(transactionRepository.findByPortfolioIdAndIdempotencyKey(eq(pfId), any())).thenReturn(Optional.empty());
         when(transactionRepository.save(any(PortfolioTransactionEntity.class))).thenAnswer(i -> i.getArgument(0));
 
@@ -176,7 +176,7 @@ class PortfolioTransactionServiceTests {
     @DisplayName("Record BUY with unsupported symbol throws UnsupportedInstrumentException")
     void recordBuyUnsupportedSymbol() {
         UUID pfId = UUID.randomUUID();
-        when(portfolioRepository.findByIdAndOwnerIdAndDeletedAtIsNull(pfId, ownerId))
+        when(portfolioRepository.findByIdAndOwnerIdAndDeletedAtIsNullForUpdate(pfId, ownerId))
                 .thenReturn(Optional.of(new PortfolioEntity(pfId, ownerId, "PF", Instant.now(clock), null)));
         when(marketReferenceData.findActiveInstrumentBySymbol("INVALID")).thenReturn(Optional.empty());
 
@@ -192,7 +192,7 @@ class PortfolioTransactionServiceTests {
     void replayedIdempotencyKeyThrowsDuplicateSubmission() {
         UUID pfId = UUID.randomUUID();
         UUID txId = UUID.randomUUID();
-        when(portfolioRepository.findByIdAndOwnerIdAndDeletedAtIsNull(pfId, ownerId))
+        when(portfolioRepository.findByIdAndOwnerIdAndDeletedAtIsNullForUpdate(pfId, ownerId))
                 .thenReturn(Optional.of(new PortfolioEntity(pfId, ownerId, "PF", Instant.now(clock), null)));
 
         PortfolioTransactionEntity existing = new PortfolioTransactionEntity(
@@ -213,7 +213,7 @@ class PortfolioTransactionServiceTests {
     void voidValidTransaction() {
         UUID pfId = UUID.randomUUID();
         UUID depId = UUID.randomUUID();
-        when(portfolioRepository.findByIdAndOwnerIdAndDeletedAtIsNull(pfId, ownerId))
+        when(portfolioRepository.findByIdAndOwnerIdAndDeletedAtIsNullForUpdate(pfId, ownerId))
                 .thenReturn(Optional.of(new PortfolioEntity(pfId, ownerId, "PF", Instant.now(clock), null)));
 
         PortfolioTransactionEntity depEntity = new PortfolioTransactionEntity(
