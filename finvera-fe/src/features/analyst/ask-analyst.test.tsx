@@ -7,6 +7,10 @@ vi.mock('./api/analyst', () => ({
   streamAskAnalyst: vi.fn(),
 }));
 
+// jsdom does not implement scrollIntoView; AskAnalyst calls it on every tool-call/delta
+// update while streaming, which every test here triggers.
+Element.prototype.scrollIntoView = vi.fn();
+
 describe('AskAnalyst Component (User Story 1: P1)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -36,9 +40,9 @@ describe('AskAnalyst Component (User Story 1: P1)', () => {
         structuredClaims: [
           {
             claimText: 'Giá 28500',
+            sequenceNo: 1,
             toolName: 'STOCK',
-            sourceField: 'price',
-            claimedValue: '28500',
+            sourceField: 'Giá',
             asOf: '2026-08-20T10:00:00Z',
           },
         ],
@@ -59,11 +63,65 @@ describe('AskAnalyst Component (User Story 1: P1)', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Công cụ được kích hoạt/i)).toBeDefined();
-      expect(screen.getByText(/#1 STOCK/i)).toBeDefined();
+      expect(screen.getAllByText(/#1 STOCK/i).length).toBeGreaterThan(0);
       expect(screen.getByText(/\[Thành công\]/i)).toBeDefined();
       expect(screen.getByText(/Giá HPG là 28500\./i)).toBeDefined();
       expect(screen.getByText(/Dữ liệu đã được kiểm chứng/i)).toBeDefined();
       expect(screen.getByText(/Giá 28500/i)).toBeDefined();
+    });
+  });
+
+  it('renders a STARTED tool call as in-progress, never as failed', async () => {
+    const mockStream = vi.mocked(analystApi.streamAskAnalyst);
+    mockStream.mockImplementation(async (_req, callbacks) => {
+      callbacks.onToolCall?.({
+        sequenceNo: 1,
+        toolName: 'STOCK',
+        arguments: { symbol: 'HPG' },
+        status: 'STARTED',
+        latencyMs: 0,
+      });
+    });
+
+    render(<AskAnalyst />);
+    const input = screen.getByPlaceholderText(/Hỏi trợ lý phân tích/i);
+    fireEvent.change(input, { target: { value: 'Giá HPG bao nhiêu?' } });
+    fireEvent.click(screen.getByText(/Gửi/i));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Đang xử lý/i)).toBeDefined();
+      expect(screen.queryByText(/\[Thất bại\]/i)).toBeNull();
+    });
+  });
+
+  it('replaces the STARTED card with its terminal status rather than duplicating it', async () => {
+    const mockStream = vi.mocked(analystApi.streamAskAnalyst);
+    mockStream.mockImplementation(async (_req, callbacks) => {
+      callbacks.onToolCall?.({
+        sequenceNo: 1,
+        toolName: 'STOCK',
+        arguments: { symbol: 'HPG' },
+        status: 'STARTED',
+        latencyMs: 0,
+      });
+      callbacks.onToolCall?.({
+        sequenceNo: 1,
+        toolName: 'STOCK',
+        arguments: { symbol: 'HPG' },
+        status: 'SUCCEEDED',
+        latencyMs: 120,
+      });
+    });
+
+    render(<AskAnalyst />);
+    const input = screen.getByPlaceholderText(/Hỏi trợ lý phân tích/i);
+    fireEvent.change(input, { target: { value: 'Giá HPG bao nhiêu?' } });
+    fireEvent.click(screen.getByText(/Gửi/i));
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/#1 STOCK/i)).toHaveLength(1);
+      expect(screen.getByText(/\[Thành công\]/i)).toBeDefined();
+      expect(screen.queryByText(/Đang xử lý/i)).toBeNull();
     });
   });
 
@@ -101,19 +159,20 @@ describe('AskAnalyst Component (User Story 1: P1)', () => {
         structuredClaims: [
           {
             claimText: 'Giá 28500',
+            sequenceNo: 1,
             toolName: 'STOCK',
-            sourceField: 'price',
-            claimedValue: '28500',
+            sourceField: 'Giá',
             asOf: '2026-08-20T10:00:00Z',
           },
         ],
         documentClaims: [
           {
-            chunkId: '11111111-1111-1111-1111-111111111111',
             claimText: 'Theo Báo cáo thường niên 2025: Doanh thu 150.000 tỷ',
-            title: 'Báo cáo thường niên 2025 HPG',
-            source: 'DOCUMENT',
-            pageNumber: 15,
+            sourceType: 'DOCUMENT',
+            sourceId: '22222222-2222-2222-2222-222222222222',
+            sourceTitle: 'Báo cáo thường niên 2025 HPG',
+            location: 'Page 15',
+            source: 'HPG Investor Relations',
           },
         ],
         refused: false,
@@ -135,7 +194,7 @@ describe('AskAnalyst Component (User Story 1: P1)', () => {
       expect(screen.getByText(/Giá 28500/i)).toBeDefined();
       expect(screen.getByText(/Trích dẫn tài liệu & BCTC/i)).toBeDefined();
       expect(screen.getByText(/Báo cáo thường niên 2025 HPG/i)).toBeDefined();
-      expect(screen.getByText(/Trang 15/i)).toBeDefined();
+      expect(screen.getByText(/Page 15/i)).toBeDefined();
     });
   });
 

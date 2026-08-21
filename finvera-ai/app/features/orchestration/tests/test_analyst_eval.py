@@ -52,7 +52,7 @@ async def test_sc001_100_percent_verified_claims():
     verified = verify_attribution(
         answer="Giá cổ phiếu HPG hiện tại là 28500 đồng, tăng 1.79% so với phiên trước.",
         raw_structured_claims=raw_claims,
-        raw_document_claims=[],
+        verified_document_claims=[],
         dispatched_calls=tool_calls,
         tool_call_bound_reached=False,
     )
@@ -87,13 +87,16 @@ async def test_sc002_distinct_structured_and_document_claims():
             status="SUCCEEDED",
             latency_ms=120,
             response_data={
-                "chunks": [
+                "passages": [
                     {
-                        "chunk_id": str(chunk_id),
-                        "title": "Báo cáo thường niên VNM 2025",
-                        "content": "Kế hoạch doanh thu năm 2026 đạt 65.000 tỷ VNĐ",
-                        "page_number": 12,
-                        "source": "DOCUMENT",
+                        "chunkId": str(chunk_id),
+                        "sourceType": "DOCUMENT",
+                        "sourceId": str(uuid.uuid4()),
+                        "sourceTitle": "Báo cáo thường niên VNM 2025",
+                        "location": "Page 12",
+                        "source": "VNM Investor Relations",
+                        "excerpt": "Kế hoạch doanh thu năm 2026 đạt 65.000 tỷ VNĐ",
+                        "score": 0.91,
                     }
                 ]
             },
@@ -107,28 +110,28 @@ async def test_sc002_distinct_structured_and_document_claims():
             claimedValue="67000",
         )
     ]
-    raw_doc = [
-        {
-            "chunk_id": str(chunk_id),
-            "claim_text": "Theo Báo cáo thường niên VNM 2025, kế hoạch doanh thu năm 2026 đạt 65.000 tỷ VNĐ.",
-            "title": "Báo cáo thường niên VNM 2025",
-            "page_number": 12,
-        }
+    # Document claims are verified upstream via rag-v1's own verify_citation_claims
+    # (delegated, not reimplemented) before verify_attribution ever sees them.
+    verified_docs = [
+        DocumentClaim(
+            chunkId=chunk_id,
+            claimText="Theo Báo cáo thường niên VNM 2025, kế hoạch doanh thu năm 2026 đạt 65.000 tỷ VNĐ.",
+        )
     ]
-    
+
     verified = verify_attribution(
         answer="Giá VNM là 67000. Theo Báo cáo thường niên VNM 2025, kế hoạch doanh thu năm 2026 đạt 65.000 tỷ VNĐ.",
         raw_structured_claims=raw_structured,
-        raw_document_claims=raw_doc,
+        verified_document_claims=verified_docs,
         dispatched_calls=tool_calls,
         tool_call_bound_reached=False,
     )
-    
+
     assert len(verified.structuredClaims) == 1
     assert verified.structuredClaims[0].claimedValue == "67000"
     assert len(verified.documentClaims) == 1
-    assert verified.documentClaims[0].title == "Báo cáo thường niên VNM 2025"
-    assert verified.documentClaims[0].pageNumber == 12
+    assert verified.documentClaims[0].chunkId == chunk_id
+    assert "Báo cáo thường niên VNM 2025" in verified.documentClaims[0].claimText
 
 
 @pytest.mark.asyncio

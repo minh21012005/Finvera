@@ -15,25 +15,28 @@ export interface ToolCallEvent {
   sequenceNo: number;
   toolName: string;
   arguments: Record<string, unknown>;
-  status: 'SUCCEEDED' | 'FAILED';
+  status: 'STARTED' | 'SUCCEEDED' | 'FAILED';
   failureReason?: string | null;
   latencyMs: number;
 }
 
 export interface PublicStructuredClaim {
   claimText: string;
+  sequenceNo: number;
   toolName: string;
   sourceField: string;
-  claimedValue: string;
   asOf: string;
 }
 
+export type SourceType = 'DOCUMENT' | 'NEWS_ARTICLE';
+
 export interface DocumentClaim {
-  chunkId: string;
   claimText: string;
-  title?: string;
-  source?: string;
-  pageNumber?: number;
+  sourceType: SourceType;
+  sourceId: string;
+  sourceTitle: string;
+  location: string;
+  source: string;
 }
 
 export interface AnalystFinalResult {
@@ -109,6 +112,7 @@ export async function streamAskAnalyst(
   const reader = response.body.getReader();
   const decoder = new TextDecoder('utf-8');
   let buffer = '';
+  let sawFinalEvent = false;
 
   try {
     while (true) {
@@ -131,6 +135,7 @@ export async function streamAskAnalyst(
           } else if (event.type === 'delta' && event.textDelta) {
             callbacks.onDelta?.(event.textDelta);
           } else if (event.type === 'final' && event.final) {
+            sawFinalEvent = true;
             callbacks.onFinal?.(event.final);
           }
         } catch {
@@ -145,6 +150,16 @@ export async function streamAskAnalyst(
     const error = err instanceof Error ? err : new Error('Lỗi luồng dữ liệu phân tích.');
     callbacks.onError?.(error);
     throw error;
+  }
+
+  if (!sawFinalEvent) {
+    // The stream closed cleanly but never sent a `final` event — surface it as an
+    // error so the caller can leave its "answering" state rather than waiting
+    // forever for an event that will never arrive (the same bug class already found
+    // and fixed in Feature 006's research/api/ask.ts).
+    callbacks.onError?.(
+      new Error('Luồng trả lời đã kết thúc trước khi nhận được kết quả cuối cùng.')
+    );
   }
 }
 

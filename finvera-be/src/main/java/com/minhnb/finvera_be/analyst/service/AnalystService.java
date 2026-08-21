@@ -8,6 +8,7 @@ import com.minhnb.finvera_be.analyst.domain.ToolCallStatus;
 import com.minhnb.finvera_be.analyst.domain.ToolName;
 import com.minhnb.finvera_be.analyst.dto.AskAnalystDto.*;
 import com.minhnb.finvera_be.analyst.provider.AnalystAiClient;
+import com.minhnb.finvera_be.research.service.RetrievalService;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -24,16 +25,89 @@ public class AnalystService {
 
     private static final Logger log = LoggerFactory.getLogger(AnalystService.class);
 
+    /** Human-presentable labels for known tool-response field paths (public-api.openapi.yaml's
+     * StructuredClaim.sourceField, research R-009). Falls back to a lightly humanized
+     * version of the raw fieldPath for anything not listed here. */
+    private static final Map<String, String> FIELD_PATH_LABELS = Map.ofEntries(
+            Map.entry("price", "Giá"),
+            Map.entry("changePercent", "% thay đổi"),
+            Map.entry("volume", "Khối lượng"),
+            Map.entry("vnIndexValue", "VN-Index"),
+            Map.entry("vnIndexChangePercent", "% thay đổi VN-Index"),
+            Map.entry("advancers", "Số mã tăng"),
+            Map.entry("decliners", "Số mã giảm"),
+            Map.entry("signal.direction", "Xu hướng tín hiệu kỹ thuật"),
+            Map.entry("eps", "EPS"),
+            Map.entry("roe", "ROE"),
+            Map.entry("revenueGrowthPercent", "Tăng trưởng doanh thu"),
+            Map.entry("peRatio", "P/E"),
+            Map.entry("pbRatio", "P/B"),
+            Map.entry("classification", "Phân loại định giá"),
+            Map.entry("totalValue", "Tổng giá trị danh mục"));
+
     private final AnalystAiClient aiClient;
     private final AnalystQueryService queryService;
+    private final RetrievalService retrievalService;
     private final ObjectMapper objectMapper;
 
     private final java.util.concurrent.ExecutorService executorService = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor();
 
-    public AnalystService(AnalystAiClient aiClient, AnalystQueryService queryService, ObjectMapper objectMapper) {
+    public AnalystService(
+            AnalystAiClient aiClient,
+            AnalystQueryService queryService,
+            RetrievalService retrievalService,
+            ObjectMapper objectMapper) {
         this.aiClient = aiClient;
         this.queryService = queryService;
+        this.retrievalService = retrievalService;
         this.objectMapper = objectMapper;
+    }
+
+    private static final int ARGUMENT_AUDIT_MAX_LENGTH = 300;
+
+    /**
+     * Serializes tool-call arguments for the {@code analyst_tool_call.arguments} jsonb
+     * audit column. Two things this MUST do, both found missing in review:
+     * (1) produce actual JSON via the ObjectMapper — {@code Map.toString()} (e.g.
+     *     {@code {query=...}}) is not valid JSON and jsonb rejects it outright;
+     * (2) truncate any free-text argument value (e.g. RESEARCH_RAG/SCREENING's
+     *     `query`, which carries the owner's full raw question, up to 2000 chars) to
+     *     the same 300-char preview length `question_preview` already uses (AI-002) —
+     *     an argument value is still audited, never silently dropped, just not stored
+     *     as the full raw question text.
+     */
+    private String serializeArgumentsForAudit(Map<String, Object> arguments) {
+        if (arguments == null || arguments.isEmpty()) {
+            return "{}";
+        }
+        Map<String, Object> redacted = new HashMap<>();
+        for (Map.Entry<String, Object> entry : arguments.entrySet()) {
+            Object value = entry.getValue();
+            if (value instanceof String s && s.length() > ARGUMENT_AUDIT_MAX_LENGTH) {
+                redacted.put(entry.getKey(), s.substring(0, ARGUMENT_AUDIT_MAX_LENGTH));
+            } else {
+                redacted.put(entry.getKey(), value);
+            }
+        }
+        try {
+            return objectMapper.writeValueAsString(redacted);
+        } catch (Exception e) {
+            log.warn("Failed to serialize tool-call arguments for audit, storing empty object: {}", e.getMessage());
+            return "{}";
+        }
+    }
+
+    private static String humanizeFieldPath(String fieldPath) {
+        if (fieldPath == null || fieldPath.isBlank()) {
+            return fieldPath;
+        }
+        String known = FIELD_PATH_LABELS.get(fieldPath);
+        if (known != null) {
+            return known;
+        }
+        String last = fieldPath.contains(".") ? fieldPath.substring(fieldPath.lastIndexOf('.') + 1) : fieldPath;
+        String spaced = last.replaceAll("([a-z])([A-Z])", "$1 $2");
+        return Character.toUpperCase(spaced.charAt(0)) + spaced.substring(1);
     }
 
     public SseEmitter askStream(UUID ownerId, AskAnalystRequest request) {
@@ -103,7 +177,7 @@ public class AnalystService {
                                 queryId,
                                 (short) toolCall.sequenceNo(),
                                 tName,
-                                toolCall.arguments() != null ? toolCall.arguments().toString() : "{}",
+                                serializeArgumentsForAudit(toolCall.arguments()),
                                 tStatus,
                                 toolCall.failureReason(),
                                 (int) toolCall.latencyMs(),
@@ -120,24 +194,51 @@ public class AnalystService {
                         JsonNode finalNode = node.get("final");
                         InternalFinalEventDto internalFinal = objectMapper.treeToValue(finalNode, InternalFinalEventDto.class);
 
-                        // T021: Resolve internal structured claims into public format
+                        // Resolve internal structured claims into the public contract shape
+                        // (StructuredClaim{claimText, sequenceNo, toolName, sourceField, asOf})
+                        // — never the raw fieldPath/claimedValue the model produced internally.
                         List<PublicStructuredClaimDto> publicClaims = new ArrayList<>();
                         if (internalFinal.structuredClaims() != null) {
                             for (InternalStructuredClaimDto internalClaim : internalFinal.structuredClaims()) {
                                 String toolName = toolSeqToName.getOrDefault(internalClaim.sequenceNo(), "UNKNOWN");
                                 publicClaims.add(new PublicStructuredClaimDto(
                                         internalClaim.claimText(),
+                                        internalClaim.sequenceNo(),
                                         toolName,
-                                        internalClaim.fieldPath(),
-                                        internalClaim.claimedValue(),
+                                        humanizeFieldPath(internalClaim.fieldPath()),
                                         internalClaim.asOf()));
+                            }
+                        }
+
+                        // Resolve internal document claims (bare chunkId) into the public
+                        // Citation shape, identical to Feature 006's AskService.java —
+                        // never pass the internal DocumentClaimDto through unchanged.
+                        List<PublicDocumentClaimDto> publicDocumentClaims = new ArrayList<>();
+                        if (internalFinal.documentClaims() != null) {
+                            for (DocumentClaimDto internalDoc : internalFinal.documentClaims()) {
+                                if (internalDoc.chunkId() == null || internalDoc.chunkId().isBlank()) {
+                                    continue;
+                                }
+                                try {
+                                    UUID chunkId = UUID.fromString(internalDoc.chunkId());
+                                    retrievalService.resolveChunkCitation(chunkId, ownerId).ifPresent(passage ->
+                                            publicDocumentClaims.add(new PublicDocumentClaimDto(
+                                                    internalDoc.claimText(),
+                                                    passage.sourceType().name(),
+                                                    passage.sourceId().toString(),
+                                                    passage.sourceTitle(),
+                                                    passage.location(),
+                                                    passage.source())));
+                                } catch (IllegalArgumentException e) {
+                                    log.warn("Analyst document claim carried an unparseable chunkId, dropped: {}", internalDoc.chunkId());
+                                }
                             }
                         }
 
                         PublicFinalEventDto publicFinal = new PublicFinalEventDto(
                                 internalFinal.answer(),
                                 publicClaims,
-                                internalFinal.documentClaims() != null ? internalFinal.documentClaims() : List.of(),
+                                publicDocumentClaims,
                                 internalFinal.refused(),
                                 recordedToolCalls,
                                 internalFinal.toolCallBoundReached(),

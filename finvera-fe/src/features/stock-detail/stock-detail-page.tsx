@@ -172,7 +172,9 @@ export function StockDetailPage({ symbol }: { symbol: string }) {
               <p role="status">Định giá tạm thời không có dữ liệu.</p>
             </section>
           )}
-          {valuationState.kind === "ready" && <StockValuation valuation={valuationState.valuation} />}
+          {valuationState.kind === "ready" && (
+            <StockValuation valuation={valuationState.valuation} symbol={symbol} />
+          )}
 
           {signalsState.kind === "loading" && <p aria-busy="true">Đang tải tín hiệu chiến lược…</p>}
           {signalsState.kind === "unavailable" && (
@@ -181,7 +183,7 @@ export function StockDetailPage({ symbol }: { symbol: string }) {
               <p role="status">Tín hiệu chiến lược tạm thời không có dữ liệu.</p>
             </section>
           )}
-          {signalsState.kind === "ready" && <StockSignals signals={signalsState.signals} />}
+          {signalsState.kind === "ready" && <StockSignals signals={signalsState.signals} symbol={symbol} />}
 
           <footer className="provenance-footer">
             <span>

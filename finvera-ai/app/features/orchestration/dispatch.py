@@ -12,7 +12,6 @@ from app.features.orchestration.allowlist import (
     ToolName,
     validate_tool_call,
 )
-from app.features.rag.retrieval import retrieve_ranked_chunks
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +84,25 @@ class BackendToolClient:
                 elif tool_name == ToolName.SCREENING:
                     resp = await client.post(
                         f"{self.base_url}/tools/screener/executions",
+                        params=params,
                         json=arguments.get("filters", {}),
+                        headers=headers,
+                    )
+                elif tool_name == ToolName.RESEARCH_RAG:
+                    body = {
+                        "query": arguments.get("query", ""),
+                        "filters": {
+                            "symbol": arguments.get("symbol"),
+                            "documentType": arguments.get("document_type"),
+                            "newsCategory": arguments.get("news_category"),
+                            "dateFrom": arguments.get("date_from"),
+                            "dateTo": arguments.get("date_to"),
+                        },
+                    }
+                    resp = await client.post(
+                        f"{self.base_url}/tools/research/retrieve",
+                        params=params,
+                        json=body,
                         headers=headers,
                     )
                 else:
@@ -145,57 +162,13 @@ class OrchestrationDispatcher:
 
         args_dict = parsed_args.model_dump() if parsed_args else arguments_raw
 
-        # Dispatch
-        if tool_name == ToolName.RESEARCH_RAG:
-            # Internal direct retrieval
-            try:
-                ranked_chunks = await retrieve_ranked_chunks(
-                    query=args_dict["query"],
-                    owner_id=session_owner_id,
-                    symbol=args_dict.get("symbol"),
-                    document_type=args_dict.get("document_type"),
-                    news_category=args_dict.get("news_category"),
-                    date_from=args_dict.get("date_from"),
-                    date_to=args_dict.get("date_to"),
-                    top_k=args_dict.get("top_k", 8),
-                )
-                latency_ms = int((time.perf_counter() - start_time) * 1000)
-                chunks_data = [
-                    {
-                        "chunk_id": str(c.chunk_id),
-                        "document_id": str(c.document_id) if c.document_id else None,
-                        "source_type": c.source_type,
-                        "title": c.title,
-                        "content_text": c.content_text,
-                        "page_number": c.page_number,
-                        "score": c.score,
-                    }
-                    for c in ranked_chunks
-                ]
-                return DispatchedToolCall(
-                    sequence_no=sequence_no,
-                    tool_name=tool_name,
-                    arguments=args_dict,
-                    status="SUCCEEDED",
-                    failure_reason=None,
-                    latency_ms=latency_ms,
-                    called_at=now_iso,
-                    response_data={"chunks": chunks_data, "count": len(chunks_data), "asOf": now_iso},
-                )
-            except Exception as e:
-                latency_ms = int((time.perf_counter() - start_time) * 1000)
-                return DispatchedToolCall(
-                    sequence_no=sequence_no,
-                    tool_name=tool_name,
-                    arguments=args_dict,
-                    status="FAILED",
-                    failure_reason=f"RETRIEVAL_ERROR: {str(e)}",
-                    latency_ms=latency_ms,
-                    called_at=now_iso,
-                    response_data=None,
-                )
-
-        # External call to finvera-be
+        # Dispatch — every tool, including RESEARCH_RAG, goes out to finvera-be's
+        # /internal/v1/tools/* surface (research R-004). RESEARCH_RAG specifically MUST
+        # NOT read finvera-ai's own retrieval module directly: Qdrant/RankedChunk never
+        # carries chunk content_text (data-model.md), only finvera-be's Postgres-backed
+        # RetrievalService can resolve it, so routing this tool the same way as the
+        # other eight is not just consistency — it's the only path that can return real
+        # passage text for synthesis.
         success, response_dict, failure_reason = await self.tool_client.execute_tool(
             tool_name=tool_name,
             arguments=args_dict,

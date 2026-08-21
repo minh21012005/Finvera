@@ -48,7 +48,7 @@ const SIX_DEFINED_FACTORS: RiskFactor[] = [
 
 describe("stock signal risk-factor breakdown", () => {
   it("shows all six factors with their own value and score when every factor is available", () => {
-    render(<StockSignals signals={signalsResponse(baseSignal(SIX_DEFINED_FACTORS))} />);
+    render(<StockSignals symbol="HPG" signals={signalsResponse(baseSignal(SIX_DEFINED_FACTORS))} />);
     const items = screen.getAllByRole("listitem");
     // 1 strategy card + 6 risk-factor items.
     expect(items.length).toBeGreaterThanOrEqual(6);
@@ -68,7 +68,7 @@ describe("stock signal risk-factor breakdown", () => {
         reasonCode: "REGIME_UNAVAILABLE",
       },
     ];
-    render(<StockSignals signals={signalsResponse(baseSignal(factors, { riskScore: 20, riskLevel: "LOW" }))} />);
+    render(<StockSignals symbol="HPG" signals={signalsResponse(baseSignal(factors, { riskScore: 20, riskLevel: "LOW" }))} />);
     expect(screen.getByText(/REGIME_UNAVAILABLE/)).toBeVisible();
     expect(screen.getByText(/Rủi ro thấp/)).toBeVisible();
     expect(screen.getByText(/\(20\/100\)/)).toBeVisible();
@@ -97,6 +97,7 @@ describe("stock signal risk-factor breakdown", () => {
     ];
     render(
       <StockSignals
+        symbol="HPG"
         signals={signalsResponse(
           baseSignal(factors, { riskScore: null, riskLevel: null, signalStrength: null, reasonCodes: ["INSUFFICIENT_RISK_FACTORS"] }),
         )}
@@ -111,17 +112,17 @@ describe("stock signal risk-factor breakdown", () => {
   });
 
   it("shows the risk level with a non-colour text/icon indicator", () => {
-    render(<StockSignals signals={signalsResponse(baseSignal(SIX_DEFINED_FACTORS, { riskLevel: "HIGH" }))} />);
+    render(<StockSignals symbol="HPG" signals={signalsResponse(baseSignal(SIX_DEFINED_FACTORS, { riskLevel: "HIGH" }))} />);
     const badge = screen.getByText(/Rủi ro cao/).closest(".risk-level-badge");
     expect(badge).not.toBeNull();
     expect(badge?.textContent).toMatch(/●●●/);
   });
 
   it("reproduces identical factor values and overall score for identical accepted inputs", () => {
-    const { unmount } = render(<StockSignals signals={signalsResponse(baseSignal(SIX_DEFINED_FACTORS))} />);
+    const { unmount } = render(<StockSignals symbol="HPG" signals={signalsResponse(baseSignal(SIX_DEFINED_FACTORS))} />);
     const firstScore = screen.getByText(/\(25\/100\)/).textContent;
     unmount();
-    render(<StockSignals signals={signalsResponse(baseSignal(SIX_DEFINED_FACTORS))} />);
+    render(<StockSignals symbol="HPG" signals={signalsResponse(baseSignal(SIX_DEFINED_FACTORS))} />);
     const secondScore = screen.getByText(/\(25\/100\)/).textContent;
     expect(firstScore).toEqual(secondScore);
   });

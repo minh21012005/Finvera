@@ -142,6 +142,20 @@ components:
       additionalProperties: false
       properties:
         question: { type: string, minLength: 1, maxLength: 2000 }
+        symbol:
+          type: string
+          nullable: true
+          description: >-
+            Optional stock symbol the owner is currently viewing (e.g. from
+            the stock-detail screen). Threaded through to the orchestrator
+            as read-only context for tool-argument resolution (research
+            R-005) — never a substitute for a symbol the model itself must
+            extract from the question text when this is absent. Added here
+            to match the already-delivered end-to-end field (finvera-be's
+            `AskAnalystRequest`/`InternalAskRequest`, finvera-ai's
+            `OrchestrateAskRequest.symbol`); found missing from this
+            contract during code review (2026-08-21) — the contract, not
+            the working feature, was the gap.
         priorTurns:
           type: array
           description: >-

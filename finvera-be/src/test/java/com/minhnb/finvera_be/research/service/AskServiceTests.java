@@ -7,19 +7,15 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import tools.jackson.databind.ObjectMapper;
-import com.minhnb.finvera_be.research.domain.DocumentType;
-import com.minhnb.finvera_be.research.domain.IngestionStatus;
 import com.minhnb.finvera_be.research.domain.ResearchItemType;
 import com.minhnb.finvera_be.research.dto.AskRequest;
+import com.minhnb.finvera_be.research.dto.PassageResponse;
 import com.minhnb.finvera_be.research.dto.SourceType;
 import com.minhnb.finvera_be.research.entity.ResearchChunkEntity;
-import com.minhnb.finvera_be.research.entity.ResearchDocumentEntity;
 import com.minhnb.finvera_be.research.provider.AiInternalDto.RankedChunkDto;
 import com.minhnb.finvera_be.research.provider.AiInternalDto.RetrieveChunksResponse;
 import com.minhnb.finvera_be.research.provider.ResearchAiClient;
-import com.minhnb.finvera_be.research.repository.NewsArticleRepository;
 import com.minhnb.finvera_be.research.repository.ResearchChunkRepository;
-import com.minhnb.finvera_be.research.repository.ResearchDocumentRepository;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -37,8 +33,7 @@ class AskServiceTests {
 
     private ResearchAiClient aiClient;
     private ResearchChunkRepository chunkRepository;
-    private ResearchDocumentRepository documentRepository;
-    private NewsArticleRepository newsRepository;
+    private RetrievalService retrievalService;
     private OwnerScopedResearchAccess ownerAccess;
     private ObjectMapper objectMapper;
     private AskService askService;
@@ -49,8 +44,7 @@ class AskServiceTests {
     void setUp() {
         aiClient = mock(ResearchAiClient.class);
         chunkRepository = mock(ResearchChunkRepository.class);
-        documentRepository = mock(ResearchDocumentRepository.class);
-        newsRepository = mock(NewsArticleRepository.class);
+        retrievalService = mock(RetrievalService.class);
         ownerAccess = mock(OwnerScopedResearchAccess.class);
         objectMapper = new ObjectMapper();
 
@@ -59,8 +53,7 @@ class AskServiceTests {
         askService = new AskService(
                 aiClient,
                 chunkRepository,
-                documentRepository,
-                newsRepository,
+                retrievalService,
                 ownerAccess,
                 objectMapper);
     }
@@ -118,27 +111,18 @@ class AskServiceTests {
         when(chunkRepository.findByIdInAndOwnerId(List.of(chunkId), ownerId)).thenReturn(List.of(chunk));
         when(chunkRepository.findByIdAndOwnerId(chunkId, ownerId)).thenReturn(Optional.of(chunk));
 
-        ResearchDocumentEntity doc = new ResearchDocumentEntity(
+        PassageResponse resolvedCitation = new PassageResponse(
+                chunkId,
+                SourceType.DOCUMENT,
                 docId,
-                ownerId,
-                UUID.randomUUID(),
                 "Báo cáo tài chính 2025",
-                DocumentType.FINANCIAL_REPORT,
-                (short) 2025,
-                (short) 4,
+                "Page 5",
                 "FPT IR",
                 LocalDate.of(2025, 12, 31),
-                "bctc.pdf",
-                new byte[0],
-                "application/pdf",
-                null,
-                IngestionStatus.READY,
-                null,
-                Instant.now(),
-                Instant.now(),
-                "idem-1");
+                "Doanh thu đạt 60.000 tỷ VND",
+                0.0);
 
-        when(documentRepository.findByIdAndOwnerId(docId, ownerId)).thenReturn(Optional.of(doc));
+        when(retrievalService.resolveChunkCitation(chunkId, ownerId)).thenReturn(Optional.of(resolvedCitation));
 
         String sseData = "data: {\"type\": \"delta\", \"textDelta\": \"Doanh thu \"}\n\n"
                 + "data: {\"type\": \"final\", \"final\": {\"answer\": \"Doanh thu đạt 60.000 tỷ.\", \"citations\": [{\"chunkId\": \"" + chunkId + "\", \"claimText\": \"Doanh thu đạt 60.000 tỷ\"}], \"refused\": false, \"ruleVersion\": \"rag-v1\"}}\n\n";

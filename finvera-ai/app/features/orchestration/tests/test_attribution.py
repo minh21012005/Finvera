@@ -41,7 +41,7 @@ def test_attribution_drops_misstated_claim():
     result = verify_attribution(
         answer="HPG có giá 99,000 và RSI 65.4",
         raw_structured_claims=raw_claims,
-        raw_document_claims=[],
+        verified_document_claims=[],
         dispatched_calls=[tool_call],
         tool_call_bound_reached=False,
     )
@@ -75,7 +75,7 @@ def test_attribution_drops_claims_on_failed_tool():
     result = verify_attribution(
         answer="VNM có EPS là 4500",
         raw_structured_claims=raw_claims,
-        raw_document_claims=[],
+        verified_document_claims=[],
         dispatched_calls=[failed_call],
         tool_call_bound_reached=False,
     )

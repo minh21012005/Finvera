@@ -57,7 +57,16 @@ export const AskAnalyst: React.FC = () => {
         req,
         {
           onToolCall: (tc) => {
-            setToolCalls((prev) => [...prev, tc]);
+            // A tool call is reported twice — once "started", once with its terminal
+            // status — replace the existing card by sequenceNo rather than appending a
+            // second one for the same call.
+            setToolCalls((prev) => {
+              const idx = prev.findIndex((p) => p.sequenceNo === tc.sequenceNo);
+              if (idx === -1) return [...prev, tc];
+              const next = [...prev];
+              next[idx] = tc;
+              return next;
+            });
           },
           onDelta: (delta) => {
             setStreamedText((prev) => prev + delta);
@@ -153,27 +162,26 @@ export const AskAnalyst: React.FC = () => {
               <span>Công cụ được kích hoạt ({toolCalls.length})</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {toolCalls.map((tc) => (
+              {toolCalls.map((tc) => {
+                const statusStyle =
+                  tc.status === 'SUCCEEDED'
+                    ? { card: 'bg-slate-800/40 border-slate-700/60', badge: 'bg-emerald-500/20 text-emerald-300', label: '[Thành công]' }
+                    : tc.status === 'FAILED'
+                      ? { card: 'bg-rose-950/20 border-rose-800/40', badge: 'bg-rose-500/20 text-rose-300', label: '[Thất bại]' }
+                      : { card: 'bg-slate-800/20 border-slate-700/40', badge: 'bg-amber-500/20 text-amber-300', label: '[Đang xử lý…]' };
+                return (
                 <div
                   key={tc.sequenceNo}
-                  className={`p-3 rounded-lg border text-xs flex flex-col justify-between ${
-                    tc.status === 'SUCCEEDED'
-                      ? 'bg-slate-800/40 border-slate-700/60'
-                      : 'bg-rose-950/20 border-rose-800/40'
-                  }`}
+                  className={`p-3 rounded-lg border text-xs flex flex-col justify-between ${statusStyle.card}`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-mono font-bold text-slate-200">
                       #{tc.sequenceNo} {tc.toolName}
                     </span>
                     <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                        tc.status === 'SUCCEEDED'
-                          ? 'bg-emerald-500/20 text-emerald-300'
-                          : 'bg-rose-500/20 text-rose-300'
-                      }`}
+                      className={`px-2 py-0.5 rounded text-[10px] font-semibold ${statusStyle.badge}`}
                     >
-                      {tc.status === 'SUCCEEDED' ? '[Thành công]' : '[Thất bại]'}
+                      {statusStyle.label}
                     </span>
                   </div>
                   {tc.toolName === 'SCREENING' && tc.arguments?.filters ? (
@@ -199,7 +207,8 @@ export const AskAnalyst: React.FC = () => {
                     Độ trễ: {tc.latencyMs}ms
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -247,11 +256,10 @@ export const AskAnalyst: React.FC = () => {
                           {claim.claimText}
                         </span>
                         <span className="text-[10px] text-slate-400 font-mono">
-                          [{claim.toolName} → {claim.sourceField}]
+                          [#{claim.sequenceNo} {claim.toolName} → {claim.sourceField}]
                         </span>
                       </div>
-                      <div className="text-[10px] text-slate-400 flex items-center justify-between">
-                        <span>Giá trị gốc: <strong className="text-slate-200">{claim.claimedValue}</strong></span>
+                      <div className="text-[10px] text-slate-400 flex items-center justify-end">
                         <span>Thời điểm: {claim.asOf ? new Date(claim.asOf).toLocaleTimeString('vi-VN') : 'N/A'}</span>
                       </div>
                     </div>
@@ -274,11 +282,11 @@ export const AskAnalyst: React.FC = () => {
                     >
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-semibold text-blue-300 truncate">
-                          📄 {docClaim.title || 'Tài liệu công bố'}
+                          📄 {docClaim.sourceTitle || 'Tài liệu công bố'}
                         </span>
-                        {docClaim.pageNumber && (
+                        {docClaim.location && (
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-300 font-mono">
-                            Trang {docClaim.pageNumber}
+                            {docClaim.location}
                           </span>
                         )}
                       </div>
@@ -287,10 +295,10 @@ export const AskAnalyst: React.FC = () => {
                       </div>
                       <div className="text-[10px] text-slate-400 flex items-center justify-between mt-1">
                         <span className="font-mono text-[9px] text-slate-500 truncate max-w-[180px]">
-                          ID: {docClaim.chunkId}
+                          {docClaim.source}
                         </span>
                         <span className="text-[10px] text-slate-400">
-                          [{docClaim.source || 'DOCUMENT'}]
+                          [{docClaim.sourceType === 'NEWS_ARTICLE' ? 'TIN TỨC' : 'TÀI LIỆU'}]
                         </span>
                       </div>
                     </div>

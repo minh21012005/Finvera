@@ -2,24 +2,18 @@ package com.minhnb.finvera_be.research.service;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
-import com.minhnb.finvera_be.research.domain.ResearchItemType;
 import com.minhnb.finvera_be.research.dto.AskCitation;
 import com.minhnb.finvera_be.research.dto.AskFinalResult;
 import com.minhnb.finvera_be.research.dto.AskRequest;
 import com.minhnb.finvera_be.research.dto.AskStreamEvent;
-import com.minhnb.finvera_be.research.dto.SourceType;
-import com.minhnb.finvera_be.research.entity.NewsArticleEntity;
 import com.minhnb.finvera_be.research.entity.ResearchChunkEntity;
-import com.minhnb.finvera_be.research.entity.ResearchDocumentEntity;
 import com.minhnb.finvera_be.research.provider.AiInternalDto.RankedChunkDto;
 import com.minhnb.finvera_be.research.provider.AiInternalDto.RetrieveChunksRequest;
 import com.minhnb.finvera_be.research.provider.AiInternalDto.RetrieveChunksResponse;
 import com.minhnb.finvera_be.research.provider.AiInternalDto.SynthesizePassageDto;
 import com.minhnb.finvera_be.research.provider.AiInternalDto.SynthesizeRequest;
 import com.minhnb.finvera_be.research.provider.ResearchAiClient;
-import com.minhnb.finvera_be.research.repository.NewsArticleRepository;
 import com.minhnb.finvera_be.research.repository.ResearchChunkRepository;
-import com.minhnb.finvera_be.research.repository.ResearchDocumentRepository;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -46,8 +40,7 @@ public class AskService {
 
     private final ResearchAiClient aiClient;
     private final ResearchChunkRepository chunkRepository;
-    private final ResearchDocumentRepository documentRepository;
-    private final NewsArticleRepository newsRepository;
+    private final RetrievalService retrievalService;
     private final OwnerScopedResearchAccess ownerAccess;
     private final ObjectMapper objectMapper;
     private final ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor();
@@ -55,14 +48,12 @@ public class AskService {
     public AskService(
             ResearchAiClient aiClient,
             ResearchChunkRepository chunkRepository,
-            ResearchDocumentRepository documentRepository,
-            NewsArticleRepository newsRepository,
+            RetrievalService retrievalService,
             OwnerScopedResearchAccess ownerAccess,
             ObjectMapper objectMapper) {
         this.aiClient = aiClient;
         this.chunkRepository = chunkRepository;
-        this.documentRepository = documentRepository;
-        this.newsRepository = newsRepository;
+        this.retrievalService = retrievalService;
         this.ownerAccess = ownerAccess;
         this.objectMapper = objectMapper;
     }
@@ -205,39 +196,14 @@ public class AskService {
                             String claimText = citNode.path("claimText").asText();
                             if (chunkIdStr != null && !chunkIdStr.isBlank()) {
                                 UUID chunkId = UUID.fromString(chunkIdStr);
-                                ResearchChunkEntity chunk = chunkMap.get(chunkId);
-                                if (chunk == null) {
-                                    chunk = chunkRepository.findByIdAndOwnerId(chunkId, ownerId).orElse(null);
-                                }
-
-                                if (chunk != null) {
-                                    if (chunk.getItemType() == ResearchItemType.DOCUMENT && chunk.getResearchDocumentId() != null) {
-                                        var doc = documentRepository.findByIdAndOwnerId(chunk.getResearchDocumentId(), ownerId).orElse(null);
-                                        if (doc != null) {
-                                            String location = "Page " + chunk.getPageNumber();
-                                            publicCitations.add(new AskCitation(
-                                                    claimText,
-                                                    SourceType.DOCUMENT,
-                                                    doc.getId(),
-                                                    doc.getTitle(),
-                                                    location,
-                                                    doc.getSource()));
-                                        }
-                                    } else if (chunk.getItemType() == ResearchItemType.NEWS_ARTICLE && chunk.getNewsArticleId() != null) {
-                                        var news = newsRepository.findByIdAndOwnerId(chunk.getNewsArticleId(), ownerId).orElse(null);
-                                        if (news != null) {
-                                            int pIndex = chunk.getParagraphIndex() != null ? chunk.getParagraphIndex() + 1 : 1;
-                                            String location = "Paragraph " + pIndex;
-                                            publicCitations.add(new AskCitation(
-                                                    claimText,
-                                                    SourceType.NEWS_ARTICLE,
-                                                    news.getId(),
-                                                    news.getTitle(),
-                                                    location,
-                                                    news.getSource()));
-                                        }
-                                    }
-                                }
+                                retrievalService.resolveChunkCitation(chunkId, ownerId).ifPresent(passage ->
+                                        publicCitations.add(new AskCitation(
+                                                claimText,
+                                                passage.sourceType(),
+                                                passage.sourceId(),
+                                                passage.sourceTitle(),
+                                                passage.location(),
+                                                passage.source())));
                             }
                         }
                     }

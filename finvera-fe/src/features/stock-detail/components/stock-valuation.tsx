@@ -1,13 +1,22 @@
 import type { StockValuation as StockValuationData } from "../api/stock-detail";
 import { dataStatusLabel, formatDecimal, valuationLabel, valuationMetricLabel } from "../format/stock-format";
+import { ExplainButton } from "../../analyst/components/ExplainButton";
 
 const DISCLAIMER_COPY: Record<string, string> = {
   QUANTITATIVE_DECISION_SUPPORT:
     "Định giá tương đối là công cụ hỗ trợ ra quyết định định lượng, không phải dự báo giá hay khuyến nghị đầu tư.",
 };
 
-export function StockValuation({ valuation }: { valuation: StockValuationData }) {
+export function StockValuation({ valuation, symbol }: { valuation: StockValuationData; symbol: string }) {
   const published = valuation.published && valuation.classification !== null;
+  // FR-006/US3: only the metrics this deterministic engine actually resolved a value
+  // for — never NOT_APPLICABLE/MISSING ones, never re-fetched or editable.
+  const evidenceFactors = valuation.metrics
+    .filter((m) => m.applicability === "DEFINED")
+    .map((m) => ({
+      factorCode: m.metricCode,
+      description: `${valuationMetricLabel(m.metricCode)}: ${formatDecimal(m.value)}`,
+    }));
 
   return (
     <section aria-labelledby="stock-valuation-heading" className="stock-valuation-card">
@@ -27,6 +36,14 @@ export function StockValuation({ valuation }: { valuation: StockValuationData })
             <span className={`valuation-label-badge ${valuation.classification?.toLowerCase()}`}>
               {valuationLabel(valuation.classification)}
             </span>
+            {evidenceFactors.length > 0 && (
+              <ExplainButton
+                outputType="VALUATION_CLASSIFICATION"
+                symbol={symbol}
+                evidenceFactors={evidenceFactors}
+                label="Giải thích định giá"
+              />
+            )}
             <div className="valuation-scores">
               <p className="score-main">
                 Điểm đắt/rẻ: <strong>{valuation.displayedScore}</strong>

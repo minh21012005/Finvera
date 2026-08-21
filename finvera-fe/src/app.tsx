@@ -8,8 +8,10 @@ import { PortfolioDetailPage } from "./features/portfolio/components/portfolio-d
 import { WatchlistList } from "./features/watchlist/components/watchlist-list";
 import { WatchlistDetailPage } from "./features/watchlist/components/watchlist-detail-page";
 import { ResearchPage } from "./features/research/components/research-page";
+import { AnalystPage } from "./features/analyst";
 import { OwnerAccessGate } from "./features/auth/owner-access-gate";
 import {
+  isAnalystPath,
   isPortfoliosPath,
   isResearchPath,
   isScreenerPath,
@@ -47,6 +49,8 @@ export function App() {
         <WatchlistList />
       ) : isResearchPath(pathname) ? (
         <ResearchPage />
+      ) : isAnalystPath(pathname) ? (
+        <AnalystPage />
       ) : isScreenerPath(pathname) ? (
         <StockScreenerPage />
       ) : isStrategyScanPath(pathname) ? (

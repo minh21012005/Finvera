@@ -19,6 +19,7 @@ const PORTFOLIO_DETAIL_PATH = /^\/portfolios\/([0-9a-fA-F-]{36})\/?$/;
 const WATCHLISTS_PATH = /^\/watchlists\/?$/;
 const WATCHLIST_DETAIL_PATH = /^\/watchlists\/([0-9a-fA-F-]{36})\/?$/;
 const RESEARCH_PATH = /^\/research\/?$/;
+const ANALYST_PATH = /^\/analyst\/?$/;
 
 export function parseStockSymbolFromPath(pathname: string): string | null {
   const match = STOCK_DETAIL_PATH.exec(pathname);
@@ -53,5 +54,9 @@ export function parseWatchlistIdFromPath(pathname: string): string | null {
 
 export function isResearchPath(pathname: string): boolean {
   return RESEARCH_PATH.test(pathname);
+}
+
+export function isAnalystPath(pathname: string): boolean {
+  return ANALYST_PATH.test(pathname);
 }
 

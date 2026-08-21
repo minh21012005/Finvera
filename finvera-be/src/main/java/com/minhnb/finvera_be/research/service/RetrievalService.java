@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -132,6 +133,7 @@ public class RetrievalService {
                     ResearchDocumentEntity doc = docOpt.get();
                     String location = "Page " + chunk.getPageNumber();
                     passages.add(new PassageResponse(
+                            chunk.getId(),
                             SourceType.DOCUMENT,
                             doc.getId(),
                             doc.getTitle(),
@@ -149,6 +151,7 @@ public class RetrievalService {
                     String location = "Paragraph " + pIndex;
                     LocalDate pubDate = article.getPublishedAt().atZone(MARKET_ZONE).toLocalDate();
                     passages.add(new PassageResponse(
+                            chunk.getId(),
                             SourceType.NEWS_ARTICLE,
                             article.getId(),
                             article.getTitle(),
@@ -162,5 +165,53 @@ public class RetrievalService {
         }
 
         return new RetrieveResponse(passages, Instant.now());
+    }
+
+    /**
+     * Resolves a single {@code research_chunk.id} to its full citation shape
+     * (owner-scoped, authoritative from Postgres — F4/rag-v1) — the single shared
+     * resolution path both {@link AskService} (Feature 006's own /research/ask) and
+     * the AI Analyst (Feature 007, a different owning module) use, so a citation
+     * resolves identically regardless of which feature's orchestrator produced it.
+     */
+    @Transactional(readOnly = true)
+    public Optional<PassageResponse> resolveChunkCitation(UUID chunkId, UUID ownerId) {
+        ResearchChunkEntity chunk = chunkRepository.findByIdAndOwnerId(chunkId, ownerId).orElse(null);
+        if (chunk == null) {
+            return Optional.empty();
+        }
+
+        if (chunk.getItemType() == ResearchItemType.DOCUMENT && chunk.getResearchDocumentId() != null) {
+            return documentRepository.findByIdAndOwnerId(chunk.getResearchDocumentId(), ownerId).map(doc -> {
+                String location = "Page " + chunk.getPageNumber();
+                return new PassageResponse(
+                        chunk.getId(),
+                        SourceType.DOCUMENT,
+                        doc.getId(),
+                        doc.getTitle(),
+                        location,
+                        doc.getSource(),
+                        doc.getPublicationDate(),
+                        chunk.getContentText(),
+                        0.0);
+            });
+        } else if (chunk.getItemType() == ResearchItemType.NEWS_ARTICLE && chunk.getNewsArticleId() != null) {
+            return newsRepository.findByIdAndOwnerId(chunk.getNewsArticleId(), ownerId).map(article -> {
+                int pIndex = chunk.getParagraphIndex() != null ? chunk.getParagraphIndex() + 1 : 1;
+                String location = "Paragraph " + pIndex;
+                LocalDate pubDate = article.getPublishedAt().atZone(MARKET_ZONE).toLocalDate();
+                return new PassageResponse(
+                        chunk.getId(),
+                        SourceType.NEWS_ARTICLE,
+                        article.getId(),
+                        article.getTitle(),
+                        location,
+                        article.getSource(),
+                        pubDate,
+                        chunk.getContentText(),
+                        0.0);
+            });
+        }
+        return Optional.empty();
     }
 }

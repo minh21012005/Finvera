@@ -8,13 +8,14 @@ import {
   signalStrengthLabel,
   strategyLabel,
 } from "../format/signal-format";
+import { ExplainButton } from "../../analyst/components/ExplainButton";
 
 const DISCLAIMER_COPY: Record<string, string> = {
   QUANTITATIVE_DECISION_SUPPORT:
     "Tín hiệu chiến lược là kịch bản hỗ trợ ra quyết định định lượng dựa trên dữ liệu đã chấp nhận, không phải khuyến nghị đầu tư hay đảm bảo kết quả.",
 };
 
-export function StockSignals({ signals }: { signals: StockSignalsData }) {
+export function StockSignals({ signals, symbol }: { signals: StockSignalsData; symbol: string }) {
   return (
     <section aria-labelledby="stock-signals-heading" className="stock-signals-card">
       <header>
@@ -49,7 +50,7 @@ export function StockSignals({ signals }: { signals: StockSignalsData }) {
               </p>
             )}
 
-            {evaluation.signal && <SignalDetail signal={evaluation.signal} />}
+            {evaluation.signal && <SignalDetail signal={evaluation.signal} symbol={symbol} />}
           </li>
         ))}
       </ul>
@@ -61,11 +62,31 @@ export function StockSignals({ signals }: { signals: StockSignalsData }) {
   );
 }
 
-function SignalDetail({ signal }: { signal: SignalData }) {
+function SignalDetail({ signal, symbol }: { signal: SignalData; symbol: string }) {
+  // FR-006/US3: send the orchestrator only the evidence factors this deterministic
+  // engine actually produced for THIS signal — never re-fetched, never editable.
+  const evidenceFactors = signal.riskFactors
+    .filter((factor) => factor.applicability === "DEFINED")
+    .map((factor) => ({
+      factorCode: factor.factorCode,
+      description: `${riskFactorLabel(factor.factorCode)}: ${
+        factor.inputValue !== null ? formatDecimal(factor.inputValue) : "—"
+      } (điểm ${factor.factorScore}/100)`,
+    }));
   const risk = riskLevelDisplay(signal.riskLevel);
   return (
     <div className="signal-detail">
-      <p className="signal-direction">Chiều: {directionLabel(signal.direction)}</p>
+      <div className="signal-direction-row">
+        <p className="signal-direction">Chiều: {directionLabel(signal.direction)}</p>
+        {evidenceFactors.length > 0 && (
+          <ExplainButton
+            outputType="SIGNAL"
+            symbol={symbol}
+            evidenceFactors={evidenceFactors}
+            label="Giải thích tín hiệu"
+          />
+        )}
+      </div>
 
       <dl className="signal-levels">
         <div>

@@ -127,6 +127,7 @@ class ResearchDocumentControllerTests {
     void retrievePassages_authenticatedWithCsrf_returns200() throws Exception {
         RetrieveResponse response = new RetrieveResponse(
                 List.of(new PassageResponse(
+                        UUID.randomUUID(),
                         SourceType.DOCUMENT,
                         UUID.randomUUID(),
                         "FPT Doc",

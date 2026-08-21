@@ -148,14 +148,14 @@ describe("stock fundamentals section", () => {
 
 describe("stock valuation section", () => {
   it("renders published valuation with classification, score, and confidence", () => {
-    render(<StockValuation valuation={mockValuation()} />);
+    render(<StockValuation symbol="HPG" valuation={mockValuation()} />);
     expect(screen.getByText(/Hợp lý|Fair/i)).toBeVisible();
     expect(screen.getByText(/Điểm đắt\/rẻ/i)).toHaveTextContent("48");
     expect(screen.getByText(/Độ hoàn thiện/i)).toHaveTextContent("72%");
   });
 
   it("discloses the used comparison basis", () => {
-    render(<StockValuation valuation={mockValuation()} />);
+    render(<StockValuation symbol="HPG" valuation={mockValuation()} />);
     expect(screen.getByText(/Lịch sử riêng|Own History/i)).toBeVisible();
   });
 
@@ -172,13 +172,13 @@ describe("stock valuation section", () => {
         dataStatus: "UNAVAILABLE",
       },
     });
-    render(<StockValuation valuation={withheld} />);
+    render(<StockValuation symbol="HPG" valuation={withheld} />);
     expect(screen.getByText(/Chưa đủ cơ sở so sánh|NO_COMPARISON_BASIS/i)).toBeVisible();
     expect(screen.queryByText(/Định giá thấp|Định giá cao|Định giá hợp lý/i)).not.toBeInTheDocument();
   });
 
   it("discloses the quantitative decision-support disclaimer without buy/sell instructions", () => {
-    render(<StockValuation valuation={mockValuation()} />);
+    render(<StockValuation symbol="HPG" valuation={mockValuation()} />);
     expect(screen.getByText(/không phải.*khuyến nghị đầu tư/i)).toBeVisible();
     expect(screen.queryByText(/Mua|Bán/i)).not.toBeInTheDocument();
   });

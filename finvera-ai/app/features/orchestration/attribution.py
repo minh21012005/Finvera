@@ -3,7 +3,6 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import uuid
 from pydantic import BaseModel, Field
 
-from app.features.orchestration.allowlist import ToolName
 from app.features.orchestration.dispatch import DispatchedToolCall
 
 
@@ -23,11 +22,12 @@ class StructuredClaim(BaseModel):
 
 
 class DocumentClaim(BaseModel):
+    # Matches internal-api.openapi.yaml's DocumentClaim exactly (identical shape to
+    # Feature 006's internal Citation schema) — resolution to sourceType/sourceId/
+    # sourceTitle/location/source happens in finvera-be, from chunkId, mirroring
+    # AskService.java's own citation resolution for Feature 006's /research/ask.
     chunkId: uuid.UUID
     claimText: str
-    title: Optional[str] = None
-    source: Optional[str] = None
-    pageNumber: Optional[int] = None
 
 
 class VerifiedAttributionResult(BaseModel):
@@ -106,7 +106,7 @@ def match_claimed_value(claimed: str, actual: Any) -> bool:
 def verify_attribution(
     answer: str,
     raw_structured_claims: List[RawStructuredClaim],
-    raw_document_claims: List[Dict[str, Any]],
+    verified_document_claims: List[DocumentClaim],
     dispatched_calls: List[DispatchedToolCall],
     tool_call_bound_reached: bool,
     explicit_refusal: bool = False,
@@ -116,8 +116,13 @@ def verify_attribution(
     1. Validates each structured claim against actual response_data of succeeded tool calls.
     2. Drops misstated claims or claims pointing to non-existent/failed tools.
     3. Programmatically sets claim asOf from the tool's response (DATA-002).
-    4. Validates document citations against retrieved chunk IDs.
-    5. Flags refusal if zero claims survive when tools were dispatched.
+    4. Flags refusal if zero claims (structured + document combined) survive when tools
+       were dispatched.
+
+    Document-claim citation verification is NOT done here: orchestration-v1 step 4
+    requires delegating to rag-v1's own verify_citation_claims unchanged rather than
+    reimplementing it, so the caller (chat/service.py) runs that verification first and
+    passes in the already-verified `DocumentClaim` list.
     """
     calls_by_seq: Dict[int, DispatchedToolCall] = {c.sequence_no: c for c in dispatched_calls}
     surviving_structured: List[StructuredClaim] = []
@@ -147,46 +152,7 @@ def verify_attribution(
             )
         )
 
-    # Document citations verification
-    surviving_docs: List[DocumentClaim] = []
-    rag_calls = [
-        c for c in dispatched_calls
-        if (c.tool_name == ToolName.RESEARCH_RAG or str(c.tool_name) == "RESEARCH_RAG")
-        and c.status == "SUCCEEDED"
-        and c.response_data
-    ]
-    valid_chunks_map = {}
-    for rag in rag_calls:
-        for ch in rag.response_data.get("chunks", []):
-            if ch.get("chunk_id"):
-                try:
-                    c_uuid = uuid.UUID(str(ch["chunk_id"]))
-                    valid_chunks_map[str(c_uuid)] = ch
-                except (ValueError, TypeError):
-                    pass
-
-    for doc_claim_raw in raw_document_claims:
-        c_id_raw = doc_claim_raw.get("chunkId") or doc_claim_raw.get("chunk_id")
-        claim_text = doc_claim_raw.get("claimText") or doc_claim_raw.get("claim_text") or ""
-        if not c_id_raw or not claim_text:
-            continue
-
-        try:
-            parsed_chunk_id = uuid.UUID(str(c_id_raw))
-            if str(parsed_chunk_id) in valid_chunks_map:
-                ch_info = valid_chunks_map[str(parsed_chunk_id)]
-                surviving_docs.append(
-                    DocumentClaim(
-                        chunkId=parsed_chunk_id,
-                        claimText=claim_text,
-                        title=doc_claim_raw.get("title") or ch_info.get("title"),
-                        source=doc_claim_raw.get("source") or ch_info.get("source_type"),
-                        pageNumber=doc_claim_raw.get("pageNumber") or ch_info.get("page_number"),
-                    )
-                )
-        except (ValueError, TypeError):
-            continue
-
+    surviving_docs: List[DocumentClaim] = list(verified_document_claims)
     total_surviving = len(surviving_structured) + len(surviving_docs)
     refused = explicit_refusal or (len(dispatched_calls) > 0 and total_surviving == 0)
 

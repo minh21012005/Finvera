@@ -54,6 +54,7 @@ describe("stock signals section", () => {
   it("shows a triggered signal's direction, entry zone, stop, targets, and risk/reward", () => {
     render(
       <StockSignals
+        symbol="HPG"
         signals={signalsResponse([
           { strategyCode: "TREND_FOLLOWING", status: "SIGNAL", reasonCode: null, signal: fullSignal() },
         ])}
@@ -70,6 +71,7 @@ describe("stock signals section", () => {
   it("shows a truthful no-signal state, not an error, for a strategy whose condition is not met", () => {
     render(
       <StockSignals
+        symbol="HPG"
         signals={signalsResponse([
           { strategyCode: "MOMENTUM", status: "NO_SIGNAL", reasonCode: null, signal: null },
         ])}
@@ -83,6 +85,7 @@ describe("stock signals section", () => {
   it("shows an insufficient-history state distinct from no-signal", () => {
     render(
       <StockSignals
+        symbol="HPG"
         signals={signalsResponse([
           {
             strategyCode: "BREAKOUT",
@@ -100,6 +103,7 @@ describe("stock signals section", () => {
   it("every strategy shown at once still discloses its own correct state per strategy", () => {
     render(
       <StockSignals
+        symbol="HPG"
         signals={signalsResponse([
           { strategyCode: "TREND_FOLLOWING", status: "SIGNAL", reasonCode: null, signal: fullSignal() },
           { strategyCode: "MOMENTUM", status: "NO_SIGNAL", reasonCode: null, signal: null },
@@ -121,6 +125,7 @@ describe("stock signals section", () => {
   it("shows direction and risk level as text/icon indicators independent of colour (NFR-003)", () => {
     render(
       <StockSignals
+        symbol="HPG"
         signals={signalsResponse([
           { strategyCode: "TREND_FOLLOWING", status: "SIGNAL", reasonCode: null, signal: fullSignal() },
         ])}
@@ -136,6 +141,7 @@ describe("stock signals section", () => {
   it("states a deterministic scenario, never a guarantee or instruction (FR-013)", () => {
     render(
       <StockSignals
+        symbol="HPG"
         signals={signalsResponse([
           { strategyCode: "TREND_FOLLOWING", status: "SIGNAL", reasonCode: null, signal: fullSignal() },
         ])}

@@ -45,20 +45,36 @@ public final class AskAnalystDto {
             String asOf) {
     }
 
+    /** Matches public-api.openapi.yaml's StructuredClaim exactly: no raw fieldPath/
+     * claimedValue leak — sourceField is a human-presentable label, resolved from the
+     * internal fieldPath. */
     public record PublicStructuredClaimDto(
             String claimText,
+            int sequenceNo,
             String toolName,
             String sourceField,
-            String claimedValue,
             String asOf) {
     }
 
+    /** Internal wire shape only (finvera-ai -> finvera-be), identical to Feature 006's
+     * internal Citation schema: a bare chunkId, resolved to a full public citation
+     * below before ever reaching the browser. */
     public record DocumentClaimDto(
             String chunkId,
+            String claimText) {
+    }
+
+    /** Matches public-api.openapi.yaml's DocumentClaim exactly — identical shape to
+     * Feature 006's public Citation, resolved from DocumentClaimDto.chunkId via
+     * ResearchChunkRepository/ResearchDocumentRepository/NewsArticleRepository,
+     * mirroring AskService.java's own citation resolution for /research/ask. */
+    public record PublicDocumentClaimDto(
             String claimText,
-            String title,
-            String source,
-            Integer pageNumber) {
+            String sourceType,
+            String sourceId,
+            String sourceTitle,
+            String location,
+            String source) {
     }
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -76,7 +92,7 @@ public final class AskAnalystDto {
     public record PublicFinalEventDto(
             String answer,
             List<PublicStructuredClaimDto> structuredClaims,
-            List<DocumentClaimDto> documentClaims,
+            List<PublicDocumentClaimDto> documentClaims,
             boolean refused,
             List<ToolCallEventDto> toolCalls,
             boolean toolCallBoundReached,
