@@ -440,6 +440,19 @@ async def run(args: argparse.Namespace) -> int:
                 headers=headers,
             ),
         )
+        if args.quote_symbols:
+            # G-03 (specs/002-stock-detail-analysis/research.md R-012): confirms the same
+            # tickerCommons endpoint already approved for index subjects (index=) also serves
+            # individual equity subjects via tickers=, per TCBS's official OpenAPI docs.
+            joined = ",".join(args.quote_symbols)
+            rest["ticker_commons_quote_symbols"] = await safe_rest_probe(
+                "ticker_commons_quote_symbols",
+                lambda: client.get(
+                    "/tartarus/v1/tickerCommons",
+                    params={"tickers": joined},
+                    headers=headers,
+                ),
+            )
 
         try:
             ws = await websocket_probe(token, args.ws_seconds)
@@ -486,6 +499,13 @@ def main() -> int:
     parser.add_argument("--rate-probe-interval-seconds", type=float, default=1.0)
     parser.add_argument("--ouranos-symbols", type=lambda value: tuple(filter(None, value.upper().split(","))))
     parser.add_argument("--ouranos-seconds", type=int, default=90)
+    parser.add_argument(
+        "--quote-symbols",
+        type=lambda value: tuple(filter(None, value.upper().split(","))),
+        default=(),
+        help="G-03: probe per-symbol current price via tickerCommons?tickers=SYMBOL[,SYMBOL...] "
+             "instead of the index basket, e.g. --quote-symbols VNM,TCB",
+    )
     parser.add_argument("--output-dir", type=Path, default=Path("poc-output"))
     args = parser.parse_args()
     if not 0 <= args.rate_probe_requests <= 5:
@@ -494,6 +514,8 @@ def main() -> int:
         parser.error("--rate-probe-interval-seconds must be at least 1")
     if args.ouranos_symbols and (not 10 <= args.ouranos_seconds <= 180):
         parser.error("--ouranos-seconds must be between 10 and 180 when --ouranos-symbols is set")
+    if len(args.quote_symbols) > 5:
+        parser.error("--quote-symbols accepts at most 5 symbols for a bounded probe")
     return asyncio.run(run(args))
 
 

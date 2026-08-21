@@ -3,7 +3,9 @@
 **Feature**: `002-stock-detail-analysis`
 **Date**: 2026-08-18
 **Spec**: [spec.md](spec.md)
-**Status**: Design decisions recorded; provider evidence gates G-01 to G-04 OPEN
+**Status**: Design decisions recorded; owner has closed G-01, G-02, and G-04
+(2026-08-22, narrower-scope/RAW-only/KBS-taxonomy decisions below). G-03
+remains OPEN pending an owner-run probe (TCBS OTP cannot be scripted).
 
 ## How to read this document
 
@@ -433,15 +435,27 @@ beyond the public line-item labels themselves, which are not secret):
    observe whether a re-filed period changes under the same key, and no
    sustained-load test was run.
 
-**Gate status: still open.** Items 1, 2, and 4 above (missing balance sheet,
-broken VCI fallback, wide-format schema mismatch) are new blockers this
-evidence surfaced, not resolved by it. This is an owner decision, not
-something further probing alone will resolve: accept fundamentals without
-`PB`/`EV_EBITDA`/`TOTAL_DEBT`/`CASH_AND_EQUIVALENTS` (a materially narrower
-FR-007/valuation-v1 than specified), find a different balance-sheet source,
-or evaluate a vnstock package upgrade (its own review/compatibility/ADR cost
-per `AGENTS.md`, not attempted here). T058 MUST NOT start until the owner
-picks one of these and records the decision here.
+**Gate status: CLOSED (owner decision, 2026-08-22).** The owner accepted the
+narrower scope: live fundamentals ship from `income_statement()`,
+`cash_flow()`, and `ratio()` only (`source="kbs"`). `PB`, `EV_EBITDA`,
+`TOTAL_DEBT`, and `CASH_AND_EQUIVALENTS` — all balance-sheet-derived — stay
+permanently unavailable/withheld under `valuation-v1`'s existing
+insufficient-data handling (not fabricated, not approximated) until a working
+balance-sheet source is found. `ratio()`'s pre-computed `pe_ratio`/`pb_ratio`/
+`ev_ebitda`/`roe`/`roa` (point 6 above) are cross-check-only references and
+are never persisted as Finvera's authoritative `valuation-v1` output, per
+Constitution Principle I.
+
+T058 implements this as an owner-operated, offline export/import boundary
+(`tools/market-data/vnstock-export/export_fundamentals.py` →
+`FundamentalReportImportService`), consistent with ADR-0004: Vnstock never
+runs live/scheduled/per-request, only as a bounded local tool whose output
+Spring validates and imports atomically. The open item-5(a) revenue-row
+ambiguity (gross vs. net revenue both labelled "revenue") and item-5(b)
+(`FREE_CASH_FLOW` has no direct `item_id`) are resolved the same way: map
+only the unambiguous line items per `FundamentalReportAcceptance`'s allowed
+metric codes, and drop anything ambiguous rather than guess — a dropped
+metric is a smaller, honest gap than a wrongly-mapped one.
 
 ### G-02 — Corporate action and adjustment basis (blocking for the US1 chart and US2)
 
@@ -475,15 +489,17 @@ for `VNM`, `HPG`, `SSI`:
    established — confirming this needs a symbol with a known, dated split and
    comparing the price series across that date, not attempted in this pass.
 
-**Gate status: still open, and not closeable via the currently probed API
-surface.** No explicit split/dividend event feed with ex-date and ratio was
-found under `source="kbs"`. Before this can close, either a working `events()`
-response needs to be found (different source, different vnstock version, or a
-different symbol/parameter combination not yet tried) or the owner must accept
-deriving corporate actions from `capital_history`'s capital deltas as an
-explicit, documented approximation — a materially different, weaker claim than
-what G-02 originally asked for. T060 MUST NOT start until one of these is
-decided and recorded here.
+**Gate status: CLOSED (owner decision, 2026-08-22) — RAW-only, permanently.**
+The owner declined both remaining options (further `events()` probing, and
+deriving actions from `capital_history` deltas as an approximation Finvera
+would own). No live `CorporateActionProvider` is built. `finvera.stock.
+provider.corporate-actions-enabled` stays `false` indefinitely, and the chart
+and every technical indicator continue serving the `RAW` series with the
+`ADJUSTMENT_BASIS_UNAVAILABLE` reason code — exactly R-004's already-designed
+fallback for "the adjustment basis is unavailable," now treated as the
+permanent state for this dataset rather than a transitional one. T060 is
+closed as documentation-only: there is no new adapter to implement, since
+implementing one was the option declined.
 
 ### G-03 — Per-stock quote coverage (blocking for the US1 live path)
 
@@ -499,6 +515,24 @@ read from an environment variable" (`provider-poc/README.md`), so this probe
 cannot be run by an unattended agent. No `TCBS_API_KEY` is present in
 `finvera-be/.env.local` either. This gate can only be closed by the owner
 running `poc_tcbs.py` themselves and recording sanitized results here.
+
+**Update (2026-08-22) — narrower remaining question, via TCBS's official
+OpenAPI documentation (developers.tcbs.com.vn), no network call made:** the
+same `GET /tartarus/v1/tickerCommons` endpoint already approved for index
+subjects under T045 (`specs/001-market-overview/contracts/tcbs-iflash-
+adapter.md`) documents a `tickers=<comma-separated symbols>` query parameter
+as an alternative to `index=`, returning the identical per-item schema
+(`matchPrice`, `refPrice`, `totalVol`, `totalVal`, …) already proven for
+indices. This means G-03 does not require discovering a new endpoint — R-001's
+"reuse the Feature 001 adapter" decision was correct. `poc_tcbs.py` has been
+extended with a `--quote-symbols SYMBOL[,SYMBOL...]` option (reusing the
+existing `safe_rest_probe` helper) so the owner can close this gate with one
+additional bounded, owner-run probe: confirm `tickers=` returns real
+current-price/reference-price/session-volume data for an arbitrary supported
+equity symbol, and that the per-symbol request cost stays compatible with
+NFR-001. **Gate status: still open — awaiting the owner's probe run and
+sanitized summary.** `TcbsStockQuoteProvider` (T062) MUST NOT start until this
+is recorded.
 
 ### G-04 — Sector reference and constituent coverage (blocking for the sector basis)
 
@@ -526,14 +560,21 @@ basis alone with the basis disclosed, exactly as `valuation-v1` specifies.
    inside the pinned package), so no confirmed standard-scheme identity exists
    yet, only the proprietary `symbols_by_industries()` taxonomy above.
 
-**Gate status: promising, but not yet closeable.** Coverage is good, but the
-scheme's identity/version is unconfirmed (point 3) and every classified
-instrument would need to be cross-checked against Finvera's own
-`sector_reference`/`equity_profile.sector_reference_id` seeding before this
-becomes usable evidence. This is the closest of the four gates to being
-closeable; it needs the owner's explicit review and acceptance of the KBS
-taxonomy as the classification scheme of record (or continued attempts at
-`industries_icb()`/an alternative standard-scheme source) before T063/T064.
+**Gate status: CLOSED (owner decision, 2026-08-22).** The owner accepted the
+KBS taxonomy (`symbols_by_industries()`) as the classification scheme of
+record, scheme identity recorded as `KBS_INDUSTRY` with `schemeVersion` set to
+the pinned Vnstock package version at export time (per `SectorReferenceEntity.
+scheme`/`schemeVersion`, already modelled for exactly this). The three
+industries below the `N_min = 8` floor (rubber products, other-finance,
+consulting/support) stay unclassified; their constituents fall back to the
+own-history valuation basis automatically, exactly as `valuation-v1` already
+specifies for a thin sector. `industries_icb()` is not retried — the KBS
+taxonomy is accepted as-is rather than continuing to chase a standard-scheme
+mapping that the pinned package version cannot produce.
+
+T063/T064 implement this as an owner-operated, offline export/import boundary
+(`tools/market-data/vnstock-export/export_sector_reference.py` →
+`SectorReferenceImportService`), consistent with ADR-0004.
 
 ---
 

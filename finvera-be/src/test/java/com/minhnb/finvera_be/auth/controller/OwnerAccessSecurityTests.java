@@ -13,6 +13,7 @@ import com.minhnb.finvera_be.auth.config.OwnerSecurityConfiguration;
 import com.minhnb.finvera_be.auth.service.LoginThrottle;
 import com.minhnb.finvera_be.auth.service.OwnerSessionService;
 import com.minhnb.finvera_be.market.controller.TcbsRenewalController;
+import com.minhnb.finvera_be.market.service.TcbsRenewalService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,8 +29,12 @@ import java.util.Map;
 import java.util.UUID;
 import tools.jackson.databind.json.JsonMapper;
 
+// TcbsRenewalController now depends on TcbsRenewalService (moved out of the controller so it
+// doesn't reach into the provider package directly, per LayeredArchitectureTests). No
+// TcbsHttpSessionState bean exists in this slice, so the service's Optional<TcbsHttpSessionState>
+// binds to empty — exactly the "no live session" path this test already exercises.
 @WebMvcTest(controllers = {OwnerAccessController.class, TcbsRenewalController.class})
-@Import({OwnerSecurityConfiguration.class, OwnerSessionService.class})
+@Import({OwnerSecurityConfiguration.class, OwnerSessionService.class, TcbsRenewalService.class})
 class OwnerAccessSecurityTests {
 
     private static final String OWNER_NAME = "owner-" + UUID.randomUUID();

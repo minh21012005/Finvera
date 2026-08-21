@@ -12,7 +12,9 @@ class FixtureBootstrapConfigurationTests {
     private final ApplicationContextRunner context = new ApplicationContextRunner()
             .withUserConfiguration(MarketConfiguration.class)
             .withPropertyValues("finvera.market.freshness.index-contracted-delay=PT15M",
-                    "finvera.market.provider.mode=fixture")
+                    "finvera.market.provider.mode=fixture",
+                    "finvera.market.provider.tcbs.base-url=https://openapi.tcbs.com.vn",
+                    "finvera.market.provider.tcbs.poll-interval-ms=60000")
             .withBean(FixtureRuntimeBootstrapService.class, () -> mock(FixtureRuntimeBootstrapService.class));
 
     @Test void bootstrapRunnerIsAbsentUnlessExplicitlyEnabled() {

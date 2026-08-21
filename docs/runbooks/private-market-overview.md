@@ -47,8 +47,9 @@ identity and device; do not rely on the app login as the sole network control.
 4. Supply the following deployment-only environment variables through that
    secret store: `FINVERA_DATABASE_URL`, `FINVERA_DATABASE_USERNAME`,
    `FINVERA_DATABASE_PASSWORD`, `FINVERA_OWNER_ID`, `FINVERA_OWNER_USERNAME`,
-   `FINVERA_OWNER_PASSWORD_HASH`, and
-   `FINVERA_MARKET_INDEX_CONTRACTED_DELAY`.
+   `FINVERA_OWNER_PASSWORD_HASH`, `FINVERA_MARKET_INDEX_CONTRACTED_DELAY`, and
+   (for live TCBS ingestion — see "Activate live TCBS ingestion" below)
+   `FINVERA_TCBS_API_KEY`.
 5. Start Spring Boot without changing `server.address`; confirm its listener is
    loopback-only. Start the SPA/static server and any local reverse proxy on
    `127.0.0.1` only. The reverse proxy must forward `/api` to
@@ -80,6 +81,50 @@ reachable. Do not run `tailscale funnel` for Finvera. In the tailnet policy,
 allow only the named owner principal/device to reach this host's HTTPS service;
 deny all other principals. Do not add a Funnel node attribute or public ACL
 exception.
+
+## Activate live TCBS ingestion
+
+Complete this section only after the sections above pass (loopback-only
+processes at minimum; tailnet-only ingress before any remote/multi-device
+access). Live mode adds one outbound host
+(`https://openapi.tcbs.com.vn`, already allowlisted by
+`contracts/tcbs-iflash-adapter.md`) and one owner-only renewal endpoint; it
+does not change the ingress invariant above.
+
+1. Obtain a TCBS iFlash OpenAPI key for the owner's own account. Store it only
+   in the deployment secret store as `FINVERA_TCBS_API_KEY`; never commit it,
+   log it, or place it in a request the browser can read.
+2. Set `FINVERA_MARKET_PROVIDER_MODE=live` and
+   `FINVERA_MARKET_PROVIDER_LIVE_ENABLED=true`. Leave
+   `FINVERA_MARKET_TCBS_POLL_INTERVAL_MS` at its default (60000) unless a
+   different cadence has been evaluated against the confirmed-safe TCBS rate
+   probe (5 requests/second) in `contracts/tcbs-iflash-adapter.md`.
+3. Start (or restart) the backend. `TcbsLivePollingScheduler` starts polling
+   immediately but every tick reports `PROVIDER_AUTH_REQUIRED` and skips until
+   step 4 completes — the app does not crash or block other features while
+   unauthenticated (Constitution Principle VII).
+4. As the logged-in owner, call the renewal endpoint with a current OTP from
+   the TCInvest app (or the registered email/SMS flow):
+
+   ```powershell
+   # After fetching a CSRF token and authenticating as the owner (see the SPA
+   # login flow or curl equivalent used elsewhere in this runbook):
+   curl.exe -X POST https://<tailnet-host>/api/v1/market/providers/tcbs/token-renewal `
+     -H "X-CSRF-TOKEN: <token>" -H "Content-Type: application/json" `
+     -b "FINVERA_SESSION=<session-cookie>" `
+     -d '{"otpMethod":"totp","otp":"<current-6-digit-code>"}'
+   ```
+
+   A `204`/empty success response means the token was accepted; the session
+   is held in memory only and is never returned in the response. TCBS caps
+   the token at 8 hours, after which the owner must repeat this step — expect
+   to do this once per working session, not once per deployment.
+5. Confirm activation: `GET /actuator/health` should report the market
+   observability indicator as `UP`/`READY` within one poll interval (default
+   60s), and `GET /api/v1/market/overview` should reflect real index levels
+   instead of the fixture package's synthetic values.
+6. Record only pass/fail and timestamps for this activation in the private
+   deployment record — never the API key, OTP, or bearer token.
 
 ## Required release verification
 
@@ -113,7 +158,7 @@ contents that could contain a secret:
 
 ```powershell
 cd D:\Finvera\finvera-be
-.\mvnw.cmd '-Dtest=OwnerAccessSecurityTests,MarketOverviewControllerTests' test
+.\mvnw.cmd '-Dtest=OwnerAccessSecurityTests,MarketOverviewControllerTests,TcbsRenewalControllerTests,TcbsRenewalServiceTests,TcbsHttpSessionStateTests,TcbsHttpRestClientTests' test
 
 cd D:\Finvera\finvera-fe
 npm run build

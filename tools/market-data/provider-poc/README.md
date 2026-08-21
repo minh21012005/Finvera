@@ -96,6 +96,22 @@ The summary records only status counts, aggregate WebSocket update counts,
 one-way message fingerprints, and observed field names. A missing timestamp,
 ordering, or correction field is reported as unavailable; it is never inferred.
 
+### G-03: per-stock quote coverage (Feature 002)
+
+Confirms the same `tickerCommons` endpoint already approved for index subjects
+also serves an individual equity's current price/reference price/session
+volume via `tickers=` instead of `index=` (per TCBS's official OpenAPI docs —
+no new endpoint, R-001's "reuse the Feature 001 adapter" decision):
+
+```powershell
+.\.venv\Scripts\python.exe .\poc_tcbs.py --quote-symbols VNM,TCB
+```
+
+At most 5 symbols per run (bounded probe, same spirit as `--rate-probe-requests`).
+Review `poc-output/tcbs-capability-summary.json`'s new
+`ticker_commons_quote_symbols` section and record the sanitized result in
+`specs/002-stock-detail-analysis/research.md` R-012 G-03 to close the gate.
+
 ### TCBS Ouranos C001 breadth evidence
 
 The documented Ouranos endpoint is a separate, per-equity stream. During an

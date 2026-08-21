@@ -40,6 +40,10 @@ finvera:
     provider:
       mode: ${FINVERA_MARKET_PROVIDER_MODE:fixture}
       live-enabled: ${FINVERA_MARKET_PROVIDER_LIVE_ENABLED:false}
+      tcbs:
+        base-url: ${FINVERA_TCBS_BASE_URL:https://openapi.tcbs.com.vn}
+        api-key: ${FINVERA_TCBS_API_KEY:}
+        poll-interval-ms: ${FINVERA_MARKET_TCBS_POLL_INTERVAL_MS:60000}
     fixture:
       bootstrap-enabled: ${FINVERA_MARKET_FIXTURE_BOOTSTRAP_ENABLED:false}
     import:
@@ -56,6 +60,16 @@ finvera:
       quote-contracted-delay: ${FINVERA_STOCK_QUOTE_CONTRACTED_DELAY:}
     chart:
       max-window: ${FINVERA_STOCK_CHART_MAX_WINDOW:2Y}
+    import:
+      daily-bar:
+        enabled: ${FINVERA_STOCK_IMPORT_DAILY_BAR_ENABLED:false}
+        package-path: ${FINVERA_STOCK_IMPORT_DAILY_BAR_PACKAGE_PATH:}
+      fundamentals:
+        enabled: ${FINVERA_STOCK_IMPORT_FUNDAMENTALS_ENABLED:false}
+        package-path: ${FINVERA_STOCK_IMPORT_FUNDAMENTALS_PACKAGE_PATH:}
+      sector-reference:
+        enabled: ${FINVERA_STOCK_IMPORT_SECTOR_REFERENCE_ENABLED:false}
+        package-path: ${FINVERA_STOCK_IMPORT_SECTOR_REFERENCE_PACKAGE_PATH:}
 
 management:
   endpoints:
