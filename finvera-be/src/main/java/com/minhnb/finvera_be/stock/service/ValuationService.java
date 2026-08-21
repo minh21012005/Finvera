@@ -15,6 +15,7 @@ import com.minhnb.finvera_be.stock.domain.valuation.ValuationV1.ComputedMetrics;
 import com.minhnb.finvera_be.stock.domain.valuation.ValuationV1.HistoryPoint;
 import com.minhnb.finvera_be.stock.domain.valuation.ValuationV1.Inputs;
 import com.minhnb.finvera_be.stock.domain.valuation.ValuationV1.MetricValue;
+import com.minhnb.finvera_be.stock.domain.valuation.ValuationV1.SectorPoint;
 import com.minhnb.finvera_be.stock.entity.EquityDailyBarEntity;
 import com.minhnb.finvera_be.stock.entity.EquityProfileEntity;
 import com.minhnb.finvera_be.stock.entity.FundamentalReportEntity;
@@ -50,6 +51,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -67,6 +69,13 @@ public class ValuationService {
 
     private static final ZoneId VN_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
     private static final int MAX_HISTORY_BARS = 750;
+    // NFR-003: bounds the per-request cost of the sector cross-section basis. The largest
+    // classified sector observed in the G-04 evidence (research.md R-012) has ~83 constituents,
+    // comfortably under this cap; a sector that ever exceeds it is truncated deterministically
+    // (sorted by instrument id) rather than processed unbounded. Owner instruction (tasks.md T064):
+    // validate latency with `sector-basis-enabled` in a non-production profile before enabling
+    // it in production.
+    private static final int MAX_SECTOR_PEERS = 100;
 
     private final MarketReferenceDataService referenceData;
     private final EquityDailyBarRepository dailyBars;
@@ -83,6 +92,7 @@ public class ValuationService {
     private final FundamentalSummaryCalculator historyCalculator = new FundamentalSummaryCalculator();
     private final StockFreshnessPolicy freshnessPolicy = new StockFreshnessPolicy();
     private final Clock clock;
+    private final boolean sectorBasisEnabled;
 
     public ValuationService(
             MarketReferenceDataService referenceData,
@@ -96,7 +106,8 @@ public class ValuationService {
             ValuationAssessmentInputRepository assessmentInputs,
             FundamentalReportService fundamentalReportService,
             StockIngestionService ingestion,
-            Clock clock) {
+            Clock clock,
+            @Value("${finvera.stock.provider.sector-basis-enabled:false}") boolean sectorBasisEnabled) {
         this.referenceData = referenceData;
         this.dailyBars = dailyBars;
         this.profiles = profiles;
@@ -109,6 +120,7 @@ public class ValuationService {
         this.fundamentalReportService = fundamentalReportService;
         this.ingestion = ingestion;
         this.clock = clock;
+        this.sectorBasisEnabled = sectorBasisEnabled;
     }
 
     @Transactional
@@ -132,32 +144,16 @@ public class ValuationService {
         Long sharesOutstanding = profileOpt.map(EquityProfileEntity::getSharesOutstanding).orElse(null);
 
         var fundamentalsOpt = fundamentalReportService.findBySymbol(symbol);
-        BigDecimal epsTtm = null;
-        BigDecimal epsGrowth = null;
-        BigDecimal equityParent = null;
-        BigDecimal ebitdaTtm = null;
-        BigDecimal totalDebt = null;
-        BigDecimal cash = null;
-        BigDecimal dividendTtm = null;
-        DataStatus fundamentalsStatus = DataStatus.UNAVAILABLE;
-
-        if (fundamentalsOpt.isPresent()) {
-            var f = fundamentalsOpt.get();
-            fundamentalsStatus = f.dataStatus();
-            for (var m : f.metrics()) {
-                if (m.applicability() == MetricApplicability.DEFINED && m.value() != null) {
-                    switch (m.metricCode()) {
-                        case "EPS_TTM" -> epsTtm = m.value();
-                        case "EPS_GROWTH_PERCENT" -> epsGrowth = m.value();
-                        case "EQUITY_ATTRIBUTABLE_TO_PARENT" -> equityParent = m.value();
-                        case "EBITDA_TTM" -> ebitdaTtm = m.value();
-                        case "TOTAL_DEBT" -> totalDebt = m.value();
-                        case "CASH_AND_EQUIVALENTS" -> cash = m.value();
-                        case "DIVIDEND_PER_SHARE_TTM" -> dividendTtm = m.value();
-                    }
-                }
-            }
-        }
+        DataStatus fundamentalsStatus = fundamentalsOpt.map(FundamentalReportService.StockFundamentals::dataStatus)
+                .orElse(DataStatus.UNAVAILABLE);
+        CurrentFundamentalMetrics currentFundamentals = extractCurrentMetrics(fundamentalsOpt.orElse(null));
+        BigDecimal epsTtm = currentFundamentals.epsTtm();
+        BigDecimal epsGrowth = currentFundamentals.epsGrowthPercent();
+        BigDecimal equityParent = currentFundamentals.equityAttributableToParent();
+        BigDecimal ebitdaTtm = currentFundamentals.ebitdaTtm();
+        BigDecimal totalDebt = currentFundamentals.totalDebt();
+        BigDecimal cash = currentFundamentals.cashAndEquivalents();
+        BigDecimal dividendTtm = currentFundamentals.dividendPerShareTtm();
 
         // DATA-005/NFR-007: price freshness is evaluated the same way as the
         // overview/technical sections (StockOverviewService,
@@ -197,9 +193,14 @@ public class ValuationService {
                 .cashAndEquivalents(cash)
                 .dividendPerShareTtm(dividendTtm)
                 .ownHistorySeries(historyPoints)
-                // Fixture mode: sector cross-section basis stays disabled until
-                // gate G-04 (research R-012) is owner-accepted; T063/T064.
-                .sectorSeries(List.of())
+                // T064: gated by finvera.stock.provider.sector-basis-enabled (default false —
+                // owner validates latency in non-production first, per tasks.md T064). Sector
+                // reference data itself (G-04) may be imported and populated regardless of this
+                // flag; the flag only controls whether valuation actually spends the extra
+                // per-peer computation.
+                .sectorSeries(sectorBasisEnabled && sectorRef != null
+                        ? buildSectorSeries(sectorRef.getId(), instrumentId)
+                        : List.of())
                 .priceDataStatus(priceStatus.name())
                 .fundamentalsDataStatus(fundamentalsStatus.name())
                 .sourceConflict(sourceConflict)
@@ -300,6 +301,107 @@ public class ValuationService {
             }
         }
         return conflicted;
+    }
+
+    /**
+     * Basis B (sector cross-section), contracts/valuation-v1.md: every other classified
+     * instrument in the same {@code sector_reference} row, evaluated at ITS OWN current price and
+     * current fundamentals (not a historical series — unlike Basis A, there is only one sector
+     * snapshot, "now"). Reuses {@link ValuationV1#computeMetrics} so a peer's PE/PB/EV_EBITDA/PEG
+     * can never disagree with how the subject instrument's own metrics are defined.
+     *
+     * <p>Bounded by {@link #MAX_SECTOR_PEERS}; peers are sorted by instrument id before capping so
+     * the same set is chosen deterministically for a given sector membership (Constitution
+     * Principle I: reproducible inputs). {@link MarketReferenceDataService#findInstrumentsByIds}
+     * resolves every peer's symbol in one bulk call rather than one lookup per peer.
+     */
+    private List<SectorPoint> buildSectorSeries(UUID sectorReferenceId, UUID subjectInstrumentId) {
+        List<EquityProfileEntity> peers = profiles.findByEffectiveToIsNullAndSectorReferenceId(sectorReferenceId)
+                .stream()
+                .filter(p -> !p.getInstrumentId().equals(subjectInstrumentId))
+                .sorted(Comparator.comparing(p -> p.getInstrumentId().toString()))
+                .limit(MAX_SECTOR_PEERS)
+                .toList();
+        if (peers.isEmpty()) {
+            return List.of();
+        }
+
+        Map<UUID, String> symbolsById = referenceData
+                .findInstrumentsByIds(peers.stream().map(EquityProfileEntity::getInstrumentId).toList())
+                .stream()
+                .collect(java.util.stream.Collectors.toMap(InstrumentReference::instrumentId, InstrumentReference::symbol));
+
+        List<SectorPoint> points = new ArrayList<>();
+        for (EquityProfileEntity peer : peers) {
+            UUID peerInstrumentId = peer.getInstrumentId();
+            String peerSymbol = symbolsById.get(peerInstrumentId);
+            if (peerSymbol == null) {
+                continue; // delisted/unknown since the profile snapshot was taken; skip, don't guess
+            }
+
+            List<EquityDailyBarEntity> peerBars = dedupeByTradingDate(
+                    dailyBars.findByInstrumentIdAndCurrentTrueOrderByTradingDateAsc(peerInstrumentId));
+            if (peerBars.isEmpty()) {
+                continue;
+            }
+            BigDecimal peerPrice = peerBars.get(peerBars.size() - 1).getClosePrice();
+
+            CurrentFundamentalMetrics peerFundamentals =
+                    extractCurrentMetrics(fundamentalReportService.findBySymbol(peerSymbol).orElse(null));
+
+            ComputedMetrics computed = ValuationV1.computeMetrics(Inputs.builder()
+                    .price(peerPrice)
+                    .sharesOutstanding(peer.getSharesOutstanding())
+                    .epsTtm(peerFundamentals.epsTtm())
+                    .epsGrowthPercent(peerFundamentals.epsGrowthPercent())
+                    .equityAttributableToParent(peerFundamentals.equityAttributableToParent())
+                    .ebitdaTtm(peerFundamentals.ebitdaTtm())
+                    .totalDebt(peerFundamentals.totalDebt())
+                    .cashAndEquivalents(peerFundamentals.cashAndEquivalents())
+                    .build());
+
+            for (MetricValue mv : computed.allScored()) {
+                if (mv.applicability() == MetricApplicability.DEFINED && mv.value() != null) {
+                    points.add(new SectorPoint(peerInstrumentId.toString(), mv.metricCode(), mv.value()));
+                }
+            }
+        }
+        return points;
+    }
+
+    /** Shared by the subject instrument's current metrics and every sector peer's current metrics. */
+    private static CurrentFundamentalMetrics extractCurrentMetrics(FundamentalReportService.StockFundamentals f) {
+        if (f == null) {
+            return CurrentFundamentalMetrics.EMPTY;
+        }
+        BigDecimal epsTtm = null;
+        BigDecimal epsGrowth = null;
+        BigDecimal equityParent = null;
+        BigDecimal ebitdaTtm = null;
+        BigDecimal totalDebt = null;
+        BigDecimal cash = null;
+        BigDecimal dividendTtm = null;
+        for (var m : f.metrics()) {
+            if (m.applicability() == MetricApplicability.DEFINED && m.value() != null) {
+                switch (m.metricCode()) {
+                    case "EPS_TTM" -> epsTtm = m.value();
+                    case "EPS_GROWTH_PERCENT" -> epsGrowth = m.value();
+                    case "EQUITY_ATTRIBUTABLE_TO_PARENT" -> equityParent = m.value();
+                    case "EBITDA_TTM" -> ebitdaTtm = m.value();
+                    case "TOTAL_DEBT" -> totalDebt = m.value();
+                    case "CASH_AND_EQUIVALENTS" -> cash = m.value();
+                    case "DIVIDEND_PER_SHARE_TTM" -> dividendTtm = m.value();
+                }
+            }
+        }
+        return new CurrentFundamentalMetrics(epsTtm, epsGrowth, equityParent, ebitdaTtm, totalDebt, cash, dividendTtm);
+    }
+
+    private record CurrentFundamentalMetrics(
+            BigDecimal epsTtm, BigDecimal epsGrowthPercent, BigDecimal equityAttributableToParent,
+            BigDecimal ebitdaTtm, BigDecimal totalDebt, BigDecimal cashAndEquivalents, BigDecimal dividendPerShareTtm) {
+        static final CurrentFundamentalMetrics EMPTY =
+                new CurrentFundamentalMetrics(null, null, null, null, null, null, null);
     }
 
     private DataStatus evaluatePriceFreshness(EquityDailyBarEntity latestBar, LocalDate sessionTradingDate) {
@@ -474,7 +576,11 @@ public class ValuationService {
                 result.displayedScore() != null ? result.displayedScore().shortValue() : null,
                 result.confidence() != null ? result.confidence().shortValue() : null,
                 result.usedOwnHistory(), result.usedSector(),
-                sectorRef != null ? sectorRef.getId() : null,
+                // DB invariant (V003 valuation_assessment check2): used_sector = (sector_reference_id
+                // is not null). sectorRef may be non-null (the instrument IS classified) even when the
+                // engine did not actually use that basis (e.g. below the constituent floor) — only
+                // persist the id when the basis was actually consumed, matching the invariant's intent.
+                result.usedSector() && sectorRef != null ? sectorRef.getId() : null,
                 result.sectorConstituentCount() > 0 ? result.sectorConstituentCount() : null,
                 result.historyPointCount() > 0 ? result.historyPointCount() : null,
                 dataStatus.name(), result.reasonCodes(), calculatedAt, true,

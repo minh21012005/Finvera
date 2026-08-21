@@ -119,7 +119,7 @@ class StockDetailPerformanceTests {
         chartService = new StockChartService(referenceData, dailyBars, FIXED_CLOCK);
         technicalService = new TechnicalIndicatorService(referenceData, dailyBars, technicalResults, technicalValues, ingestion, FIXED_CLOCK);
         fundamentalService = new FundamentalReportService(referenceData, reports, reportMetrics, summaries, summaryMetrics, summaryInputs, catalog, FIXED_CLOCK);
-        valuationService = new ValuationService(referenceData, dailyBars, profiles, reports, reportMetrics, sectors, assessments, valuationMetrics, assessmentInputs, fundamentalService, ingestion, FIXED_CLOCK);
+        valuationService = new ValuationService(referenceData, dailyBars, profiles, reports, reportMetrics, sectors, assessments, valuationMetrics, assessmentInputs, fundamentalService, ingestion, FIXED_CLOCK, false);
 
         when(referenceData.findActiveInstrumentBySymbol(SYMBOL)).thenReturn(Optional.of(instrument));
         when(referenceData.resolveSession(any(), any())).thenReturn(new SessionContext(SessionState.OPEN, LocalDate.of(2026, 8, 17)));

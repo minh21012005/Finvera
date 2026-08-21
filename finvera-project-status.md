@@ -5,9 +5,11 @@
 ingestion — code, tests, config, and runbook are done; only the owner's
 credential setup and one OTP renewal remain. Feature 002 (Stock Detail) has
 all four provider gates resolved (three closed outright, one closeable after
-one owner-run probe) and three of the four import pipelines implemented;
-one piece (sector cross-section valuation wiring) is deliberately deferred as
-a focused follow-up given its algorithmic/performance complexity.
+one owner-run probe), and every implementation task that doesn't require that
+owner-run probe is now done — including sector cross-section valuation wiring
+(T064), completed in a follow-up pass. The only Feature 002 code still
+blocked is the TCBS live per-stock quote adapter (T062's TCBS half), which
+needs the owner's G-03 probe evidence first.
 
 ---
 
@@ -64,9 +66,17 @@ Full rationale in `specs/002-stock-detail-analysis/research.md` R-012.
 | Corporate actions (T060) | No adapter needed — RAW fallback already covers it | ✅ Closed as docs-only |
 | Daily-bar import (T062 Vnstock half) | `export_daily_bars.py` → `StockHistoryImportService` | ✅ Implemented, tested |
 | Sector reference import (T063) | `export_sector_reference.py` → `SectorReferenceImportService` | ✅ Implemented, tested |
+| Sector cross-section valuation wiring (T064) | Real peer data now feeds `ValuationService`'s `sectorSeries`, gated by `finvera.stock.provider.sector-basis-enabled` | ✅ Implemented, tested |
 | TCBS per-stock quote adapter (T062 TCBS half) | `TcbsStockQuoteProvider` | 🔲 **Owner action required first** — see below |
-| Sector cross-section valuation wiring (T064) | Wire real peer data into `ValuationService`'s `sectorSeries` | 🔲 **Deliberately deferred** — see below |
 | Usability trials (T073) | Owner-only manual timed trials | 🔲 Unrelated to providers, not attempted |
+
+**Bonus fix while implementing T064**: found and fixed a latent, pre-existing
+bug in `ValuationService.persistAssessment` — it stored `sector_reference_id`
+on every classified instrument's assessment regardless of whether the sector
+basis was actually used, violating the database's own invariant the moment a
+real "classified but below the 8-constituent floor" case was ever exercised
+(nothing before T064 ever populated `sector_reference_id`, so this was never
+triggered). Now persists the id only when the basis was actually consumed.
 
 ### Owner action needed: close G-03
 
@@ -80,17 +90,17 @@ Review `poc-output/tcbs-capability-summary.json`'s new
 can be recorded in `research.md` R-012 G-03 — that's what unblocks
 `TcbsStockQuoteProvider`.
 
-### Why T064 (sector cross-section valuation) was deliberately left for later
+### Sector cross-section valuation (T064) — how it's gated
 
-`ValuationService.findBySymbol` currently hardcodes an empty sector series.
-Wiring in real data means computing every peer instrument's current metrics
-cross-sectionally — a new algorithm, not a simple lookup — with real latency
-implications for large sectors (up to ~83 constituents per the G-04
-evidence). Rather than rush a correctness- and performance-sensitive change
-to shared valuation logic in the same pass as everything else, this is
-flagged as the one clearly-scoped remaining task, worth its own focused
-session. Data for it (sector reference + equity profile links) is already
-importable via the pipeline above; only the valuation-side wiring is left.
+`ValuationService` computes every sector peer's current metrics via the same
+`ValuationV1.computeMetrics` formulas the subject instrument itself uses,
+bounded to 100 peers (deterministic cap, sorted by instrument id — the
+largest real sector seen in the G-04 evidence has ~83). It only runs when
+`finvera.stock.provider.sector-basis-enabled=true`, which stays `false` by
+default. Per the task's own instruction, flip it in a non-production profile
+first and watch request latency for a large sector before enabling it in
+production — the two new tests prove correctness, not production-scale
+latency, which only real data can confirm.
 
 ### Owner action needed: run the new exporters at least once
 
