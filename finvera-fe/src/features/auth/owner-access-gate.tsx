@@ -1,5 +1,9 @@
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import { getOwnerSession, loginOwner, logoutOwner, OwnerAccessApiError, type OwnerSession } from "./api/owner-access";
+import { getTcbsStatus } from "../tcbs-renewal/api/tcbs-renewal";
+import { navigate } from "../../router";
+
+const TCBS_STATUS_POLL_MS = 60_000;
 
 type State =
   | { kind: "loading" }
@@ -10,6 +14,7 @@ type State =
 export function OwnerAccessGate({ children }: { children: ReactNode }) {
   const [state, setState] = useState<State>({ kind: "loading" });
   const [pathname, setPathname] = useState(() => window.location.pathname);
+  const [tcbsAuthRequired, setTcbsAuthRequired] = useState(false);
 
   useEffect(() => {
     const onNavigate = () => setPathname(window.location.pathname);
@@ -27,6 +32,19 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
       });
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    if (state.kind !== "authenticated") return;
+    let cancelled = false;
+    const check = () => {
+      getTcbsStatus()
+        .then((status) => { if (!cancelled) setTcbsAuthRequired(status.state === "AUTH_REQUIRED"); })
+        .catch(() => { /* transient check; keep last known banner state */ });
+    };
+    check();
+    const interval = window.setInterval(check, TCBS_STATUS_POLL_MS);
+    return () => { cancelled = true; window.clearInterval(interval); };
+  }, [state.kind]);
 
   if (state.kind === "loading") {
     return (
@@ -174,6 +192,15 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
             >
               <span className="nav-icon">🔑</span>
               <span>TCBS Live</span>
+              {tcbsAuthRequired ? (
+                <span
+                  aria-label="Cần xác thực lại"
+                  style={{
+                    display: "inline-block", width: "8px", height: "8px", borderRadius: "50%",
+                    background: "var(--color-down)", marginLeft: "4px",
+                  }}
+                ></span>
+              ) : null}
             </a>
           </div>
         </div>
@@ -193,6 +220,26 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
           </button>
         </header>
       </nav>
+      {tcbsAuthRequired && !isTcbsRenewal ? (
+        <div
+          role="alert"
+          style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px",
+            padding: "10px 20px", background: "var(--color-down-bg)", borderBottom: "1px solid var(--color-down-border)",
+            color: "var(--color-down)",
+          }}
+        >
+          <span>Phiên TCBS đã hết hạn hoặc chưa xác thực — giá thời gian thực đang không cập nhật.</span>
+          <button
+            type="button"
+            className="btn-primary"
+            style={{ padding: "6px 14px", whiteSpace: "nowrap" }}
+            onClick={() => navigate("/tcbs-renewal")}
+          >
+            Xác thực ngay
+          </button>
+        </div>
+      ) : null}
       {children}
     </>
   );

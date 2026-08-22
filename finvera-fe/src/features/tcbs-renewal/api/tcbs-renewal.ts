@@ -2,6 +2,13 @@ import { getCsrf } from "../../auth/api/owner-access";
 
 export type TcbsOtpMethod = "totp" | "email-sms";
 
+export type TcbsProviderState = "READY" | "DEGRADED" | "AUTH_REQUIRED";
+
+export interface TcbsStatus {
+  state: TcbsProviderState;
+  reasonCode: string;
+}
+
 export class TcbsRenewalApiError extends Error {
   constructor(
     readonly status: number,
@@ -11,6 +18,23 @@ export class TcbsRenewalApiError extends Error {
     super(`TCBS renewal failed with HTTP ${status}: ${reasonCode}${detail ? ` - ${detail}` : ""}`);
     this.name = "TcbsRenewalApiError";
   }
+}
+
+export async function getTcbsStatus(signal?: AbortSignal): Promise<TcbsStatus> {
+  const response = await fetch("/api/v1/market/providers/tcbs/status", {
+    method: "GET",
+    credentials: "same-origin",
+    headers: { Accept: "application/json" },
+    signal,
+  });
+  if (!response.ok) throw new TcbsRenewalApiError(response.status, "SERVER_ERROR");
+  const value = (await response.json()) as Record<string, unknown>;
+  const validStates: TcbsProviderState[] = ["READY", "DEGRADED", "AUTH_REQUIRED"];
+  if (typeof value.state !== "string" || !validStates.includes(value.state as TcbsProviderState)
+      || typeof value.reasonCode !== "string") {
+    throw new Error("Invalid TCBS status contract");
+  }
+  return { state: value.state as TcbsProviderState, reasonCode: value.reasonCode };
 }
 
 export async function renewTcbsSession(otpMethod: TcbsOtpMethod, otp: string): Promise<void> {

@@ -1,7 +1,9 @@
 package com.minhnb.finvera_be.market.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.minhnb.finvera_be.market.controller.TcbsRenewalController.TokenRenewalRequest;
 import com.minhnb.finvera_be.market.service.TcbsRenewalService;
@@ -32,5 +34,17 @@ class TcbsRenewalControllerTests {
         controller.renew(null);
 
         verify(service).renew(null, null);
+    }
+
+    @Test
+    void mapsProviderHealthToTheStatusResponse() {
+        TcbsRenewalService service = mock(TcbsRenewalService.class);
+        when(service.status()).thenReturn(new TcbsRenewalService.Status("AUTH_REQUIRED", "PROVIDER_AUTH_REQUIRED"));
+        TcbsRenewalController controller = new TcbsRenewalController(service);
+
+        var response = controller.status();
+
+        assertThat(response.state()).isEqualTo("AUTH_REQUIRED");
+        assertThat(response.reasonCode()).isEqualTo("PROVIDER_AUTH_REQUIRED");
     }
 }

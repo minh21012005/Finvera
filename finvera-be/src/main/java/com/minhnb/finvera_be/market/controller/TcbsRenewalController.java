@@ -1,6 +1,7 @@
 package com.minhnb.finvera_be.market.controller;
 
 import com.minhnb.finvera_be.market.service.TcbsRenewalService;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -28,6 +29,16 @@ public class TcbsRenewalController {
         renewalService.renew(request == null ? null : request.otpMethod(), request == null ? null : request.otp());
     }
 
+    /** Lets the owner UI show a "needs re-authentication" banner without reading server logs. */
+    @GetMapping("/status")
+    StatusResponse status() {
+        TcbsRenewalService.Status status = renewalService.status();
+        return new StatusResponse(status.state(), status.reasonCode());
+    }
+
     public record TokenRenewalRequest(String otpMethod, String otp) {
+    }
+
+    public record StatusResponse(String state, String reasonCode) {
     }
 }
