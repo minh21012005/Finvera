@@ -50,14 +50,23 @@ def save_checkpoint(path: Path, checkpoint: dict[str, Any]) -> None:
 
 
 def fetch_symbol_universe() -> list[str]:
-    """Same call already proven by the G-04 evidence (research.md R-012) -- 696
-    symbols across 25 KBS industries, no new/unproven endpoint."""
+    """The full common-equity universe (research.md R-012 evidence, 2026-08-22 live probe):
+    `symbols_by_industries()` -- the call the already-approved G-04 sector-classification evidence
+    used -- only covers instruments KBS has industry-classified (697 of them), not every listed
+    stock. `symbols_by_exchange()` filtered to type == "stock" on HOSE/HNX/UPCOM returns 1,525 --
+    matching `all_symbols()`'s count exactly -- and is the actual tradable common-equity universe.
+    Sector classification (export_sector_reference.py) deliberately keeps using
+    symbols_by_industries() -- that gate is specifically about classification coverage, and a
+    symbol with no KBS industry yet is a real, already-documented limitation (G-04), not something
+    to paper over here."""
     from vnstock import Listing
 
-    frame = Listing(source="kbs").symbols_by_industries()
-    if "symbol" not in frame.columns:
-        raise ValueError("Vnstock symbols_by_industries schema is missing the symbol column")
-    symbols = sorted({str(s).upper() for s in frame["symbol"].tolist() if str(s).strip()})
+    frame = Listing(source="kbs").symbols_by_exchange()
+    required = {"symbol", "type", "exchange"}
+    if not required.issubset(frame.columns):
+        raise ValueError("Vnstock symbols_by_exchange schema is missing an expected column")
+    stocks = frame[(frame["type"] == "stock") & (frame["exchange"].isin(["HOSE", "HNX", "UPCOM"]))]
+    symbols = sorted({str(s).upper() for s in stocks["symbol"].tolist() if str(s).strip()})
     return symbols
 
 
@@ -181,6 +190,8 @@ def main() -> int:
                     del entry[key]
 
     universe = fetch_symbol_universe()
+    checkpoint["universeSize"] = len(universe)
+    save_checkpoint(checkpoint_path, checkpoint)
     remaining = [s for s in universe if not is_finished(s, checkpoint["symbols"].get(s, {}), args)]
     print(f"Universe: {len(universe)} symbols. Already finished: {len(universe) - len(remaining)}. "
           f"Remaining: {len(remaining)}.")

@@ -615,6 +615,21 @@ T063/T064 implement this as an owner-operated, offline export/import boundary
 (`tools/market-data/vnstock-export/export_sector_reference.py` →
 `SectorReferenceImportService`), consistent with ADR-0004.
 
+**Addendum (2026-08-22) — the 697-symbol count above is a classification
+subset, not the tradable universe.** While building `export_all_symbols.py`
+(the owner-run bulk exporter that loops daily-bar/fundamentals export over
+every symbol), a live sanitized probe of `vnstock.Listing(source="kbs")`
+found `symbols_by_industries()` — the G-04 evidence call above — only returns
+symbols KBS has industry-classified. `symbols_by_exchange()` filtered to
+`type == "stock"` on `HOSE`/`HNX`/`UPCOM` returns **1,525** symbols (HOSE 405,
+HNX 299, UPCOM 821), matching `all_symbols()`'s count exactly — the actual
+common-equity universe, about 2.2x larger than the classified subset. This
+does not change G-04's own finding (sector classification coverage is
+genuinely 697/1,525, not a bug) but means `export_all_symbols.py` uses
+`symbols_by_exchange()` as its universe source, not `symbols_by_industries()`,
+so bulk daily-bar/fundamentals export covers every tradable symbol rather than
+only the ~46% KBS has classified into an industry.
+
 ---
 
 ## R-013 — Testing and fixture strategy

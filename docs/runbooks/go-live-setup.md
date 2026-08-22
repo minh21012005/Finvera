@@ -257,7 +257,7 @@ cd tools/market-data/vnstock-export
 # Chạy thử với vài mã trước khi để chạy hàng giờ không giám sát:
 uv run --project ../provider-poc python export_all_symbols.py --start 2024-01-01 --max-symbols 5
 
-# Chạy toàn bộ ~697 mã (mất vài giờ tùy tốc độ mạng — chạy nền được):
+# Chạy toàn bộ ~1525 mã (HOSE+HNX+UPCOM, mất vài giờ tùy tốc độ mạng — chạy nền được):
 uv run --project ../provider-poc python export_all_symbols.py --start 2024-01-01
 ```
 
