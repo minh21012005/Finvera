@@ -1078,28 +1078,273 @@ h3 {
   font-weight: 700;
 }
 
-/* Candlestick Chart */
-.stock-chart-card svg {
+/* ==========================================================================
+   INSTITUTIONAL FINANCIAL CHART (FEATURE 002 ENHANCEMENT)
+   ========================================================================== */
+
+.institutional-chart-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 18px 20px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  overflow: hidden;
+}
+
+.chart-header-row {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+@media (min-width: 1024px) {
+  .chart-header-row {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+.chart-title {
+  margin: 0 0 4px 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.chart-controls-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Range Button Group */
+.range-button-group {
+  display: inline-flex;
+  align-items: center;
   background: #090e1a;
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  margin-top: 14px;
-  padding: 8px 0;
+  padding: 2px;
 }
 
+.range-pill-btn {
+  padding: 4px 10px;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.range-pill-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.range-pill-btn.active {
+  background: var(--color-accent);
+  color: #ffffff;
+  box-shadow: 0 1px 4px rgba(14, 165, 233, 0.4);
+}
+
+/* Chart Type Toggle */
+.chart-type-toggle {
+  display: inline-flex;
+  align-items: center;
+  background: #090e1a;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 2px;
+}
+
+.type-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.type-icon-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.type-icon-btn.active {
+  background: rgba(56, 189, 248, 0.16);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: #38bdf8;
+}
+
+/* Zoom Button Group */
+.zoom-button-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.zoom-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: #090e1a;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.zoom-btn:hover:not(:disabled) {
+  color: #ffffff;
+  border-color: var(--border-color-hover);
+  background: var(--bg-card-hover);
+}
+
+.zoom-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.zoom-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  background: rgba(14, 165, 233, 0.15);
+  border: 1px solid rgba(14, 165, 233, 0.35);
+  border-radius: 6px;
+  color: #38bdf8;
+  font-size: 0.725rem;
+  font-weight: 700;
+  font-family: "JetBrains Mono", monospace;
+}
+
+/* Real-Time / Hover OHLCV Status Bar */
+.ohlcv-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px 18px;
+  flex-wrap: wrap;
+  padding: 8px 14px;
+  background: #090e1a;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 0.775rem;
+}
+
+.ohlcv-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ohlcv-item .label {
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+}
+
+.ohlcv-item .value {
+  color: #f8fafc;
+  font-weight: 700;
+}
+
+.ohlcv-item.diff .diff-chip {
+  font-weight: 800;
+}
+
+/* Chart SVG Wrapper */
+.chart-svg-wrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1000 / 350;
+  min-height: 290px;
+  max-height: 440px;
+  background: #10141d;
+  border: 1px solid #242c3d;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.chart-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+}
+
+/* Candle Layer Styles - TradingView / SSI / TCBS Pro Standards */
 .candle.up {
-  color: var(--color-up);
+  color: #52b89a;
 }
 
 .candle.down {
-  color: var(--color-down);
+  color: #e55454;
 }
 
-.chart-range {
-  margin: 10px 0 0 0;
+.candle.up rect {
+  fill: #52b89a;
+  stroke: #52b89a;
+}
+
+.candle.down rect {
+  fill: #e55454;
+  stroke: #e55454;
+}
+
+.candle line {
+  stroke-width: 1px;
+}
+
+.candle rect,
+.candle line {
+  shape-rendering: crispEdges;
+}
+
+/* Footer Range Text */
+.chart-footer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
   font-size: 0.75rem;
   color: var(--text-muted);
-  text-align: right;
+  padding-top: 4px;
+}
+
+.chart-range-text {
+  font-family: "JetBrains Mono", monospace;
+  color: var(--text-secondary);
+}
+
+.chart-hint-text {
+  font-size: 0.725rem;
+  color: #64748b;
 }
 
 /* Indicators Grid */
