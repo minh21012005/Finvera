@@ -7,6 +7,15 @@ import { formatAsOf } from "./format/market-format";
 import { SymbolSearch } from "../stock-detail/components/symbol-search";
 import { navigate } from "../../router";
 
+import {
+  SlidersHorizontal,
+  Zap,
+  Briefcase,
+  Star,
+  BookOpen,
+  Bot,
+} from "lucide-react";
+
 type LoadState =
   | { kind: "loading" }
   | { kind: "ready"; overview: MarketOverview }
@@ -30,24 +39,30 @@ export function MarketOverviewPage() {
   if (state.kind === "loading") {
     return (
       <main className="app-shell" aria-busy="true">
-        <p>Đang tải tổng quan thị trường…</p>
+        <div className="loading-state">
+          <div className="loading-spinner"></div>
+          <p>Đang tải tổng quan thị trường…</p>
+        </div>
       </main>
     );
   }
   if (state.kind === "error") {
     return (
       <main className="app-shell">
-        <p role="alert">{errorMessage(state.status)}</p>
-        <button
-          type="button"
-          className="btn-retry"
-          onClick={() => {
-            setState({ kind: "loading" });
-            setAttempt((value) => value + 1);
-          }}
-        >
-          Thử lại
-        </button>
+        <div className="error-card">
+          <p role="alert">{errorMessage(state.status)}</p>
+          <button
+            type="button"
+            className="btn-retry"
+            style={{ marginTop: "16px" }}
+            onClick={() => {
+              setState({ kind: "loading" });
+              setAttempt((value) => value + 1);
+            }}
+          >
+            Thử lại
+          </button>
+        </div>
       </main>
     );
   }
@@ -57,40 +72,59 @@ export function MarketOverviewPage() {
   return (
     <main className="app-shell">
       <header className="page-header">
-        <p className="eyebrow">FINVERA · MARKET OVERVIEW</p>
-        <h1>Tổng quan thị trường</h1>
-        <div className="meta-row">
-          <span className="meta-item">
-            <span className={`pulse-dot ${isSessionOpen ? "open" : "closed"}`}></span>
-            Phiên giao dịch {state.overview.tradingDate}
-          </span>
-          <span className="meta-item">Cập nhật {formatAsOf(state.overview.generatedAt)}</span>
-          <span className="meta-item">
-            Trạng thái dữ liệu:{" "}
-            <span className={`status-pill ${state.overview.dataStatus.toLowerCase()}`}>
-              {statusLabel(state.overview.dataStatus)}
-            </span>
-          </span>
+        <div className="market-header-top">
+          <div>
+            <p className="eyebrow">FINVERA · MARKET OVERVIEW</p>
+            <h1>Tổng quan thị trường</h1>
+            <div className="meta-row">
+              <span className="meta-item">
+                <span className={`pulse-dot ${isSessionOpen ? "open" : "closed"}`}></span>
+                Phiên giao dịch {state.overview.tradingDate}
+              </span>
+              <span className="meta-item">Cập nhật {formatAsOf(state.overview.generatedAt)}</span>
+              <span className="meta-item">
+                Trạng thái dữ liệu:{" "}
+                <span className={`status-pill ${state.overview.dataStatus.toLowerCase()}`}>
+                  {statusLabel(state.overview.dataStatus)}
+                </span>
+              </span>
+            </div>
+          </div>
+          <SymbolSearch onSelect={(symbol) => navigate(`/stocks/${symbol}`)} />
         </div>
-        <SymbolSearch onSelect={(symbol) => navigate(`/stocks/${symbol}`)} />
-        <button type="button" className="screener-nav-link" onClick={() => navigate("/screener")}>
-          Sàng lọc cổ phiếu →
-        </button>
-        <button type="button" className="screener-nav-link" onClick={() => navigate("/strategies")}>
-          Quét chiến lược →
-        </button>
-        <button type="button" className="screener-nav-link" onClick={() => navigate("/portfolios")}>
-          Danh mục đầu tư →
-        </button>
-        <button type="button" className="screener-nav-link" onClick={() => navigate("/watchlists")}>
-          Danh sách theo dõi →
-        </button>
-        <button type="button" className="screener-nav-link" onClick={() => navigate("/research")}>
-          Nghiên cứu & RAG →
-        </button>
-        <button type="button" className="screener-nav-link" onClick={() => navigate("/analyst")}>
-          AI Analyst →
-        </button>
+
+        <div className="quick-actions-bar">
+          <button type="button" className="screener-nav-link" onClick={() => navigate("/screener")}>
+            <SlidersHorizontal size={14} className="nav-btn-icon" />
+            <span>Sàng lọc cổ phiếu</span>
+            <span className="arrow-chip">→</span>
+          </button>
+          <button type="button" className="screener-nav-link" onClick={() => navigate("/strategies")}>
+            <Zap size={14} className="nav-btn-icon" />
+            <span>Quét chiến lược</span>
+            <span className="arrow-chip">→</span>
+          </button>
+          <button type="button" className="screener-nav-link" onClick={() => navigate("/portfolios")}>
+            <Briefcase size={14} className="nav-btn-icon" />
+            <span>Danh mục đầu tư</span>
+            <span className="arrow-chip">→</span>
+          </button>
+          <button type="button" className="screener-nav-link" onClick={() => navigate("/watchlists")}>
+            <Star size={14} className="nav-btn-icon" />
+            <span>Danh sách theo dõi</span>
+            <span className="arrow-chip">→</span>
+          </button>
+          <button type="button" className="screener-nav-link" onClick={() => navigate("/research")}>
+            <BookOpen size={14} className="nav-btn-icon" />
+            <span>Nghiên cứu & RAG</span>
+            <span className="arrow-chip">→</span>
+          </button>
+          <button type="button" className="screener-nav-link ai-action-link" onClick={() => navigate("/analyst")}>
+            <Bot size={14} className="nav-btn-icon" />
+            <span>AI Analyst</span>
+            <span className="arrow-chip">→</span>
+          </button>
+        </div>
       </header>
 
       <IndexOverview overview={state.overview} />

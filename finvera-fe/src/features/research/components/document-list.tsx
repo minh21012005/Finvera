@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Document, DocumentType, deleteDocument } from "../api/documents";
+import { Files, RotateCw } from "lucide-react";
 
 interface DocumentListProps {
   documents: Document[];
@@ -43,20 +44,20 @@ export function DocumentList({
     switch (status) {
       case "READY":
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
             ● Sẵn sàng (READY)
           </span>
         );
       case "PROCESSING":
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/30">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30">
             ⏳ Đang xử lý (PROCESSING)
           </span>
         );
       case "FAILED":
         return (
           <span
-            className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/30"
+            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/30"
             title={failureReason || "Lỗi xử lý"}
           >
             ✕ Thất bại (FAILED)
@@ -65,7 +66,7 @@ export function DocumentList({
       case "PENDING":
       default:
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-500/10 text-slate-400 border border-slate-500/30">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-500/10 text-slate-400 border border-slate-500/30">
             ⏱ Chờ xử lý (PENDING)
           </span>
         );
@@ -93,28 +94,31 @@ export function DocumentList({
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-        <h3 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 pb-4 border-b border-slate-800/80">
+        <h3 className="text-base font-semibold text-slate-100 flex items-center gap-2.5">
+          <Files size={18} className="text-cyan-400" />
           <span>Kho Tài liệu Đã Tải lên</span>
-          <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-400">
+          <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 font-mono text-cyan-300 font-semibold">
             {documents.length}
           </span>
         </h3>
 
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 placeholder-slate-500 uppercase focus:outline-none focus:border-cyan-500 w-28"
-            placeholder="Mã CP..."
-            value={symbolFilter}
-            onChange={(e) => onSymbolFilterChange(e.target.value)}
-          />
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="relative">
+            <input
+              type="text"
+              className="bg-slate-950 border border-slate-800 rounded-lg pl-3 pr-3 py-1.5 text-xs text-slate-100 placeholder-slate-500 uppercase focus:outline-none focus:border-cyan-500 w-32"
+              placeholder="Mã CP (FPT...)"
+              value={symbolFilter}
+              onChange={(e) => onSymbolFilterChange(e.target.value)}
+            />
+          </div>
           <select
-            className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-cyan-500"
+            className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-cyan-500 cursor-pointer"
             value={typeFilter}
             onChange={(e) => onTypeFilterChange(e.target.value)}
           >
-            <option value="">Tất cả loại</option>
+            <option value="">Tất cả loại tài liệu</option>
             <option value="ANNUAL_REPORT">BCTN</option>
             <option value="QUARTERLY_REPORT">Báo cáo Quý</option>
             <option value="FINANCIAL_REPORT">BCTC</option>
@@ -124,10 +128,11 @@ export function DocumentList({
           </select>
           <button
             type="button"
-            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg transition-colors"
+            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer font-medium"
             onClick={onRefresh}
           >
-            Làm mới
+            <RotateCw size={13} />
+            <span>Làm mới</span>
           </button>
         </div>
       </div>

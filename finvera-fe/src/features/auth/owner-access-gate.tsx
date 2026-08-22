@@ -2,6 +2,18 @@ import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import { getOwnerSession, loginOwner, logoutOwner, OwnerAccessApiError, type OwnerSession } from "./api/owner-access";
 import { getTcbsStatus } from "../tcbs-renewal/api/tcbs-renewal";
 import { navigate } from "../../router";
+import {
+  BarChart3,
+  SlidersHorizontal,
+  Zap,
+  Briefcase,
+  Star,
+  BookOpen,
+  Bot,
+  KeyRound,
+  LogOut,
+  AlertTriangle,
+} from "lucide-react";
 
 const TCBS_STATUS_POLL_MS = 60_000;
 
@@ -106,7 +118,7 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
                 window.dispatchEvent(new PopStateEvent("popstate"));
               }}
             >
-              <span className="nav-icon">📊</span>
+              <BarChart3 className="nav-icon-svg" size={15} />
               <span>Thị trường</span>
             </a>
             <a
@@ -118,7 +130,7 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
                 window.dispatchEvent(new PopStateEvent("popstate"));
               }}
             >
-              <span className="nav-icon">🔍</span>
+              <SlidersHorizontal className="nav-icon-svg" size={15} />
               <span>Bộ lọc CP</span>
             </a>
             <a
@@ -130,7 +142,7 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
                 window.dispatchEvent(new PopStateEvent("popstate"));
               }}
             >
-              <span className="nav-icon">⚡</span>
+              <Zap className="nav-icon-svg" size={15} />
               <span>Chiến lược</span>
             </a>
             <a
@@ -142,7 +154,7 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
                 window.dispatchEvent(new PopStateEvent("popstate"));
               }}
             >
-              <span className="nav-icon">💼</span>
+              <Briefcase className="nav-icon-svg" size={15} />
               <span>Danh mục</span>
             </a>
             <a
@@ -154,7 +166,7 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
                 window.dispatchEvent(new PopStateEvent("popstate"));
               }}
             >
-              <span className="nav-icon">⭐</span>
+              <Star className="nav-icon-svg" size={15} />
               <span>Watchlist</span>
             </a>
             <a
@@ -166,7 +178,7 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
                 window.dispatchEvent(new PopStateEvent("popstate"));
               }}
             >
-              <span className="nav-icon">📚</span>
+              <BookOpen className="nav-icon-svg" size={15} />
               <span>Nghiên cứu & RAG</span>
             </a>
             <a
@@ -178,7 +190,7 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
                 window.dispatchEvent(new PopStateEvent("popstate"));
               }}
             >
-              <span className="nav-icon">🤖</span>
+              <Bot className="nav-icon-svg" size={15} />
               <span>AI Analyst</span>
             </a>
             <a
@@ -190,15 +202,12 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
                 window.dispatchEvent(new PopStateEvent("popstate"));
               }}
             >
-              <span className="nav-icon">🔑</span>
+              <KeyRound className="nav-icon-svg" size={15} />
               <span>TCBS Live</span>
               {tcbsAuthRequired ? (
                 <span
                   aria-label="Cần xác thực lại"
-                  style={{
-                    display: "inline-block", width: "8px", height: "8px", borderRadius: "50%",
-                    background: "var(--color-down)", marginLeft: "4px",
-                  }}
+                  className="status-dot-pulse"
                 ></span>
               ) : null}
             </a>
@@ -216,6 +225,7 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
                 .catch(() => setState({ kind: "error" }))
             }
           >
+            <LogOut size={13} style={{ marginRight: 4 }} />
             Đăng xuất
           </button>
         </header>
@@ -223,17 +233,15 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
       {tcbsAuthRequired && !isTcbsRenewal ? (
         <div
           role="alert"
-          style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px",
-            padding: "10px 20px", background: "var(--color-down-bg)", borderBottom: "1px solid var(--color-down-border)",
-            color: "var(--color-down)",
-          }}
+          className="tcbs-warning-banner"
         >
-          <span>Phiên TCBS đã hết hạn hoặc chưa xác thực — giá thời gian thực đang không cập nhật.</span>
+          <div className="banner-content">
+            <AlertTriangle size={16} className="shrink-0 text-rose-400" />
+            <span>Phiên TCBS đã hết hạn hoặc chưa xác thực — giá thời gian thực đang không cập nhật.</span>
+          </div>
           <button
             type="button"
-            className="btn-primary"
-            style={{ padding: "6px 14px", whiteSpace: "nowrap" }}
+            className="btn-banner-action"
             onClick={() => navigate("/tcbs-renewal")}
           >
             Xác thực ngay

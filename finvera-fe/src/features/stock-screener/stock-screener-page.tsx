@@ -28,12 +28,16 @@ export function StockScreenerPage() {
   }
 
   return (
-    <main aria-labelledby="screener-page-heading">
-      <header className="screener-page-header">
+    <main className="app-shell" aria-labelledby="screener-page-heading">
+      <header className="page-header">
         <button type="button" className="back-link" onClick={() => navigate("/")}>
           ← Trang chủ
         </button>
+        <p className="eyebrow">FINVERA · SCREENER</p>
         <h1 id="screener-page-heading">Sàng lọc cổ phiếu</h1>
+        <p style={{ color: "var(--text-secondary)", margin: 0, fontSize: "0.875rem" }}>
+          Bộ lọc định lượng phân tích toàn diện theo tiêu chuẩn kỹ thuật, định giá tương đối và khối lượng giao dịch.
+        </p>
       </header>
 
       <ScreenerFilters onSubmit={handleSubmit} submitting={submitting} />

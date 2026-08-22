@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { SubmitNewsArticleRequest, submitNewsArticle, generateIdempotencyKey } from "../api/news";
+import { Newspaper, CheckCircle2, AlertTriangle } from "lucide-react";
 
 interface NewsSubmitProps {
   onSubmitted?: () => void;
@@ -48,8 +49,6 @@ export const NewsSubmit: React.FC<NewsSubmitProps> = ({ onSubmitted }) => {
       setSymbol("");
       setReferenceUrl("");
       setBody("");
-      // Confirmed success: the next submit is a genuinely new article, so it needs a
-      // fresh key rather than reusing the one that just succeeded.
       setIdempotencyKey(generateIdempotencyKey());
       if (onSubmitted) {
         onSubmitted();
@@ -63,14 +62,12 @@ export const NewsSubmit: React.FC<NewsSubmitProps> = ({ onSubmitted }) => {
 
   return (
     <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-6 backdrop-blur-md shadow-xl">
-      <div className="flex items-center gap-3 mb-5">
+      <div className="flex items-center gap-3 mb-5 pb-4 border-b border-slate-800/80">
         <div className="p-2.5 bg-blue-500/10 text-blue-400 rounded-lg border border-blue-500/20">
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-          </svg>
+          <Newspaper size={20} />
         </div>
         <div>
-          <h2 className="text-lg font-semibold text-slate-100">Gửi Tin Tức & Bài Viết Mới</h2>
+          <h2 className="text-base font-semibold text-slate-100">Gửi Tin Tức & Bài Viết Mới</h2>
           <p className="text-xs text-slate-400">
             Hệ thống AI sẽ tự động phân loại danh mục, phân tích sắc thái cảm xúc và lập chỉ mục RAG.
           </p>
@@ -82,18 +79,14 @@ export const NewsSubmit: React.FC<NewsSubmitProps> = ({ onSubmitted }) => {
           role="alert"
           className="mb-4 p-3 bg-red-950/40 border border-red-800/50 rounded-lg flex items-center gap-2.5 text-sm text-red-300"
         >
-          <svg className="w-4 h-4 text-red-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
+          <AlertTriangle size={16} className="text-red-400 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       {success && (
         <div className="mb-4 p-3 bg-emerald-950/40 border border-emerald-800/50 rounded-lg flex items-center gap-2.5 text-sm text-emerald-300">
-          <svg className="w-4 h-4 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
+          <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
           <span>Đã gửi bài báo thành công! AI đang tiến hành phân loại và tạo vector embedding.</span>
         </div>
       )}

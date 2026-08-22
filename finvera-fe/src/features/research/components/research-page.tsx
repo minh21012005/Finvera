@@ -7,6 +7,9 @@ import { NewsList } from "./news-list";
 import { NewsSubmit } from "./news-submit";
 import { RetrievalResults } from "./retrieval-results";
 
+import { FileText, Newspaper, Search, Bot } from "lucide-react";
+import { navigate } from "../../../router";
+
 export function ResearchPage() {
   const [activeTab, setActiveTab] = useState<"documents" | "news" | "retrieval" | "ask">("documents");
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -51,66 +54,76 @@ export function ResearchPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-6 max-w-7xl mx-auto space-y-6">
+    <main className="app-shell space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-            <span>Nghiên cứu & Dữ liệu RAG</span>
-          </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Quản lý tài liệu báo cáo, tin tức thị trường và truy vấn trích dẫn ngữ nghĩa với công nghệ RAG v1.
-          </p>
-        </div>
+      <header className="page-header">
+        <button type="button" className="back-link" onClick={() => navigate("/")}>
+          ← Trang chủ
+        </button>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <p className="eyebrow">FINVERA · RESEARCH & RAG</p>
+            <h1 className="text-2xl font-bold text-white">
+              Nghiên cứu & Dữ liệu RAG
+            </h1>
+            <p className="text-xs text-slate-400 mt-1">
+              Quản lý tài liệu báo cáo, tin tức thị trường và truy vấn trích dẫn ngữ nghĩa với công nghệ Hybrid RAG v1.
+            </p>
+          </div>
 
-        {/* Navigation Tabs */}
-        <div className="flex flex-wrap items-center rounded-lg bg-slate-900 border border-slate-800 p-1">
-          <button
-            type="button"
-            className={`px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              activeTab === "documents"
-                ? "bg-cyan-600 text-white shadow-sm"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-            onClick={() => setActiveTab("documents")}
-          >
-            Quản lý Tài liệu
-          </button>
-          <button
-            type="button"
-            className={`px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              activeTab === "news"
-                ? "bg-cyan-600 text-white shadow-sm"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-            onClick={() => setActiveTab("news")}
-          >
-            Tin Tức Thị Trường
-          </button>
-          <button
-            type="button"
-            className={`px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              activeTab === "retrieval"
-                ? "bg-cyan-600 text-white shadow-sm"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-            onClick={() => setActiveTab("retrieval")}
-          >
-            Truy vấn Đoạn trích
-          </button>
-          <button
-            type="button"
-            className={`px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              activeTab === "ask"
-                ? "bg-cyan-600 text-white shadow-sm"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-            onClick={() => setActiveTab("ask")}
-          >
-            Hỏi Đáp AI Analyst
-          </button>
+          {/* Navigation Tabs */}
+          <div className="inline-flex rounded-xl bg-slate-900 border border-slate-800 p-1.5 self-start md:self-auto shadow-sm">
+            <button
+              type="button"
+              className={`px-3.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
+                activeTab === "documents"
+                  ? "bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-md"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+              onClick={() => setActiveTab("documents")}
+            >
+              <FileText size={14} />
+              <span>Quản lý Tài liệu</span>
+            </button>
+            <button
+              type="button"
+              className={`px-3.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
+                activeTab === "news"
+                  ? "bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-md"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+              onClick={() => setActiveTab("news")}
+            >
+              <Newspaper size={14} />
+              <span>Tin Tức Thị Trường</span>
+            </button>
+            <button
+              type="button"
+              className={`px-3.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
+                activeTab === "retrieval"
+                  ? "bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-md"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+              onClick={() => setActiveTab("retrieval")}
+            >
+              <Search size={14} />
+              <span>Truy vấn Đoạn trích</span>
+            </button>
+            <button
+              type="button"
+              className={`px-3.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
+                activeTab === "ask"
+                  ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+              onClick={() => setActiveTab("ask")}
+            >
+              <Bot size={14} />
+              <span>Hỏi Đáp AI Analyst</span>
+            </button>
+          </div>
         </div>
-      </div>
+      </header>
 
       {/* Main Content */}
       {activeTab === "documents" && (
@@ -147,6 +160,6 @@ export function ResearchPage() {
           <AskPanel />
         </div>
       )}
-    </div>
+    </main>
   );
 }

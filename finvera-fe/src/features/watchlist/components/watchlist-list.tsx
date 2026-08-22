@@ -7,6 +7,7 @@ import {
   type WatchlistSummary,
 } from "../api/watchlist";
 import { navigate } from "../../../router";
+import { RotateCw, Plus } from "lucide-react";
 
 export function WatchlistList() {
   const [watchlists, setWatchlists] = useState<WatchlistSummary[]>([]);
@@ -93,9 +94,13 @@ export function WatchlistList() {
               color: "var(--text-secondary)",
               borderRadius: "6px",
               cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
             }}
           >
-            ↻ Làm mới
+            <RotateCw size={13} />
+            <span>Làm mới</span>
           </button>
         </div>
       </header>
@@ -122,7 +127,7 @@ export function WatchlistList() {
         <form onSubmit={handleCreate} style={{ display: "flex", gap: "12px", alignItems: "center" }}>
           <input
             type="text"
-            placeholder="Nhập tên danh sách (VD: Cổ phiếu Công nghệ, Ngân hàng tiềm năng...)"
+            placeholder="Nhập tên danh sách theo dõi (VD: Cổ phiếu VN30, Ngành Thép, Bất động sản...)"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             maxLength={120}
@@ -148,9 +153,13 @@ export function WatchlistList() {
               border: "none",
               borderRadius: "6px",
               cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
             }}
           >
-            {creating ? "Đang tạo..." : "Tạo danh sách"}
+            <Plus size={15} />
+            <span>{creating ? "Đang tạo..." : "Tạo danh sách"}</span>
           </button>
         </form>
       </div>

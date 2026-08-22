@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from "react";
 import { navigate } from "../../router";
 import { renewTcbsSession, TcbsRenewalApiError, type TcbsOtpMethod } from "./api/tcbs-renewal";
+import { KeyRound, ShieldCheck, CheckCircle2, AlertTriangle } from "lucide-react";
 
 export function TcbsRenewalPage() {
   const [otpMethod, setOtpMethod] = useState<TcbsOtpMethod>("totp");
@@ -34,95 +35,66 @@ export function TcbsRenewalPage() {
         </button>
         <p className="eyebrow">FINVERA · LIVE DATA</p>
         <h1>Xác thực phiên TCBS</h1>
-        <p style={{ color: "var(--text-secondary)", margin: 0 }}>
+        <p style={{ color: "var(--text-secondary)", margin: 0, fontSize: "0.875rem" }}>
           Cho phép backend lấy giá thị trường thời gian thực trong tối đa 8 giờ. Chỉ chủ hệ thống mới
           thấy và dùng được trang này.
         </p>
       </header>
 
-      <div
-        className="card"
-        style={{
-          padding: "20px",
-          background: "var(--bg-card)",
-          border: "1px solid var(--border-color)",
-          borderRadius: "8px",
-          maxWidth: "480px",
-        }}
-      >
-        <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            Phương thức OTP
-            <select
-              value={otpMethod}
-              onChange={(e) => setOtpMethod(e.target.value as TcbsOtpMethod)}
-              style={{
-                padding: "10px 14px",
-                background: "var(--bg-main)",
-                border: "1px solid var(--border-color)",
-                borderRadius: "6px",
-                color: "var(--text-primary)",
-              }}
-            >
-              <option value="totp">Mã TOTP (app TCInvest)</option>
-              <option value="email-sms">Email / SMS</option>
-            </select>
-          </label>
-
-          <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            Mã OTP hiện tại
-            <input
-              name="otp"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              maxLength={12}
-              required
-              placeholder="Nhập mã 6 số"
-              style={{
-                padding: "10px 14px",
-                background: "var(--bg-main)",
-                border: "1px solid var(--border-color)",
-                borderRadius: "6px",
-                color: "var(--text-primary)",
-              }}
-            />
-          </label>
-
-          {error ? (
-            <div
-              role="alert"
-              className="error-banner"
-              style={{
-                padding: "12px",
-                background: "var(--color-down-bg)",
-                border: "1px solid var(--color-down-border)",
-                borderRadius: "6px",
-                color: "var(--color-down)",
-              }}
-            >
-              {error}
+      <div className="tcbs-card-container">
+        <div className="tcbs-renewal-card">
+          <div className="card-header-icon">
+            <KeyRound size={24} className="text-cyan-400" />
+            <div>
+              <h3>Cấp quyền truy cập Real-time</h3>
+              <p>Nhập mã OTP từ ứng dụng TCInvest hoặc SMS</p>
             </div>
-          ) : null}
+          </div>
 
-          {success ? (
-            <div
-              role="status"
-              style={{
-                padding: "12px",
-                background: "var(--color-up-bg)",
-                border: "1px solid var(--color-up-border)",
-                borderRadius: "6px",
-                color: "var(--color-up)",
-              }}
-            >
-              Đã xác thực thành công. Giá thời gian thực sẽ cập nhật trong vòng một chu kỳ polling.
-            </div>
-          ) : null}
+          <form onSubmit={submit} className="tcbs-form">
+            <label>
+              Phương thức OTP
+              <select
+                value={otpMethod}
+                onChange={(e) => setOtpMethod(e.target.value as TcbsOtpMethod)}
+              >
+                <option value="totp">Mã TOTP (app TCInvest)</option>
+                <option value="email-sms">Email / SMS</option>
+              </select>
+            </label>
 
-          <button type="submit" className="btn-primary" disabled={submitting}>
-            {submitting ? "Đang xác thực…" : "Xác thực"}
-          </button>
-        </form>
+            <label>
+              Mã OTP hiện tại
+              <input
+                name="otp"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={12}
+                required
+                placeholder="Nhập mã 6 số"
+              />
+            </label>
+
+            {error ? (
+              <div role="alert" className="error-banner">
+                <AlertTriangle size={16} className="shrink-0" />
+                <span>{error}</span>
+              </div>
+            ) : null}
+
+            {success ? (
+              <div role="status" className="success-banner">
+                <CheckCircle2 size={16} className="shrink-0" />
+                <span>Đã xác thực thành công. Giá thời gian thực sẽ cập nhật trong vòng một chu kỳ polling.</span>
+              </div>
+            ) : null}
+
+            <button type="submit" className="btn-primary" disabled={submitting}>
+              <ShieldCheck size={16} style={{ marginRight: 6 }} />
+              {submitting ? "Đang xác thực…" : "Xác thực"}
+            </button>
+          </form>
+        </div>
       </div>
     </main>
   );

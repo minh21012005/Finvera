@@ -7,6 +7,7 @@ import {
   type PortfolioSummary,
 } from "../api/portfolio";
 import { navigate } from "../../../router";
+import { RotateCw, Plus } from "lucide-react";
 
 export function PortfolioList() {
   const [portfolios, setPortfolios] = useState<PortfolioSummary[]>([]);
@@ -93,9 +94,13 @@ export function PortfolioList() {
               color: "var(--text-secondary)",
               borderRadius: "6px",
               cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
             }}
           >
-            ↻ Làm mới
+            <RotateCw size={13} />
+            <span>Làm mới</span>
           </button>
         </div>
       </header>
@@ -138,9 +143,13 @@ export function PortfolioList() {
               border: "none",
               borderRadius: "6px",
               cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
             }}
           >
-            {creating ? "Đang tạo..." : "Tạo danh mục"}
+            <Plus size={15} />
+            <span>{creating ? "Đang tạo..." : "Tạo danh mục"}</span>
           </button>
         </form>
       </div>
