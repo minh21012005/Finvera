@@ -152,6 +152,11 @@ def fetch_tables(symbol: str, period: str):
     return income_statement, ratio, cash_flow
 
 
+def output_filename(symbol: str, period: str) -> str:
+    """Stable per (symbol, period) -- re-running overwrites the same file with the latest figures."""
+    return f"fundamentals-{symbol.lower()}-{period}.json"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Create a local-only canonical Vnstock fundamentals package")
     parser.add_argument("--symbol", required=True)
@@ -166,7 +171,7 @@ def main() -> None:
     records = build_metric_records(args.symbol, income_statement, ratio, cash_flow)
     package = build_package(records, args.symbol, "0.1.0", args.unit_scale)
     args.output.mkdir(parents=True, exist_ok=True)
-    path = args.output / f"fundamentals-{args.symbol.lower()}-{args.period}.json"
+    path = args.output / output_filename(args.symbol, args.period)
     path.write_text(json.dumps(package, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"Wrote canonical package: {path} ({len(records)} metric-period records)")
     print(f"Package SHA-256: {package['packageSha256']}")

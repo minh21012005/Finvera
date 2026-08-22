@@ -9,14 +9,17 @@ posture) rather than duplicating their logic. Sector reference is intentionally
 NOT looped here -- export_sector_reference.py already fetches the whole
 universe's classification in one call.
 
-Usage:
-    uv run --project ../provider-poc python export_all_symbols.py --start 2024-01-01 --end 2026-08-20
+Usage (no --end needed -- defaults to today, so re-running later to pick up new
+trading days just works, it does not silently stay stuck at the first run's date):
+    uv run --project ../provider-poc python export_all_symbols.py --start 2024-01-01
 
-Resume an interrupted run (same command -- the checkpoint file does the rest):
-    uv run --project ../provider-poc python export_all_symbols.py --start 2024-01-01 --end 2026-08-20
+Resume an interrupted run, or refresh with newer trading days (same command --
+the checkpoint file does the rest; an entry fetched through an earlier date is
+re-fetched automatically, not skipped):
+    uv run --project ../provider-poc python export_all_symbols.py --start 2024-01-01
 
 Bounded test run first (recommended before letting it run unattended for hours):
-    uv run --project ../provider-poc python export_all_symbols.py --start 2024-01-01 --end 2026-08-20 --max-symbols 5
+    uv run --project ../provider-poc python export_all_symbols.py --start 2024-01-01 --max-symbols 5
 """
 from __future__ import annotations
 
@@ -62,7 +65,7 @@ def export_daily_bars_for(symbol: str, start: str, end: str, output: Path) -> No
     rows = export_daily_bars.fetch_rows(symbol, start, end)
     records = export_daily_bars.package_records(rows, symbol)
     package = export_daily_bars.build_package(records, symbol, start, end, "0.1.0")
-    path = output / f"daily-bars-{symbol.lower()}-{start}-{end}.json"
+    path = output / export_daily_bars.output_filename(symbol)
     path.write_text(json.dumps(package, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
@@ -70,8 +73,25 @@ def export_fundamentals_for(symbol: str, period: str, unit_scale: int, output: P
     income_statement, ratio, cash_flow = export_fundamentals.fetch_tables(symbol, period)
     records = export_fundamentals.build_metric_records(symbol, income_statement, ratio, cash_flow)
     package = export_fundamentals.build_package(records, symbol, "0.1.0", unit_scale)
-    path = output / f"fundamentals-{symbol.lower()}-{period}.json"
+    path = output / export_fundamentals.output_filename(symbol, period)
     path.write_text(json.dumps(package, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def daily_bars_current(symbol: str, entry: dict[str, Any], args: argparse.Namespace) -> bool:
+    """Done only for THIS run's exact [start, end] range, AND only if the file it should have
+    produced is still actually on disk -- not just trusting the checkpoint blindly, since the
+    output file is the thing StockImportConfiguration's directory scan (and the owner) actually
+    reads. A later --end (e.g. re-running to pick up a new trading day) makes an old entry stale
+    again rather than silently staying short a day forever."""
+    return (entry.get("daily_bars") == DONE
+            and entry.get("daily_bars_range") == [args.start, args.end]
+            and (args.output / export_daily_bars.output_filename(symbol)).exists())
+
+
+def fundamentals_current(symbol: str, entry: dict[str, Any], args: argparse.Namespace) -> bool:
+    return (entry.get("fundamentals") == DONE
+            and entry.get("fundamentals_period") == args.period
+            and (args.output / export_fundamentals.output_filename(symbol, args.period)).exists())
 
 
 def process_symbol(
@@ -79,33 +99,41 @@ def process_symbol(
 ) -> None:
     entry = checkpoint["symbols"].setdefault(symbol, {})
 
-    if entry.get("daily_bars") != DONE:
+    if not daily_bars_current(symbol, entry, args):
         try:
             export_daily_bars_for(symbol, args.start, args.end, args.output)
             entry["daily_bars"] = DONE
+            entry["daily_bars_range"] = [args.start, args.end]
             print(f"  daily_bars: OK")
         except Exception as exc:  # noqa: BLE001 -- one bad symbol must not stop the batch
             entry["daily_bars"] = f"failed:{type(exc).__name__}"
+            entry.pop("daily_bars_range", None)
             print(f"  daily_bars: FAILED ({type(exc).__name__})")
         save_checkpoint(checkpoint_path, checkpoint)
 
-    if entry.get("fundamentals") != DONE:
+    if not fundamentals_current(symbol, entry, args):
         try:
             export_fundamentals_for(symbol, args.period, args.unit_scale, args.output)
             entry["fundamentals"] = DONE
+            entry["fundamentals_period"] = args.period
             print(f"  fundamentals: OK")
         except Exception as exc:  # noqa: BLE001
             entry["fundamentals"] = f"failed:{type(exc).__name__}"
+            entry.pop("fundamentals_period", None)
             print(f"  fundamentals: FAILED ({type(exc).__name__})")
         save_checkpoint(checkpoint_path, checkpoint)
 
 
-def is_finished(entry: dict[str, Any]) -> bool:
-    """A symbol counts as finished once each dataset is done OR has failed --
-    failures are recorded, not silently retried forever, so the run still
-    terminates on symbols Vnstock genuinely cannot serve (e.g. some banks'
-    fundamentals shape differs, per research.md G-01)."""
-    return entry.get("daily_bars") is not None and entry.get("fundamentals") is not None
+def is_finished(symbol: str, entry: dict[str, Any], args: argparse.Namespace) -> bool:
+    """A symbol counts as finished once each dataset is current for this run's parameters, or has
+    failed -- failures are recorded, not silently retried forever (without --retry-failed), so the
+    run still terminates on symbols Vnstock genuinely cannot serve (e.g. some banks' fundamentals
+    shape differs, per research.md G-01), rather than retrying them every single run."""
+    daily_bars_settled = (daily_bars_current(symbol, entry, args)
+                           or str(entry.get("daily_bars", "")).startswith("failed"))
+    fundamentals_settled = (fundamentals_current(symbol, entry, args)
+                             or str(entry.get("fundamentals", "")).startswith("failed"))
+    return daily_bars_settled and fundamentals_settled
 
 
 def main() -> int:
@@ -118,7 +146,11 @@ def main() -> int:
 
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--start", required=True, help="Daily-bar range start, e.g. 2024-01-01")
-    parser.add_argument("--end", required=True, help="Daily-bar range end, e.g. 2026-08-20")
+    parser.add_argument("--end", default=None,
+                         help="Daily-bar range end, e.g. 2026-08-20. Defaults to today (recommended: "
+                              "omit it and just re-run this same command later to pick up new trading "
+                              "days -- a symbol already fetched through an earlier --end is "
+                              "automatically re-fetched, not skipped as already done).")
     parser.add_argument("--period", choices=("year", "quarter"), default="quarter")
     parser.add_argument("--unit-scale", type=int, default=1)
     parser.add_argument("--requests-per-minute", type=float, default=30.0,
@@ -134,6 +166,8 @@ def main() -> int:
                               "that fails for a structural reason, e.g. an unsupported fundamentals "
                               "shape, will just fail again).")
     args = parser.parse_args()
+    if args.end is None:
+        args.end = datetime.now().date().isoformat()
 
     args.output.mkdir(parents=True, exist_ok=True)
     checkpoint_path = args.output / CHECKPOINT_FILE
@@ -147,7 +181,7 @@ def main() -> int:
                     del entry[key]
 
     universe = fetch_symbol_universe()
-    remaining = [s for s in universe if not is_finished(checkpoint["symbols"].get(s, {}))]
+    remaining = [s for s in universe if not is_finished(s, checkpoint["symbols"].get(s, {}), args)]
     print(f"Universe: {len(universe)} symbols. Already finished: {len(universe) - len(remaining)}. "
           f"Remaining: {len(remaining)}.")
 
@@ -166,7 +200,7 @@ def main() -> int:
         if index < len(remaining):
             time.sleep(interval_seconds)
 
-    done_count = sum(1 for e in checkpoint["symbols"].values() if is_finished(e))
+    done_count = sum(1 for s, e in checkpoint["symbols"].items() if is_finished(s, e, args))
     failed_count = sum(
         1 for e in checkpoint["symbols"].values()
         if str(e.get("daily_bars", "")).startswith("failed") or str(e.get("fundamentals", "")).startswith("failed")

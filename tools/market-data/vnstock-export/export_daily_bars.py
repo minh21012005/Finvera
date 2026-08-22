@@ -83,6 +83,14 @@ def fetch_rows(symbol: str, start: str, end: str) -> list[dict[str, Any]]:
     return frame.loc[:, columns].to_dict("records")
 
 
+def output_filename(symbol: str) -> str:
+    """Stable per symbol -- deliberately does NOT include the date range. Re-running this exporter
+    (e.g. daily, to pick up new trading sessions) must overwrite the same file with the latest full
+    range rather than accumulating one dated file per run forever with no way to tell which one a
+    consumer should import."""
+    return f"daily-bars-{symbol.lower()}.json"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Create a local-only canonical Vnstock daily-bar package")
     parser.add_argument("--symbol", required=True)
@@ -93,7 +101,7 @@ def main() -> None:
     records = package_records(fetch_rows(args.symbol, args.start, args.end), args.symbol)
     package = build_package(records, args.symbol, args.start, args.end, "0.1.0")
     args.output.mkdir(parents=True, exist_ok=True)
-    path = args.output / f"daily-bars-{args.symbol.lower()}-{args.start}-{args.end}.json"
+    path = args.output / output_filename(args.symbol)
     path.write_text(json.dumps(package, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"Wrote canonical package: {path}")
     print(f"Package SHA-256: {package['packageSha256']}")

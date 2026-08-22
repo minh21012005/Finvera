@@ -255,11 +255,16 @@ trong `output/full-universe-checkpoint.json`):
 cd tools/market-data/vnstock-export
 
 # Chạy thử với vài mã trước khi để chạy hàng giờ không giám sát:
-uv run --project ../provider-poc python export_all_symbols.py --start 2024-01-01 --end 2026-08-20 --max-symbols 5
+uv run --project ../provider-poc python export_all_symbols.py --start 2024-01-01 --max-symbols 5
 
 # Chạy toàn bộ ~697 mã (mất vài giờ tùy tốc độ mạng — chạy nền được):
-uv run --project ../provider-poc python export_all_symbols.py --start 2024-01-01 --end 2026-08-20
+uv run --project ../provider-poc python export_all_symbols.py --start 2024-01-01
 ```
+
+Không cần truyền `--end` — mặc định lấy đến **hôm nay**. Muốn cập nhật thêm
+phiên giao dịch mới sau này, chạy lại **đúng lệnh cũ** (không đổi gì) —
+script tự nhận ra ngày cuối đã đổi và fetch lại phần dữ liệu giá bị thiếu,
+không bị kẹt mãi ở lần chạy đầu tiên.
 
 Kết quả: nhiều file `daily-bars-<mã>-*.json` và `fundamentals-<mã>-*.json`
 trong `output/`. Sau đó chỉ cần **trỏ `*_PACKAGE_PATH` vào cả thư mục

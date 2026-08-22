@@ -9,6 +9,13 @@ type State =
 
 export function OwnerAccessGate({ children }: { children: ReactNode }) {
   const [state, setState] = useState<State>({ kind: "loading" });
+  const [pathname, setPathname] = useState(() => window.location.pathname);
+
+  useEffect(() => {
+    const onNavigate = () => setPathname(window.location.pathname);
+    window.addEventListener("popstate", onNavigate);
+    return () => window.removeEventListener("popstate", onNavigate);
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -24,14 +31,19 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
   if (state.kind === "loading") {
     return (
       <main className="app-shell" aria-busy="true">
-        <p>Đang kiểm tra phiên riêng tư…</p>
+        <div className="loading-state">
+          <div className="loading-spinner"></div>
+          <p>Đang kiểm tra phiên riêng tư…</p>
+        </div>
       </main>
     );
   }
   if (state.kind === "error") {
     return (
       <main className="app-shell">
-        <p role="alert">Không thể kiểm tra phiên đăng nhập. Hãy thử tải lại trang.</p>
+        <div className="error-card">
+          <p role="alert">Không thể kiểm tra phiên đăng nhập. Hãy thử tải lại trang.</p>
+        </div>
       </main>
     );
   }
@@ -39,13 +51,120 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
     return <LoginForm onAuthenticated={(session) => setState({ kind: "authenticated", session })} />;
   }
 
+  const isHome = pathname === "/";
+  const isScreener = pathname.startsWith("/screener");
+  const isStrategies = pathname.startsWith("/strategies");
+  const isPortfolios = pathname.startsWith("/portfolios");
+  const isWatchlists = pathname.startsWith("/watchlists");
+  const isResearch = pathname.startsWith("/research");
+  const isAnalyst = pathname.startsWith("/analyst");
+
   return (
     <>
       <nav className="top-nav">
-        <div className="brand-section">
-          <span className="brand-logo">FINVERA</span>
-          <span className="brand-tag">RESEARCH PLATFORM</span>
+        <div className="nav-brand-group">
+          <a
+            href="/"
+            className="brand-section"
+            onClick={(e) => {
+              e.preventDefault();
+              window.history.pushState({}, "", "/");
+              window.dispatchEvent(new PopStateEvent("popstate"));
+            }}
+          >
+            <div className="brand-icon">F</div>
+            <span className="brand-logo">FINVERA</span>
+            <span className="brand-tag">TERMINAL</span>
+          </a>
+
+          <div className="nav-links">
+            <a
+              href="/"
+              className={`nav-link ${isHome ? "active" : ""}`}
+              onClick={(e) => {
+                e.preventDefault();
+                window.history.pushState({}, "", "/");
+                window.dispatchEvent(new PopStateEvent("popstate"));
+              }}
+            >
+              <span className="nav-icon">📊</span>
+              <span>Thị trường</span>
+            </a>
+            <a
+              href="/screener"
+              className={`nav-link ${isScreener ? "active" : ""}`}
+              onClick={(e) => {
+                e.preventDefault();
+                window.history.pushState({}, "", "/screener");
+                window.dispatchEvent(new PopStateEvent("popstate"));
+              }}
+            >
+              <span className="nav-icon">🔍</span>
+              <span>Bộ lọc CP</span>
+            </a>
+            <a
+              href="/strategies"
+              className={`nav-link ${isStrategies ? "active" : ""}`}
+              onClick={(e) => {
+                e.preventDefault();
+                window.history.pushState({}, "", "/strategies");
+                window.dispatchEvent(new PopStateEvent("popstate"));
+              }}
+            >
+              <span className="nav-icon">⚡</span>
+              <span>Chiến lược</span>
+            </a>
+            <a
+              href="/portfolios"
+              className={`nav-link ${isPortfolios ? "active" : ""}`}
+              onClick={(e) => {
+                e.preventDefault();
+                window.history.pushState({}, "", "/portfolios");
+                window.dispatchEvent(new PopStateEvent("popstate"));
+              }}
+            >
+              <span className="nav-icon">💼</span>
+              <span>Danh mục</span>
+            </a>
+            <a
+              href="/watchlists"
+              className={`nav-link ${isWatchlists ? "active" : ""}`}
+              onClick={(e) => {
+                e.preventDefault();
+                window.history.pushState({}, "", "/watchlists");
+                window.dispatchEvent(new PopStateEvent("popstate"));
+              }}
+            >
+              <span className="nav-icon">⭐</span>
+              <span>Watchlist</span>
+            </a>
+            <a
+              href="/research"
+              className={`nav-link ${isResearch ? "active" : ""}`}
+              onClick={(e) => {
+                e.preventDefault();
+                window.history.pushState({}, "", "/research");
+                window.dispatchEvent(new PopStateEvent("popstate"));
+              }}
+            >
+              <span className="nav-icon">📚</span>
+              <span>Nghiên cứu & RAG</span>
+            </a>
+            <a
+              href="/analyst"
+              className={`nav-link ai-nav-link ${isAnalyst ? "active" : ""}`}
+              onClick={(e) => {
+                e.preventDefault();
+                window.history.pushState({}, "", "/analyst");
+                window.dispatchEvent(new PopStateEvent("popstate"));
+              }}
+            >
+              <span className="nav-icon">🤖</span>
+              <span>AI Analyst</span>
+            </a>
+          </div>
         </div>
+
         <header className="session-bar">
           <span className="user-badge">Phiên riêng tư: {state.session.username}</span>
           <button
