@@ -18,10 +18,7 @@ finvera:
       live-enabled: false
   stock:
     provider:
-      mode: fixture
       quote-live-enabled: false
-      fundamentals-enabled: false
-      corporate-actions-enabled: false
       sector-basis-enabled: false
     freshness:
       quote-contracted-delay: PT0S

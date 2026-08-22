@@ -26,13 +26,19 @@ off, matching the Feature 001 convention that a live provider is opt-in.
 
 | Key | Default | Meaning |
 |---|---|---|
-| `FINVERA_STOCK_PROVIDER_MODE` | `fixture` | `fixture` or `live`. `live` requires the relevant gate to be closed. |
-| `FINVERA_STOCK_QUOTE_LIVE_ENABLED` | `false` | Gate G-03. |
-| `FINVERA_STOCK_FUNDAMENTALS_ENABLED` | `false` | Gate G-01. |
-| `FINVERA_STOCK_CORPORATE_ACTIONS_ENABLED` | `false` | Gate G-02. |
+| `FINVERA_STOCK_QUOTE_LIVE_ENABLED` | `false` | Gate G-03. Also requires `FINVERA_MARKET_PROVIDER_MODE=live` (Feature 001) — reuses that TCBS session. |
 | `FINVERA_STOCK_SECTOR_BASIS_ENABLED` | `false` | Gate G-04. |
 | `FINVERA_STOCK_QUOTE_CONTRACTED_DELAY` | none | Required when quotes are live; no hard-coded fallback. |
 | `FINVERA_STOCK_CHART_MAX_WINDOW` | `2Y` | Upper bound on the chart lookback. |
+
+Fundamentals (G-01) and corporate actions (G-02) have no equivalent flag:
+fundamentals go live purely by importing data (`FINVERA_STOCK_IMPORT_
+FUNDAMENTALS_*`, see `research.md` T058), and corporate actions has no live
+adapter at all — the owner declined to build one (gate G-02, closed
+RAW-only-permanently) — so there is nothing for a flag to gate. An earlier
+`FINVERA_STOCK_PROVIDER_MODE`/`FINVERA_STOCK_FUNDAMENTALS_ENABLED`/
+`FINVERA_STOCK_CORPORATE_ACTIONS_ENABLED` were removed as dead configuration
+once this became clear (2026-08-22) — nothing in code ever read them.
 
 No secret is added by this feature. It reuses the Feature 001 provider
 credentials and introduces no new external host.

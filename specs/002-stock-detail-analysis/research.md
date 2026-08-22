@@ -492,13 +492,15 @@ for `VNM`, `HPG`, `SSI`:
 **Gate status: CLOSED (owner decision, 2026-08-22) — RAW-only, permanently.**
 The owner declined both remaining options (further `events()` probing, and
 deriving actions from `capital_history` deltas as an approximation Finvera
-would own). No live `CorporateActionProvider` is built. `finvera.stock.
-provider.corporate-actions-enabled` stays `false` indefinitely, and the chart
-and every technical indicator continue serving the `RAW` series with the
-`ADJUSTMENT_BASIS_UNAVAILABLE` reason code — exactly R-004's already-designed
-fallback for "the adjustment basis is unavailable," now treated as the
-permanent state for this dataset rather than a transitional one. T060 is
-closed as documentation-only: there is no new adapter to implement, since
+would own). No live `CorporateActionProvider` is built, so there is nothing
+for a `finvera.stock.provider.corporate-actions-enabled` flag to gate — it
+was removed as dead configuration (2026-08-22) rather than kept as an
+always-`false` no-op. The chart and every technical indicator continue
+serving the `RAW` series with the `ADJUSTMENT_BASIS_UNAVAILABLE` reason code
+unconditionally — exactly R-004's already-designed fallback for "the
+adjustment basis is unavailable," now the permanent state for this dataset
+rather than a transitional one. T060 is closed as documentation-only: there
+is no new adapter to implement, since
 implementing one was the option declined.
 
 ### G-03 — Per-stock quote coverage (blocking for the US1 live path)

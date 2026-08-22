@@ -51,10 +51,7 @@ finvera:
       package-path: ${FINVERA_MARKET_IMPORT_PACKAGE_PATH:}
   stock:
     provider:
-      mode: ${FINVERA_STOCK_PROVIDER_MODE:fixture}
       quote-live-enabled: ${FINVERA_STOCK_QUOTE_LIVE_ENABLED:false}
-      fundamentals-enabled: ${FINVERA_STOCK_FUNDAMENTALS_ENABLED:false}
-      corporate-actions-enabled: ${FINVERA_STOCK_CORPORATE_ACTIONS_ENABLED:false}
       sector-basis-enabled: ${FINVERA_STOCK_SECTOR_BASIS_ENABLED:false}
     freshness:
       quote-contracted-delay: ${FINVERA_STOCK_QUOTE_CONTRACTED_DELAY:}
