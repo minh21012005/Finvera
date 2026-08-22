@@ -34,7 +34,7 @@ public final class StockTypes {
     }
 
     public enum ReportKind {
-        CONSOLIDATED, SEPARATE
+        CONSOLIDATED, SEPARATE, UNKNOWN
     }
 
     public enum AuditStatus {

@@ -148,16 +148,26 @@ tác dụng gì đó.
 
 ### 3.7 Feature 002 — nạp dữ liệu Vnstock (bootstrap một lần mỗi loại)
 
-Ba cặp biến này dùng lần lượt, **mỗi lần chỉ bật một cặp**, chạy app một lần để
-nạp rồi tắt lại — không phải cấu hình chạy thường trực. `_PACKAGE_PATH` nhận
-**một file JSON, hoặc một thư mục** (tự quét toàn bộ file đúng loại trong đó —
-dùng khi nạp nhiều mã cùng lúc từ `export_all_symbols.py`, mục 6.3):
+**Bắt buộc chạy bước 0 dưới đây trước tiên**, một lần, trước bất kỳ import
+giá/tài chính nào — `StockIngestionService` chỉ nhận dữ liệu cho mã đã tồn tại
+trong `market_instrument` (bảng danh mục của Feature 001); mã chưa đăng ký sẽ
+bị từ chối thẳng với `UNKNOWN_INSTRUMENT`, không phải lỗi tạm thời.
 
 | Biến | Mục đích |
 |---|---|
+| `FINVERA_MARKET_IMPORT_INSTRUMENT_REFERENCE_ENABLED` / `_PACKAGE_PATH` (**0 — chạy trước**) | đăng ký toàn bộ mã (symbol + sàn) vào `market_instrument`; `_PACKAGE_PATH` trỏ vào **file** `instrument-reference.json` (không phải thư mục — script này chỉ xuất một file duy nhất) |
 | `FINVERA_STOCK_IMPORT_DAILY_BAR_ENABLED` / `_PACKAGE_PATH` | nạp lịch sử giá đầy đủ OHLCV (file `daily-bars-*.json`) |
 | `FINVERA_STOCK_IMPORT_FUNDAMENTALS_ENABLED` / `_PACKAGE_PATH` | nạp báo cáo tài chính (file `fundamentals-*.json`) |
 | `FINVERA_STOCK_IMPORT_SECTOR_REFERENCE_ENABLED` / `_PACKAGE_PATH` | nạp phân loại ngành (file `sector-reference-*.json`) |
+
+Bước 0 chỉ tạo những mã **chưa có sẵn** trong `market_instrument` (mã đã có bị
+bỏ qua, không sửa/không tạo trùng) nên chạy lại bao nhiêu lần cũng an toàn —
+không bắt buộc phải tắt lại `_ENABLED` sau đó, nhưng tắt đi cho log lần chạy
+sau gọn hơn. Ba cặp biến còn lại dùng lần lượt, **mỗi lần chỉ bật một cặp**,
+chạy app một lần để nạp rồi tắt lại — không phải cấu hình chạy thường trực.
+`_PACKAGE_PATH` của ba mục này nhận **một file JSON, hoặc một thư mục** (tự
+quét toàn bộ file đúng loại trong đó — dùng khi nạp nhiều mã cùng lúc từ
+`export_all_symbols.py`, mục 6.3).
 
 Nạp cả thư mục vẫn an toàn nếu một vài mã lỗi — importer bỏ qua file lỗi, ghi
 log, và tiếp tục các file còn lại thay vì dừng cả batch. Xem lệnh export chi
@@ -247,7 +257,21 @@ Thư mục `tools/market-data/vnstock-export/` dùng chung môi trường Python
 `provider-poc` (không có `pyproject.toml`/venv riêng) — luôn chạy với
 `--project ../provider-poc`.
 
-**Cách nhanh nhất — lấy toàn bộ thị trường bằng một lệnh**, tự dừng khi xong,
+**Bước 0 — đăng ký danh mục mã (chạy một lần, trước mọi thứ khác):**
+
+```powershell
+cd tools/market-data/vnstock-export
+uv run --project ../provider-poc python export_instrument_reference.py
+```
+
+Ra file `output/instrument-reference.json` (toàn bộ ~1525 mã HOSE+HNX+UPCOM).
+Trỏ `FINVERA_MARKET_IMPORT_INSTRUMENT_REFERENCE_PACKAGE_PATH` vào đúng file
+này (xem mục 3.7), bật `_ENABLED=true`, khởi động lại backend một lần. Kiểm
+tra thành công bằng cách xem số dòng bảng `market_instrument` tăng lên (từ vài
+mã demo lên gần 1525). **Chỉ sau bước này** các lệnh nạp giá/tài chính bên
+dưới mới không bị từ chối `UNKNOWN_INSTRUMENT`.
+
+**Sau đó — lấy toàn bộ thị trường bằng một lệnh**, tự dừng khi xong,
 tự tiếp tục nếu bạn Ctrl+C giữa chừng rồi chạy lại đúng lệnh đó (checkpoint
 trong `output/full-universe-checkpoint.json`):
 

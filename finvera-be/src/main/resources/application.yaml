@@ -49,6 +49,9 @@ finvera:
     import:
       enabled: ${FINVERA_MARKET_IMPORT_ENABLED:false}
       package-path: ${FINVERA_MARKET_IMPORT_PACKAGE_PATH:}
+      instrument-reference:
+        enabled: ${FINVERA_MARKET_IMPORT_INSTRUMENT_REFERENCE_ENABLED:false}
+        package-path: ${FINVERA_MARKET_IMPORT_INSTRUMENT_REFERENCE_PACKAGE_PATH:}
   stock:
     provider:
       quote-live-enabled: ${FINVERA_STOCK_QUOTE_LIVE_ENABLED:false}

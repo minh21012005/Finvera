@@ -7,6 +7,8 @@ import com.minhnb.finvera_be.market.provider.tcbs.TcbsMarketDataProvider;
 import com.minhnb.finvera_be.market.service.FixtureRuntimeBootstrapService;
 import com.minhnb.finvera_be.market.service.MarketImportPackageParser;
 import com.minhnb.finvera_be.market.service.MarketImportService;
+import com.minhnb.finvera_be.market.service.MarketInstrumentReferenceImportPackageParser;
+import com.minhnb.finvera_be.market.service.MarketInstrumentReferenceImportService;
 import java.nio.file.Path;
 import java.time.Clock;
 import org.springframework.boot.ApplicationRunner;
@@ -53,6 +55,20 @@ public class MarketConfiguration {
     @ConditionalOnProperty(name = "finvera.market.import.package-path")
     ApplicationRunner localHistoricalImport(@Value("${finvera.market.import.package-path}") String packagePath,
             MarketImportPackageParser parser, MarketImportService importer) {
+        return arguments -> {
+            if (!packagePath.isBlank()) importer.importPackage(parser.parse(Path.of(packagePath)));
+        };
+    }
+
+    // Must run before any daily-bar/fundamentals bulk import: those reject a symbol with
+    // UNKNOWN_INSTRUMENT unless it already has an active market_instrument row (see
+    // DefaultMarketReferenceDataService.findActiveInstrumentBySymbol).
+    @Bean
+    @ConditionalOnProperty(name = "finvera.market.import.instrument-reference.enabled", havingValue = "true")
+    @ConditionalOnProperty(name = "finvera.market.import.instrument-reference.package-path")
+    ApplicationRunner localInstrumentReferenceImport(
+            @Value("${finvera.market.import.instrument-reference.package-path}") String packagePath,
+            MarketInstrumentReferenceImportPackageParser parser, MarketInstrumentReferenceImportService importer) {
         return arguments -> {
             if (!packagePath.isBlank()) importer.importPackage(parser.parse(Path.of(packagePath)));
         };
