@@ -61,6 +61,9 @@ finvera:
     chart:
       max-window: ${FINVERA_STOCK_CHART_MAX_WINDOW:2Y}
     import:
+      equity-profile:
+        enabled: ${FINVERA_STOCK_IMPORT_EQUITY_PROFILE_ENABLED:false}
+        package-path: ${FINVERA_STOCK_IMPORT_EQUITY_PROFILE_PACKAGE_PATH:}
       daily-bar:
         enabled: ${FINVERA_STOCK_IMPORT_DAILY_BAR_ENABLED:false}
         package-path: ${FINVERA_STOCK_IMPORT_DAILY_BAR_PACKAGE_PATH:}

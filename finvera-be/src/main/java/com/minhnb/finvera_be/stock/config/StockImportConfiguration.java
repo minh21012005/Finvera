@@ -1,5 +1,7 @@
 package com.minhnb.finvera_be.stock.config;
 
+import com.minhnb.finvera_be.stock.service.EquityProfileImportPackageParser;
+import com.minhnb.finvera_be.stock.service.EquityProfileImportService;
 import com.minhnb.finvera_be.stock.service.FundamentalReportImportPackageParser;
 import com.minhnb.finvera_be.stock.service.FundamentalReportImportService;
 import com.minhnb.finvera_be.stock.service.SectorReferenceImportPackageParser;
@@ -35,6 +37,19 @@ import org.springframework.context.annotation.Configuration;
 public class StockImportConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(StockImportConfiguration.class);
+
+    // Must run before sector-reference below: SectorReferenceImportService can only link a
+    // symbol's sector onto an equity_profile row that already exists (see its own NO_EQUITY_PROFILE
+    // status) -- it deliberately never creates one itself.
+    @Bean
+    @ConditionalOnProperty(name = "finvera.stock.import.equity-profile.enabled", havingValue = "true")
+    @ConditionalOnProperty(name = "finvera.stock.import.equity-profile.package-path")
+    ApplicationRunner stockEquityProfileImport(
+            @Value("${finvera.stock.import.equity-profile.package-path}") String packagePath,
+            EquityProfileImportPackageParser parser, EquityProfileImportService importer) {
+        return arguments -> importAll("equity-profile", packagePath, "equity-profile*.json",
+                path -> importer.importPackage(parser.parse(path)));
+    }
 
     @Bean
     @ConditionalOnProperty(name = "finvera.stock.import.daily-bar.enabled", havingValue = "true")

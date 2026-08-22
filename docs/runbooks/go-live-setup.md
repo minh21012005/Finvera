@@ -156,16 +156,17 @@ bị từ chối thẳng với `UNKNOWN_INSTRUMENT`, không phải lỗi tạm t
 | Biến | Mục đích |
 |---|---|
 | `FINVERA_MARKET_IMPORT_INSTRUMENT_REFERENCE_ENABLED` / `_PACKAGE_PATH` (**0 — chạy trước**) | đăng ký toàn bộ mã (symbol + sàn) vào `market_instrument`; `_PACKAGE_PATH` trỏ vào **file** `instrument-reference.json` (không phải thư mục — script này chỉ xuất một file duy nhất) |
+| `FINVERA_STOCK_IMPORT_EQUITY_PROFILE_ENABLED` / `_PACKAGE_PATH` (**0.5 — chạy sau bước 0, trước sector-reference**) | tạo hồ sơ công ty (`equity_profile`: tên VI/EN) cho mỗi mã; `_PACKAGE_PATH` trỏ vào **file** `equity-profile.json`. Bắt buộc chạy trước sector-reference — sector-reference chỉ *gắn* ngành vào một hồ sơ đã tồn tại, không tự tạo hồ sơ |
 | `FINVERA_STOCK_IMPORT_DAILY_BAR_ENABLED` / `_PACKAGE_PATH` | nạp lịch sử giá đầy đủ OHLCV (file `daily-bars-*.json`) |
 | `FINVERA_STOCK_IMPORT_FUNDAMENTALS_ENABLED` / `_PACKAGE_PATH` | nạp báo cáo tài chính (file `fundamentals-*.json`) |
-| `FINVERA_STOCK_IMPORT_SECTOR_REFERENCE_ENABLED` / `_PACKAGE_PATH` | nạp phân loại ngành (file `sector-reference-*.json`) |
+| `FINVERA_STOCK_IMPORT_SECTOR_REFERENCE_ENABLED` / `_PACKAGE_PATH` | nạp phân loại ngành, gắn vào `equity_profile.sector_reference_id` (file `sector-reference-*.json`) — mã nào chưa có `equity_profile` (bước 0.5) sẽ bị bỏ qua, đếm là `NO_EQUITY_PROFILE`, không lỗi |
 
-Bước 0 chỉ tạo những mã **chưa có sẵn** trong `market_instrument` (mã đã có bị
-bỏ qua, không sửa/không tạo trùng) nên chạy lại bao nhiêu lần cũng an toàn —
-không bắt buộc phải tắt lại `_ENABLED` sau đó, nhưng tắt đi cho log lần chạy
-sau gọn hơn. Ba cặp biến còn lại dùng lần lượt, **mỗi lần chỉ bật một cặp**,
-chạy app một lần để nạp rồi tắt lại — không phải cấu hình chạy thường trực.
-`_PACKAGE_PATH` của ba mục này nhận **một file JSON, hoặc một thư mục** (tự
+Bước 0 và 0.5 chỉ tạo những dòng **chưa có sẵn** (mã/hồ sơ đã có bị bỏ qua,
+không sửa/không tạo trùng) nên chạy lại bao nhiêu lần cũng an toàn — không bắt
+buộc phải tắt lại `_ENABLED` sau đó, nhưng tắt đi cho log lần chạy sau gọn
+hơn. Ba cặp biến còn lại dùng lần lượt, **mỗi lần chỉ bật một cặp**, chạy app
+một lần để nạp rồi tắt lại — không phải cấu hình chạy thường trực.
+`_PACKAGE_PATH` của ba mục cuối nhận **một file JSON, hoặc một thư mục** (tự
 quét toàn bộ file đúng loại trong đó — dùng khi nạp nhiều mã cùng lúc từ
 `export_all_symbols.py`, mục 6.3).
 
@@ -270,6 +271,19 @@ này (xem mục 3.7), bật `_ENABLED=true`, khởi động lại backend một 
 tra thành công bằng cách xem số dòng bảng `market_instrument` tăng lên (từ vài
 mã demo lên gần 1525). **Chỉ sau bước này** các lệnh nạp giá/tài chính bên
 dưới mới không bị từ chối `UNKNOWN_INSTRUMENT`.
+
+**Bước 0.5 — tạo hồ sơ công ty (chạy sau bước 0, trước sector-reference):**
+
+```powershell
+uv run --project ../provider-poc python export_equity_profile.py
+```
+
+Ra file `output/equity-profile.json` (tên công ty VI/EN cho toàn bộ mã, lấy từ
+cùng nguồn niêm yết đã dùng ở bước 0). Trỏ
+`FINVERA_STOCK_IMPORT_EQUITY_PROFILE_PACKAGE_PATH` vào file này, bật
+`_ENABLED=true`, khởi động lại backend một lần. **Bắt buộc chạy trước** khi
+nạp phân loại ngành ở mục 3.7 — nếu chưa có bước này, việc gắn ngành sẽ báo
+`NO_EQUITY_PROFILE` cho mọi mã (không lỗi, chỉ là không gắn được gì).
 
 **Sau đó — lấy toàn bộ thị trường bằng một lệnh**, tự dừng khi xong,
 tự tiếp tục nếu bạn Ctrl+C giữa chừng rồi chạy lại đúng lệnh đó (checkpoint
