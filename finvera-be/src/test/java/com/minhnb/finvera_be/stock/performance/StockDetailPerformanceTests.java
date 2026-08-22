@@ -29,6 +29,7 @@ import com.minhnb.finvera_be.stock.repository.ValuationMetricRepository;
 import com.minhnb.finvera_be.stock.service.FundamentalReportService;
 import com.minhnb.finvera_be.stock.service.StockChartService;
 import com.minhnb.finvera_be.stock.service.StockIngestionService;
+import com.minhnb.finvera_be.stock.service.StockObservabilityService;
 import com.minhnb.finvera_be.stock.service.StockOverviewService;
 import com.minhnb.finvera_be.stock.service.TechnicalIndicatorService;
 import com.minhnb.finvera_be.stock.service.ValuationService;
@@ -72,6 +73,7 @@ class StockDetailPerformanceTests {
     @Mock private TechnicalIndicatorResultRepository technicalResults;
     @Mock private TechnicalIndicatorValueRepository technicalValues;
     @Mock private StockIngestionService ingestion;
+    @Mock private StockObservabilityService observability;
     @Mock private FundamentalReportRepository reports;
     @Mock private FundamentalReportMetricRepository reportMetrics;
     @Mock private FundamentalSummaryRepository summaries;
@@ -115,7 +117,8 @@ class StockDetailPerformanceTests {
             ));
         }
 
-        overviewService = new StockOverviewService(referenceData, profiles, dailyBars, sectors, FIXED_CLOCK);
+        overviewService = new StockOverviewService(referenceData, profiles, dailyBars, sectors,
+                Optional.empty(), ingestion, observability, FIXED_CLOCK, false);
         chartService = new StockChartService(referenceData, dailyBars, FIXED_CLOCK);
         technicalService = new TechnicalIndicatorService(referenceData, dailyBars, technicalResults, technicalValues, ingestion, FIXED_CLOCK);
         fundamentalService = new FundamentalReportService(referenceData, reports, reportMetrics, summaries, summaryMetrics, summaryInputs, catalog, FIXED_CLOCK);

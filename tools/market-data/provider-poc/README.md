@@ -98,6 +98,9 @@ ordering, or correction field is reported as unavailable; it is never inferred.
 
 ### G-03: per-stock quote coverage (Feature 002)
 
+See [RUN_G03_PROBE.md](RUN_G03_PROBE.md) for a step-by-step owner walkthrough
+(Vietnamese) and `run-g03-probe.ps1` for an automated wrapper with retry.
+
 Confirms the same `tickerCommons` endpoint already approved for index subjects
 also serves an individual equity's current price/reference price/session
 volume via `tickers=` instead of `index=` (per TCBS's official OpenAPI docs —

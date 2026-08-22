@@ -530,9 +530,46 @@ existing `safe_rest_probe` helper) so the owner can close this gate with one
 additional bounded, owner-run probe: confirm `tickers=` returns real
 current-price/reference-price/session-volume data for an arbitrary supported
 equity symbol, and that the per-symbol request cost stays compatible with
-NFR-001. **Gate status: still open — awaiting the owner's probe run and
-sanitized summary.** `TcbsStockQuoteProvider` (T062) MUST NOT start until this
-is recorded.
+NFR-001.
+
+**Gate status: CLOSED (owner-run probe, 2026-08-22).** Sanitized evidence
+(`tools/market-data/provider-poc/poc-output/tcbs-capability-summary.json`,
+`rest.ticker_commons_quote_symbols`) for `tickers=VNM,TCB,HPG`:
+
+1. **`status: "PASS"`, `data_count: 3`** — all three requested symbols
+   returned, `has_trading_date: true`.
+2. **Item schema is a superset of what T045 already proved for indices**:
+   `matchPrice`, `refPrice`, `totalVol`, `totalVal`, `change`,
+   `changePercent`, `open`, `high`, `low`, `avg` all present as `number` —
+   plus per-instrument-only fields indices didn't carry: `ceilPrice`/
+   `floorPrice` (price limits), three levels of `bidPrice`/`bidQtty`/
+   `offerPrice`/`offerQtty` (order book), `room`/`buyForeignQtty`/
+   `sellForeignQtty` (foreign ownership), `matchQtty`, `nextCeilPrice`/
+   `nextFloorPrice`/`nextRefPrice`. Only the five already used by
+   `StockQuoteProvider.QuoteObservation` (`matchPrice`, `refPrice`,
+   `totalVol`, `totalVal`, plus `open`/`high`/`low` for bar ingestion) are
+   consumed; the rest are confirmed present but intentionally unused (no
+   order-book/foreign-ownership feature is in scope).
+3. **`bounded_rate_probe`: 3 requests at 1 s intervals, all HTTP 200** —
+   compatible with NFR-001 at this cadence; matches the Feature 001 index
+   probe's own 5-req/1s finding.
+4. **`gate_passed: false` at the top level is not a G-03 failure** — that
+   field also reflects the unrelated index WebSocket stream, which reported
+   `PARTIAL` (auth/subscribe succeeded, no index ticks observed in the
+   capture window — plausible outside an active matching session). G-03
+   depends only on `rest.ticker_commons_quote_symbols`, which independently
+   passed.
+
+`TcbsStockQuoteProvider` (T062 TCBS half) is implemented:
+`finvera-be/src/main/java/com/minhnb/finvera_be/stock/provider/tcbs/
+TcbsStockQuoteProvider.java`, reusing `TcbsHttpRestClient`/
+`TcbsHttpSessionState` from Feature 001 Phase 9 (no second provider, per
+R-001). Wired into `StockOverviewService` behind
+`finvera.stock.provider.quote-live-enabled` (default `false`): a live quote
+is fetched and ingested as today's `equity_daily_bar` row before every read,
+never served directly from the provider call (PostgreSQL stays the source of
+truth, Constitution Principle II); any failure degrades to the last accepted
+bar (Principle VII).
 
 ### G-04 — Sector reference and constituent coverage (blocking for the sector basis)
 

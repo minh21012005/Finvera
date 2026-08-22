@@ -61,6 +61,24 @@ public final class TcbsHttpRestClient implements TcbsRestClient {
         return parseTickerCommons(rawBody, tradingDate);
     }
 
+    /**
+     * Individual equity subjects on the same {@code tickerCommons} endpoint (per the official TCBS
+     * OpenAPI docs; confirmed live by the owner-run G-03 probe, research.md R-012). Reused by
+     * {@code stock.provider.tcbs.TcbsStockQuoteProvider} — this class stays the single place that
+     * knows how to call and parse this endpoint, whether by {@code index=} or {@code tickers=}.
+     */
+    public TickerCommonsResponse fetchTickerCommonsForSymbols(List<String> symbols) {
+        String joined = String.join(",", symbols);
+        String rawBody = withAuthAndRetry("fetchTickerCommonsForSymbols", () -> restClient.get()
+                .uri(uriBuilder -> uriBuilder.path(TICKER_COMMONS_PATH)
+                        .queryParam("tickers", joined)
+                        .build())
+                .header("Authorization", "Bearer " + sessionState.requireToken())
+                .retrieve()
+                .body(String.class));
+        return parseTickerCommons(rawBody, null);
+    }
+
     @Override
     public List<SecurityRecord> fetchSecurities(LocalDate effectiveDate) {
         String rawBody = withAuthAndRetry("fetchSecurities", () -> restClient.get()
@@ -103,9 +121,10 @@ public final class TcbsHttpRestClient implements TcbsRestClient {
         }
     }
 
-    private TickerCommonsResponse parseTickerCommons(String rawBody, LocalDate tradingDate) {
+    private TickerCommonsResponse parseTickerCommons(String rawBody, LocalDate tradingDateFallback) {
         JsonNode root = jsonMapper.readTree(rawBody);
-        String responseTradingDate = textOrDefault(root, "tradingDate", tradingDate.toString());
+        String responseTradingDate = textOrDefault(root, "tradingDate",
+                tradingDateFallback != null ? tradingDateFallback.toString() : null);
         List<TickerCommonsItem> items = new ArrayList<>();
         for (JsonNode item : root.path("data")) {
             items.add(new TickerCommonsItem(
