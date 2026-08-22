@@ -58,6 +58,7 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
   const isWatchlists = pathname.startsWith("/watchlists");
   const isResearch = pathname.startsWith("/research");
   const isAnalyst = pathname.startsWith("/analyst");
+  const isTcbsRenewal = pathname.startsWith("/tcbs-renewal");
 
   return (
     <>
@@ -161,6 +162,18 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
             >
               <span className="nav-icon">🤖</span>
               <span>AI Analyst</span>
+            </a>
+            <a
+              href="/tcbs-renewal"
+              className={`nav-link ${isTcbsRenewal ? "active" : ""}`}
+              onClick={(e) => {
+                e.preventDefault();
+                window.history.pushState({}, "", "/tcbs-renewal");
+                window.dispatchEvent(new PopStateEvent("popstate"));
+              }}
+            >
+              <span className="nav-icon">🔑</span>
+              <span>TCBS Live</span>
             </a>
           </div>
         </div>

@@ -9,6 +9,7 @@ import { WatchlistList } from "./features/watchlist/components/watchlist-list";
 import { WatchlistDetailPage } from "./features/watchlist/components/watchlist-detail-page";
 import { ResearchPage } from "./features/research/components/research-page";
 import { AnalystPage } from "./features/analyst";
+import { TcbsRenewalPage } from "./features/tcbs-renewal/tcbs-renewal-page";
 import { OwnerAccessGate } from "./features/auth/owner-access-gate";
 import {
   isAnalystPath,
@@ -16,6 +17,7 @@ import {
   isResearchPath,
   isScreenerPath,
   isStrategyScanPath,
+  isTcbsRenewalPath,
   isWatchlistsPath,
   parsePortfolioIdFromPath,
   parseStockSymbolFromPath,
@@ -51,6 +53,8 @@ export function App() {
         <ResearchPage />
       ) : isAnalystPath(pathname) ? (
         <AnalystPage />
+      ) : isTcbsRenewalPath(pathname) ? (
+        <TcbsRenewalPage />
       ) : isScreenerPath(pathname) ? (
         <StockScreenerPage />
       ) : isStrategyScanPath(pathname) ? (
