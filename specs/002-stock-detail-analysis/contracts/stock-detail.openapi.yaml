@@ -102,8 +102,8 @@ paths:
           description: Bounded lookback window.
           schema:
             type: string
-            enum: [ "1M", "3M", "6M", "1Y", "2Y" ]
-            default: "1Y"
+            enum: [ "1M", "3M", "6M", "1Y", "2Y", "ALL" ]
+            default: "ALL"
       responses:
         "200":
           description: Complete or explicitly degraded series.

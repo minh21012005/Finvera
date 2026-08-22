@@ -59,6 +59,40 @@ function formatVolCompact(vol: number): string {
   return vol.toLocaleString("vi-VN");
 }
 
+/** Calculates the exact calendar start date for a given time range based on the latest available trading session */
+function getRangeStartDate(latestDateStr: string, range: TimeRange): string {
+  const parts = latestDateStr.split("-").map(Number);
+  if (parts.length < 3 || parts.some(Number.isNaN)) return "0000-00-00";
+  const [year, month, day] = parts;
+  const d = new Date(Date.UTC(year, month - 1, day));
+
+  switch (range) {
+    case "1W":
+      d.setUTCDate(d.getUTCDate() - 7);
+      break;
+    case "1M":
+      d.setUTCMonth(d.getUTCMonth() - 1);
+      break;
+    case "3M":
+      d.setUTCMonth(d.getUTCMonth() - 3);
+      break;
+    case "6M":
+      d.setUTCMonth(d.getUTCMonth() - 6);
+      break;
+    case "1Y":
+      d.setUTCFullYear(d.getUTCFullYear() - 1);
+      break;
+    case "ALL":
+    default:
+      return "0000-00-00";
+  }
+
+  const yyyy = d.getUTCFullYear();
+  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(d.getUTCDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 /** Calculates standard round "Nice Number" ticks for the Y-Axis (e.g. 19.00, 19.50, 20.00 or 44, 45, 46) */
 function calculateNicePriceTicks(min: number, max: number, targetCount: number = 6): number[] {
   const rawRange = max - min;
@@ -108,9 +142,9 @@ function calculateNicePriceTicks(min: number, max: number, targetCount: number =
 }
 
 export function StockChart({ chart }: { chart: StockChartData }) {
-  const { meta, bars, adjustmentStatus, window: backendWindow } = chart;
+  const { meta, bars, adjustmentStatus } = chart;
 
-  const [timeRange, setTimeRange] = useState<TimeRange>("ALL");
+  const [timeRange, setTimeRange] = useState<TimeRange>("6M");
   const [chartType, setChartType] = useState<ChartType>("CANDLE");
   const [hoverSlot, setHoverSlot] = useState<number | null>(null);
   const [hoverY, setHoverY] = useState<number | null>(null);
@@ -124,24 +158,15 @@ export function StockChart({ chart }: { chart: StockChartData }) {
   const dragStartXRef = useRef<number>(0);
   const dragStartOffsetRef = useRef<number>(0);
 
-  // 1. Filter bars according to selected time range
+  // 1. Filter bars according to selected time range based on exact calendar intervals
   const rangeBars = useMemo(() => {
     if (!bars || bars.length === 0) return [];
-    switch (timeRange) {
-      case "1W":
-        return bars.slice(-7);
-      case "1M":
-        return bars.slice(-22);
-      case "3M":
-        return bars.slice(-66);
-      case "6M":
-        return bars.slice(-130);
-      case "1Y":
-        return bars.slice(-252);
-      case "ALL":
-      default:
-        return bars;
-    }
+    if (timeRange === "ALL") return bars;
+
+    const latestBar = bars[bars.length - 1];
+    const cutoffDate = getRangeStartDate(latestBar.tradingDate, timeRange);
+    const filtered = bars.filter((b) => b.tradingDate >= cutoffDate);
+    return filtered.length > 0 ? filtered : bars.slice(-10);
   }, [bars, timeRange]);
 
   // 2. Viewport capacity with flexible right margin (SSI / TradingView style)
@@ -211,7 +236,7 @@ export function StockChart({ chart }: { chart: StockChartData }) {
   if (!bars || bars.length === 0) {
     return (
       <section aria-labelledby="stock-chart-heading" className="stock-chart-card">
-        <h2 id="stock-chart-heading">Biểu đồ giá ({backendWindow})</h2>
+        <h2 id="stock-chart-heading">Biểu đồ giá</h2>
         <p role="status">
           Không có dữ liệu biểu đồ{meta.reasonCodes.length > 0 ? `: ${meta.reasonCodes.join(", ")}` : ""}
         </p>
@@ -355,7 +380,7 @@ export function StockChart({ chart }: { chart: StockChartData }) {
   function handleReset() {
     setZoomLevel(1);
     setPanOffset(0);
-    setTimeRange("ALL");
+    setTimeRange("6M");
   }
 
   // Generate Area Path for Line Mode
@@ -380,7 +405,7 @@ export function StockChart({ chart }: { chart: StockChartData }) {
       <div className="chart-header-row">
         <div>
           <h2 id="stock-chart-heading" className="chart-title">
-            Biểu đồ giá ({backendWindow})
+            Biểu đồ giá
           </h2>
           <p className="meta-item text-xs text-slate-400">
             Chuỗi giá{" "}

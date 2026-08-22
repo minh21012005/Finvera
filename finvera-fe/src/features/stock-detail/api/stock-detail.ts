@@ -4,7 +4,7 @@ export type SessionState = "PRE_OPEN" | "OPEN" | "BREAK" | "INTERRUPTED" | "CLOS
 export type Applicability = "DEFINED" | "NOT_APPLICABLE" | "MISSING";
 export type AdjustmentStatus = "ADJUSTED" | "RAW" | "NOT_APPLICABLE" | "UNKNOWN";
 export type ListingStatus = "LISTED" | "SUSPENDED" | "HALTED" | "DELISTED" | "UNKNOWN";
-export type ChartWindow = "1M" | "3M" | "6M" | "1Y" | "2Y";
+export type ChartWindow = "1M" | "3M" | "6M" | "1Y" | "2Y" | "ALL";
 
 export interface SectionMeta {
   contractVersion: "1.0";

@@ -123,7 +123,7 @@ class StockChartControllerTests {
 
     @Test
     void unknownSymbolReturns404WithoutFabricatingAChart() throws Exception {
-        given(chartService.findBySymbol("ZZZZZ", "1Y")).willReturn(Optional.empty());
+        given(chartService.findBySymbol("ZZZZZ", "ALL")).willReturn(Optional.empty());
 
         mvc.perform(get("/api/v1/stocks/ZZZZZ/chart").session(ownerSession()))
                 .andExpect(status().isNotFound())

@@ -76,7 +76,7 @@ export function StockDetailPage({ symbol }: { symbol: string }) {
       });
 
     // The five sections fail independently of each other (FR-012)
-    getStockChart(symbol, "1Y", controller.signal)
+    getStockChart(symbol, "ALL", controller.signal)
       .then((chart) => setChartState({ kind: "ready", chart }))
       .catch(() => {
         if (controller.signal.aborted) return;

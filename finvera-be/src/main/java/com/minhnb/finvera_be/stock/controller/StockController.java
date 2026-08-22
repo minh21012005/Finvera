@@ -77,7 +77,7 @@ public class StockController {
     @GetMapping("/{symbol}/chart")
     ResponseEntity<StockChartResponse> chart(
             @PathVariable String symbol,
-            @RequestParam(defaultValue = "1Y") String window,
+            @RequestParam(defaultValue = "ALL") String window,
             @RequestHeader(value = "If-None-Match", required = false) String ifNoneMatch) {
         var chart = chartService.findBySymbol(symbol, window).orElseThrow(() -> notSupported(symbol));
         if (matches(ifNoneMatch, chart.coherenceKey())) {

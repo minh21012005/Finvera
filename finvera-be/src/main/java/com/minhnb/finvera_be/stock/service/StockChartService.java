@@ -24,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class StockChartService {
 
     private static final Map<String, Long> WINDOW_DAYS = Map.of(
-            "1M", 31L, "3M", 93L, "6M", 186L, "1Y", 366L, "2Y", 732L);
+            "1M", 31L, "3M", 93L, "6M", 186L, "1Y", 366L, "2Y", 732L, "ALL", 3650L);
     // Preference order used only to deduplicate a same trading-date conflict
     // between two accepted sources (DATA-010); it does not decide correctness,
     // it just keeps the chart series single-valued per date. Full conflict
@@ -48,7 +48,7 @@ public class StockChartService {
         if (instrument.isEmpty()) {
             return Optional.empty();
         }
-        long lookbackDays = WINDOW_DAYS.getOrDefault(window, WINDOW_DAYS.get("1Y"));
+        long lookbackDays = WINDOW_DAYS.getOrDefault(window, WINDOW_DAYS.get("ALL"));
         Instant asOf = clock.instant();
         LocalDate toDate = asOf.atZone(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).toLocalDate();
         LocalDate fromDate = toDate.minusDays(lookbackDays);
