@@ -149,15 +149,19 @@ tác dụng gì đó.
 ### 3.7 Feature 002 — nạp dữ liệu Vnstock (bootstrap một lần mỗi loại)
 
 Ba cặp biến này dùng lần lượt, **mỗi lần chỉ bật một cặp**, chạy app một lần để
-nạp rồi tắt lại — không phải cấu hình chạy thường trực:
+nạp rồi tắt lại — không phải cấu hình chạy thường trực. `_PACKAGE_PATH` nhận
+**một file JSON, hoặc một thư mục** (tự quét toàn bộ file đúng loại trong đó —
+dùng khi nạp nhiều mã cùng lúc từ `export_all_symbols.py`, mục 6.3):
 
 | Biến | Mục đích |
 |---|---|
-| `FINVERA_STOCK_IMPORT_DAILY_BAR_ENABLED` / `_PACKAGE_PATH` | nạp lịch sử giá đầy đủ OHLCV từ `export_daily_bars.py` |
-| `FINVERA_STOCK_IMPORT_FUNDAMENTALS_ENABLED` / `_PACKAGE_PATH` | nạp báo cáo tài chính từ `export_fundamentals.py` |
-| `FINVERA_STOCK_IMPORT_SECTOR_REFERENCE_ENABLED` / `_PACKAGE_PATH` | nạp phân loại ngành từ `export_sector_reference.py` |
+| `FINVERA_STOCK_IMPORT_DAILY_BAR_ENABLED` / `_PACKAGE_PATH` | nạp lịch sử giá đầy đủ OHLCV (file `daily-bars-*.json`) |
+| `FINVERA_STOCK_IMPORT_FUNDAMENTALS_ENABLED` / `_PACKAGE_PATH` | nạp báo cáo tài chính (file `fundamentals-*.json`) |
+| `FINVERA_STOCK_IMPORT_SECTOR_REFERENCE_ENABLED` / `_PACKAGE_PATH` | nạp phân loại ngành (file `sector-reference-*.json`) |
 
-Xem lệnh export chi tiết ở mục 6.3.
+Nạp cả thư mục vẫn an toàn nếu một vài mã lỗi — importer bỏ qua file lỗi, ghi
+log, và tiếp tục các file còn lại thay vì dừng cả batch. Xem lệnh export chi
+tiết ở mục 6.3.
 
 ### 3.8 Kết nối sang `finvera-ai` (Feature 006/007)
 
@@ -237,25 +241,49 @@ Sau khi backend đã chạy với `FINVERA_MARKET_PROVIDER_MODE=live` và
 TCBS giới hạn token tối đa 8 giờ, nên bạn sẽ cần lặp lại bước này mỗi phiên làm
 việc dài.
 
-### 6.3 Nạp dữ liệu lịch sử Vnstock (Feature 002, chạy một lần mỗi loại)
+### 6.3 Nạp dữ liệu lịch sử Vnstock (Feature 002)
+
+Thư mục `tools/market-data/vnstock-export/` dùng chung môi trường Python với
+`provider-poc` (không có `pyproject.toml`/venv riêng) — luôn chạy với
+`--project ../provider-poc`.
+
+**Cách nhanh nhất — lấy toàn bộ thị trường bằng một lệnh**, tự dừng khi xong,
+tự tiếp tục nếu bạn Ctrl+C giữa chừng rồi chạy lại đúng lệnh đó (checkpoint
+trong `output/full-universe-checkpoint.json`):
 
 ```powershell
 cd tools/market-data/vnstock-export
-uv sync
 
-uv run python export_history.py --symbol VNM --venue HOSE --start 2024-01-01 --end 2026-08-01
-uv run python export_daily_bars.py --symbol VNM --start 2025-01-01 --end 2026-08-01
-uv run python export_fundamentals.py --symbol VNM --period quarter
-uv run python export_sector_reference.py --scheme-version 4.0.6   # xem version thật: uv pip show vnstock
+# Chạy thử với vài mã trước khi để chạy hàng giờ không giám sát:
+uv run --project ../provider-poc python export_all_symbols.py --start 2024-01-01 --end 2026-08-20 --max-symbols 5
+
+# Chạy toàn bộ ~697 mã (mất vài giờ tùy tốc độ mạng — chạy nền được):
+uv run --project ../provider-poc python export_all_symbols.py --start 2024-01-01 --end 2026-08-20
 ```
 
-Mỗi lệnh ghi ra một file JSON trong `output/`. Với từng file: mở `finvera-be/.env`,
-điền `*_PACKAGE_PATH` trỏ tới file đó và bật `*_ENABLED=true` (cặp biến tương
-ứng ở mục 3.5/3.7), khởi động lại backend một lần để nạp, rồi tắt `*_ENABLED`
-về `false` lại (tránh nạp trùng lặp ở lần chạy sau).
+Kết quả: nhiều file `daily-bars-<mã>-*.json` và `fundamentals-<mã>-*.json`
+trong `output/`. Sau đó chỉ cần **trỏ `*_PACKAGE_PATH` vào cả thư mục
+`output/`** (không phải từng file) — xem mục 3.7, importer tự quét đúng loại
+file, bỏ qua mã nào lỗi mà không dừng cả batch.
 
-Lặp lại `export_history.py`/`export_daily_bars.py`/`export_fundamentals.py`
-cho từng mã cổ phiếu bạn muốn có dữ liệu.
+**Nếu chỉ cần vài mã cụ thể** (không cần toàn thị trường), chạy riêng từng
+script:
+
+```powershell
+uv run --project ../provider-poc python export_history.py --symbol VNM --venue HOSE --start 2024-01-01 --end 2026-08-01
+uv run --project ../provider-poc python export_daily_bars.py --symbol VNM --start 2025-01-01 --end 2026-08-01
+uv run --project ../provider-poc python export_fundamentals.py --symbol VNM --period quarter
+```
+
+**Phân loại ngành** (một lần cho toàn thị trường, không lặp theo mã):
+
+```powershell
+uv run --project ../provider-poc python export_sector_reference.py --scheme-version 4.0.6   # xem version thật: uv pip show vnstock
+```
+
+Với mỗi loại dữ liệu: mở `finvera-be/.env`, điền `*_PACKAGE_PATH` (file hoặc
+thư mục), bật `*_ENABLED=true` tương ứng, khởi động lại backend một lần để
+nạp, rồi tắt `*_ENABLED` về `false` lại (tránh nạp trùng lặp ở lần chạy sau).
 
 ---
 
