@@ -513,7 +513,7 @@ own safety design requires a live TCBS API key and an interactive iOTP
 (one-time password) prompt — by design, "iOTP is always prompted and never
 read from an environment variable" (`provider-poc/README.md`), so this probe
 cannot be run by an unattended agent. No `TCBS_API_KEY` is present in
-`finvera-be/.env.local` either. This gate can only be closed by the owner
+`finvera-be/.env` either. This gate can only be closed by the owner
 running `poc_tcbs.py` themselves and recording sanitized results here.
 
 **Update (2026-08-22) — narrower remaining question, via TCBS's official

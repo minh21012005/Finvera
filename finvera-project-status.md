@@ -23,7 +23,7 @@ the unrelated T073 usability trials.
 ### To actually go live (owner-only)
 
 ```bash
-# finvera-be/.env or .env.local
+# finvera-be/.env
 FINVERA_TCBS_API_KEY=<owner's real TCBS iFlash key>   # currently blank
 FINVERA_MARKET_PROVIDER_MODE=live                       # currently fixture
 FINVERA_MARKET_PROVIDER_LIVE_ENABLED=true                # currently false
@@ -77,7 +77,7 @@ Fixed to persist the id only when the basis was actually consumed.
 Both stay off by default and are independent flags:
 
 ```bash
-# finvera-be/.env or .env.local
+# finvera-be/.env
 FINVERA_STOCK_QUOTE_LIVE_ENABLED=true     # live TCBS quote refresh in StockOverviewService
 FINVERA_STOCK_SECTOR_BASIS_ENABLED=true   # sector cross-section valuation (validate latency in non-prod first)
 ```
