@@ -262,9 +262,12 @@ uv run --project ../provider-poc python export_all_symbols.py --start 2024-01-01
 ```
 
 Không cần truyền `--end` — mặc định lấy đến **hôm nay**. Muốn cập nhật thêm
-phiên giao dịch mới sau này, chạy lại **đúng lệnh cũ** (không đổi gì) —
-script tự nhận ra ngày cuối đã đổi và fetch lại phần dữ liệu giá bị thiếu,
-không bị kẹt mãi ở lần chạy đầu tiên.
+phiên giao dịch mới sau này, chạy lại **đúng lệnh cũ** (không đổi gì) — script
+chỉ tải bổ sung phần còn thiếu (và tự động tải lại 90 ngày gần nhất để dò
+trường hợp công ty chia cổ tức/tách cổ phiếu làm giá lịch sử gần đây bị điều
+chỉnh hồi tố — xem `--lookback-days`), **không tải lại toàn bộ từ đầu** mỗi
+lần chạy. Muốn ép tải lại toàn bộ (ví dụ định kỳ hàng tháng, để dò các đợt
+điều chỉnh cũ hơn 90 ngày): thêm `--full-refresh`.
 
 Kết quả: nhiều file `daily-bars-<mã>-*.json` và `fundamentals-<mã>-*.json`
 trong `output/`. Sau đó chỉ cần **trỏ `*_PACKAGE_PATH` vào cả thư mục

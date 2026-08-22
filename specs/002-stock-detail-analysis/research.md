@@ -503,6 +503,20 @@ rather than a transitional one. T060 is closed as documentation-only: there
 is no new adapter to implement, since
 implementing one was the option declined.
 
+**Follow-on mitigation (2026-08-22) — item 3's open question resurfaced building
+the bulk exporter.** Whether `ohlcv()` is raw or pre-adjusted still is not
+established, and now matters operationally too: if `export_all_symbols.py`
+only fetched newly-missing trading days on each incremental re-run, a
+retroactive rewrite of recent history by an undisclosed provider-side
+adjustment would go undetected forever. Mitigation, not a resolution of the
+underlying unknown: every incremental re-run re-fetches and merges a rolling
+`--lookback-days` window (default 90) of already-written history, not just the
+new gap, so a *recent* silent rewrite self-heals within one run. A rewrite
+reaching further back than the lookback window would not be caught until an
+owner-run `--full-refresh` (full re-fetch of the whole configured range).
+This is a bounded, disclosed limitation, not a claim that the underlying
+raw-vs-adjusted question is resolved.
+
 ### G-03 — Per-stock quote coverage (blocking for the US1 live path)
 
 Extends the Feature 001 TCBS gate to per-instrument subjects: confirmation that
