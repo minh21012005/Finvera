@@ -95,6 +95,18 @@ public class TechnicalIndicatorService {
 
     @Transactional
     public Optional<StockTechnical> findBySymbol(String symbol) {
+        return findBySymbol(symbol, null);
+    }
+
+    /**
+     * Same computation as {@link #findBySymbol(String)}, but only over bars up to and including
+     * {@code asOfCutoff} (or every current bar when {@code null}). Lets an owner-triggered backfill
+     * (see {@code TechnicalIndicatorWarmupService}) produce a genuine, non-fabricated "prior
+     * trading day" row for the crossing strategies (MA/MACD/RSI-based), which otherwise only
+     * accumulates one real trading day at a time as the app is used live.
+     */
+    @Transactional
+    public Optional<StockTechnical> findBySymbol(String symbol, LocalDate asOfCutoff) {
         Optional<InstrumentReference> instrument = referenceData.findActiveInstrumentBySymbol(symbol);
         if (instrument.isEmpty()) {
             return Optional.empty();
@@ -104,6 +116,9 @@ public class TechnicalIndicatorService {
 
         List<EquityDailyBarEntity> allSourceBars = dailyBars.findByInstrumentIdAndCurrentTrueOrderByTradingDateAsc(
                 instrumentId);
+        if (asOfCutoff != null) {
+            allSourceBars = allSourceBars.stream().filter(b -> !b.getTradingDate().isAfter(asOfCutoff)).toList();
+        }
         List<EquityDailyBarEntity> deduplicated = dedupeByTradingDate(allSourceBars);
         Set<LocalDate> conflictedDates = conflictedTradingDates(instrumentId, symbol, allSourceBars);
 
