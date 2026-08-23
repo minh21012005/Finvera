@@ -2,10 +2,13 @@ package com.minhnb.finvera_be.stock.service;
 
 import com.minhnb.finvera_be.market.service.MarketReferenceDataService;
 import com.minhnb.finvera_be.market.service.MarketReferenceDataService.InstrumentReference;
+import com.minhnb.finvera_be.stock.domain.technical.TechnicalIndicatorsV1;
 import com.minhnb.finvera_be.stock.entity.EquityDailyBarEntity;
 import com.minhnb.finvera_be.stock.entity.EquityProfileEntity;
+import com.minhnb.finvera_be.stock.entity.TechnicalIndicatorResultEntity;
 import com.minhnb.finvera_be.stock.repository.EquityDailyBarRepository;
 import com.minhnb.finvera_be.stock.repository.EquityProfileRepository;
+import com.minhnb.finvera_be.stock.repository.TechnicalIndicatorResultRepository;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
@@ -18,9 +21,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 /**
- * Owner-triggered, one-time-ish backfill: calls {@link TechnicalIndicatorService#findBySymbol}
- * for every {@code LISTED} instrument so {@code technical_indicator_result} has a row before
- * anyone opens that stock's own detail page. {@link
+ * Owner-triggered backfill: calls {@link TechnicalIndicatorService#findBySymbol} for every
+ * {@code LISTED} instrument so {@code technical_indicator_result} has a row before anyone opens
+ * that stock's own detail page. {@link
  * com.minhnb.finvera_be.stock.service.strategy.StrategyScanService} reads only that persisted
  * table (never recomputes live), so a freshly bulk-imported symbol shows every strategy as
  * {@code INSUFFICIENT_HISTORY} on the scan page until this warmup (or an individual page view)
@@ -28,10 +31,14 @@ import org.springframework.stereotype.Service;
  * not duplicate any indicator logic.
  *
  * <p>The three crossing strategies (MA/MACD/RSI-based) additionally need a "prior trading day"
- * indicator snapshot to detect a cross — something a single as-of-today computation can never
- * produce, since it would otherwise take one real trading day of ordinary use per symbol to
- * accumulate. This backfill computes the second-to-last trading day first, then today, so both
- * rows exist immediately from real, already-imported daily bars (no fabricated data).
+ * indicator snapshot to detect a cross. A single as-of-today computation can never produce that on
+ * its own; ordinarily it accumulates one real trading day at a time as the app is used live. This
+ * backfill instead walks every trading day the instrument has priced data for but no indicator
+ * row for yet — either since the last time this ran (a short, cheap gap for routine re-runs) or,
+ * for an instrument with no indicator history at all yet, the latest {@value #BOOTSTRAP_BARS}
+ * available trading days — so a long gap between runs (the owner stepping away for a week, say)
+ * still ends up with a genuine, non-fabricated "yesterday" snapshot instead of comparing against
+ * whatever was last computed days or weeks earlier.
  */
 @Service
 @ConditionalOnProperty(name = "finvera.stock.technical.warmup.enabled", havingValue = "true")
@@ -39,19 +46,21 @@ public class TechnicalIndicatorWarmupService {
 
     private static final Logger log = LoggerFactory.getLogger(TechnicalIndicatorWarmupService.class);
     private static final String LISTED = "LISTED";
-    private static final int LATEST_TWO_BARS = 2;
+    private static final int BOOTSTRAP_BARS = 30;
 
     private final EquityProfileRepository equityProfiles;
     private final MarketReferenceDataService referenceData;
     private final EquityDailyBarRepository dailyBars;
+    private final TechnicalIndicatorResultRepository indicatorResults;
     private final TechnicalIndicatorService technicalIndicators;
 
     public TechnicalIndicatorWarmupService(EquityProfileRepository equityProfiles,
             MarketReferenceDataService referenceData, EquityDailyBarRepository dailyBars,
-            TechnicalIndicatorService technicalIndicators) {
+            TechnicalIndicatorResultRepository indicatorResults, TechnicalIndicatorService technicalIndicators) {
         this.equityProfiles = equityProfiles;
         this.referenceData = referenceData;
         this.dailyBars = dailyBars;
+        this.indicatorResults = indicatorResults;
         this.technicalIndicators = technicalIndicators;
     }
 
@@ -60,9 +69,16 @@ public class TechnicalIndicatorWarmupService {
                 .map(EquityProfileEntity::getInstrumentId).toList();
         Map<UUID, InstrumentReference> instrumentsById = referenceData.findInstrumentsByIds(instrumentIds).stream()
                 .collect(Collectors.toMap(InstrumentReference::instrumentId, r -> r));
-        Map<UUID, List<EquityDailyBarEntity>> latestTwoBarsByInstrument = dailyBars
-                .findLatestNCurrentByInstrumentIdIn(instrumentIds, LATEST_TWO_BARS).stream()
-                .collect(Collectors.groupingBy(EquityDailyBarEntity::getInstrumentId));
+
+        Map<UUID, LocalDate> lastComputedByInstrument = indicatorResults
+                .findByInstrumentIdInAndRuleVersionAndCurrentTrue(instrumentIds, TechnicalIndicatorsV1.RULE_VERSION)
+                .stream()
+                .collect(Collectors.toMap(TechnicalIndicatorResultEntity::getInstrumentId,
+                        TechnicalIndicatorResultEntity::getAsOfTradingDate, (a, b) -> a.isAfter(b) ? a : b));
+
+        Map<UUID, List<EquityDailyBarEntity>> recentBarsByInstrument = dailyBars
+                .findLatestNCurrentByInstrumentIdIn(instrumentIds, BOOTSTRAP_BARS).stream()
+                .collect(java.util.stream.Collectors.groupingBy(EquityDailyBarEntity::getInstrumentId));
 
         int succeeded = 0;
         int failed = 0;
@@ -73,9 +89,10 @@ public class TechnicalIndicatorWarmupService {
                 continue;
             }
             try {
-                LocalDate priorTradingDate = priorTradingDate(latestTwoBarsByInstrument.get(instrumentId));
-                if (priorTradingDate != null) {
-                    technicalIndicators.findBySymbol(reference.symbol(), priorTradingDate);
+                List<LocalDate> datesToBackfill = datesToBackfill(recentBarsByInstrument.get(instrumentId),
+                        lastComputedByInstrument.get(instrumentId));
+                for (int i = 0; i < datesToBackfill.size() - 1; i++) {
+                    technicalIndicators.findBySymbol(reference.symbol(), datesToBackfill.get(i));
                 }
                 technicalIndicators.findBySymbol(reference.symbol());
                 succeeded++;
@@ -91,13 +108,23 @@ public class TechnicalIndicatorWarmupService {
         return summary;
     }
 
-    /** {@code null} when fewer than two distinct trading dates exist -- nothing to backfill. */
-    private static LocalDate priorTradingDate(List<EquityDailyBarEntity> latestTwoBars) {
-        if (latestTwoBars == null || latestTwoBars.size() < LATEST_TWO_BARS) {
-            return null;
+    /**
+     * Trading dates (ascending) this instrument has priced data for but no indicator row for yet,
+     * always ending with the latest available date (computed by the caller's own final,
+     * no-cutoff call so it reflects every current bar, not just the fetched window). Never more
+     * than {@value #BOOTSTRAP_BARS} entries even for an instrument with no history at all yet, so
+     * a brand-new symbol costs a bounded amount of work rather than its entire multi-year history.
+     */
+    private static List<LocalDate> datesToBackfill(List<EquityDailyBarEntity> recentBars, LocalDate lastComputed) {
+        if (recentBars == null || recentBars.isEmpty()) {
+            return List.of();
         }
-        return latestTwoBars.stream().map(EquityDailyBarEntity::getTradingDate)
-                .min(Comparator.naturalOrder()).orElse(null);
+        List<LocalDate> ascendingDates = recentBars.stream().map(EquityDailyBarEntity::getTradingDate)
+                .sorted(Comparator.naturalOrder()).toList();
+        if (lastComputed == null) {
+            return ascendingDates;
+        }
+        return ascendingDates.stream().filter(date -> date.isAfter(lastComputed)).toList();
     }
 
     public record Summary(int total, int succeeded, int failed) {

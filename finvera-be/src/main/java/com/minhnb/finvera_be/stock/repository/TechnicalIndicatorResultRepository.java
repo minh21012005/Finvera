@@ -19,6 +19,16 @@ public interface TechnicalIndicatorResultRepository extends JpaRepository<Techni
             UUID instrumentId, String ruleVersion, LocalDate asOfTradingDate);
 
     /**
+     * Every current row for every instrument in {@code instrumentIds}, used only to find each
+     * instrument's own latest already-computed {@code as_of_trading_date} in bulk ({@code
+     * TechnicalIndicatorWarmupService}'s gap backfill) -- deliberately returns full rows rather
+     * than a MAX(...) projection so the caller stays in typed entity land instead of dealing with
+     * a native-query column-type mapping for a bulk operation that only runs occasionally.
+     */
+    List<TechnicalIndicatorResultEntity> findByInstrumentIdInAndRuleVersionAndCurrentTrue(
+            Collection<UUID> instrumentIds, String ruleVersion);
+
+    /**
      * Feature 003 research R-002: the latest current row per (instrument,
      * indicator) for the given rule version, across every candidate in
      * {@code instrumentIds}, in one bulk query. {@code current} scopes a
