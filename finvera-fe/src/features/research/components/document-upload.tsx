@@ -140,7 +140,7 @@ export function DocumentUpload({ onDocumentSubmitted }: DocumentUploadProps) {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-xs font-medium text-slate-300 mb-1.5">
+          <label className="block text-xs font-medium text-slate-300 mb-1.5 whitespace-nowrap">
             Tiêu đề Tài liệu <span className="text-rose-400">*</span>
           </label>
           <input
@@ -155,7 +155,9 @@ export function DocumentUpload({ onDocumentSubmitted }: DocumentUploadProps) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Mã Cổ phiếu (Tùy chọn)</label>
+            <label className="block text-xs font-medium text-slate-300 mb-1.5 whitespace-nowrap">
+              Mã Cổ phiếu (Tùy chọn)
+            </label>
             <input
               type="text"
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 uppercase placeholder-slate-500 focus:outline-none focus:border-cyan-500"
@@ -166,7 +168,7 @@ export function DocumentUpload({ onDocumentSubmitted }: DocumentUploadProps) {
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">
+            <label className="block text-xs font-medium text-slate-300 mb-1.5 whitespace-nowrap">
               Loại Tài liệu <span className="text-rose-400">*</span>
             </label>
             <select
@@ -185,7 +187,9 @@ export function DocumentUpload({ onDocumentSubmitted }: DocumentUploadProps) {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Năm</label>
+            <label className="block text-xs font-medium text-slate-300 mb-1.5 whitespace-nowrap">
+              Năm
+            </label>
             <input
               type="number"
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500"
@@ -195,7 +199,9 @@ export function DocumentUpload({ onDocumentSubmitted }: DocumentUploadProps) {
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Quý</label>
+            <label className="block text-xs font-medium text-slate-300 mb-1.5 whitespace-nowrap">
+              Quý
+            </label>
             <select
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 cursor-pointer"
               value={quarter}
@@ -213,7 +219,7 @@ export function DocumentUpload({ onDocumentSubmitted }: DocumentUploadProps) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">
+            <label className="block text-xs font-medium text-slate-300 mb-1.5 whitespace-nowrap">
               Nguồn phát hành <span className="text-rose-400">*</span>
             </label>
             <input
@@ -226,7 +232,7 @@ export function DocumentUpload({ onDocumentSubmitted }: DocumentUploadProps) {
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">
+            <label className="block text-xs font-medium text-slate-300 mb-1.5 whitespace-nowrap">
               Ngày công bố <span className="text-rose-400">*</span>
             </label>
             <input
@@ -241,7 +247,7 @@ export function DocumentUpload({ onDocumentSubmitted }: DocumentUploadProps) {
 
         {uploadMode === "file" ? (
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">
+            <label className="block text-xs font-medium text-slate-300 mb-1.5 whitespace-nowrap">
               Chọn File PDF <span className="text-rose-400">*</span>
             </label>
             <input
@@ -254,7 +260,7 @@ export function DocumentUpload({ onDocumentSubmitted }: DocumentUploadProps) {
           </div>
         ) : (
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">
+            <label className="block text-xs font-medium text-slate-300 mb-1.5 whitespace-nowrap">
               Nội dung văn bản <span className="text-rose-400">*</span>
             </label>
             <textarea

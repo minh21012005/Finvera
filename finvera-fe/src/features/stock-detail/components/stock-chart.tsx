@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo, useEffect, type MouseEvent } from "react";
 import type { StockChart as StockChartData } from "../api/stock-detail";
-import { formatAsOf, formatVolume } from "../format/stock-format";
+import { formatAsOf, formatDate, formatVolume } from "../format/stock-format";
 import {
   ZoomIn,
   ZoomOut,
@@ -502,7 +502,7 @@ export function StockChart({ chart }: { chart: StockChartData }) {
       <div className="ohlcv-status-bar">
         <div className="ohlcv-item date">
           <span className="label">Phiên:</span>
-          <strong className="value font-mono text-slate-200">{activeBar.tradingDate}</strong>
+          <strong className="value font-mono text-slate-200">{formatDate(activeBar.tradingDate)}</strong>
         </div>
         <div className="ohlcv-item">
           <span className="label">Mở:</span>
@@ -632,7 +632,8 @@ export function StockChart({ chart }: { chart: StockChartData }) {
             const pBar = visibleBars[idx];
             if (!pBar) return null;
             const x = Math.round(xSlot(pBar.slotIndex));
-            const dateStr = pBar.bar.tradingDate.slice(5).replace("-", "/"); // MM/DD
+            const parts = pBar.bar.tradingDate.split("-");
+            const dateStr = parts.length === 3 ? `${parts[2]}/${parts[1]}` : pBar.bar.tradingDate; // DD/MM
             return (
               <g key={pBar.bar.tradingDate} className="time-grid-line">
                 <line
@@ -880,7 +881,7 @@ export function StockChart({ chart }: { chart: StockChartData }) {
                     fontFamily="JetBrains Mono, monospace"
                     textAnchor="middle"
                   >
-                    {hoveredBarObj.bar.tradingDate}
+                    {formatDate(hoveredBarObj.bar.tradingDate)}
                   </text>
                 </>
               )}
@@ -932,8 +933,8 @@ export function StockChart({ chart }: { chart: StockChartData }) {
       {/* Date Range & Interaction Instructions Footer */}
       <div className="chart-footer-row">
         <span className="chart-range-text">
-          Dữ liệu: {visibleBars[0]?.bar.tradingDate ?? bars[0]?.tradingDate} →{" "}
-          {visibleBars.at(-1)?.bar.tradingDate ?? bars.at(-1)?.tradingDate} ({visibleBars.length} phiên hiển thị)
+          Dữ liệu: {formatDate(visibleBars[0]?.bar.tradingDate ?? bars[0]?.tradingDate)} →{" "}
+          {formatDate(visibleBars.at(-1)?.bar.tradingDate ?? bars.at(-1)?.tradingDate)} ({visibleBars.length} phiên hiển thị)
         </span>
         <span className="chart-hint-text flex items-center gap-1.5">
           <MoveHorizontal size={13} className="text-cyan-400" />

@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { StockOverview } from "./components/stock-overview";
 import { StockChart } from "./components/stock-chart";
-import { formatDecimal, formatPercent, formatVnd } from "./format/stock-format";
+import { formatDecimal, formatDate, formatPercent, formatVnd } from "./format/stock-format";
 import type { StockChart as StockChartData, StockOverview as StockOverviewData } from "./api/stock-detail";
 
 function overview(overrides: Partial<StockOverviewData["price"]> = {}, dataStatus: StockOverviewData["meta"]["dataStatus"] = "CURRENT"): StockOverviewData {
@@ -72,6 +72,8 @@ describe("stock overview formatting", () => {
     expect(formatPercent("0.897959")).toBe("+0,89%");
     expect(formatPercent("-3.100000")).toBe("−3,1%");
     expect(formatDecimal(null)).toBe("Không có dữ liệu");
+    expect(formatDate("2026-08-17")).toBe("17/08/2026");
+    expect(formatDate(null)).toBe("Không có dữ liệu");
   });
 });
 

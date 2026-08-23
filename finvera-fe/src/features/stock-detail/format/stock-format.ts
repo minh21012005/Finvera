@@ -8,7 +8,7 @@ import type {
   SessionState,
 } from "../api/stock-detail";
 
-export { formatDecimal, formatVnd, formatVolume, formatAsOf } from "../../market-overview/format/market-format";
+export { formatDecimal, formatVnd, formatVolume, formatAsOf, formatDate } from "../../market-overview/format/market-format";
 import { formatDecimal } from "../../market-overview/format/market-format";
 
 export function formatPercent(value: string | null): string {

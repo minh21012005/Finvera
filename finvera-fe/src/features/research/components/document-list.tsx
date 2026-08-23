@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Document, DocumentType, deleteDocument } from "../api/documents";
+import { formatDate } from "../../market-overview/format/market-format";
 import { Files, RotateCw } from "lucide-react";
 
 interface DocumentListProps {
@@ -182,7 +183,7 @@ export function DocumentList({
                       {doc.year}
                     </div>
                   </td>
-                  <td className="py-3 px-3 text-slate-400">{doc.publicationDate}</td>
+                  <td className="py-3 px-3 text-slate-400">{formatDate(doc.publicationDate)}</td>
                   <td className="py-3 px-3">
                     {renderStatusBadge(doc.ingestionStatus, doc.ingestionFailureReason)}
                   </td>

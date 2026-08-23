@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { DocumentType } from "../api/documents";
 import { Passage, retrievePassages, RetrieveRequest } from "../api/retrieve";
+import { formatDate } from "../../market-overview/format/market-format";
 
 export function RetrievalResults() {
   const [query, setQuery] = useState("");
@@ -169,7 +170,7 @@ export function RetrievalResults() {
 
                   <div className="flex items-center justify-between text-[11px] text-slate-500">
                     <div>Nguồn: {passage.source}</div>
-                    {passage.publicationDate && <div>Ngày công bố: {passage.publicationDate}</div>}
+                    {passage.publicationDate && <div>Ngày công bố: {formatDate(passage.publicationDate)}</div>}
                   </div>
                 </div>
               ))}

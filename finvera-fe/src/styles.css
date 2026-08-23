@@ -1644,7 +1644,8 @@ form[aria-label="Chọn chiến lược để quét"] {
   box-shadow: var(--shadow-sm);
 }
 
-fieldset {
+form[aria-label="Bộ lọc cổ phiếu"] fieldset,
+form[aria-label="Chọn chiến lược để quét"] fieldset {
   border: 1px solid var(--border-color);
   border-radius: 10px;
   padding: 16px 20px 20px;
@@ -1655,7 +1656,8 @@ fieldset {
   gap: 14px 18px;
 }
 
-legend {
+form[aria-label="Bộ lọc cổ phiếu"] legend,
+form[aria-label="Chọn chiến lược để quét"] legend {
   padding: 2px 10px;
   font-weight: 700;
   font-size: 0.8125rem;
@@ -1666,7 +1668,8 @@ legend {
   letter-spacing: 0.03em;
 }
 
-label {
+form[aria-label="Bộ lọc cổ phiếu"] label,
+form[aria-label="Chọn chiến lược để quét"] label {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -1675,7 +1678,10 @@ label {
   font-weight: 600;
 }
 
-input, select {
+form[aria-label="Bộ lọc cổ phiếu"] input,
+form[aria-label="Bộ lọc cổ phiếu"] select,
+form[aria-label="Chọn chiến lược để quét"] input,
+form[aria-label="Chọn chiến lược để quét"] select {
   padding: 10px 12px;
   background: var(--bg-input);
   border: 1px solid var(--border-color);
@@ -1686,17 +1692,22 @@ input, select {
   transition: all 0.18s ease;
 }
 
-input:focus, select:focus {
+form[aria-label="Bộ lọc cổ phiếu"] input:focus,
+form[aria-label="Bộ lọc cổ phiếu"] select:focus,
+form[aria-label="Chọn chiến lược để quét"] input:focus,
+form[aria-label="Chọn chiến lược để quét"] select:focus {
   outline: none;
   border-color: var(--color-accent);
   box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
 }
 
-select {
+form[aria-label="Bộ lọc cổ phiếu"] select,
+form[aria-label="Chọn chiến lược để quét"] select {
   cursor: pointer;
 }
 
-button[type="submit"] {
+form[aria-label="Bộ lọc cổ phiếu"] button[type="submit"],
+form[aria-label="Chọn chiến lược để quét"] button[type="submit"] {
   padding: 12px 24px;
   background: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%);
   border: 0;
@@ -1709,13 +1720,15 @@ button[type="submit"] {
   transition: all 0.18s ease;
 }
 
-button[type="submit"]:hover:not(:disabled) {
+form[aria-label="Bộ lọc cổ phiếu"] button[type="submit"]:hover:not(:disabled),
+form[aria-label="Chọn chiến lược để quét"] button[type="submit"]:hover:not(:disabled) {
   opacity: 0.92;
   transform: translateY(-1px);
   box-shadow: 0 4px 16px rgba(14, 165, 233, 0.4);
 }
 
-button[type="submit"]:disabled {
+form[aria-label="Bộ lọc cổ phiếu"] button[type="submit"]:disabled,
+form[aria-label="Chọn chiến lược để quét"] button[type="submit"]:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }

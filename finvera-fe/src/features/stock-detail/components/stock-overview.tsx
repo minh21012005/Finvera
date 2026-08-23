@@ -3,6 +3,7 @@ import {
   dataStatusLabel,
   directionLabel,
   formatAsOf,
+  formatDate,
   formatDecimal,
   formatPercent,
   formatVnd,
@@ -61,7 +62,7 @@ export function StockOverview({ overview }: { overview: StockOverviewData }) {
         </div>
         <div>
           <dt>Ngày giao dịch</dt>
-          <dd>{session.tradingDate ?? "Không có dữ liệu"}</dd>
+          <dd>{formatDate(session.tradingDate)}</dd>
         </div>
         <div>
           <dt>Cập nhật lúc</dt>

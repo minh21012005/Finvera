@@ -7,12 +7,6 @@ export function IndexOverview({ overview }: { overview: MarketOverview }) {
   const indices = [...overview.indices].sort((left, right) => STABLE_ORDER.indexOf(left.code) - STABLE_ORDER.indexOf(right.code));
   return (
     <section aria-labelledby="market-indices-heading">
-      <div className="section-title">
-        <h2 id="market-indices-heading">Chỉ số thị trường</h2>
-        <span className="meta-item">
-          Phiên {sessionLabel(overview.session.state)} · Trạng thái tổng thể: {statusLabel(overview.dataStatus)}
-        </span>
-      </div>
       <div className="index-grid">
         {indices.map((index) => (
           <IndexCard key={index.code} index={index} />

@@ -23,3 +23,23 @@ export function formatAsOf(value: string | null): string {
     timeZone: "Asia/Ho_Chi_Minh",
   }).format(new Date(value));
 }
+
+export function formatDate(value: string | null | undefined): string {
+  if (!value) return "Không có dữ liệu";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-");
+    return `${day}/${month}/${year}`;
+  }
+  try {
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return value;
+    return new Intl.DateTimeFormat("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      timeZone: "Asia/Ho_Chi_Minh",
+    }).format(d);
+  } catch {
+    return value;
+  }
+}

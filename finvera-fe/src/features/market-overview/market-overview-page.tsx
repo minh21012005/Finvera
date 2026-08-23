@@ -3,18 +3,9 @@ import { getMarketOverview, MarketOverviewApiError, type MarketOverview } from "
 import { IndexOverview } from "./components/index-overview";
 import { BreadthOverview } from "./components/breadth-overview";
 import { RegimeOverview } from "./components/regime-overview";
-import { formatAsOf } from "./format/market-format";
+import { formatAsOf, formatDate } from "./format/market-format";
 import { SymbolSearch } from "../stock-detail/components/symbol-search";
 import { navigate } from "../../router";
-
-import {
-  SlidersHorizontal,
-  Zap,
-  Briefcase,
-  Star,
-  BookOpen,
-  Bot,
-} from "lucide-react";
 
 type LoadState =
   | { kind: "loading" }
@@ -79,7 +70,7 @@ export function MarketOverviewPage() {
             <div className="meta-row">
               <span className="meta-item">
                 <span className={`pulse-dot ${isSessionOpen ? "open" : "closed"}`}></span>
-                Phiên giao dịch {state.overview.tradingDate}
+                Phiên giao dịch {formatDate(state.overview.tradingDate)}
               </span>
               <span className="meta-item">Cập nhật {formatAsOf(state.overview.generatedAt)}</span>
               <span className="meta-item">
@@ -91,39 +82,6 @@ export function MarketOverviewPage() {
             </div>
           </div>
           <SymbolSearch onSelect={(symbol) => navigate(`/stocks/${symbol}`)} />
-        </div>
-
-        <div className="quick-actions-bar">
-          <button type="button" className="screener-nav-link" onClick={() => navigate("/screener")}>
-            <SlidersHorizontal size={14} className="nav-btn-icon" />
-            <span>Sàng lọc cổ phiếu</span>
-            <span className="arrow-chip">→</span>
-          </button>
-          <button type="button" className="screener-nav-link" onClick={() => navigate("/strategies")}>
-            <Zap size={14} className="nav-btn-icon" />
-            <span>Quét chiến lược</span>
-            <span className="arrow-chip">→</span>
-          </button>
-          <button type="button" className="screener-nav-link" onClick={() => navigate("/portfolios")}>
-            <Briefcase size={14} className="nav-btn-icon" />
-            <span>Danh mục đầu tư</span>
-            <span className="arrow-chip">→</span>
-          </button>
-          <button type="button" className="screener-nav-link" onClick={() => navigate("/watchlists")}>
-            <Star size={14} className="nav-btn-icon" />
-            <span>Danh sách theo dõi</span>
-            <span className="arrow-chip">→</span>
-          </button>
-          <button type="button" className="screener-nav-link" onClick={() => navigate("/research")}>
-            <BookOpen size={14} className="nav-btn-icon" />
-            <span>Nghiên cứu & RAG</span>
-            <span className="arrow-chip">→</span>
-          </button>
-          <button type="button" className="screener-nav-link ai-action-link" onClick={() => navigate("/analyst")}>
-            <Bot size={14} className="nav-btn-icon" />
-            <span>AI Analyst</span>
-            <span className="arrow-chip">→</span>
-          </button>
         </div>
       </header>
 
