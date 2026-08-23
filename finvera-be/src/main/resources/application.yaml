@@ -73,6 +73,9 @@ finvera:
       sector-reference:
         enabled: ${FINVERA_STOCK_IMPORT_SECTOR_REFERENCE_ENABLED:false}
         package-path: ${FINVERA_STOCK_IMPORT_SECTOR_REFERENCE_PACKAGE_PATH:}
+    technical:
+      warmup:
+        enabled: ${FINVERA_STOCK_TECHNICAL_WARMUP_ENABLED:false}
 
 management:
   endpoints:

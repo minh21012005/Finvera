@@ -160,6 +160,7 @@ bị từ chối thẳng với `UNKNOWN_INSTRUMENT`, không phải lỗi tạm t
 | `FINVERA_STOCK_IMPORT_DAILY_BAR_ENABLED` / `_PACKAGE_PATH` | nạp lịch sử giá đầy đủ OHLCV (file `daily-bars-*.json`) |
 | `FINVERA_STOCK_IMPORT_FUNDAMENTALS_ENABLED` / `_PACKAGE_PATH` | nạp báo cáo tài chính (file `fundamentals-*.json`) |
 | `FINVERA_STOCK_IMPORT_SECTOR_REFERENCE_ENABLED` / `_PACKAGE_PATH` | nạp phân loại ngành, gắn vào `equity_profile.sector_reference_id` (file `sector-reference-*.json`) — mã nào chưa có `equity_profile` (bước 0.5) sẽ bị bỏ qua, đếm là `NO_EQUITY_PROFILE`, không lỗi |
+| `FINVERA_STOCK_TECHNICAL_WARMUP_ENABLED` (**chạy sau khi đã có daily-bar, trước khi kỳ vọng trang Chiến lược có tín hiệu**) | tính trước MA/RSI/MACD/... cho mọi mã `LISTED` và lưu vào `technical_indicator_result` — trang Chiến lược (`StrategyScanService`) chỉ **đọc** bảng này, không tự tính; thiếu bước này thì mọi mã mới nạp sẽ báo `INSUFFICIENT_HISTORY` dù đã có đủ giá |
 
 Bước 0 và 0.5 chỉ tạo những dòng **chưa có sẵn** (mã/hồ sơ đã có bị bỏ qua,
 không sửa/không tạo trùng) nên chạy lại bao nhiêu lần cũng an toàn — không bắt
@@ -173,6 +174,11 @@ quét toàn bộ file đúng loại trong đó — dùng khi nạp nhiều mã c
 Nạp cả thư mục vẫn an toàn nếu một vài mã lỗi — importer bỏ qua file lỗi, ghi
 log, và tiếp tục các file còn lại thay vì dừng cả batch. Xem lệnh export chi
 tiết ở mục 6.3.
+
+`FINVERA_STOCK_TECHNICAL_WARMUP_ENABLED` an toàn để bật lại bất cứ khi nào
+(chỉ tạo bản ghi mới nếu kết quả tính ra thực sự khác bản đã lưu) — nên bật
+lại mỗi khi vừa nạp thêm giá mới (crawl mã mới, hoặc cập nhật phiên gần đây)
+để trang Chiến lược phản ánh đúng dữ liệu mới nhất.
 
 ### 3.8 Kết nối sang `finvera-ai` (Feature 006/007)
 

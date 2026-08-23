@@ -11,9 +11,10 @@ Same `symbols_by_exchange()` call already proven live in export_instrument_refer
 also carries `organ_name`/`en_organ_name` -- this script reuses it for company names.
 
 `shares_outstanding`/`free_float_ratio` are NOT available from this listing call, so they are left
-null; `listing_status` is left "UNKNOWN" for the same reason instrument_status was in
-export_instrument_reference.py (being listed in this call is not a confirmed lifecycle status
-field). `equity_profile`'s own check constraint requires at least one of
+null; `listing_status` is "LISTED" -- unlike instrument_status in export_instrument_reference.py,
+this call's entire purpose IS the exchange's official current-listing directory, so appearing in it
+is direct evidence of being listed, not a guess. `equity_profile`'s own check constraint requires
+at least one of
 sector_reference_id/shares_outstanding/quality_reason to be non-null when the other two are absent
 here, so quality_reason states plainly what is missing and why, rather than fabricating a number.
 
@@ -66,7 +67,7 @@ def build_records(frame, effective_from: str) -> list[dict[str, Any]]:
             "companyNameEn": name_en,
             "companyNameVi": name_vi,
             "effectiveFrom": effective_from,
-            "listingStatus": "UNKNOWN",
+            "listingStatus": "LISTED",
             "qualityReason": QUALITY_REASON,
             "symbol": symbol,
         }
