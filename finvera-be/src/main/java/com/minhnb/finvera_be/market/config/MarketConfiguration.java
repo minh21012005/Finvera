@@ -11,6 +11,8 @@ import com.minhnb.finvera_be.market.service.MarketInstrumentReferenceImportPacka
 import com.minhnb.finvera_be.market.service.MarketInstrumentReferenceImportService;
 import java.nio.file.Path;
 import java.time.Clock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -21,6 +23,8 @@ import org.springframework.beans.factory.annotation.Value;
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties({MarketFreshnessProperties.class, TcbsProviderProperties.class})
 public class MarketConfiguration {
+
+    private static final Logger log = LoggerFactory.getLogger(MarketConfiguration.class);
 
     // Live TCBS wiring: three collaborating beans, all conditional on live mode. Kept as plain,
     // framework-agnostic classes (see TcbsMarketDataProviderTests, which constructs the provider
@@ -70,7 +74,10 @@ public class MarketConfiguration {
             @Value("${finvera.market.import.instrument-reference.package-path}") String packagePath,
             MarketInstrumentReferenceImportPackageParser parser, MarketInstrumentReferenceImportService importer) {
         return arguments -> {
-            if (!packagePath.isBlank()) importer.importPackage(parser.parse(Path.of(packagePath)));
+            if (packagePath.isBlank()) return;
+            var result = importer.importPackage(parser.parse(Path.of(packagePath)));
+            log.info("instrument_reference_import status={} registered={} skipped={}",
+                    result.status(), result.registered(), result.skipped());
         };
     }
 }

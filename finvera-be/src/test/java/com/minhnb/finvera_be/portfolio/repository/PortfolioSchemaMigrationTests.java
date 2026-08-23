@@ -214,10 +214,9 @@ class PortfolioSchemaMigrationTests {
         UUID id = UUID.randomUUID();
         try (var connection = connection();
                 var ps = connection.prepareStatement("""
-                        INSERT INTO market_instrument (
-                            id, venue, symbol, instrument_type, base_currency,
-                            price_currency, lot_size, tick_size, status, listed_from
-                        ) VALUES (?, 'HOSE', ?, 'EQUITY', 'VND', 'VND', 100, 10, 'ACTIVE', '2020-01-01')
+                    INSERT INTO market_instrument (
+                        id, venue, symbol, instrument_type, listed_from, status, source, source_revision
+                    ) VALUES (?, 'HOSE', ?, 'EQUITY', '2020-01-01', 'ACTIVE', 'FINVERA_FIXTURE', 'v1')
                         """)) {
             ps.setObject(1, id);
             ps.setString(2, symbol);

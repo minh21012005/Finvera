@@ -8,13 +8,15 @@ export function StockStrategyPage() {
   const [result, setResult] = useState<ScanResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [activeStrategy, setActiveStrategy] = useState<StrategyCode | null>(null);
 
-  async function handleSubmit(strategyCode: StrategyCode) {
+  async function fetchScan(strategyCode: StrategyCode, offset = 0) {
     setSubmitting(true);
     setError(null);
     try {
-      const response = await scanStrategy(strategyCode);
+      const response = await scanStrategy(strategyCode, { limit: 50, offset });
       setResult(response);
+      setActiveStrategy(strategyCode);
     } catch (err) {
       setResult(null);
       if (err instanceof StrategyScanApiError && (err.status === 401 || err.status === 403)) {
@@ -25,6 +27,15 @@ export function StockStrategyPage() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function handleSubmit(strategyCode: StrategyCode) {
+    await fetchScan(strategyCode, 0);
+  }
+
+  async function handlePageChange(newOffset: number) {
+    if (!activeStrategy) return;
+    await fetchScan(activeStrategy, newOffset);
   }
 
   return (
@@ -48,7 +59,7 @@ export function StockStrategyPage() {
         </p>
       )}
 
-      {result && <StrategyScanResults result={result} />}
+      {result && <StrategyScanResults result={result} onPageChange={handlePageChange} loading={submitting} />}
     </main>
   );
 }

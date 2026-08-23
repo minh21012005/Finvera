@@ -63,8 +63,11 @@ class RiskFactorInputAssembler {
         List<EquityDailyBarEntity> barHistory = dailyBars
                 .findLatestNCurrentByInstrumentIdIn(List.of(instrumentId), TRAILING_RISK_WINDOW);
         MetricPoint highestClose = barHistory.isEmpty() ? MetricPoint.unavailable(INPUT_UNAVAILABLE)
-                : MetricPoint.of(barHistory.stream().map(EquityDailyBarEntity::getClosePrice)
-                        .max(BigDecimal::compareTo).orElseThrow());
+                : barHistory.stream().map(EquityDailyBarEntity::getClosePrice)
+                        .filter(java.util.Objects::nonNull)
+                        .max(BigDecimal::compareTo)
+                        .map(MetricPoint::of)
+                        .orElseGet(() -> MetricPoint.unavailable(INPUT_UNAVAILABLE));
 
         MetricPoint liquidity = metricPointFromComponent(currentRelativeVolume, IndicatorComponent.VALUE);
 

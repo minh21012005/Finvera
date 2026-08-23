@@ -106,28 +106,28 @@ public final class StrategySignalV1 {
         TrendResult trend = ScreenerV1.deriveTrend(screenerFacts(in));
         BigDecimal ma20 = componentValue(in.current(), IndicatorCode.MA20, IndicatorComponent.VALUE);
         boolean matched = !trend.unavailable() && trend.direction() == TrendDirection.UPTREND
-                && in.close().compareTo(ma20) > 0;
+                && in.close() != null && ma20 != null && in.close().compareTo(ma20) > 0;
         evidence.put("trend", trend.unavailable() ? "UNAVAILABLE" : trend.direction().name());
-        evidence.put("close", in.close().toPlainString());
-        evidence.put("ma20", ma20.toPlainString());
+        evidence.put("close", in.close() != null ? in.close().toPlainString() : "UNAVAILABLE");
+        evidence.put("ma20", ma20 != null ? ma20.toPlainString() : "UNAVAILABLE");
         return matched;
     }
 
     private static boolean momentum(StrategyInputs in, Map<String, String> evidence) {
         BigDecimal rsi14 = componentValue(in.current(), IndicatorCode.RSI14, IndicatorComponent.VALUE);
         BigDecimal histogram = componentValue(in.current(), IndicatorCode.MACD, IndicatorComponent.HISTOGRAM);
-        evidence.put("rsi14", rsi14.toPlainString());
-        evidence.put("macdHistogram", histogram.toPlainString());
-        return rsi14.compareTo(new BigDecimal("60")) >= 0 && histogram.signum() > 0;
+        evidence.put("rsi14", rsi14 != null ? rsi14.toPlainString() : "UNAVAILABLE");
+        evidence.put("macdHistogram", histogram != null ? histogram.toPlainString() : "UNAVAILABLE");
+        return rsi14 != null && histogram != null && rsi14.compareTo(new BigDecimal("60")) >= 0 && histogram.signum() > 0;
     }
 
     private static boolean breakout(StrategyInputs in, Map<String, String> evidence) {
         BreakoutResult breakoutResult = ScreenerV1.deriveBreakout(screenerFacts(in));
         BigDecimal relativeVolume = componentValue(in.current(), IndicatorCode.RELATIVE_VOLUME, IndicatorComponent.VALUE);
         evidence.put("breakout", breakoutResult.unavailable() ? "UNAVAILABLE" : breakoutResult.condition().name());
-        evidence.put("relativeVolume", relativeVolume.toPlainString());
+        evidence.put("relativeVolume", relativeVolume != null ? relativeVolume.toPlainString() : "UNAVAILABLE");
         return !breakoutResult.unavailable() && breakoutResult.condition() == BreakoutCondition.BREAKOUT_UP
-                && relativeVolume.compareTo(new BigDecimal("1.5")) >= 0;
+                && relativeVolume != null && relativeVolume.compareTo(new BigDecimal("1.5")) >= 0;
     }
 
     private static boolean pullback(StrategyInputs in, Map<String, String> evidence) {
@@ -135,12 +135,13 @@ public final class StrategySignalV1 {
         BigDecimal ma50 = componentValue(in.current(), IndicatorCode.MA50, IndicatorComponent.VALUE);
         BigDecimal ma200 = componentValue(in.current(), IndicatorCode.MA200, IndicatorComponent.VALUE);
         BigDecimal rsi14 = componentValue(in.current(), IndicatorCode.RSI14, IndicatorComponent.VALUE);
-        evidence.put("ma20", ma20.toPlainString());
-        evidence.put("ma50", ma50.toPlainString());
-        evidence.put("ma200", ma200.toPlainString());
-        evidence.put("rsi14", rsi14.toPlainString());
-        evidence.put("close", in.close().toPlainString());
-        return ma20.compareTo(ma50) > 0 && ma50.compareTo(ma200) > 0
+        evidence.put("ma20", ma20 != null ? ma20.toPlainString() : "UNAVAILABLE");
+        evidence.put("ma50", ma50 != null ? ma50.toPlainString() : "UNAVAILABLE");
+        evidence.put("ma200", ma200 != null ? ma200.toPlainString() : "UNAVAILABLE");
+        evidence.put("rsi14", rsi14 != null ? rsi14.toPlainString() : "UNAVAILABLE");
+        evidence.put("close", in.close() != null ? in.close().toPlainString() : "UNAVAILABLE");
+        return ma20 != null && ma50 != null && ma200 != null && rsi14 != null && in.close() != null
+                && ma20.compareTo(ma50) > 0 && ma50.compareTo(ma200) > 0
                 && rsi14.compareTo(new BigDecimal("40")) >= 0 && rsi14.compareTo(new BigDecimal("55")) <= 0
                 && in.close().compareTo(ma50) > 0;
     }
@@ -148,10 +149,11 @@ public final class StrategySignalV1 {
     private static boolean meanReversion(StrategyInputs in, Map<String, String> evidence) {
         BigDecimal rsi14 = componentValue(in.current(), IndicatorCode.RSI14, IndicatorComponent.VALUE);
         BigDecimal lower = componentValue(in.current(), IndicatorCode.BBANDS, IndicatorComponent.LOWER);
-        evidence.put("rsi14", rsi14.toPlainString());
-        evidence.put("bbandsLower", lower.toPlainString());
-        evidence.put("close", in.close().toPlainString());
-        return rsi14.compareTo(new BigDecimal("30")) <= 0 && in.close().compareTo(lower) < 0;
+        evidence.put("rsi14", rsi14 != null ? rsi14.toPlainString() : "UNAVAILABLE");
+        evidence.put("bbandsLower", lower != null ? lower.toPlainString() : "UNAVAILABLE");
+        evidence.put("close", in.close() != null ? in.close().toPlainString() : "UNAVAILABLE");
+        return rsi14 != null && lower != null && in.close() != null
+                && rsi14.compareTo(new BigDecimal("30")) <= 0 && in.close().compareTo(lower) < 0;
     }
 
     private static boolean maCrossover(StrategyInputs in, Map<String, String> evidence) {
@@ -159,27 +161,30 @@ public final class StrategySignalV1 {
         BigDecimal ma50Today = componentValue(in.current(), IndicatorCode.MA50, IndicatorComponent.VALUE);
         BigDecimal ma20Yesterday = componentValue(in.prior(), IndicatorCode.MA20, IndicatorComponent.VALUE);
         BigDecimal ma50Yesterday = componentValue(in.prior(), IndicatorCode.MA50, IndicatorComponent.VALUE);
-        evidence.put("ma20", ma20Today.toPlainString());
-        evidence.put("ma50", ma50Today.toPlainString());
-        evidence.put("ma20Prior", ma20Yesterday.toPlainString());
-        evidence.put("ma50Prior", ma50Yesterday.toPlainString());
-        return ma20Yesterday.compareTo(ma50Yesterday) <= 0 && ma20Today.compareTo(ma50Today) > 0;
+        evidence.put("ma20", ma20Today != null ? ma20Today.toPlainString() : "UNAVAILABLE");
+        evidence.put("ma50", ma50Today != null ? ma50Today.toPlainString() : "UNAVAILABLE");
+        evidence.put("ma20Prior", ma20Yesterday != null ? ma20Yesterday.toPlainString() : "UNAVAILABLE");
+        evidence.put("ma50Prior", ma50Yesterday != null ? ma50Yesterday.toPlainString() : "UNAVAILABLE");
+        return ma20Yesterday != null && ma50Yesterday != null && ma20Today != null && ma50Today != null
+                && ma20Yesterday.compareTo(ma50Yesterday) <= 0 && ma20Today.compareTo(ma50Today) > 0;
     }
 
     private static boolean macdBased(StrategyInputs in, Map<String, String> evidence) {
         BigDecimal histogramToday = componentValue(in.current(), IndicatorCode.MACD, IndicatorComponent.HISTOGRAM);
         BigDecimal histogramYesterday = componentValue(in.prior(), IndicatorCode.MACD, IndicatorComponent.HISTOGRAM);
-        evidence.put("macdHistogram", histogramToday.toPlainString());
-        evidence.put("macdHistogramPrior", histogramYesterday.toPlainString());
-        return histogramYesterday.compareTo(BigDecimal.ZERO) <= 0 && histogramToday.signum() > 0;
+        evidence.put("macdHistogram", histogramToday != null ? histogramToday.toPlainString() : "UNAVAILABLE");
+        evidence.put("macdHistogramPrior", histogramYesterday != null ? histogramYesterday.toPlainString() : "UNAVAILABLE");
+        return histogramYesterday != null && histogramToday != null
+                && histogramYesterday.compareTo(BigDecimal.ZERO) <= 0 && histogramToday.signum() > 0;
     }
 
     private static boolean rsiBased(StrategyInputs in, Map<String, String> evidence) {
         BigDecimal rsiToday = componentValue(in.current(), IndicatorCode.RSI14, IndicatorComponent.VALUE);
         BigDecimal rsiYesterday = componentValue(in.prior(), IndicatorCode.RSI14, IndicatorComponent.VALUE);
-        evidence.put("rsi14", rsiToday.toPlainString());
-        evidence.put("rsi14Prior", rsiYesterday.toPlainString());
-        return rsiYesterday.compareTo(new BigDecimal("30")) <= 0 && rsiToday.compareTo(new BigDecimal("30")) > 0;
+        evidence.put("rsi14", rsiToday != null ? rsiToday.toPlainString() : "UNAVAILABLE");
+        evidence.put("rsi14Prior", rsiYesterday != null ? rsiYesterday.toPlainString() : "UNAVAILABLE");
+        return rsiYesterday != null && rsiToday != null
+                && rsiYesterday.compareTo(new BigDecimal("30")) <= 0 && rsiToday.compareTo(new BigDecimal("30")) > 0;
     }
 
     // ── Availability (U-5 insufficiency / DATA-003 withholding) ─────────────

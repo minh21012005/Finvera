@@ -86,4 +86,27 @@ describe("strategy scan results", () => {
     render(<StrategyScanResults result={scanResponse([match()])} />);
     expect(screen.getByText(/không phải khuyến nghị đầu tư/i)).toBeVisible();
   });
+
+  it("renders pagination controls when total matches exceed page limit and handles page changes", async () => {
+    const onPageChange = vi.fn();
+    render(
+      <StrategyScanResults
+        result={scanResponse([match()], { totalMatchCount: 96, limit: 50, offset: 0 })}
+        onPageChange={onPageChange}
+      />
+    );
+
+    const pagination = screen.getByLabelText("Điều hướng phân trang");
+    expect(pagination).toBeVisible();
+    expect(pagination).toHaveTextContent("Hiển thị 1–50 trên tổng số 96 mã (Trang 1/2)");
+
+    const prevBtn = screen.getByRole("button", { name: "Trang trước" });
+    const nextBtn = screen.getByRole("button", { name: "Trang sau" });
+
+    expect(prevBtn).toBeDisabled();
+    expect(nextBtn).toBeEnabled();
+
+    await userEvent.click(nextBtn);
+    expect(onPageChange).toHaveBeenCalledWith(50);
+  });
 });
