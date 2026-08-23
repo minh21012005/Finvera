@@ -80,6 +80,12 @@ def verify_faithfulness(
     return True, referenced_codes if referenced_codes else [f.factorCode for f in allowed_factors]
 
 
+def _builtin_template(request: ExplainRequest) -> str:
+    factor_descs = ", ".join([f"{f.factorCode} ({f.description})" for f in request.evidenceFactors])
+    sym_str = f" cho {request.symbol}" if request.symbol else ""
+    return f"Kết quả {request.outputType}{sym_str} được xác định dựa trên các yếu tố: {factor_descs}."
+
+
 async def explain_deterministic_output(
     request: ExplainRequest,
     llm_adapter: Optional[GeminiGenerationAdapter] = None,
@@ -90,16 +96,26 @@ async def explain_deterministic_output(
     adapter = llm_adapter or GeminiGenerationAdapter()
     prompt = build_explain_prompt(request)
 
-    # Attempt 1
+    if not adapter.is_online:
+        # No LLM provider configured (dev/test) — this is an expected, non-error mode,
+        # not a failure, so serve the deterministic template directly without retrying.
+        raw_explanation = _builtin_template(request)
+        _, ref_factors = verify_faithfulness(raw_explanation, request.evidenceFactors)
+        return ExplainResult(
+            explanation=raw_explanation,
+            factorsReferenced=ref_factors,
+            verified=True,
+            ruleVersion="orchestration-v1",
+        )
+
+    provider_error: Optional[Exception] = None
     for attempt in range(1, 3):
         try:
-            # Deterministic fallback text generation if LLM unavailable in test/offline environment
-            raw_explanation = await adapter.generate_text(prompt)
-            if not raw_explanation:
-                # Built-in deterministic template
-                factor_descs = ", ".join([f"{f.factorCode} ({f.description})" for f in request.evidenceFactors])
-                sym_str = f" cho {request.symbol}" if request.symbol else ""
-                raw_explanation = f"Kết quả {request.outputType}{sym_str} được xác định dựa trên các yếu tố: {factor_descs}."
+            # generate_text_strict raises on a real provider failure instead of masking
+            # it as RAG-shaped offline text — a wrong-context message that would then
+            # wrongly pass or fail the faithfulness check below.
+            raw_explanation = await adapter.generate_text_strict(prompt)
+            provider_error = None
 
             is_faithful, ref_factors = verify_faithfulness(raw_explanation, request.evidenceFactors)
             if is_faithful:
@@ -113,9 +129,21 @@ async def explain_deterministic_output(
                 logger.info(f"Faithfulness check attempt {attempt} failed, retrying...")
 
         except Exception as e:
-            logger.warning(f"Error during explanation generation attempt {attempt}: {e}")
+            provider_error = e
+            logger.error(f"LLM explain generation failed on attempt {attempt}: {type(e).__name__}: {e}")
 
-    # Second failure -> return safe fallback state (FR-006)
+    if provider_error is not None:
+        # The LLM provider itself failed (invalid key, network, quota, ...) — say so
+        # plainly rather than reusing the faithfulness-check fallback message, which
+        # would misattribute the cause.
+        return ExplainResult(
+            explanation="Không thể tạo giải thích tự động do lỗi kết nối tới dịch vụ AI. Vui lòng thử lại sau.",
+            factorsReferenced=[],
+            verified=False,
+            ruleVersion="orchestration-v1",
+        )
+
+    # Both attempts produced text but failed the faithfulness check -> safe fallback (FR-006)
     return ExplainResult(
         explanation="Hiện chưa có sẵn phần giải thích tự động cho kết quả này do yêu cầu kiểm tra tính xác thực của các yếu tố bằng chứng không đạt chuẩn.",
         factorsReferenced=[],

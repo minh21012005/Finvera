@@ -12,6 +12,12 @@ from app.features.analysis.explain import (
 )
 
 
+def _online_mock_llm() -> AsyncMock:
+    mock_llm = AsyncMock(spec=GeminiGenerationAdapter)
+    mock_llm.is_online = True
+    return mock_llm
+
+
 @pytest.mark.asyncio
 async def test_t030_faithful_explanation_succeeds():
     owner_id = uuid.uuid4()
@@ -26,8 +32,8 @@ async def test_t030_faithful_explanation_succeeds():
         evidenceFactors=factors,
     )
 
-    mock_llm = AsyncMock(spec=GeminiGenerationAdapter)
-    mock_llm.generate_text.return_value = (
+    mock_llm = _online_mock_llm()
+    mock_llm.generate_text_strict.return_value = (
         "Tín hiệu kỹ thuật của HPG hình thành do chỉ số RSI_14 đạt 72.5 nằm trong vùng quá mua, "
         "kết hợp việc MA20_CROSS khi giá cắt lên trên đường MA20."
     )
@@ -58,9 +64,9 @@ async def test_t030_unsupplied_factor_rejected_and_retried_then_fallback():
         evidenceFactors=factors,
     )
 
-    mock_llm = AsyncMock(spec=GeminiGenerationAdapter)
+    mock_llm = _online_mock_llm()
     # Both attempt 1 and attempt 2 hallucinate unsupplied MACD factor
-    mock_llm.generate_text.side_effect = [
+    mock_llm.generate_text_strict.side_effect = [
         "Định giá FPT dựa trên PE_RATIO và chỉ báo kỹ thuật MACD đang phân kỳ âm.",
         "Giải thích lại: PE_RATIO đạt 12.5 cùng với MACD tích cực.",
     ]
@@ -68,7 +74,7 @@ async def test_t030_unsupplied_factor_rejected_and_retried_then_fallback():
     res: ExplainResult = await explain_deterministic_output(req, llm_adapter=mock_llm)
 
     # 2 attempts were made
-    assert mock_llm.generate_text.call_count == 2
+    assert mock_llm.generate_text_strict.call_count == 2
     # Verified is False because both attempts violated faithfulness
     assert res.verified is False
     assert res.factorsReferenced == []
@@ -88,15 +94,74 @@ async def test_t030_retry_succeeds_on_second_attempt():
         evidenceFactors=factors,
     )
 
-    mock_llm = AsyncMock(spec=GeminiGenerationAdapter)
+    mock_llm = _online_mock_llm()
     # Attempt 1 hallucinates RSI; attempt 2 is clean
-    mock_llm.generate_text.side_effect = [
+    mock_llm.generate_text_strict.side_effect = [
         "Rủi ro của VND cao do BETA là 1.25 và RSI đạt mức đỉnh.",
         "Rủi ro biến động của VND được đánh giá qua hệ số BETA là 1.25 so với thị trường chung.",
     ]
 
     res: ExplainResult = await explain_deterministic_output(req, llm_adapter=mock_llm)
 
-    assert mock_llm.generate_text.call_count == 2
+    assert mock_llm.generate_text_strict.call_count == 2
     assert res.verified is True
     assert "BETA" in res.factorsReferenced
+
+
+@pytest.mark.asyncio
+async def test_t030_offline_adapter_uses_builtin_template_without_calling_llm():
+    """
+    When no LLM provider is configured (dev/test), the explain flow should serve the
+    deterministic built-in template directly and never call the LLM.
+    """
+    owner_id = uuid.uuid4()
+    factors = [
+        EvidenceFactor(factorCode="ATR", description="Biến động ATR: 1.23"),
+    ]
+    req = ExplainRequest(
+        ownerId=owner_id,
+        outputType="SIGNAL",
+        symbol="MBB",
+        evidenceFactors=factors,
+    )
+
+    mock_llm = AsyncMock(spec=GeminiGenerationAdapter)
+    mock_llm.is_online = False
+
+    res: ExplainResult = await explain_deterministic_output(req, llm_adapter=mock_llm)
+
+    mock_llm.generate_text_strict.assert_not_called()
+    assert res.verified is True
+    assert "ATR" in res.factorsReferenced
+    assert "được xác định dựa trên các yếu tố" in res.explanation
+
+
+@pytest.mark.asyncio
+async def test_t030_provider_failure_surfaces_distinct_error_not_faithfulness_message():
+    """
+    A real LLM provider failure (invalid API key, network error, ...) must be reported
+    with its own clear message, not the generic faithfulness-check-failed fallback and
+    not a RAG-context "document not found" message that has no meaning here.
+    """
+    owner_id = uuid.uuid4()
+    factors = [
+        EvidenceFactor(factorCode="VOLATILITY", description="Biến động giá (ATR/giá): 1.98 (điểm 0/100)"),
+    ]
+    req = ExplainRequest(
+        ownerId=owner_id,
+        outputType="SIGNAL",
+        symbol="MBB",
+        evidenceFactors=factors,
+    )
+
+    mock_llm = _online_mock_llm()
+    mock_llm.generate_text_strict.side_effect = RuntimeError("400 API_KEY_INVALID: API key not valid.")
+
+    res: ExplainResult = await explain_deterministic_output(req, llm_adapter=mock_llm)
+
+    assert mock_llm.generate_text_strict.call_count == 2
+    assert res.verified is False
+    assert res.factorsReferenced == []
+    assert "lỗi kết nối tới dịch vụ AI" in res.explanation
+    assert "Hiện chưa có sẵn phần giải thích tự động" not in res.explanation
+    assert "Không tìm thấy thông tin" not in res.explanation

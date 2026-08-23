@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import re
 from typing import Any, AsyncIterator, Dict, List, Optional
 from app.core.settings import settings
@@ -18,7 +19,7 @@ class GeminiGenerationAdapter:
         self.model = model or settings.gemini_generation_model
         self._client = None
 
-        if self.api_key and self.api_key != "mock" and self.api_key != "fixture":
+        if self.api_key and self.api_key not in ("mock", "fixture") and not os.environ.get("PYTEST_CURRENT_TEST"):
             try:
                 from google import genai
                 self._client = genai.Client(api_key=self.api_key)
@@ -34,13 +35,13 @@ class GeminiGenerationAdapter:
         """
         Streams generated text deltas.
         """
-        if self._client:
+        if self._client and not os.environ.get("PYTEST_CURRENT_TEST"):
             try:
                 async for chunk in self.generate_stream_raw(prompt, system_instruction):
                     yield chunk
                 return
             except Exception as e:
-                logger.warning(f"Online Gemini generation failed, falling back: {e}")
+                logger.error(f"Online Gemini generation failed, falling back to offline: {type(e).__name__}: {e}", exc_info=True)
 
         # Deterministic offline streaming generator for test/offline environments
         for chunk in self._offline_stream(prompt):
@@ -148,6 +149,23 @@ class GeminiGenerationAdapter:
         """
         parts = []
         async for chunk in self.generate_stream(prompt, system_instruction):
+            parts.append(chunk)
+        return "".join(parts)
+
+    async def generate_text_strict(
+        self,
+        prompt: str,
+        system_instruction: Optional[str] = None,
+    ) -> str:
+        """
+        Generates full text string from the real online provider only, raising on any
+        failure instead of silently degrading to the RAG-shaped offline shim. Callers
+        outside the RAG/chat context (e.g. FR-006 explain) should use this so a real
+        provider failure (invalid key, network, quota) surfaces as an actual error
+        rather than being mistaken for a legitimate answer.
+        """
+        parts = []
+        async for chunk in self.generate_stream_raw(prompt, system_instruction):
             parts.append(chunk)
         return "".join(parts)
 

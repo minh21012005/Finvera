@@ -2,6 +2,7 @@ import json
 import uuid
 import pytest
 from httpx import AsyncClient, ASGITransport
+from app.core.settings import settings
 from app.features.rag.citations import (
     RawCitationClaim,
     verify_citation_claims,
@@ -126,7 +127,7 @@ async def test_synthesize_endpoint_sse_stream():
                 {"chunkId": c1_id, "contentText": "Doanh thu đạt 60.000 tỷ VND."},
             ],
         }
-        headers = {"X-Internal-Api-Key": "dev-internal-key-change-in-prod"}
+        headers = {"X-Internal-Api-Key": settings.internal_api_key}
         resp = await client.post("/internal/v1/synthesize", json=req_payload, headers=headers)
 
         assert resp.status_code == 200
