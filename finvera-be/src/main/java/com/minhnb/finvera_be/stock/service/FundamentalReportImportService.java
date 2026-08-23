@@ -10,6 +10,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
@@ -33,6 +34,21 @@ public class FundamentalReportImportService {
 
     static final String CONTRACT_VERSION = "vnstock-fundamentals-v1";
     private static final String SOURCE_PREFIX = "VNSTOCK";
+
+    /**
+     * Vietnamese listed companies must disclose a quarterly/annual report within this many
+     * days of period end (Circular 96/2020/TT-BTC's outer bound across report types). The
+     * export tool ({@code export_fundamentals.py}) only records when IT ran ({@code
+     * generatedAt}), not vnstock's "kbs" source's actual disclosure date -- that field is
+     * unconfirmed by the G-01 evidence probe, so it is never guessed (AGENTS.md). Approximating
+     * observedAt as periodEnd + this lag, capped at generatedAt, is a documented convention
+     * (like the exporter's own unconfirmed reportKind/auditStatus="UNKNOWN"), not a claim about
+     * the real disclosure date -- but it is materially closer to it than stamping every period
+     * "observed right now," which made every historical period invisible to
+     * {@code ValuationService#buildOwnHistorySeries}'s point-in-time gating (own-history basis
+     * was always empty regardless of how much price history existed).
+     */
+    private static final int ASSUMED_DISCLOSURE_LAG_DAYS = 45;
 
     private final StockIngestionService ingestion;
 
@@ -63,9 +79,17 @@ public class FundamentalReportImportService {
                     input.upstreamSource(), input.symbol(), period.periodType(), period.fiscalYear(),
                     period.fiscalQuarter(), periodStart, periodEnd, input.reportKind(), input.auditStatus(),
                     input.currency(), input.unitScale(), FundamentalReportAcceptance.CATALOG_VERSION_V1,
-                    input.generatedAt(), metrics, false, null)));
+                    deriveObservedAt(periodEnd, input.generatedAt()), metrics, false, null)));
         }
         return new Summary(input.symbol(), results);
+    }
+
+    /** Never claims a period was observed before it plausibly could have been disclosed, and
+     * never after the import actually ran. */
+    private static Instant deriveObservedAt(LocalDate periodEnd, Instant generatedAt) {
+        Instant approxDisclosure = periodEnd.plusDays(ASSUMED_DISCLOSURE_LAG_DAYS)
+                .atStartOfDay(ZoneOffset.UTC).toInstant();
+        return approxDisclosure.isBefore(generatedAt) ? approxDisclosure : generatedAt;
     }
 
     private static void validate(PackageInput input) {
