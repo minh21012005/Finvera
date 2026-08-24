@@ -696,3 +696,63 @@ without fabricating balance-sheet-derived inputs or weakening the published
 not provide accepted balance-sheet inputs. Symbols with fewer than the required
 comparison points or metric weight still return withheld valuation with reason
 codes rather than a guessed classification.
+
+---
+
+## R-015 â€” 2026-08-25 canonical stock price unit remediation
+
+**Decision**: Finvera's canonical equity price unit is **base VND/share** at the
+stock module boundary. Provider adapters and owner-operated exporters must
+normalize their own source units before an `equity_daily_bar`,
+`equity_price_observation`, technical indicator, valuation input, or API
+response sees the value.
+
+For the accepted Vnstock/KBS daily-bar export path, observed OHLC values are
+Vietnamese board units (thousand VND). The exporter therefore multiplies
+`open`, `high`, `low`, and `close` by `1000` before packaging, and calculates
+`valueVnd` from the normalized close price and volume. The exporter tool version
+is bumped so full-universe checkpoint logic re-exports packages created by the
+old unit policy instead of silently treating them as current.
+
+The legacy `TCBS_IFLASH_STOCK_DATA` completed daily-bar source is hard-deleted
+from this private/local deployment.
+It mixed a live/intraday provider path into the completed daily-bar table and
+created cross-source unit contamination. TCBS may still be used for live
+in-session quote observations, but future live frames must pass a
+`totalValue / totalVolume` versus `matchPrice` sanity check before persistence.
+Completed daily-bar imports from `TCBS_IFLASH_STOCK_DATA` are rejected with
+`DEPRECATED_PROVIDER_INVALID_PRICE_UNIT`.
+
+Existing current `VNSTOCK_KBS` daily bars are also hard-deleted by a separate
+forward-only migration (`V011`). This is intentional for the private/local
+deployment: stock daily-bar rows do not currently persist the package
+`toolVersion`, so the DB cannot precisely distinguish old board-unit rows from
+new exporter `0.2.0` VND/share rows before refresh. The refresh pipeline then
+reimports `VNSTOCK_KBS` as corrected current rows from the canonical exporter.
+
+**Rationale**: Real private DB inspection found incompatible current prices for
+the same instrument/date, e.g. VIC on `2026-08-24` had `VNSTOCK_KBS` close
+`214.500000` and `TCBS_IFLASH_STOCK_DATA` close `213200.000000`. Mixing these
+two scales produced mathematically valid but financially impossible indicators
+such as MA/MACD values in the thousands/tens of thousands and RSI near 100. The
+bug was not in the indicator formulas; it was accepted-source unit
+contamination.
+
+**Alternatives rejected**:
+
+- Normalize only in the UI: leaves PostgreSQL and every deterministic rule set
+  polluted, violating reproducibility.
+- Let the service infer units from arbitrary price magnitude on every read:
+  makes historical results non-reproducible and turns provider mapping into
+  implicit business logic.
+- Keep `TCBS_IFLASH_STOCK_DATA` as a completed-bar source: its semantics were
+  never accepted as a completed-session provider contract, and the observed
+  private data already proved it can corrupt downstream calculations.
+
+**Operational consequence**: After this remediation lands, the owner must
+restart the backend so Flyway applies the cleanup migrations, then run the normal
+refresh pipeline. Until the refresh completes, stock detail may have no current
+daily bars for symbols whose rows were deleted. The refresh will re-export old
+Vnstock/KBS daily-bar packages under the new tool version, import corrected
+VND/share rows, and recompute technical indicators and valuations from clean
+current rows.

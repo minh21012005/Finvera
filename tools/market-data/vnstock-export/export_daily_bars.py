@@ -20,7 +20,9 @@ from typing import Any
 
 CONTRACT_VERSION = "vnstock-daily-bar-v1"
 SOURCE = "VNSTOCK_KBS"
+TOOL_VERSION = "0.2.0"
 MIN_RECORDS = 20
+KBS_PRICE_MULTIPLIER = Decimal("1000")
 
 
 def decimal_string(value: Any) -> str:
@@ -28,6 +30,19 @@ def decimal_string(value: Any) -> str:
     if decimal.is_nan() or decimal.is_infinite() or decimal < 0:
         raise ValueError("price/volume fields must be finite non-negative decimals")
     return format(decimal.quantize(Decimal("0.000001")), "f")
+
+
+def normalize_kbs_price(value: Any) -> Decimal:
+    """KBS OHLCV prices are quoted in Vietnamese board units (thousand VND).
+
+    Finvera's stock data model and API expose equity prices in base VND/share.
+    The provider-unit conversion belongs at the exporter/provider boundary so
+    every downstream calculation receives a single canonical unit.
+    """
+    decimal = Decimal(str(value))
+    if decimal.is_nan() or decimal.is_infinite() or decimal < 0:
+        raise ValueError("price fields must be finite non-negative decimals")
+    return decimal * KBS_PRICE_MULTIPLIER
 
 
 def canonical_json(value: dict[str, Any]) -> str:
@@ -38,18 +53,23 @@ def package_records(rows: list[dict[str, Any]], symbol: str) -> list[dict[str, A
     records = []
     for row in rows:
         trading_date = str(row["time"]).split(" ", maxsplit=1)[0]
+        open_price = normalize_kbs_price(row["open"])
+        high_price = normalize_kbs_price(row["high"])
+        low_price = normalize_kbs_price(row["low"])
+        close_price = normalize_kbs_price(row["close"])
+        volume = Decimal(str(row["volume"])) if row.get("volume") is not None else None
         record = {
             "adjustmentStatus": "RAW",
             "canonicalRecord": "",
-            "close": decimal_string(row["close"]),
-            "high": decimal_string(row["high"]),
-            "low": decimal_string(row["low"]),
+            "close": decimal_string(close_price),
+            "high": decimal_string(high_price),
+            "low": decimal_string(low_price),
             "observedAt": f"{trading_date}T08:00:00Z",
-            "open": decimal_string(row["open"]),
+            "open": decimal_string(open_price),
             "symbol": symbol.upper(),
             "tradingDate": trading_date,
-            "valueVnd": decimal_string(row["close"] * row["volume"]) if row.get("volume") else None,
-            "volume": decimal_string(row["volume"]) if row.get("volume") is not None else None,
+            "valueVnd": decimal_string(close_price * volume) if volume is not None else None,
+            "volume": decimal_string(volume) if volume is not None else None,
         }
         record["canonicalRecord"] = canonical_json({key: value for key, value in record.items() if key != "canonicalRecord"})
         records.append(record)
@@ -99,7 +119,7 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=Path("output"))
     args = parser.parse_args()
     records = package_records(fetch_rows(args.symbol, args.start, args.end), args.symbol)
-    package = build_package(records, args.symbol, args.start, args.end, "0.1.0")
+    package = build_package(records, args.symbol, args.start, args.end, TOOL_VERSION)
     args.output.mkdir(parents=True, exist_ok=True)
     path = args.output / output_filename(args.symbol)
     path.write_text(json.dumps(package, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

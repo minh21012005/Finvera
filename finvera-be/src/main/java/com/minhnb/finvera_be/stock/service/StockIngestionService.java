@@ -46,6 +46,7 @@ public class StockIngestionService {
 
     private static final String DAILY_BAR_DATASET = "DAILY_BAR";
     private static final String FUNDAMENTAL_REPORT_DATASET = "FUNDAMENTAL_REPORT";
+    private static final String DEPRECATED_TCBS_STOCK_SOURCE = "TCBS_IFLASH_STOCK_DATA";
     // Defence in depth for A-11: a provider field that looks like a credential must
     // never reach a stored column, even though the typed DTO leaves little room for one.
     private static final Pattern CREDENTIAL_SHAPED = Pattern.compile(
@@ -105,6 +106,9 @@ public class StockIngestionService {
     private IngestionResult ingestDailyBarInternal(IncomingDailyBar incoming) {
         Instant ingestedAt = clock.instant();
 
+        if (DEPRECATED_TCBS_STOCK_SOURCE.equals(incoming.source())) {
+            return new IngestionResult(IngestionStatus.REJECTED, "DEPRECATED_PROVIDER_INVALID_PRICE_UNIT", null, null);
+        }
         if (isCredentialShaped(incoming.source()) || isCredentialShaped(incoming.adjustmentStatus())) {
             return new IngestionResult(IngestionStatus.REJECTED, "PAYLOAD_REJECTED", null, null);
         }
@@ -166,10 +170,10 @@ public class StockIngestionService {
     public Decision reconcileDailyBar(UUID instrumentId, String symbol, LocalDate tradingDate) {
         Objects.requireNonNull(instrumentId, "instrumentId");
         Objects.requireNonNull(tradingDate, "tradingDate");
-        var tcbsBar = dailyBars.findFirstByInstrumentIdAndTradingDateAndSourceAndCurrentTrue(
-                instrumentId, tradingDate, "TCBS");
-        var vnstockBar = dailyBars.findFirstByInstrumentIdAndTradingDateAndSourceAndCurrentTrue(
-                instrumentId, tradingDate, "VNSTOCK");
+        var tcbsBar = dailyBars.findLatestCurrentByInstrumentIdAndTradingDateAndSourcePrefix(
+                instrumentId, tradingDate, "TCBS%");
+        var vnstockBar = dailyBars.findLatestCurrentByInstrumentIdAndTradingDateAndSourcePrefix(
+                instrumentId, tradingDate, "VNSTOCK%");
         var result = reconciliation.reconcile(new SourceReconciliationService.Command(
                 instrumentId, tradingDate,
                 tcbsBar.map(EquityDailyBarEntity::getIngestionRecordId).orElse(nilUuid()),

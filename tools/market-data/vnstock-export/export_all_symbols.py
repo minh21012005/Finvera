@@ -115,7 +115,7 @@ def export_daily_bars_for(
     kept_old = [r for r in existing_records if r["tradingDate"] < effective_start and r["tradingDate"] not in new_dates]
     combined = kept_old + new_records
 
-    package = export_daily_bars.build_package(combined, symbol, start, end, "0.1.0")
+    package = export_daily_bars.build_package(combined, symbol, start, end, export_daily_bars.TOOL_VERSION)
     path.write_text(json.dumps(package, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
@@ -135,13 +135,20 @@ def daily_bars_current(symbol: str, entry: dict[str, Any], args: argparse.Namesp
     re-running tomorrow to pick up a new trading day) makes an old entry stale again rather than
     silently staying short a day forever -- export_daily_bars_for then only re-fetches the recent
     lookback window plus the new gap, not the whole range (--full-refresh forces the whole range)."""
+    path = args.output / export_daily_bars.output_filename(symbol)
+    if not path.exists():
+        return False
+    try:
+        package = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return False
     range_ = entry.get("daily_bars_range")
     return (entry.get("daily_bars") == DONE
             and range_ is not None
             and range_[0] <= args.start
             and range_[1] >= args.end
             and not args.full_refresh
-            and (args.output / export_daily_bars.output_filename(symbol)).exists())
+            and package.get("toolVersion") == export_daily_bars.TOOL_VERSION)
 
 
 def fundamentals_current(symbol: str, entry: dict[str, Any], args: argparse.Namespace) -> bool:

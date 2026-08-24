@@ -292,6 +292,17 @@ cd D:\Finvera
 .\refresh-data.ps1 -FullRefresh     # tải lại full range cho index + nến giá
 ```
 
+Sau remediation ngày 2026-08-25 về đơn vị giá cổ phiếu, cần restart backend
+một lần để Flyway áp dụng `V010__quarantine_deprecated_tcbs_stock_source.sql`
+và `V011__quarantine_pre_020_vnstock_stock_bars.sql`, rồi chạy lại
+`.\refresh-data.ps1`. Daily-bar exporter đã bump `toolVersion` lên `0.2.0`,
+nên checkpoint cũ của nến giá sẽ không bị skip: Vnstock/KBS sẽ được export lại
+theo đơn vị canonical `VND/share`, import vào DB thành revision mới, sau đó
+technical warmup và valuation warmup tính lại từ dữ liệu sạch. Trong khoảng
+giữa lúc migration chạy và refresh hoàn tất, một số mã có thể tạm thời thiếu
+daily bar current vì các row Vnstock/KBS cũ đã bị xóa khỏi DB để tránh UI tiếp
+tục dùng giá board-unit sai.
+
 Nếu chạy thủ công từng bước, bắt buộc tạo riêng gói index:
 
 ```powershell

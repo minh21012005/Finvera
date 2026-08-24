@@ -80,6 +80,18 @@ class StockIngestionServiceTests {
     }
 
     @Test
+    void rejectsTheDeprecatedTcbsStockDailyBarSourceBeforeStorage() {
+        UUID instrumentId = saveInstrument("STK11");
+
+        var rejected = ingestion.ingestDailyBar(bar("TCBS_IFLASH_STOCK_DATA", "STK11",
+                LocalDate.of(2026, 8, 24), Instant.parse("2026-08-24T03:00:00Z"), false));
+
+        assertThat(rejected.status()).isEqualTo(IngestionStatus.REJECTED);
+        assertThat(rejected.reasonCode()).isEqualTo("DEPRECATED_PROVIDER_INVALID_PRICE_UNIT");
+        assertThat(dailyBars.countByInstrumentId(instrumentId)).isZero();
+    }
+
+    @Test
     void rejectsAnExactDuplicateSubmission() {
         UUID instrumentId = saveInstrument("STK03");
         var first = ingestion.ingestDailyBar(bar("FINVERA_FIXTURE", "STK03",
@@ -138,6 +150,24 @@ class StockIngestionServiceTests {
         assertThat(second.status()).isEqualTo(IngestionStatus.ACCEPTED);
 
         var conflict = ingestion.reconcileDailyBar(instrumentId, "STK06", LocalDate.of(2026, 8, 14));
+        assertThat(conflict).isEqualTo(com.minhnb.finvera_be.market.domain.reconciliation.SourceReconciliationPolicy.Decision.SOURCE_CONFLICT);
+        assertThat(dailyBars.countByInstrumentId(instrumentId)).isEqualTo(2);
+    }
+
+    @Test
+    void detectsAProductionSourceFamilyConflictAndRetainsBothProvenances() {
+        UUID instrumentId = saveInstrument("STK12");
+        ingestion.ingestDailyBar(bar("TCBS_IFLASH_THESIS", "STK12",
+                LocalDate.of(2026, 8, 24), Instant.parse("2026-08-24T03:00:00Z"), false));
+
+        var vnstockBar = new IncomingDailyBar("VNSTOCK_KBS", "STK12", LocalDate.of(2026, 8, 24),
+                Instant.parse("2026-08-24T08:00:00Z"), new BigDecimal("100.000000"), new BigDecimal("101.000000"),
+                new BigDecimal("98.000000"), new BigDecimal("80.000000"), 900_000L, null, "RAW", false);
+        var second = ingestion.ingestDailyBar(vnstockBar);
+        assertThat(second.status()).isEqualTo(IngestionStatus.ACCEPTED);
+
+        var conflict = ingestion.reconcileDailyBar(instrumentId, "STK12", LocalDate.of(2026, 8, 24));
+
         assertThat(conflict).isEqualTo(com.minhnb.finvera_be.market.domain.reconciliation.SourceReconciliationPolicy.Decision.SOURCE_CONFLICT);
         assertThat(dailyBars.countByInstrumentId(instrumentId)).isEqualTo(2);
     }

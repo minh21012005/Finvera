@@ -12,6 +12,8 @@ import org.springframework.data.repository.query.Param;
 
 public interface EquityDailyBarRepository extends JpaRepository<EquityDailyBarEntity, UUID> {
 
+    String DEPRECATED_TCBS_STOCK_SOURCE = "TCBS_IFLASH_STOCK_DATA";
+
     Optional<EquityDailyBarEntity> findFirstByInstrumentIdAndTradingDateAndSourceAndCurrentTrue(
             UUID instrumentId, LocalDate tradingDate, String source);
 
@@ -21,18 +23,80 @@ public interface EquityDailyBarRepository extends JpaRepository<EquityDailyBarEn
     Optional<EquityDailyBarEntity> findFirstByInstrumentIdAndSourceAndCurrentTrueOrderByTradingDateDesc(
             UUID instrumentId, String source);
 
+    @Query("""
+            select b from EquityDailyBarEntity b
+            where b.instrumentId = :instrumentId
+              and b.current = true
+              and b.source <> 'TCBS_IFLASH_STOCK_DATA'
+              and b.tradingDate between :fromInclusive and :toInclusive
+            order by b.tradingDate asc
+            """)
     List<EquityDailyBarEntity> findByInstrumentIdAndCurrentTrueAndTradingDateBetweenOrderByTradingDateAsc(
-            UUID instrumentId, LocalDate fromInclusive, LocalDate toInclusive);
+            @Param("instrumentId") UUID instrumentId,
+            @Param("fromInclusive") LocalDate fromInclusive,
+            @Param("toInclusive") LocalDate toInclusive);
 
+    @Query(value = """
+            SELECT id, instrument_id, ingestion_record_id, import_batch_id, trading_date, open_price,
+                   high_price, low_price, close_price, adjusted_close, adjustment_factor, adjustment_status,
+                   volume, value_vnd, source, observed_at, accepted_at, revision, is_current, supersedes_id,
+                   quality_reason
+            FROM equity_daily_bar
+            WHERE instrument_id = :instrumentId
+              AND is_current = true
+              AND source <> 'TCBS_IFLASH_STOCK_DATA'
+            ORDER BY trading_date DESC, accepted_at DESC
+            limit 1
+            """, nativeQuery = true)
     Optional<EquityDailyBarEntity> findFirstByInstrumentIdAndCurrentTrueOrderByTradingDateDescAcceptedAtDesc(
-            UUID instrumentId);
+            @Param("instrumentId") UUID instrumentId);
 
+    @Query(value = """
+            SELECT id, instrument_id, ingestion_record_id, import_batch_id, trading_date, open_price,
+                   high_price, low_price, close_price, adjusted_close, adjustment_factor, adjustment_status,
+                   volume, value_vnd, source, observed_at, accepted_at, revision, is_current, supersedes_id,
+                   quality_reason
+            FROM equity_daily_bar
+            WHERE instrument_id = :instrumentId
+              AND is_current = true
+              AND source <> 'TCBS_IFLASH_STOCK_DATA'
+              AND trading_date < :beforeExclusive
+            ORDER BY trading_date DESC
+            limit 1
+            """, nativeQuery = true)
     Optional<EquityDailyBarEntity> findFirstByInstrumentIdAndCurrentTrueAndTradingDateBeforeOrderByTradingDateDesc(
-            UUID instrumentId, LocalDate beforeExclusive);
+            @Param("instrumentId") UUID instrumentId,
+            @Param("beforeExclusive") LocalDate beforeExclusive);
 
     long countByInstrumentId(UUID instrumentId);
 
-    List<EquityDailyBarEntity> findByInstrumentIdAndCurrentTrueOrderByTradingDateAsc(UUID instrumentId);
+    @Query("""
+            select b from EquityDailyBarEntity b
+            where b.instrumentId = :instrumentId
+              and b.current = true
+              and b.source <> 'TCBS_IFLASH_STOCK_DATA'
+            order by b.tradingDate asc
+            """)
+    List<EquityDailyBarEntity> findByInstrumentIdAndCurrentTrueOrderByTradingDateAsc(
+            @Param("instrumentId") UUID instrumentId);
+
+    @Query(value = """
+            SELECT id, instrument_id, ingestion_record_id, import_batch_id, trading_date, open_price,
+                   high_price, low_price, close_price, adjusted_close, adjustment_factor, adjustment_status,
+                   volume, value_vnd, source, observed_at, accepted_at, revision, is_current, supersedes_id,
+                   quality_reason
+            FROM equity_daily_bar
+            WHERE instrument_id = :instrumentId
+              AND trading_date = :tradingDate
+              AND is_current = true
+              AND source LIKE :sourcePrefix
+            ORDER BY accepted_at DESC
+            limit 1
+            """, nativeQuery = true)
+    Optional<EquityDailyBarEntity> findLatestCurrentByInstrumentIdAndTradingDateAndSourcePrefix(
+            @Param("instrumentId") UUID instrumentId,
+            @Param("tradingDate") LocalDate tradingDate,
+            @Param("sourcePrefix") String sourcePrefix);
 
     /**
      * Feature 003 research R-002: one bulk fetch covering both the "latest
@@ -59,7 +123,9 @@ public interface EquityDailyBarRepository extends JpaRepository<EquityDailyBarEn
                     PARTITION BY b.instrument_id ORDER BY b.trading_date DESC
                 ) AS rn
                 FROM equity_daily_bar b
-                WHERE b.instrument_id IN (:instrumentIds) AND b.is_current = true
+                WHERE b.instrument_id IN (:instrumentIds)
+                  AND b.is_current = true
+                  AND b.source <> 'TCBS_IFLASH_STOCK_DATA'
             )
             SELECT id, instrument_id, ingestion_record_id, import_batch_id, trading_date, open_price,
                    high_price, low_price, close_price, adjusted_close, adjustment_factor, adjustment_status,

@@ -5,6 +5,7 @@ import com.minhnb.finvera_be.market.provider.tcbs.TcbsThesisFrameMapper;
 import com.minhnb.finvera_be.market.provider.tcbs.TcbsThesisWebSocketClient;
 import com.minhnb.finvera_be.market.repository.EquityPriceObservationRepository;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -24,6 +25,8 @@ public class TcbsLiveEquityQuoteService implements LiveStockQuoteService,
         Consumer<TcbsThesisFrameMapper.Event> {
     private static final String SOURCE = "TCBS_IFLASH_THESIS";
     private static final String DATASET = "EQUITY_PRICE";
+    private static final BigDecimal MAX_AVERAGE_PRICE_RATIO = new BigDecimal("50");
+    private static final BigDecimal MIN_AVERAGE_PRICE_RATIO = new BigDecimal("0.02");
     private final MarketReferenceDataService referenceData;
     private final IngestionRecordService ingestionRecords;
     private final EquityPriceObservationRepository prices;
@@ -67,6 +70,7 @@ public class TcbsLiveEquityQuoteService implements LiveStockQuoteService,
             if (derived.signum() > 0) reference = derived;
         }
         if (reference == null) return;
+        if (hasImplausibleValueScale(trade)) return;
         var instrument = referenceData.findActiveInstrumentBySymbol(trade.symbol()).orElse(null);
         if (instrument == null) return;
         Instant observedAt = bucket(trade.receivedAt());
@@ -102,6 +106,18 @@ public class TcbsLiveEquityQuoteService implements LiveStockQuoteService,
     private static Instant bucket(Instant instant) {
         long epoch = instant.getEpochSecond();
         return Instant.ofEpochSecond(epoch - Math.floorMod(epoch, 30));
+    }
+
+    private static boolean hasImplausibleValueScale(TcbsThesisFrameMapper.EquityTradeUpdate trade) {
+        if (trade.totalVolume() == null || trade.totalVolume() <= 0
+                || trade.totalValueVnd() == null || trade.matchPrice() == null
+                || trade.matchPrice().signum() <= 0) {
+            return false;
+        }
+        BigDecimal averagePrice = trade.totalValueVnd()
+                .divide(BigDecimal.valueOf(trade.totalVolume()), 12, RoundingMode.HALF_UP);
+        BigDecimal ratio = averagePrice.divide(trade.matchPrice(), 12, RoundingMode.HALF_UP);
+        return ratio.compareTo(MAX_AVERAGE_PRICE_RATIO) > 0 || ratio.compareTo(MIN_AVERAGE_PRICE_RATIO) < 0;
     }
 
     private static String hash(Object... values) {

@@ -3,8 +3,8 @@
 **Feature**: `002-stock-detail-analysis`
 **Contract version**: `stock-data-private-v1`
 **Owner**: `finvera-be` / `stock` module, provider layer
-**Status**: Ports defined; gates G-01 to G-04 OPEN. No live integration is
-authorized by this document.
+**Status**: Ports defined; G-01, G-02, G-03, and G-04 are closed by the
+owner-accepted evidence and scope decisions recorded in `research.md` R-012.
 
 ## Purpose and boundary
 
@@ -28,6 +28,25 @@ Boundary rules, inherited and non-negotiable:
   allowlist. This feature adds no new external host.
 
 ## Ports
+
+## Canonical units at the port boundary
+
+All stock price facts emitted by a provider adapter or owner-operated exporter
+MUST already be normalized to Finvera's canonical unit before they enter the
+stock ingestion service:
+
+- equity prices: base `VND/share`, not Vietnamese board units;
+- volumes: shares;
+- traded values: base VND;
+- percentages and ratios: decimal values with the unit declared by the mapped
+  metric contract.
+
+Provider-specific quote conventions are handled only at the adapter/exporter
+boundary. Downstream services, PostgreSQL rows, deterministic indicators,
+valuation inputs, and API responses must never need to infer whether a price is
+quoted in board units or base VND. If a provider payload carries enough
+`totalValue` and `totalVolume` information to detect an inconsistent price
+scale, the adapter must reject or ignore that record rather than persist it.
 
 ### `StockReferenceProvider`
 
@@ -121,6 +140,12 @@ A-11 is a defence in depth: if a provider ever echoes a token into a data field,
 that record must not reach the database, where it would then be readable through
 the API.
 
+Unit normalization failures discovered after acceptance are handled as source
+corrections or source quarantine, not UI formatting. A source whose completed-bar
+semantics are no longer trusted is rejected with
+`DEPRECATED_PROVIDER_INVALID_PRICE_UNIT` until a new accepted provider contract
+replaces it.
+
 ## Corrections and cross-source reconciliation
 
 A record that matches an accepted key but carries different values is a
@@ -164,15 +189,16 @@ contained a credential is regenerated, not edited.
 
 | Gate | Blocks | Status |
 |---|---|---|
-| G-01 fundamental report source | `FundamentalReportProvider`, US3 | OPEN |
-| G-02 corporate action basis | `CorporateActionProvider`, adjusted series | OPEN |
-| G-03 per-stock quote coverage | `StockQuoteProvider` live path | OPEN |
-| G-04 sector reference coverage | Sector comparison basis | OPEN |
+| G-01 fundamental report source | `FundamentalReportProvider`, US3 | CLOSED: Vnstock/KBS offline export/import with the narrower accepted metric set |
+| G-02 corporate action basis | `CorporateActionProvider`, adjusted series | CLOSED: no live adapter; RAW-only chart/indicator basis is permanent until a new source is approved |
+| G-03 per-stock quote coverage | `StockQuoteProvider` live path | CLOSED: TCBS `tickerCommons?tickers=` accepted for live quote only |
+| G-04 sector reference coverage | Sector comparison basis | CLOSED: KBS industry taxonomy accepted with thin-sector fallback |
 
-Until a gate closes, its port is implemented **against fixtures only**. Fixture
-data is never presented to the owner as live provider data, and the deployment
-flag that enables a live adapter stays off. Gate evidence and the owner's
-acceptance are recorded in [research.md](../research.md) R-012.
+Historical rule retained for future gates: until a provider gate closes, its
+port is implemented **against fixtures only**. Fixture data is never presented
+to the owner as live provider data, and the deployment flag that enables a live
+adapter stays off. Gate evidence and the owner's acceptance are recorded in
+[research.md](../research.md) R-012.
 
 ## Contract tests
 
