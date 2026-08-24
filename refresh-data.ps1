@@ -10,8 +10,9 @@
       2. Restart the backend with instrument-reference import ON, wait for it to finish, stop it.
       3. Restart with equity-profile import ON, wait, stop. This is deliberately separate because
          ApplicationRunner ordering is not an implicit dependency guarantee.
-      4. Restart with daily-bar + fundamentals import ON, wait, stop.
-      5. Restart with the technical-indicator warmup ON, wait, stop.
+      4. Restart with market-overview index-history import ON, wait, stop.
+      5. Restart with daily-bar + fundamentals import ON, wait, stop.
+      6. Restart with the technical-indicator warmup ON, wait, stop.
     Every import here is safe/idempotent (only adds missing rows or backfills gaps), so this is
     safe to run after a 3-day gap, a 7-day gap, or any length of time.
 
@@ -28,11 +29,21 @@
     Skip the Python crawl step (use this if you already have fresh JSON files in
     tools/market-data/vnstock-export/output and just need to re-import them).
 
+.PARAMETER FullRefresh
+    Re-fetch the full configured history range for market indices and equity daily bars.
+    Use this occasionally, for example monthly, to catch older provider corrections.
+
+.PARAMETER LookbackDays
+    Incremental refresh window. On normal runs, re-fetch this many days before the
+    latest existing package/checkpoint and merge with older local files.
+
 .EXAMPLE
     .\refresh-data.ps1
 #>
 param(
-    [switch]$SkipCrawl
+    [switch]$SkipCrawl,
+    [switch]$FullRefresh,
+    [int]$LookbackDays = 90
 )
 
 $ErrorActionPreference = "Stop"
@@ -41,6 +52,8 @@ $beDir = Join-Path $root "finvera-be"
 $exportDir = Join-Path $root "tools\market-data\vnstock-export"
 $envFile = Join-Path $beDir ".env"
 $envRefreshFile = Join-Path $beDir ".env.refresh"
+$historyStartDate = "2024-01-01"
+$historyEndDate = (Get-Date).ToString("yyyy-MM-dd")
 
 $ManagedRuntimeFlags = @(
     "FINVERA_MARKET_IMPORT_ENABLED",
@@ -78,6 +91,16 @@ function Assert-NativeSuccess([string]$operation) {
     if ($LASTEXITCODE -ne 0) {
         throw "$operation failed with exit code $LASTEXITCODE."
     }
+}
+
+function Get-LatestMarketOverviewPackage([string]$outputDir, [string]$startDate) {
+    $target = Join-Path $outputDir "market-overview-$startDate-$historyEndDate.json"
+    if (Test-Path -LiteralPath $target) { return $target }
+    $latest = Get-ChildItem -LiteralPath $outputDir -Filter "market-overview-$startDate-*.json" -File -ErrorAction SilentlyContinue |
+        Sort-Object Name -Descending |
+        Select-Object -First 1
+    if ($latest) { return $latest.FullName }
+    return $target
 }
 
 function Invoke-BackendStage([string]$name, [string[]]$waitPatterns, [int]$timeoutSec) {
@@ -141,14 +164,27 @@ if ($listener) {
 
 if (-not $SkipCrawl) {
     Write-Host ""
-    Write-Host "== Buoc 1/5: Crawl gia + danh sach ma moi tu Vnstock ==" -ForegroundColor Cyan
+    Write-Host "== Buoc 1/6: Crawl gia + danh sach ma moi + index history tu Vnstock ==" -ForegroundColor Cyan
     Push-Location $exportDir
     try {
         uv run --project ../provider-poc python export_instrument_reference.py
         Assert-NativeSuccess "Instrument-reference export"
         uv run --project ../provider-poc python export_equity_profile.py
         Assert-NativeSuccess "Equity-profile export"
-        uv run --project ../provider-poc python export_all_symbols.py --start 2024-01-01
+        $marketOverviewArgs = @(
+            "run", "--project", "../provider-poc", "python", "export_history.py",
+            "--market-overview", "--start", $historyStartDate, "--end", $historyEndDate,
+            "--lookback-days", "$LookbackDays"
+        )
+        if ($FullRefresh) { $marketOverviewArgs += "--full-refresh" }
+        & uv @marketOverviewArgs
+        Assert-NativeSuccess "Market-overview index export"
+        $allSymbolsArgs = @(
+            "run", "--project", "../provider-poc", "python", "export_all_symbols.py",
+            "--start", $historyStartDate, "--lookback-days", "$LookbackDays"
+        )
+        if ($FullRefresh) { $allSymbolsArgs += "--full-refresh" }
+        & uv @allSymbolsArgs
         Assert-NativeSuccess "Daily-bar/fundamentals export"
     } finally {
         Pop-Location
@@ -157,28 +193,39 @@ if (-not $SkipCrawl) {
     Write-Host "Bo qua buoc crawl (-SkipCrawl)." -ForegroundColor Yellow
 }
 
+$marketOverviewPackage = Get-LatestMarketOverviewPackage (Join-Path $exportDir "output") $historyStartDate
+if (-not (Test-Path -LiteralPath $marketOverviewPackage)) {
+    throw "Market-overview package not found: $marketOverviewPackage. Run without -SkipCrawl or regenerate it with export_history.py --market-overview."
+}
+
 Import-EnvFile $envFile
 Import-EnvFile $envRefreshFile
 [Environment]::SetEnvironmentVariable("FINVERA_MARKET_PROVIDER_MODE", "vnstock-package-private", "Process")
 [Environment]::SetEnvironmentVariable("FINVERA_MARKET_FIXTURE_BOOTSTRAP_ENABLED", "false", "Process")
+[Environment]::SetEnvironmentVariable("FINVERA_MARKET_IMPORT_PACKAGE_PATH", $marketOverviewPackage, "Process")
 
 Set-StageFlags @("FINVERA_MARKET_IMPORT_INSTRUMENT_REFERENCE_ENABLED")
-Invoke-BackendStage -Name "Buoc 2/5: Dang ky ma moi" `
+Invoke-BackendStage -Name "Buoc 2/6: Dang ky ma moi" `
     -WaitPatterns @("instrument_reference_import status=") `
     -TimeoutSec 180
 
 Set-StageFlags @("FINVERA_STOCK_IMPORT_EQUITY_PROFILE_ENABLED")
-Invoke-BackendStage -Name "Buoc 3/5: Nap ho so cong ty" `
+Invoke-BackendStage -Name "Buoc 3/6: Nap ho so cong ty" `
     -WaitPatterns @("stock_import dataset=equity-profile total=") `
     -TimeoutSec 300
 
+Set-StageFlags @("FINVERA_MARKET_IMPORT_ENABLED")
+Invoke-BackendStage -Name "Buoc 4/6: Nap lich su chi so thi truong" `
+    -WaitPatterns @("market_import status=") `
+    -TimeoutSec 300
+
 Set-StageFlags @("FINVERA_STOCK_IMPORT_DAILY_BAR_ENABLED", "FINVERA_STOCK_IMPORT_FUNDAMENTALS_ENABLED")
-Invoke-BackendStage -Name "Buoc 4/5: Nap gia + bao cao tai chinh moi" `
+Invoke-BackendStage -Name "Buoc 5/6: Nap gia + bao cao tai chinh moi" `
     -WaitPatterns @("stock_import dataset=daily-bar total=", "stock_import dataset=fundamentals total=") `
     -TimeoutSec 1800
 
 Set-StageFlags @("FINVERA_STOCK_TECHNICAL_WARMUP_ENABLED")
-Invoke-BackendStage -Name "Buoc 5/5: Tinh bu chi bao ky thuat (MA/RSI/MACD...)" `
+Invoke-BackendStage -Name "Buoc 6/6: Tinh bu chi bao ky thuat (MA/RSI/MACD...)" `
     -WaitPatterns @("technical_indicator_warmup total=") `
     -TimeoutSec 900
 

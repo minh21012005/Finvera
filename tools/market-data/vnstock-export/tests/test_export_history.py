@@ -44,6 +44,48 @@ def test_builds_market_package_with_index_records_and_derived_reference():
     assert "VNSTOCK_DAILY_CLOSE_REFERENCE_DERIVED" in package["indexRecords"][0]["reasonCodes"]
 
 
+def test_market_overview_incremental_merges_existing_records(monkeypatch, tmp_path):
+    existing_records = [
+        {
+            "canonicalRecord": "old",
+            "code": "VN_INDEX",
+            "dataStatus": "CURRENT",
+            "level": "100.000000",
+            "matchedValueVnd": None,
+            "matchedVolume": None,
+            "observedAt": "2026-08-20T08:00:00Z",
+            "providerSymbol": "VNINDEX",
+            "reasonCodes": ["VNSTOCK_DAILY_CLOSE_REFERENCE_DERIVED"],
+            "referenceLevel": "99.000000",
+            "sessionState": "CLOSED",
+            "tradingDate": "2026-08-20",
+        }
+    ]
+    package = export_history.build_market_package([], existing_records, "2024-01-01", "2026-08-20", "0.2.0")
+    (tmp_path / export_history.market_overview_filename("2024-01-01", "2026-08-20")).write_text(
+        export_history.json.dumps(package, ensure_ascii=False), encoding="utf-8"
+    )
+    calls = []
+
+    def fake_fetch(symbol, start, end):
+        calls.append((symbol, start, end))
+        return [
+            {"time": "2026-05-12 00:00:00", "close": "101"},
+            {"time": "2026-08-24 00:00:00", "close": "102"},
+        ]
+
+    monkeypatch.setattr(export_history, "fetch_index_rows", fake_fetch)
+
+    records = export_history.incremental_market_index_records(
+        "2024-01-01", "2026-08-24", tmp_path, lookback_days=90, full_refresh=False
+    )
+
+    assert calls
+    assert all(call[1] != "2024-01-01" for call in calls)
+    assert ("VN_INDEX", "2026-08-20") in {(record["code"], record["tradingDate"]) for record in records}
+    assert ("VN_INDEX", "2026-08-24") in {(record["code"], record["tradingDate"]) for record in records}
+
+
 def test_rejects_insufficient_history_and_invalid_decimal():
     with pytest.raises(ValueError, match="271"):
         export_history.build_package([], "2025-01-01", "2026-01-01", "0.1.0")

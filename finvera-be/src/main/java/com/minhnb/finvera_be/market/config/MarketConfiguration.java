@@ -21,6 +21,7 @@ import java.time.Clock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -78,6 +79,7 @@ public class MarketConfiguration {
     }
 
     @Bean
+    @ConditionalOnBean({BreadthService.class, LiveMarketRegimeReconciliationService.class})
     ApplicationRunner marketRegimeReadRepair(BreadthService breadth,
             LiveMarketRegimeReconciliationService regimeReconciliation) {
         return arguments -> breadth.latest().ifPresent(snapshot ->
@@ -97,7 +99,9 @@ public class MarketConfiguration {
     ApplicationRunner localHistoricalImport(@Value("${finvera.market.import.package-path}") String packagePath,
             MarketImportPackageParser parser, MarketImportService importer) {
         return arguments -> {
-            if (!packagePath.isBlank()) importer.importPackage(parser.parse(Path.of(packagePath)));
+            if (packagePath.isBlank()) return;
+            var result = importer.importPackage(parser.parse(Path.of(packagePath)));
+            log.info("market_import status={} package_sha256={}", result.status(), result.packageSha256());
         };
     }
 

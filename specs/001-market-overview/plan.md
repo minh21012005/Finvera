@@ -416,6 +416,20 @@ contract supplies those datasets. Publication requires trend and aggregate
 breadth plus at least one additional index-history component; otherwise the
 assessment is still persisted as reason-coded withheld data.
 
+## Phase 15: End-of-Day Refresh Completeness
+
+The root `refresh-data.ps1` workflow must refresh the complete local data
+surface required by Market Overview, not only Feature 002 equity datasets. It
+therefore exports the Vnstock/KBS market-overview package for the four approved
+indices, imports it through Spring's existing canonical `MarketImportService`
+boundary, and waits for a safe `market_import` completion marker before moving
+to equity daily bars/fundamentals and technical warmup. Market-index export uses
+the same default policy as equity candles: incremental by default with a bounded
+lookback merge window, and full-range re-fetch only when the owner passes the
+explicit `-FullRefresh` flag. Without this stage, `index_snapshot` can remain
+empty even after an otherwise successful end-of-day refresh, causing
+`market-regime-v2` to be correctly withheld for `TREND_COMPONENT_UNAVAILABLE`.
+
 ## Complexity Tracking
 
 | Violation/Addition | Why Required Now | Simpler Alternative Rejected | Approval/ADR | Removal or Review Trigger |

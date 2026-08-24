@@ -498,3 +498,10 @@ quotes without maintaining or restarting for a static environment ticker list.
       Verify: domain and service tests prove V2 publishes with trend + aggregate breadth + one additional component, withholds when mandatory trend is missing, preserves input links/history hash, and never requires V1-only SMA50 breadth or liquidity inputs.
       Depends: T082, R-007B.
       Evidence (2026-08-24): backend targeted tests passed 15/15, frontend market-overview API parser tests passed 6/6, `mvnw -DskipTests package` passed, and `npm run build` passed.
+
+## Phase 15: End-of-Day Refresh Completeness
+
+- [x] T084 [FR-001-FR-006, FR-010-FR-018, DATA-001, DATA-003, DATA-009, NFR-006, NFR-007] Include Vnstock market-index history in the root end-of-day refresh workflow by exporting `market-overview-<start>-<end>.json`, importing it through the existing Spring `MarketImportService` boundary, emitting a safe `market_import` completion marker, and documenting that skipped index import leaves `index_snapshot` empty and regime v2 withheld.
+      Verify: PowerShell syntax parses, exporter tests prove incremental market-overview merge semantics, backend package compiles, and `git diff --check` passes; owner reruns `.\refresh-data.ps1` and confirms `index_snapshot` contains `VN_INDEX` rows before expecting a published regime.
+      Depends: T066, T079, T083.
+      Evidence (2026-08-24): `refresh-data.ps1` now has a 6-stage flow with explicit market-overview export/import, `-LookbackDays`, and `-FullRefresh`; `export_history.py --market-overview` merges existing packages incrementally unless `--full-refresh` is passed; `MarketConfiguration.localHistoricalImport` logs `market_import status=` for automation; `.env.refresh` and `docs/runbooks/go-live-setup.md` document the market import flag/path.

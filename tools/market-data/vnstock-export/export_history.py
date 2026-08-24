@@ -9,7 +9,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -23,6 +23,7 @@ DEFAULT_INDEXES = (
     ("HNX_INDEX", "HNXINDEX", "HNX"),
     ("UPCOM_INDEX", "UPCOMINDEX", "UPCOM"),
 )
+MARKET_OVERVIEW_FETCH_REFERENCE_DAYS = 10
 
 
 def decimal_string(value: Any) -> str:
@@ -133,6 +134,53 @@ def build_market_package(
     }
 
 
+def market_overview_filename(start: str, end: str) -> str:
+    return f"market-overview-{start}-{end}.json"
+
+
+def latest_market_overview_package(output: Path, start: str) -> Path | None:
+    candidates = sorted(output.glob(f"market-overview-{start}-*.json"))
+    return candidates[-1] if candidates else None
+
+
+def load_existing_index_records(output: Path, start: str) -> list[dict[str, Any]]:
+    path = latest_market_overview_package(output, start)
+    if path is None:
+        return []
+    try:
+        package = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return []
+    if package.get("contractVersion") != MARKET_PACKAGE_CONTRACT_VERSION:
+        return []
+    records = package.get("indexRecords", [])
+    if not isinstance(records, list):
+        return []
+    return [record for record in records if isinstance(record, dict)]
+
+
+def incremental_market_index_records(
+    start: str, end: str, output: Path, lookback_days: int, full_refresh: bool
+) -> list[dict[str, Any]]:
+    if lookback_days < 0:
+        raise ValueError("lookback-days must be non-negative")
+    existing_records = [] if full_refresh else load_existing_index_records(output, start)
+    fetch_start = start
+    if existing_records:
+        existing_end = max(str(record["tradingDate"]) for record in existing_records)
+        cutoff = date.fromisoformat(existing_end) - timedelta(days=lookback_days)
+        reference_start = cutoff - timedelta(days=MARKET_OVERVIEW_FETCH_REFERENCE_DAYS)
+        fetch_start = max(start, reference_start.isoformat())
+
+    new_records: list[dict[str, Any]] = []
+    for code, provider_symbol, _venue in DEFAULT_INDEXES:
+        new_records.extend(index_records(fetch_index_rows(provider_symbol, fetch_start, end), code, provider_symbol))
+
+    merged = {(record["code"], record["tradingDate"]): record for record in existing_records}
+    merged.update({(record["code"], record["tradingDate"]): record for record in new_records})
+    return sorted(merged.values(), key=lambda item: (item["code"], item["tradingDate"]))
+
+
 def fetch_rows(symbol: str, start: str, end: str) -> list[dict[str, Any]]:
     from vnstock import Market
 
@@ -163,13 +211,17 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=Path("output"))
     parser.add_argument("--market-overview", action="store_true",
                         help="Export the four configured market indices as indexRecords")
+    parser.add_argument("--lookback-days", type=int, default=90,
+                        help="For --market-overview incremental runs, re-fetch this many days before "
+                             "the latest existing package date and merge with older records")
+    parser.add_argument("--full-refresh", action="store_true",
+                        help="For --market-overview, ignore existing packages and re-fetch the full range")
     args = parser.parse_args()
     if args.market_overview:
-        index_snapshot_records: list[dict[str, Any]] = []
-        for code, provider_symbol, _venue in DEFAULT_INDEXES:
-            index_snapshot_records.extend(index_records(fetch_index_rows(provider_symbol, args.start, args.end), code, provider_symbol))
+        index_snapshot_records = incremental_market_index_records(
+            args.start, args.end, args.output, args.lookback_days, args.full_refresh)
         package = build_market_package([], index_snapshot_records, args.start, args.end, "0.2.0")
-        filename = f"market-overview-{args.start}-{args.end}.json"
+        filename = market_overview_filename(args.start, args.end)
     else:
         if not args.symbol or not args.venue:
             parser.error("--symbol and --venue are required unless --market-overview is set")
