@@ -220,6 +220,11 @@ not be renumbered; removed requirements are deprecated with a reason.
 - **FR-014**: Regime presentation MUST identify the output as quantitative
   decision support and MUST NOT present it as a guaranteed forecast or a
   buy/sell instruction.
+- **FR-017**: After a coherent live breadth snapshot is accepted, the system
+  MUST reconcile and persist one `market-regime-v1` assessment for the same
+  trading date using only accepted PostgreSQL inputs. If the approved inputs
+  cannot support publication, it MUST persist a reason-coded withheld
+  assessment rather than leaving the reason as an ambiguous missing record.
 - **FR-015**: When accepted source data is corrected, the overview MUST show the
   corrected facts and any resulting breadth or regime assessment with a new
   as-of/update indication.
@@ -417,6 +422,7 @@ not be renumbered; removed requirements are deprecated with a reason.
 | FR-012 | US3 / Scenario 3 | SC-004 |
 | FR-013 | US3 / Scenario 2 | SC-003 |
 | FR-014 | US3 / Scenario 4 | Acceptance review |
+| FR-017 | US3 / live reconciliation | SC-003, SC-004 |
 | FR-015 | US1 / Scenario 3; edge correction case | SC-004 |
 | FR-016 | Stock detail live-overlay journey; first-read fallback | Contract and adapter tests |
 | DATA-001, DATA-002 | US1-US3 | SC-002, SC-003, SC-004 |

@@ -478,3 +478,12 @@ quotes without maintaining or restarting for a static environment ticker list.
       Verify: repository regression test, Flyway migration against local PostgreSQL, exact before/after source counts, four-index overview query, targeted backend tests, and `git diff --check`.
       Depends: T074.
       Evidence (2026-08-24): rollback rehearsal removed exactly 1,958 legacy snapshots and quarantined exactly 1,958 ingestion rows while retaining every Thesis row; Flyway applied V009 successfully to local PostgreSQL. Post-migration selection returned four `TCBS_IFLASH_THESIS` values (VN-Index 1782.05, VN30 1935.27, HNX 283.25, UPCOM 127.99 at the verification instant), package compiled, and 25/25 targeted configuration/TCBS tests passed. The repository regression has been added for the next Docker-enabled full gate; local SQL exercised the identical source filter because Testcontainers is unavailable.
+
+---
+
+## Phase 13: Live Regime Reconciliation
+
+- [x] T081 [FR-010-FR-014, FR-017, DATA-001, DATA-004, DATA-009, NFR-002, NFR-007] Add a post-breadth reconciliation path in `finvera-be/src/main/java/com/minhnb/finvera_be/market/service/LiveMarketRegimeReconciliationService.java`, wire it from `TcbsLiveMarketIngestionService`, and extend index repositories/entities only as needed for accepted daily VN-Index history. Compute only components whose approved inputs exist, persist exact input links/history hash, and persist an explicit withheld assessment for missing breadth-SMA50 or liquidity history; never synthesize a component or regime label.
+      Verify: focused unit tests prove one reconciliation after a coherent breadth snapshot, exact input links/history hash, no duplicate reconciliation for an unchanged bucket, and reason-coded withholding when provider contracts lack the required inputs.
+      Depends: T074, T080, R-007A.
+      Evidence (2026-08-24): `LiveMarketRegimeReconciliationServiceTests` and `TcbsLiveMarketIngestionServiceTests` passed 5/5; `mvnw -DskipTests package` and `git diff --check` passed. The runtime now persists linked, reason-coded withheld assessments after a newly accepted breadth bucket. A publishable label remains correctly gated on the missing provider inputs described by R-007A.

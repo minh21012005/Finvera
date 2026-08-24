@@ -9,6 +9,7 @@ import com.minhnb.finvera_be.market.service.BreadthService;
 import com.minhnb.finvera_be.market.service.MarketIngestionService;
 import com.minhnb.finvera_be.market.service.MarketReferenceDataService;
 import com.minhnb.finvera_be.market.service.TcbsLiveMarketIngestionService;
+import com.minhnb.finvera_be.market.service.LiveMarketRegimeReconciliationService;
 import com.minhnb.finvera_be.market.service.TcbsLiveEquityQuoteService;
 import com.minhnb.finvera_be.market.service.IngestionRecordService;
 import com.minhnb.finvera_be.market.repository.EquityPriceObservationRepository;
@@ -49,8 +50,9 @@ public class MarketConfiguration {
     @Bean
     @ConditionalOnProperty(name = "finvera.market.live-overlay.tcbs.enabled", havingValue = "true")
     TcbsLiveMarketIngestionService tcbsLiveMarketIngestionService(MarketIngestionService ingestion,
-            BreadthService breadth, MarketReferenceDataService referenceData) {
-        return new TcbsLiveMarketIngestionService(ingestion, breadth, referenceData);
+            BreadthService breadth, MarketReferenceDataService referenceData,
+            LiveMarketRegimeReconciliationService regimeReconciliation) {
+        return new TcbsLiveMarketIngestionService(ingestion, breadth, referenceData, regimeReconciliation);
     }
 
     @Bean

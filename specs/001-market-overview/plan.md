@@ -393,6 +393,17 @@ database directly.
 | NFR-007, SEC-001â€“SEC-006 | Private owner policy, session/CSRF, renewal boundary, adapter allowlist | Negative security/deployment/secret tests | Security foundation â†’ hardening |
 | DATA-010 | Historical import batch and source reconciliation | Package contract/conflict/property tests | Foundation â†’ US3 |
 
+## Phase 13: Live Regime Reconciliation
+
+After each newly persisted coherent live breadth bucket, a service reads the
+accepted daily VN-Index history plus the accepted breadth snapshot and stores a
+new immutable `market-regime-v1` assessment. It retains current index/breadth
+foreign-key links and a SHA-256 history input-set hash. The reconciler can use
+only proven inputs; aggregate A/D breadth cannot stand in for the approved
+percentage-above-SMA50 measure and missing historical matched value cannot
+stand in for liquidity. Such cases are stored as reason-coded withheld
+assessments, not fabricated labels. This is the T081 runtime path for FR-017.
+
 ## Complexity Tracking
 
 | Violation/Addition | Why Required Now | Simpler Alternative Rejected | Approval/ADR | Removal or Review Trigger |

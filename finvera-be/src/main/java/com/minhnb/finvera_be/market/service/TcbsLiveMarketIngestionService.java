@@ -28,13 +28,15 @@ public final class TcbsLiveMarketIngestionService implements Consumer<TcbsThesis
     private final MarketIngestionService ingestion;
     private final BreadthService breadth;
     private final MarketReferenceDataService referenceData;
+    private final LiveMarketRegimeReconciliationService regimeReconciliation;
     private final Map<Integer, TcbsThesisFrameMapper.IndexUpdate> latestBreadth = new ConcurrentHashMap<>();
 
     public TcbsLiveMarketIngestionService(MarketIngestionService ingestion, BreadthService breadth,
-            MarketReferenceDataService referenceData) {
+            MarketReferenceDataService referenceData, LiveMarketRegimeReconciliationService regimeReconciliation) {
         this.ingestion = ingestion;
         this.breadth = breadth;
         this.referenceData = referenceData;
+        this.regimeReconciliation = regimeReconciliation;
     }
 
     @Override
@@ -79,7 +81,8 @@ public final class TcbsLiveMarketIngestionService implements Consumer<TcbsThesis
         var result = new BreadthCalculator.Result(advancing, declining, unchanged, 0,
                 advancing + declining + unchanged, List.of("PROVIDER_AGGREGATE_BREADTH"));
         breadth.persistProviderAggregate(tradingDate, bucket, UNIVERSE_VERSION, result,
-                breadthHash(tradingDate, bucket, required));
+                breadthHash(tradingDate, bucket, required))
+                .ifPresent(snapshot -> regimeReconciliation.reconcile(tradingDate, snapshot));
     }
 
     private static int sum(Map<Integer, TcbsThesisFrameMapper.IndexUpdate> updates,

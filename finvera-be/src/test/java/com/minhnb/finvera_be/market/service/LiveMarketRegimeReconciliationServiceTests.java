@@ -1,0 +1,67 @@
+package com.minhnb.finvera_be.market.service;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import com.minhnb.finvera_be.market.domain.breadth.BreadthCalculator;
+import com.minhnb.finvera_be.market.domain.model.MarketTypes.DataStatus;
+import com.minhnb.finvera_be.market.entity.MarketIndexEntity;
+import com.minhnb.finvera_be.market.entity.MarketIndexSnapshotEntity;
+import com.minhnb.finvera_be.market.repository.MarketIndexRepository;
+import com.minhnb.finvera_be.market.repository.MarketIndexSnapshotRepository;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+@ExtendWith(MockitoExtension.class)
+class LiveMarketRegimeReconciliationServiceTests {
+    @Mock MarketIndexRepository indexes;
+    @Mock MarketIndexSnapshotRepository snapshots;
+    @Mock RegimeAssessmentService assessments;
+
+    @Test
+    void persistsReasonCodedWithholdingWithCurrentAndHistoricalInputLinks() {
+        UUID indexId = UUID.randomUUID();
+        LocalDate date = LocalDate.of(2026, 8, 24);
+        when(indexes.findByCode("VN_INDEX")).thenReturn(Optional.of(new MarketIndexEntity(
+                indexId, "VN_INDEX", "VNINDEX", "VN-Index", "HOSE", date.minusYears(10), null)));
+        when(snapshots.findAcceptedDailyHistory(indexId, "TCBS_IFLASH_MARKET_DATA", date))
+                .thenReturn(history(date, 21));
+        var service = new LiveMarketRegimeReconciliationService(indexes, snapshots, assessments);
+        var breadth = new BreadthService.Snapshot(UUID.randomUUID(), date, Instant.parse("2026-08-24T03:00:00Z"),
+                DataStatus.CURRENT, new BreadthCalculator.Result(300, 200, 100, 0, 600, List.of()), "provider", "a".repeat(64));
+
+        service.reconcile(date, breadth);
+
+        ArgumentCaptor<RegimeAssessmentService.AssessmentCommand> command =
+                ArgumentCaptor.forClass(RegimeAssessmentService.AssessmentCommand.class);
+        verify(assessments).persist(command.capture());
+        assertThat(command.getValue().assessment().label()).isNull();
+        assertThat(command.getValue().assessment().reasonCodes()).contains(
+                "INSUFFICIENT_COMPONENT_COMPLETENESS", "BREADTH_SMA50_COVERAGE_UNAVAILABLE",
+                "LIQUIDITY_HISTORY_UNAVAILABLE");
+        assertThat(command.getValue().inputLinks()).extracting(RegimeAssessmentService.InputLink::inputRole)
+                .containsExactly("VN_INDEX_CURRENT", "BREADTH_CURRENT", "VN_INDEX_DAILY_HISTORY");
+        assertThat(command.getValue().inputLinks().getLast().inputSetHash()).matches("[0-9a-f]{64}");
+    }
+
+    private static List<MarketIndexSnapshotEntity> history(LocalDate end, int count) {
+        return java.util.stream.IntStream.range(0, count).mapToObj(offset -> {
+            LocalDate day = end.minusDays(count - offset - 1L);
+            Instant at = day.atTime(8, 0).atZone(java.time.ZoneOffset.UTC).toInstant();
+            return new MarketIndexSnapshotEntity(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), day, at, at,
+                    "CLOSED", new BigDecimal("1700").add(BigDecimal.valueOf(offset)), new BigDecimal("1699"),
+                    BigDecimal.ONE, new BigDecimal("0.01"), 100L, null, "VNSTOCK_KBS", 1, null);
+        }).toList();
+    }
+}

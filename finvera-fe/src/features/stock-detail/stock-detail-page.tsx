@@ -181,7 +181,12 @@ export function StockDetailPage({ symbol }: { symbol: string }) {
               <p role="status">Biểu đồ tạm thời không có dữ liệu.</p>
             </section>
           )}
-          {chartState.kind === "ready" && <StockChart chart={chartState.chart} />}
+          {chartState.kind === "ready" && (
+            <StockChart
+              chart={chartState.chart}
+              livePrice={overviewState.kind === "ready" ? overviewState.overview.price.last : null}
+            />
+          )}
 
           {technicalState.kind === "loading" && <p aria-busy="true">Đang tải chỉ báo kỹ thuật…</p>}
           {technicalState.kind === "unavailable" && (

@@ -75,8 +75,12 @@ public class MarketIndexSnapshotEntity {
     public LocalDate getTradingDate() { return tradingDate; }
     public Instant getObservedAt() { return observedAt; }
     public BigDecimal getIndexLevel() { return indexLevel; }
+    public BigDecimal getReferenceLevel() { return referenceLevel; }
     public BigDecimal getAbsoluteChange() { return absoluteChange; }
+    public Long getMatchedVolume() { return matchedVolume; }
     public BigDecimal getMatchedValueVnd() { return matchedValueVnd; }
+    public String getSource() { return source; }
+    public String getSessionState() { return sessionState; }
     public int getRevision() { return revision; }
     public UUID getSupersedesId() { return supersedesId; }
 }

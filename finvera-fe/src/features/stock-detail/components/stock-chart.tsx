@@ -141,7 +141,13 @@ function calculateNicePriceTicks(min: number, max: number, targetCount: number =
   return [min, (min + max) / 2, max];
 }
 
-export function StockChart({ chart }: { chart: StockChartData }) {
+export function StockChart({
+  chart,
+  livePrice,
+}: {
+  chart: StockChartData;
+  livePrice?: string | null;
+}) {
   const { meta, bars, adjustmentStatus } = chart;
 
   const [timeRange, setTimeRange] = useState<TimeRange>("6M");
@@ -158,40 +164,56 @@ export function StockChart({ chart }: { chart: StockChartData }) {
   const dragStartXRef = useRef<number>(0);
   const dragStartOffsetRef = useRef<number>(0);
 
-  // 1. Normalize unit consistency across bars (handles mixed raw VND vs VND-thousands sources seamlessly)
+  // 1. Normalize unit consistency across bars and incorporate live price into latest candle
   const normalizedBars = useMemo(() => {
     if (!bars || bars.length === 0) return [];
     // Count how many bars have close price >= 1000
     const countLarge = bars.filter((b) => Number.parseFloat(b.close) >= 1000).length;
     const isPredominantlyLarge = countLarge > bars.length / 2;
 
-    return bars.map((b) => {
-      const open = Number.parseFloat(b.open);
-      const high = Number.parseFloat(b.high);
-      const low = Number.parseFloat(b.low);
-      const close = Number.parseFloat(b.close);
+    const parsedLive = livePrice ? Number.parseFloat(livePrice) : null;
+    const validLive = parsedLive !== null && !Number.isNaN(parsedLive) && parsedLive > 0;
+
+    return bars.map((b, index) => {
+      let open = Number.parseFloat(b.open);
+      let high = Number.parseFloat(b.high);
+      let low = Number.parseFloat(b.low);
+      let close = Number.parseFloat(b.close);
+
+      // If this is the latest bar and we have a valid live real-time price, update close/high/low in real time
+      if (index === bars.length - 1 && validLive && parsedLive !== null) {
+        let normalizedLive = parsedLive;
+        if (isPredominantlyLarge && parsedLive < 1000) {
+          normalizedLive = parsedLive * 1000;
+        } else if (!isPredominantlyLarge && parsedLive >= 1000) {
+          normalizedLive = parsedLive / 1000;
+        }
+        close = normalizedLive;
+        high = Math.max(high, normalizedLive);
+        low = Math.min(low, normalizedLive);
+      }
 
       if (isPredominantlyLarge) {
         // Target: Raw VND (>= 1000)
         return {
           ...b,
-          open: open < 1000 ? (open * 1000).toFixed(2) : b.open,
-          high: high < 1000 ? (high * 1000).toFixed(2) : b.high,
-          low: low < 1000 ? (low * 1000).toFixed(2) : b.low,
-          close: close < 1000 ? (close * 1000).toFixed(2) : b.close,
+          open: open < 1000 ? (open * 1000).toFixed(2) : open.toFixed(2),
+          high: high < 1000 ? (high * 1000).toFixed(2) : high.toFixed(2),
+          low: low < 1000 ? (low * 1000).toFixed(2) : low.toFixed(2),
+          close: close < 1000 ? (close * 1000).toFixed(2) : close.toFixed(2),
         };
       } else {
         // Target: Thousands VND (< 1000)
         return {
           ...b,
-          open: open >= 1000 ? (open / 1000).toFixed(2) : b.open,
-          high: high >= 1000 ? (high / 1000).toFixed(2) : b.high,
-          low: low >= 1000 ? (low / 1000).toFixed(2) : b.low,
-          close: close >= 1000 ? (close / 1000).toFixed(2) : b.close,
+          open: open >= 1000 ? (open / 1000).toFixed(2) : open.toFixed(2),
+          high: high >= 1000 ? (high / 1000).toFixed(2) : high.toFixed(2),
+          low: low >= 1000 ? (low / 1000).toFixed(2) : low.toFixed(2),
+          close: close >= 1000 ? (close / 1000).toFixed(2) : close.toFixed(2),
         };
       }
     });
-  }, [bars]);
+  }, [bars, livePrice]);
 
   // 2. Filter bars according to selected time range based on exact calendar intervals
   const rangeBars = useMemo(() => {

@@ -569,6 +569,28 @@ versioned historical fixtures for determinism, boundary behavior, obvious
 pathologies, and label stability. Any formula/threshold change requires a new
 rule version and replay comparison; do not mutate historical assessments.
 
+## R-007A — Live Regime Reconciliation Boundary
+
+**Decision**: A coherent provider breadth snapshot triggers deterministic
+`market-regime-v1` reconciliation after it is committed. The reconciler reads
+only accepted PostgreSQL index and breadth facts, retains links to the current
+VN-Index and breadth snapshots, and hashes the selected daily VN-Index history.
+It never reads raw WebSocket payloads or calls a provider.
+
+The current TCBS Thesis contract supplies aggregate A/D breadth, but not a
+current full-universe close set required for the `percentEligibleAboveSma50`
+half of the approved breadth component. Vnstock/KBS daily index records also
+do not provide the historical matched-value series required by the liquidity
+component. These components therefore remain missing; they are not inferred
+from volume, A/D counts, or zeros. A live assessment is published only when the
+existing four-of-five threshold is genuinely met. Until then, the system
+persists a withheld assessment with `BREADTH_SMA50_COVERAGE_UNAVAILABLE` and/or
+`LIQUIDITY_HISTORY_UNAVAILABLE`, making the limitation observable in the API.
+
+**Rationale**: This closes the missing runtime write path while preserving the
+approved methodology and preventing an apparently precise but fabricated
+regime label.
+
 ## R-008 — Persistence, Precision, and Migrations
 
 **Decision**: Use PostgreSQL and Flyway SQL migrations under

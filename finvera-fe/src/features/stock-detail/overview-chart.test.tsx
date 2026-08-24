@@ -127,4 +127,15 @@ describe("stock chart", () => {
     render(<StockChart chart={chart([])} />);
     expect(screen.getByText(/Không có dữ liệu biểu đồ/i)).toBeVisible();
   });
+
+  it("updates the latest bar and current price guideline dynamically when livePrice is supplied", () => {
+    const bars: StockChartData["bars"] = [
+      { tradingDate: "2026-08-13", open: "21000.00", high: "21500.00", low: "20800.00", close: "21200.00", volume: 1000000 },
+      { tradingDate: "2026-08-14", open: "21200.00", high: "21400.00", low: "20900.00", close: "21100.00", volume: 1500000 },
+    ];
+    render(<StockChart chart={chart(bars)} livePrice="22500.00" />);
+    expect(screen.getByRole("img", { name: /biểu đồ giá/i })).toBeInTheDocument();
+    // The latest close and price guideline badge should reflect 22,500
+    expect(screen.getAllByText("22.500").length).toBeGreaterThan(0);
+  });
 });
