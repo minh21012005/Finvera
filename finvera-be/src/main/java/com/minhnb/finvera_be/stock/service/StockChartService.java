@@ -29,7 +29,7 @@ public class StockChartService {
     // between two accepted sources (DATA-010); it does not decide correctness,
     // it just keeps the chart series single-valued per date. Full conflict
     // withholding is the technical/valuation layer's responsibility.
-    private static final List<String> SOURCE_PREFERENCE = List.of("TCBS", "VNSTOCK", "FINVERA_FIXTURE");
+    private static final List<String> SOURCE_PREFERENCE = List.of("VNSTOCK_KBS", "VNSTOCK", "FINVERA_FIXTURE");
 
     private final MarketReferenceDataService referenceData;
     private final EquityDailyBarRepository dailyBars;

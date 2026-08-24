@@ -1,6 +1,6 @@
 # ADR-0003: Use TCBS iFlash for Private Market Data v1
 
-**Status**: Accepted  
+**Status**: Superseded by ADR-0009 and ADR-0010
 **Date**: 2026-08-17  
 **Decision owners**: Finvera maintainer  
 **Related feature**: `001-market-overview`
@@ -16,8 +16,8 @@ approval before sharing original or processed information with third parties.
 
 ## Decision
 
-Finvera will use TCBS iFlash as its v1 **read-only market-data provider** only
-for one configured owner's private/personal deployment.
+Finvera originally selected TCBS iFlash as its v1 **read-only market-data
+provider** only for one configured owner's private/personal deployment.
 
 - The adapter permits approved market-data operations only; it never calls
   trading, account, cash, portfolio, or order APIs.
@@ -32,10 +32,15 @@ for one configured owner's private/personal deployment.
 
 ## Consequences
 
-This allows real private data use with the maintainer's existing TCBS account,
-but deliberately prevents public hosting and other users while TCBS is the
-source. Live ingestion stops after token expiry until the owner renews it; the
-UI shows accepted data's actual freshness and `PROVIDER_AUTH_REQUIRED`.
+This decision is no longer active for runtime implementation. Official endpoint
+review and owner activation evidence on 2026-08-24 showed that TCBS REST
+`tickerCommons?index={N}` returns constituent/equity rows, not authoritative
+VN-Index/VN30/HNX/UPCOM index-level snapshots. Maintaining TCBS also keeps an
+OTP/token operational burden that is unnecessary for the private MVP.
+
+TCBS artifacts remain historical evidence. ADR-0010 reintroduces only the
+official Thesis price-board WebSocket as a private live overlay; it does not
+restore the invalid REST index mapping described here.
 
 This is an engineering/product-boundary decision, not legal advice or a
 substitute for TCBS written approval. Any change in usage, deployment, or data

@@ -101,19 +101,25 @@ an inconsistency.
   baseline dependency and an optional later addition. Section 43 now states it
   is not a default dependency. A feature must justify any adoption with volume,
   ordering, replay, or decoupling requirements and record an ADR.
-- **Resolved for Feature 1 private v1 — market-data provider**: TCBS iFlash is
-  the read-only live provider for one owner-only/private deployment; Vnstock is
-  a conditional offline historical-bootstrap tool, not a runtime service.
-  Public or multi-user delivery requires a separately licensed provider and
-  ADR. See [ADR-0003](adr/0003-use-tcbs-for-private-market-data-v1.md) and
+- **Resolved for Feature 1 private v1 — market-data providers**: ADR-0010 uses
+  the official TCBS Thesis WebSocket as a server-side live overlay for current
+  index levels, exchange breadth, and subscribed stock quotes. ADR-0009 remains
+  authoritative for Vnstock/KBS historical and completed-session package
+  imports. The browser calls Spring only; accepted observations are persisted
+  to PostgreSQL. Public or multi-user delivery requires a separately licensed
+  provider and ADR. See
+  [ADR-0010](adr/0010-use-tcbs-thesis-for-private-live-market-overlay.md),
+  [ADR-0009](adr/0009-use-vnstock-as-primary-private-market-provider.md),
+  [ADR-0003](adr/0003-use-tcbs-for-private-market-data-v1.md), and
   [ADR-0004](adr/0004-use-vnstock-for-private-historical-bootstrap.md).
 - **Resolved for Feature 1 private v1 — owner access**: Tailscale Serve/private
   tailnet is the only ingress, with Funnel disabled; Spring independently
   authenticates one configured local owner through a secure server session.
   See [ADR-0005](adr/0005-use-tailscale-and-local-owner-session.md).
-- Data licensing beyond the private TCBS use, update latency, exchange calendar,
-  adjusted-price policy, and corporate-action source are unresolved. The first
-  market-data feature must research and contract them.
+- Data licensing beyond the private TCBS/Vnstock workflow, update latency,
+  exchange calendar, adjusted-price policy, and corporate-action source remain
+  constrained by provider contracts and must be re-evaluated before public or
+  multi-user use.
 - **Resolved — initial LLM provider**: Gemini is the initial LLM provider;
   model/version selection, privacy review, quotas, cost, and fallback belong to
   the first AI feature plan. See [ADR-0002](adr/0002-use-gemini-as-initial-llm-provider.md).

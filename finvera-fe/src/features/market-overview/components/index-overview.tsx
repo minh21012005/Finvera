@@ -1,4 +1,4 @@
-import type { DataStatus, Direction, MarketIndex, MarketOverview } from "../api/market-overview";
+import type { DataStatus, Direction, MarketIndex, MarketOverview, SessionState } from "../api/market-overview";
 import { formatAsOf, formatDecimal, formatVolume, formatVnd } from "../format/market-format";
 
 const STABLE_ORDER: MarketIndex["code"][] = ["VN_INDEX", "VN30", "HNX_INDEX", "UPCOM_INDEX"];
@@ -9,14 +9,14 @@ export function IndexOverview({ overview }: { overview: MarketOverview }) {
     <section aria-labelledby="market-indices-heading">
       <div className="index-grid">
         {indices.map((index) => (
-          <IndexCard key={index.code} index={index} />
+          <IndexCard key={index.code} index={index} sessionState={overview.session.state} />
         ))}
       </div>
     </section>
   );
 }
 
-function IndexCard({ index }: { index: MarketIndex }) {
+function IndexCard({ index, sessionState }: { index: MarketIndex; sessionState: SessionState }) {
   const direction = directionLabel(index.direction);
   const unavailable = index.dataStatus === "UNAVAILABLE";
   return (
@@ -62,6 +62,10 @@ function IndexCard({ index }: { index: MarketIndex }) {
             <dt>Cập nhật</dt>
             <dd>{formatAsOf(index.asOf)}</dd>
           </div>
+          <div>
+            <dt>Phiên</dt>
+            <dd>{sessionLabel(sessionState)}</dd>
+          </div>
           <div style={{ gridColumn: "span 2" }}>
             <dt>Nguồn</dt>
             <dd>{index.source.provider}</dd>
@@ -89,7 +93,7 @@ function statusLabel(status: DataStatus): string {
   return ({ CURRENT: "Hiện tại", DELAYED: "Chậm", STALE: "Cũ", PARTIAL: "Một phần", UNAVAILABLE: "Không có dữ liệu" })[status];
 }
 
-function sessionLabel(state: string): string {
+function sessionLabel(state: SessionState): string {
   return (
     {
       PRE_OPEN: "trước mở cửa",

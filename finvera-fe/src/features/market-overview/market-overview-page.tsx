@@ -17,14 +17,25 @@ export function MarketOverviewPage() {
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    const controller = new AbortController();
-    getMarketOverview(controller.signal)
-      .then((overview) => setState({ kind: "ready", overview }))
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return;
-        setState({ kind: "error", status: error instanceof MarketOverviewApiError ? error.status : undefined });
-      });
-    return () => controller.abort();
+    let disposed = false;
+    let controller: AbortController | null = null;
+    const load = (initial: boolean) => {
+      controller?.abort();
+      controller = new AbortController();
+      getMarketOverview(controller.signal)
+        .then((overview) => { if (!disposed) setState({ kind: "ready", overview }); })
+        .catch((error: unknown) => {
+          if (disposed || controller?.signal.aborted || !initial) return;
+          setState({ kind: "error", status: error instanceof MarketOverviewApiError ? error.status : undefined });
+        });
+    };
+    load(true);
+    const refreshTimer = window.setInterval(() => load(false), 30_000);
+    return () => {
+      disposed = true;
+      window.clearInterval(refreshTimer);
+      controller?.abort();
+    };
   }, [attempt]);
 
   if (state.kind === "loading") {

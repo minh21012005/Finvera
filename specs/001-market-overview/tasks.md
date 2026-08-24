@@ -228,6 +228,7 @@ mode is complete.
       Verify: contract status is approved, checklist is checked, no raw payload/credential is committed, and owner explicitly accepts the evidence
       Depends: external TCBS resolution; none of T001-T044
       Evidence (2026-08-18): Contract status updated to APPROVED with three documented constraints. Endpoint `GET /tartarus/v1/tickerCommons?index={1,2,3,5}` at `https://openapi.tcbs.com.vn` confirmed as REST reconciliation source supplying `tradingDate` (date string); adapter labels observations `TCBS_REST_TRADING_DATE_ONLY` and infers `effective_at` from `MarketTimePolicy`. Session field is opaque; state inferred from clock + trading schedule (`MarketTimePolicy`). Breadth schema shape confirmed (428/30/299/824 records); full-universe `tradingStatus` mapping is PARTIAL — T046 must implement `BREADTH_RECORD_INCOMPLETE` graceful degradation. WebSocket `rt` stream confirmed display-only (no timestamp/ordering/correction fields); labels `TCBS_STREAM_TIMESTAMP_UNAVAILABLE` and `TCBS_STREAM_ORDERING_UNAVAILABLE` apply. Rate probe (5 requests/1 s) all HTTP 200. Summary SHA-256: `3a75659c820a713d98802bad5ec125c565fec94fd96c5910a8a8b29919f2ed8c`. No raw payload, credential, OTP, token, or market value committed. Owner acceptance recorded 2026-08-18.
+      Correction (2026-08-24): Official TCBS endpoint review and owner activation evidence supersede the REST reconciliation claim. `tickerCommons?index={N}` is a stock-basket constituent endpoint, not an index-level snapshot endpoint. TCBS REST index snapshots are now recorded as `TCBS_INDEX_ROWS_UNAVAILABLE`; WSS `si/rt` remains confirmed for current-session display only.
 - [x] T046 [NFR-002, NFR-006, NFR-007, SEC-002, SEC-003, SEC-004] After T045 only, write contract/fault/allowlist tests and implement the live integration in `finvera-be/src/test/java/com/minhnb/finvera_be/market/provider/tcbs/TcbsMarketDataProviderTests.java` and `finvera-be/src/main/java/com/minhnb/finvera_be/market/provider/tcbs/TcbsMarketDataProvider.java`
       Verify: sanitized contract tests pass for exact captured schemas, bounded timeouts/retry/reconnect, auth expiry, and forbidden non-market operations
       Depends: T016, T020, T045
@@ -389,5 +390,91 @@ endpoint, or gate is introduced; every call stays inside the T045-approved
 - [x] T063 [SEC-002, DATA-001] Add live-mode configuration: `finvera.market.provider.tcbs.{base-url,api-key,poll-interval-ms}` in `application.yaml` (all with safe fixture-mode defaults), `FINVERA_TCBS_API_KEY`/`FINVERA_TCBS_BASE_URL`/`FINVERA_MARKET_TCBS_POLL_INTERVAL_MS` in `.env.example` and `.env` (key left blank — owner-supplied), and an "Activate live TCBS ingestion" section in `docs/runbooks/private-market-overview.md` covering credential provisioning, renewal, and post-activation health verification.
       Verify: `FixtureBootstrapConfigurationTests` (narrow `MarketConfiguration` context) still constructs successfully with explicit tcbs properties supplied, proving the new `@ConfigurationProperties` binding doesn't break fixture-mode contexts.
       Evidence (2026-08-22): `FixtureBootstrapConfigurationTests` (3 tests) pass; full `finvera-be` suite (595 tests) has zero failures attributable to this phase.
-- [ ] T064 [SC-001, SC-008] Owner action (cannot be performed by an agent): provision a TCBS iFlash API key, set `FINVERA_TCBS_API_KEY`/`FINVERA_MARKET_PROVIDER_MODE=live`/`FINVERA_MARKET_PROVIDER_LIVE_ENABLED=true`, start the backend, call `POST /api/v1/market/providers/tcbs/token-renewal` with a real OTP per the runbook, and confirm `GET /api/v1/market/overview` reflects live index data within one poll interval. T051 (Tailscale ingress) remains a separate, still-deferred pre-deployment gate and is not required for this loopback-only activation check.
+      Superseded (2026-08-24): ADR-0009 removed TCBS provider configuration from active runtime; `application.yaml`, `.env.example`, and runbooks now document Vnstock/KBS package import instead.
+- [x] T064 [SC-001, SC-008] Owner action (superseded): provision a TCBS iFlash API key, set `FINVERA_TCBS_API_KEY`/`FINVERA_MARKET_PROVIDER_MODE=live`/`FINVERA_MARKET_PROVIDER_LIVE_ENABLED=true`, start the backend, call `POST /api/v1/market/providers/tcbs/token-renewal` with a real OTP per the runbook, and confirm `GET /api/v1/market/overview` reflects live index data within one poll interval. T051 (Tailscale ingress) remains a separate, still-deferred pre-deployment gate and is not required for this loopback-only activation check.
       Verify: owner records pass/fail and timestamps in the private deployment record (never the API key/OTP/token) per the runbook's "Activate live TCBS ingestion" section.
+      Superseded (2026-08-24): no owner TCBS activation is required or possible in active runtime. Validation moved to Vnstock package generation/import in T066-T070.
+
+---
+
+## Phase 10: ADR-0009 Vnstock-only Private Provider Pivot
+
+**Purpose**: Remove TCBS from the active runtime path and make Vnstock/KBS
+canonical packages the only private-provider activation path for Feature 001.
+This phase is required by the 2026-08-24 official TCBS endpoint correction and
+ADR-0009. It does not claim Vnstock Community realtime streaming.
+
+- [x] T065 [NFR-002, NFR-007, SEC-003, SEC-004] Record the ADR-0009 provider pivot and Vnstock package contract in `docs/adr/0009-use-vnstock-as-primary-private-market-provider.md`, `docs/adr/0003-use-tcbs-for-private-market-data-v1.md`, `docs/adr/0004-use-vnstock-for-private-historical-bootstrap.md`, `specs/001-market-overview/plan.md`, `research.md`, and `contracts/vnstock-private-market-provider.md`.
+      Verify: artifacts state TCBS is superseded, Vnstock is private package-based, and realtime claims remain gated.
+      Depends: official TCBS endpoint review and owner decision on 2026-08-24.
+- [x] T066 [DATA-001, DATA-003, DATA-007, DATA-009] Extend the Vnstock canonical package exporter/parser/importer to include `indexRecords` for VN_INDEX, VN30, HNX_INDEX, and UPCOM_INDEX in `tools/market-data/vnstock-export/export_history.py`, `finvera-be/src/main/java/com/minhnb/finvera_be/market/service/MarketImportPackageParser.java`, and `MarketImportService.java`.
+      Verify: Python exporter tests and Spring importer tests prove checksum binding, exact decimal strings, previous-close reference derivation, invalid package rejection, idempotency, and immutable index ingestion.
+      Depends: T048, T059, T065.
+      Evidence (2026-08-24): Added `vnstock-market-private-package-v1`, market-index exporter mode, parser support for `indexRecords`, and importer handoff to `MarketIngestionService`; `uv run pytest ..\vnstock-export\tests` passed 3/3, and non-Docker backend importer tests passed. Docker-backed persistence validation is blocked until Docker/Testcontainers is available locally.
+- [x] T067 [SEC-002, SEC-003, SEC-006, NFR-003] Remove TCBS from the active backend runtime path by deleting TCBS provider wiring, renewal endpoint/service, scheduler activation, and TCBS environment keys from `MarketConfiguration.java`, `application.yaml`, and owner-security tests.
+      Verify: backend tests compile without a TCBS renewal endpoint and fixture/Vnstock import modes still start.
+      Depends: T065.
+      Evidence (2026-08-24): Deleted TCBS runtime provider/session/client/scheduler/renewal classes and tests, removed live-provider env keys, and verified targeted backend compile/test pass without TCBS runtime beans.
+- [x] T068 [SEC-002, NFR-005] Remove TCBS renewal/status UI and navigation from `finvera-fe/src/app.tsx`, `router.ts`, `features/auth/owner-access-gate.tsx`, and delete the TCBS renewal feature client/page tests.
+      Verify: frontend tests/build no longer reference `/tcbs-renewal` or TCBS status polling.
+      Depends: T067.
+      Evidence (2026-08-24): Deleted the frontend TCBS renewal feature and removed nav/status polling. `npm run test`, `npm run lint`, and `npm run build` pass.
+- [x] T069 [NFR-002, NFR-006, NFR-007] Disable TCBS per-stock live quote refresh in Feature 002 by removing the TCBS quote provider bean and `StockOverviewService` live-refresh dependency.
+      Verify: stock overview continues to serve accepted PostgreSQL facts only and does not require TCBS classes/beans.
+      Depends: T067.
+      Evidence (2026-08-24): Deleted `StockProviderConfiguration` and `TcbsStockQuoteProvider`; `StockOverviewService` now reads accepted PostgreSQL facts only. Stock chart/technical/valuation source preference is Vnstock-first.
+- [x] T070 [SC-001, SC-008] Update runbooks and quickstart to document the Vnstock-only private flow: generate package, import through Spring, run backend/frontend, verify source/freshness, and keep public/multi-user use blocked.
+      Verify: docs contain no active TCBS activation instructions and no Vnstock realtime guarantee.
+      Depends: T066-T069.
+      Evidence (2026-08-24): Updated `quickstart.md`, `private-market-overview.md`, `go-live-setup.md`, `ARCHITECTURE.md`, `PROJECT_CONTEXT.md`, and `.env.example` to document Vnstock package/import operation and keep public/multi-user rollout blocked.
+
+---
+
+## Phase 11: TCBS Thesis Live Overlay
+
+**Purpose**: Replace the manual-only runtime with a contract-driven private
+live path while retaining Vnstock for historical/bootstrap and fallback data.
+
+- [x] T071 [NFR-002, NFR-007, SEC-002-SEC-004, DATA-001-DATA-007] Record ADR-0010, the official Thesis WebSocket contract, provider roles, receive-time limitation, and fallback semantics in `docs/adr/0010-use-tcbs-thesis-for-private-live-market-overlay.md`, `spec.md`, `plan.md`, `research.md`, and `contracts/tcbs-thesis-live-overlay.md`.
+      Verify: artifacts contain no REST index assumption, no guessed session-code mapping, and no realtime claim for Vnstock Community.
+- [x] T072 [DATA-001-DATA-007, NFR-007] Add tests first for TCBS `s|8`, `s|4`, and `s|6` frame parsing, exact decimal handling, fixed index mapping, invalid input rejection, and HOSE/HNX/UPCOM-only breadth aggregation in `finvera-be/src/test/java/com/minhnb/finvera_be/market/provider/tcbs/`.
+      Verify: tests fail before implementation and pass against the official sanitized schemas.
+      Depends: T071.
+- [x] T073 [NFR-002, NFR-006, NFR-007, SEC-002-SEC-004] Implement the in-memory token lifecycle and bounded TCBS Thesis WebSocket client in `finvera-be/src/main/java/com/minhnb/finvera_be/market/provider/tcbs/`, including auth-before-subscribe, text heartbeat, bounded reconnect, health, and secret-safe logs.
+      Verify: fake-WebSocket/session unit tests cover ready, auth-required, malformed frame, disconnect, and close paths without a live credential.
+      Depends: T072.
+      Evidence (2026-08-24): `TcbsThesisWebSocketClientTests` uses mocked HTTP/WebSocket boundaries to verify auth-before-subscribe, the documented text heartbeat, valid-frame publication, malformed-frame rejection, authentication invalidation/timeout, disconnect health, and safe close; 5/5 tests pass without a credential.
+- [x] T074 [FR-001-FR-009, FR-015, DATA-001-DATA-010] Implement live index ingestion and provider breadth persistence in `finvera-be/src/main/java/com/minhnb/finvera_be/market/service/`, coalescing the four indices and three non-overlapping venue breadth counters into PostgreSQL without regressing accepted facts.
+      Verify: service tests prove exact VN-Index/VN30/HNX/UPCOM values, no VN30 breadth duplication, idempotency, closed-session preservation, and degraded behavior.
+      Depends: T073.
+- [x] T075 [SEC-001-SEC-004, NFR-007] Restore the owner-only TCBS status/OTP renewal boundary in Spring and React, with API key server-side and OTP transient, and add safe live-overlay configuration to `application.yaml` and `.env.example`.
+      Verify: backend security/CSRF tests and frontend tests cover status, renewal, invalid OTP, disabled mode, and no browser secret persistence.
+      Depends: T073.
+- [x] T076 [NFR-002, NFR-005, SC-001] Add automatic Market Overview refresh every 30 seconds while the page is mounted, abort requests on unmount, and preserve the last usable snapshot during a transient refresh failure.
+      Verify: fake-timer frontend tests prove initial load, repeated refresh, cleanup, and non-destructive failure behavior.
+      Depends: T074.
+- [ ] T077 [FR-001-FR-015, NFR-001-NFR-007, SEC-001-SEC-006] Update runbooks/architecture and run backend, frontend, and contract quality gates; record external live validation as an owner action without credentials or raw payloads.
+      Verify: `mvnw test`, frontend test/lint/build, and `git diff --check`; live smoke shows an `s|8` update visible through `/api/v1/market/overview` within 30 seconds.
+      Depends: T072-T076.
+      Evidence (2026-08-24): full backend suite passed 595/595 with Docker/Testcontainers; the post-suite WebSocket boundary tests passed 5/5; frontend passed 117/117 plus lint and production build; Vnstock exporter passed 3/3; OpenAPI YAML parsed and `git diff --check` found no whitespace errors. The owner-credential live smoke remains the only acceptance action, so this task is intentionally not checked yet.
+
+---
+
+## Phase 12: On-demand Equity Live Coverage
+
+**Purpose**: Make every validated stock-detail page eligible for live TCBS
+quotes without maintaining or restarting for a static environment ticker list.
+
+- [x] T078 [FR-016, NFR-002, NFR-006-NFR-008, SEC-002-SEC-004] Add tests first and implement bounded on-demand TCBS equity subscriptions in `finvera-be/src/test/java/com/minhnb/finvera_be/market/provider/tcbs/TcbsThesisWebSocketClientTests.java`, `finvera-be/src/test/java/com/minhnb/finvera_be/market/service/TcbsLiveEquityQuoteServiceTests.java`, `finvera-be/src/main/java/com/minhnb/finvera_be/market/provider/tcbs/TcbsThesisWebSocketClient.java`, and the stock quote service/adapter/configuration paths. Cover auth-before-subscribe, active-symbol validation, duplicate suppression, least-recently-used partial unsubscribe, reconnect replay, and database fallback before the first live frame.
+      Verify: targeted tests fail before implementation and pass afterward; no undocumented TCBS response schema or whole-exchange subscription is introduced.
+      Depends: T073, T075.
+      Evidence (2026-08-24): the new tests failed to compile against the static-list client, then 14/14 targeted WebSocket/service/stock-adapter tests passed after implementation; an additional configuration-context run passed 17/17. The implementation uses only the official symbol subscribe and partial-unsubscribe frames.
+- [ ] T079 [FR-016, NFR-007-NFR-008, SEC-002, SEC-004] Synchronize `application.yaml`, `.env.example`, ignored local `.env`, runbooks, and root `refresh-data.ps1`: enable the intended local live mode, replace `FINVERA_TCBS_SYMBOLS` with a bounded dynamic-capacity setting, isolate dependency-ordered refresh stages, fail fast on native/backend errors, and retain failure logs.
+      Verify: environment key audit, PowerShell syntax validation, targeted/full backend tests, frontend quality gates, and `git diff --check`; no secret value is printed or committed.
+      Depends: T078.
+      Evidence (2026-08-24): local/example key sets match; `.env` remains ignored; PowerShell parses; frontend passes 117/117, lint, and build. Backend targeted/configuration tests pass 17/17 and the full suite reports zero failures, but 20 Testcontainers tests cannot start because Docker is unavailable locally, so this task remains open rather than claiming the full gate passed.
+
+- [x] T080 [DATA-001, DATA-006, DATA-010-DATA-011, FR-001-FR-006] Add regression coverage and implement a source-scoped legacy repair in `finvera-be/src/test/java/com/minhnb/finvera_be/market/repository/MarketRepositoryTests.java`, `finvera-be/src/main/java/com/minhnb/finvera_be/market/repository/MarketOverviewRepository.java`, `MarketIndexSnapshotRepository.java`, `market/service/DefaultMarketReferenceDataService.java`, and `finvera-be/src/main/resources/db/migration/V009__quarantine_deprecated_tcbs_index_source.sql`. A future-timestamp `TCBS_IFLASH_MARKET_DATA` row must never outrank approved facts or regime input selection; migration must remove only its index snapshots, quarantine ingestion audit rows, safely handle dependent regime/supersession links, and leave Thesis/Vnstock/fixture rows intact.
+      Verify: repository regression test, Flyway migration against local PostgreSQL, exact before/after source counts, four-index overview query, targeted backend tests, and `git diff --check`.
+      Depends: T074.
+      Evidence (2026-08-24): rollback rehearsal removed exactly 1,958 legacy snapshots and quarantined exactly 1,958 ingestion rows while retaining every Thesis row; Flyway applied V009 successfully to local PostgreSQL. Post-migration selection returned four `TCBS_IFLASH_THESIS` values (VN-Index 1782.05, VN30 1935.27, HNX 283.25, UPCOM 127.99 at the verification instant), package compiled, and 25/25 targeted configuration/TCBS tests passed. The repository regression has been added for the next Docker-enabled full gate; local SQL exercised the identical source filter because Testcontainers is unavailable.

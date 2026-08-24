@@ -2,7 +2,92 @@
 
 **Feature**: `001-market-overview`  
 **Date**: 2026-08-17  
-**Status**: Fixture implementation validated; TCBS capability and Vnstock upstream-use gates remain before live implementation
+**Status**: Fixture and Vnstock package paths validated; TCBS Thesis live overlay approved by ADR-0010
+
+## R-000A — 2026-08-24 Hybrid Provider Amendment
+
+**Decision**: Use the official TCBS Thesis cash price-board WebSocket for
+current-session index, exchange breadth, and configured equity quotes. Retain
+Vnstock/KBS for historical/bootstrap packages and completed-session fallback.
+This supersedes the Vnstock-only runtime choice but not the Vnstock historical
+decision.
+
+**Evidence**: TCBS documents
+`wss://openapi.tcbs.com.vn/ws/thesis/v1/stream/normal`, auth frame
+`d|a|||base64(token)`, text heartbeat `d|p|||`, stock subscription
+`d|s|tk|bp+bi+tm+mp+op+fe|...`, index subscription
+`d|s|si|rt|1,2,3,5`, matched-price frames `s|6`, and index frames `s|8`.
+The index frame supplies level, change, percentage change, volume, value,
+advancing, declining, unchanged, ceiling, and floor counts. Mapping is fixed:
+1/VN-Index, 2/VN30, 3/HNX, 5/UPCOM.
+
+**Limitations**: `s|8` and `s|6` do not document provider timestamps,
+sequences, or revisions. Finvera records server receive time, labels that
+limitation, and does not use the stream as completed-session correction
+evidence. The provider `session` code remains opaque; Finvera derives market
+state from its versioned Vietnam market clock rather than guessing codes.
+
+**Rejected alternatives**: Vnstock Community whole-market polling is not the
+primary live path because of its 60 requests/minute entitlement and required
+Python runtime worker. Vnstock Golden/Diamond WebSocket remains viable but is a
+paid closed-source pipeline. Ouranos C001 remains optional one-minute equity
+analytics and is not an index/breadth feed.
+
+Sources: [TCBS price-board specification](https://developers.tcbs.com.vn/file/Websocket_bang_gia_1.0.0.pdf),
+[TCBS token exchange](https://developers.tcbs.com.vn/docs/v1.0.0/auth/token/),
+[Vnstock market layer](https://vnstocks.com/docs/vnstock-data/market-layer-v3),
+and [Vnstock realtime pipeline](https://vnstocks.com/docs/vnstock-pipeline/ket-noi-du-lieu-realtime).
+
+## R-000B — 2026-08-24 On-demand Equity Subscription
+
+**Decision**: Replace the static environment ticker list with an on-demand,
+bounded set. A validated active stock-detail request registers its normalized
+symbol through `d|s|tk|bp+tm|<SYMBOL>`. Duplicate requests update recency but do
+not resend the subscription. When capacity is reached, Finvera sends the
+documented partial-unsubscribe frame for the least recently used symbol before
+subscribing the new one. The retained set is replayed after authentication on
+every reconnect.
+
+**Evidence**: The official TCBS symbol-subscription documentation defines the
+symbol subscribe frame, successful subscription acknowledgement `d|34|1`, and
+partial unsubscribe `d|u|tk|...|<SYMBOL>`. It explicitly states that the other
+symbols remain subscribed after a partial unsubscribe. Authentication remains a
+prerequisite to subscription.
+
+**Rationale and limitation**: A static list would make unlisted stock pages
+permanently stale and would require restarts. A whole-exchange subscription
+would consume data unrelated to the owner's active research. The first request
+is intentionally non-blocking: it returns the accepted database fallback, and
+the existing 30-second stock-detail refresh observes the live quote after the
+stream publishes it. Finvera does not implement the optional one-shot response
+channel because its payload schema is not documented on the cited page.
+
+Source: [TCBS symbol subscription and partial unsubscribe](https://developers.tcbs.com.vn/docs/v1.0.0/stock/ws-price-board/).
+
+## R-000C — 2026-08-24 Deprecated TCBS REST-source Quarantine
+
+**Finding**: Local production-like data contained 1,958 `index_snapshot` rows
+from the retired source `TCBS_IFLASH_MARKET_DATA`. The removed adapter had
+misclassified equity values as VN-Index/HNX/UPCOM values and assigned a common
+future session boundary (`15:00`). The overview query correctly ordered by
+observation time, but therefore selected invalid levels `27650`, `22600`, and
+`5000` ahead of valid `TCBS_IFLASH_THESIS` values. VN30 appeared correct only
+because the retired adapter had produced no VN30 rows.
+
+**Decision**: Treat `TCBS_IFLASH_MARKET_DATA` index observations as a named,
+deprecated source. A Flyway repair removes only its materialized index facts,
+quarantines its ingestion records as `REJECTED` with a bounded reason code, and
+cleans dependent regime artifacts if present. Overview selection also excludes
+the source defensively so a restored database or accidental legacy row cannot
+regress the UI. Approved Thesis, Vnstock/KBS, and fixture observations remain
+untouched.
+
+**Evidence**: TCBS officially maps price-board index subscriptions 1, 2, 3,
+and 5 to VN-Index, VN30, HNX, and UPCOM and returns them on channel `s|8`. The
+current Thesis rows match that schema; the retired rows were persisted through
+a different, now-deleted adapter path.
+
+Source: [TCBS price-board index subscription and channel 8 schema](https://developers.tcbs.com.vn/docs/v1.0.0/stock/ws-price-board/).
 
 This document resolves the technical dependencies identified by the feature
 specification. Provider documentation establishes technical feasibility, not a
@@ -13,7 +98,8 @@ right to redistribute market data.
 **Decision**: Implement a replaceable `MarketDataProvider` port with TCBS
 iFlash Market Data as the first read-only adapter. It is permitted only for the
 configured owner's private/personal deployment. Use documented REST market
-reads and, after the capability gate, the documented price-board WebSocket.
+reads only for equity/reference/breadth candidates and, after the capability
+gate, the documented price-board WebSocket for live index signals.
 Do not call trading, account, cash, portfolio, or order APIs. Use Vnstock only
 for owner-operated historical bootstrap/gap recovery. Do not permit public or
 multi-user delivery while either personal-use source is active.
@@ -97,6 +183,26 @@ breadth input. It does not establish the epoch timezone, backfill semantics,
 full-universe coverage, or immutable correction handling; those remain gates
 before runtime activation.
 
+**Official REST index endpoint review (2026-08-24):** Re-reading the official
+TCBS pages and the owner's activation evidence invalidated the earlier REST
+reconciliation assumption. The documented
+`GET /tartarus/v1/tickerCommons` endpoint is "Thông tin mã, giá"; its `index`
+parameter is explicitly a stock-basket selector (`Rổ chứng khoán`) and the
+documented response is a list of stock symbols (`data[].symbol`) with
+`indexNumber`. The official example returns an equity row (`FPT`) in basket 1,
+not a VN-Index quote. The owner's live run matched this interpretation: after
+filtering out constituents, `tickerCommons?index={1,2,3,5}` produced zero
+valid index observations.
+
+No official TCBS REST endpoint for VN-Index, VN30-Index, HNX-Index, or
+UPCOM-Index levels was found in the reviewed public documentation. The
+documented source for those index levels is the price-board WebSocket
+subscription `d|s|si|rt|<BOARDS>`, which returns channel `s|8` for stock-index
+updates. Because that stream still lacks a provider timestamp, sequence, and
+revision field, it may support current-session display only; it is not an
+immutable final reconciliation source unless TCBS documents additional
+semantics or the owner obtains written provider confirmation.
+
 Sources: [TCBS iFlash workflow](https://developers.tcbs.com.vn/docs/v1.0.0/workflow/),
 [TCBS token endpoint](https://developers.tcbs.com.vn/docs/v1.0.0/auth/token/),
 [TCBS cash price-board WebSocket](https://developers.tcbs.com.vn/docs/v1.0.0/stock/ws-price-board/),
@@ -107,15 +213,96 @@ and TCBS iFlash Open API Terms and Conditions supplied by the owner (clauses
 2(c), 2(d), and 3(c)).
 
 
-**T045 gate closure (2026-08-18):** Three open items were resolved using confirmed POC evidence. Full decisions are recorded in `contracts/tcbs-iflash-adapter.md`; this entry captures the research-level summary.
+**T045 gate update (2026-08-24):** The 2026-08-18 gate closure is superseded
+for index-level REST reconciliation. Three items remain resolved for
+authentication, low-rate REST access, and schema-safe equity/reference probing;
+however, `tickerCommons?index={N}` is no longer accepted as an index-level
+snapshot source. Full decisions are recorded in
+`contracts/tcbs-iflash-adapter.md`; this entry captures the research-level
+summary.
 
-*Decision A — REST reconciliation:* `GET /tartarus/v1/tickerCommons?index={N}` at `https://openapi.tcbs.com.vn` supplies `tradingDate` (date string) and current price/breadth fields for all four index numbers. There is no intraday timestamp in the REST response. The adapter computes `effective_at = tradingDate + session_close_time` from `MarketTimePolicy` and labels every REST-sourced observation `TCBS_REST_TRADING_DATE_ONLY`. REST is the sole persistence path; WebSocket `rt` updates the display layer only.
+*Decision A — TCBS index levels:* TCBS index levels are available from the
+documented price-board WebSocket `si/rt` stream only. There is no official REST
+index-level endpoint in the reviewed public docs. Runtime must not persist
+constituent `tickerCommons` rows as index levels. Current-session WSS values
+may be exposed as `PARTIAL`/live display facts with
+`TCBS_STREAM_TIMESTAMP_UNAVAILABLE` and `TCBS_STREAM_ORDERING_UNAVAILABLE`.
+Final completed-session reconciliation remains unavailable from TCBS until a
+documented REST index endpoint, timestamped stream semantics, or written TCBS
+confirmation is obtained.
 
 *Decision B — Session inference:* The `session` field in the `rt` stream is opaque — its code values are undocumented. The field is stored as `rawProviderSession` for diagnostics only. Session open/closed state is derived entirely from `MarketTimePolicy` (wall clock `Asia/Ho_Chi_Minh` + versioned trading schedule). This avoids hard-coding undocumented codes that may change without notice.
 
-*Decision C — Breadth PARTIAL:* `tickerCommons` returned 428/30/299/824 records with confirmed schema shape. No explicit `tradingStatus` field was observed; only price-limit and reference-price fields are confirmed. The T046 adapter must implement graceful degradation — records without `matchPrice` or `refPrice` are counted `BREADTH_RECORD_INCOMPLETE` and excluded, not zero-filled. Full-universe coverage verification is a T046 acceptance criterion.
+*Decision C — Breadth PARTIAL:* `tickerCommons` returned 428/30/299/824
+constituent rows with confirmed schema shape. This may support future breadth
+calculation if full-universe coverage and status semantics are validated. It
+does not support index-card levels. No explicit `tradingStatus` field was
+observed; only price-limit and reference-price fields are confirmed. The T046
+adapter must implement graceful degradation — records without `matchPrice` or
+`refPrice` are counted `BREADTH_RECORD_INCOMPLETE` and excluded, not
+zero-filled. Full-universe coverage verification is a T046 acceptance
+criterion.
 
-Gate status: **APPROVED with three documented constraints** as of 2026-08-18. Owner acceptance recorded; T046 may begin after this gate is confirmed.
+Gate status: **PARTIAL** as of 2026-08-24. TCBS authentication, low-rate REST
+access, WSS index entitlement, and small-sample Ouranos entitlement are
+confirmed. TCBS REST index-level persistence is not confirmed and must remain
+unavailable unless TCBS supplies a documented endpoint or written confirmation.
+
+### R-001B — Vnstock as Primary Private Market Provider Candidate
+
+**Decision (2026-08-24 research)**: Vnstock/KBS is a better practical source
+than TCBS REST for Feature 001's completed-session index history and local
+private market-overview bootstrap. It may be promoted from "historical
+bootstrap only" to the primary private **batch/polling** source after a new
+contract task verifies current-day quote/index behavior, freshness,
+rate-limit handling, and field semantics. It must not be described as an
+official live data provider or public redistribution source.
+
+**Rationale**: Vnstock v4 documents a unified API with KBS-backed index
+reference (`Reference.index.list/members/groups/info`), index OHLCV
+(`Market.index.ohlcv`), equity OHLCV (`Market.equity.ohlcv`), equity quote
+(`Market.equity.quote`), and market status (`Reference.market.status`). The
+owner's existing Vnstock Community entitlement is 60 requests/minute, which is
+enough for bounded local polling and scheduled refreshes if requests are paced
+and checkpointed. The already completed full-universe evidence confirms KBS
+can cover the private historical bootstrap with explicit unavailable-history
+classification.
+
+**Constraints**:
+
+- Vnstock states it is an API connector/extraction tool, not the owner or
+  distributor of the underlying market data. Its Community license is for
+  personal, non-commercial, research/academic use. Public, commercial, or
+  multi-user data display still requires separate written rights.
+- Vnstock documents that retrieved data may be incomplete, inconsistent, or
+  delayed versus the original source. Finvera must continue to show source,
+  timestamp/freshness, missing reason, and `PARTIAL`/`UNAVAILABLE` states.
+- Vnstock Pipeline realtime WebSocket is documented as available only for
+  Sponsor Golden/Diamond users. Community should therefore be treated as
+  batch/polling/historical, not realtime streaming.
+- Python/Vnstock must remain outside the browser and outside `finvera-ai`.
+  The safe architecture is still an operator/local collector or exporter that
+  emits canonical packages into Spring Boot's validated import boundary.
+
+**Recommended implementation direction**:
+
+1. Keep TCBS as optional high-priority live stream research, but stop relying
+   on TCBS REST for index levels.
+2. Make Vnstock/KBS the primary private source for historical and completed
+   daily index/equity facts.
+3. Add a new Vnstock "current snapshot polling" contract before runtime code:
+   prove exact index symbols, quote fields, timestamp/freshness behavior,
+   current-day availability, VN30 support, and request budget.
+4. Implement a local-only Vnstock collector/exporter that writes canonical
+   decimal-string packages, then import them through Spring. Do not let Spring
+   call arbitrary Python functions or raw Vnstock APIs directly.
+5. If true realtime is required, evaluate Vnstock Sponsor realtime pipeline as
+   a separate paid/private provider contract; otherwise label Vnstock data as
+   `DELAYED`/`CURRENT` only when the package itself proves freshness.
+
+**Status**: suitable for private MVP if implemented as bounded
+operator-controlled polling/package import. Not suitable for public/multi-user
+or guaranteed realtime claims without new licensing and provider evidence.
 ### R-001A — Historical Bootstrap Source
 
 **Decision**: Use a pinned Vnstock release as an offline, operator-invoked

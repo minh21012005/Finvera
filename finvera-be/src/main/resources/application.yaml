@@ -39,11 +39,15 @@ finvera:
       index-contracted-delay: ${FINVERA_MARKET_INDEX_CONTRACTED_DELAY}
     provider:
       mode: ${FINVERA_MARKET_PROVIDER_MODE:fixture}
-      live-enabled: ${FINVERA_MARKET_PROVIDER_LIVE_ENABLED:false}
+    live-overlay:
       tcbs:
+        enabled: ${FINVERA_TCBS_LIVE_ENABLED:false}
         base-url: ${FINVERA_TCBS_BASE_URL:https://openapi.tcbs.com.vn}
+        websocket-url: ${FINVERA_TCBS_WEBSOCKET_URL:wss://openapi.tcbs.com.vn/ws/thesis/v1/stream/normal}
         api-key: ${FINVERA_TCBS_API_KEY:}
-        poll-interval-ms: ${FINVERA_MARKET_TCBS_POLL_INTERVAL_MS:60000}
+        heartbeat-interval: ${FINVERA_TCBS_HEARTBEAT_INTERVAL:2s}
+        reconnect-max-delay: ${FINVERA_TCBS_RECONNECT_MAX_DELAY:30s}
+        max-dynamic-symbols: ${FINVERA_TCBS_MAX_DYNAMIC_SYMBOLS:100}
     fixture:
       bootstrap-enabled: ${FINVERA_MARKET_FIXTURE_BOOTSTRAP_ENABLED:false}
     import:

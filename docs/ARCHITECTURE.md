@@ -1,7 +1,7 @@
 # Finvera Architecture
 
 **Status**: Living document
-**Last updated**: 2026-08-18
+**Last updated**: 2026-08-24
 **Applies to**: `finvera-fe`, `finvera-be`, `finvera-ai`, and the shared data
 stores
 
@@ -39,8 +39,8 @@ wins and the code is the defect.
     (allowlisted) |            | (server to server)|
                  v            v                  v
         market data      finvera-ai         PostgreSQL
-        providers        (FastAPI,          (transactional
-        TCBS, Vnstock    RAG/LLM)            source of truth)
+        TCBS Thesis WS   (FastAPI,          (transactional
+        Vnstock package  RAG/LLM)            source of truth)
                                 |
                                 v
                         Qdrant (rebuildable index)
@@ -196,10 +196,12 @@ system.
 | Untrusted content | Provider payloads and documents are data, never instructions. Prompt-injection handling is mandatory wherever an LLM path exists. |
 | Logging | Permitted: source, dataset, subject, reason code, correlation id, timings, counts. Forbidden: credentials, tokens, cookies, full payloads, private user data. |
 
-**Current limitation, stated plainly**: TCBS and Vnstock data are licensed for
-private, non-commercial use. Public or multi-user delivery requires a
-commercially licensed provider, a new adapter contract, an ADR, and a revised
-ingress and authentication design. No feature may quietly assume otherwise.
+**Current limitation, stated plainly**: the TCBS Thesis live overlay and
+Vnstock/KBS history path are approved only for the owner's private,
+non-commercial workflow. They are not a public redistribution service. Public or multi-user delivery
+requires a commercially licensed provider, a new adapter contract, an ADR, and a
+revised ingress and authentication design. No feature may quietly assume
+otherwise.
 
 ## 8. Configuration conventions
 
@@ -234,7 +236,9 @@ delivery failure.
 |---|---|---|
 | Backend framework | Spring Boot 4 | [ADR-0001](adr/0001-use-spring-boot-4.md) |
 | LLM provider | Gemini as the initial provider | [ADR-0002](adr/0002-use-gemini-as-initial-llm-provider.md) |
-| Live market data | TCBS iFlash, private use | [ADR-0003](adr/0003-use-tcbs-for-private-market-data-v1.md) |
+| Private live market overlay | TCBS Thesis WebSocket, server-side, private use | [ADR-0010](adr/0010-use-tcbs-thesis-for-private-live-market-overlay.md) |
+| Historical/completed-session data | Vnstock/KBS package/import path | [ADR-0009](adr/0009-use-vnstock-as-primary-private-market-provider.md) |
+| Superseded TCBS integration | Ouranos/guessed REST path | [ADR-0003](adr/0003-use-tcbs-for-private-market-data-v1.md) |
 | Historical bootstrap | Pinned Vnstock, offline, owner-operated | [ADR-0004](adr/0004-use-vnstock-for-private-historical-bootstrap.md) |
 | Access and ingress | Tailscale plus local owner session | [ADR-0005](adr/0005-use-tailscale-and-local-owner-session.md) |
 | Web client | React with Vite, not Next.js | [ADR-0006](adr/0006-use-react-vite-for-private-web-client.md) |

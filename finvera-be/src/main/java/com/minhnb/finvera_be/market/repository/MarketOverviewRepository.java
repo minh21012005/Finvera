@@ -13,7 +13,9 @@ public interface MarketOverviewRepository extends Repository<MarketIndexSnapshot
 
     @Query(value = """
             with latest_date as (
-                select max(trading_date) as trading_date from index_snapshot
+                select max(trading_date) as trading_date
+                from index_snapshot
+                where source <> 'TCBS_IFLASH_MARKET_DATA'
             ), ranked as (
                 select mi.code as index_code, mi.display_name as display_name, mi.venue as venue,
                        snapshot.trading_date, snapshot.observed_at, snapshot.session_state,
@@ -26,6 +28,7 @@ public interface MarketOverviewRepository extends Repository<MarketIndexSnapshot
                 from index_snapshot snapshot
                 join market_index mi on mi.id = snapshot.index_id
                 join latest_date latest on latest.trading_date = snapshot.trading_date
+                where snapshot.source <> 'TCBS_IFLASH_MARKET_DATA'
             )
             select index_code as indexCode, display_name as displayName, venue,
                    trading_date as tradingDate, observed_at as observedAt, session_state as sessionState,

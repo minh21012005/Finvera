@@ -117,8 +117,7 @@ class StockDetailPerformanceTests {
             ));
         }
 
-        overviewService = new StockOverviewService(referenceData, profiles, dailyBars, sectors,
-                Optional.empty(), ingestion, observability, FIXED_CLOCK, false);
+        overviewService = new StockOverviewService(referenceData, profiles, dailyBars, sectors, FIXED_CLOCK);
         chartService = new StockChartService(referenceData, dailyBars, FIXED_CLOCK);
         technicalService = new TechnicalIndicatorService(referenceData, dailyBars, technicalResults, technicalValues, ingestion, FIXED_CLOCK);
         fundamentalService = new FundamentalReportService(referenceData, reports, reportMetrics, summaries, summaryMetrics, summaryInputs, catalog, FIXED_CLOCK);

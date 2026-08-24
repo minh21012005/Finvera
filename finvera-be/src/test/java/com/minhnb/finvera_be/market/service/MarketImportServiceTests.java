@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import com.minhnb.finvera_be.market.entity.MarketImportBatchEntity;
 import com.minhnb.finvera_be.market.entity.MarketInstrumentEntity;
+import com.minhnb.finvera_be.market.provider.MarketDataProvider.ProviderSnapshotBatch;
 import com.minhnb.finvera_be.market.repository.EquityPriceObservationRepository;
 import com.minhnb.finvera_be.market.repository.MarketImportBatchRepository;
 import com.minhnb.finvera_be.market.repository.MarketInstrumentRepository;
@@ -34,11 +35,12 @@ class MarketImportServiceTests {
     @Mock private MarketInstrumentRepository instruments;
     @Mock private MarketObservationRepository observations;
     @Mock private EquityPriceObservationRepository prices;
+    @Mock private MarketIngestionService indexIngestion;
     private MarketImportService service;
 
     @BeforeEach
     void setUp() {
-        service = new MarketImportService(batches, instruments, observations, prices,
+        service = new MarketImportService(batches, instruments, observations, prices, indexIngestion,
                 Clock.fixed(Instant.parse("2026-08-17T03:05:00Z"), ZoneOffset.UTC));
     }
 
@@ -61,17 +63,33 @@ class MarketImportServiceTests {
     }
 
     @Test
+    void marketPackagePersistsIndexRecordsThroughTheIndexIngestionBoundary() {
+        var input = validIndexPackage("canonical-market-package-v1");
+
+        var result = service.importPackage(input);
+
+        assertThat(result.status()).isEqualTo(MarketImportService.Status.APPLIED);
+        var batch = ArgumentCaptor.forClass(ProviderSnapshotBatch.class);
+        verify(indexIngestion).ingest(batch.capture());
+        assertThat(batch.getValue().source()).isEqualTo("VNSTOCK_KBS");
+        assertThat(batch.getValue().observations()).hasSize(1);
+        verify(observations, never()).save(any());
+        verify(prices, never()).save(any());
+    }
+
+    @Test
     void checksumMismatchRejectsBeforeAnyWrite() {
         var valid = validPackage("canonical-package-v1");
         var tampered = new MarketImportService.PackageInput(valid.contractVersion(), valid.toolName(), valid.toolVersion(),
                 valid.upstreamSource(), valid.packageSha256(), "tampered", valid.generatedAt(), valid.rangeStart(),
-                valid.rangeEnd(), valid.records());
+                valid.rangeEnd(), valid.records(), valid.indexRecords());
 
         assertThatThrownBy(() -> service.importPackage(tampered)).hasMessage("INVALID_CHECKSUM");
 
         verify(batches, never()).save(any());
         verify(observations, never()).save(any());
         verify(prices, never()).save(any());
+        verify(indexIngestion, never()).ingest(any());
     }
 
     @Test
@@ -85,6 +103,7 @@ class MarketImportServiceTests {
         verify(instruments, never()).save(any());
         verify(observations, never()).save(any());
         verify(prices, never()).save(any());
+        verify(indexIngestion, never()).ingest(any());
     }
 
     @Test
@@ -95,7 +114,7 @@ class MarketImportServiceTests {
                 "1e3", "RAW", null, "record-2");
         var invalid = new MarketImportService.PackageInput(valid.contractVersion(), valid.toolName(), valid.toolVersion(),
                 valid.upstreamSource(), valid.packageSha256(), valid.canonicalPayload(), valid.generatedAt(),
-                valid.rangeStart(), valid.rangeEnd(), List.of(invalidRecord));
+                valid.rangeStart(), valid.rangeEnd(), List.of(invalidRecord), List.of());
 
         assertThatThrownBy(() -> service.importPackage(invalid)).hasMessage("INVALID_DECIMAL");
         verify(batches, never()).save(any());
@@ -108,6 +127,16 @@ class MarketImportServiceTests {
                 LocalDate.of(2026, 8, 15), LocalDate.of(2026, 8, 15),
                 List.of(new MarketImportService.EquityHistoryRecord("HOSE", "FPT", null,
                         LocalDate.of(2006, 12, 13), "ACTIVE", LocalDate.of(2026, 8, 15), GENERATED_AT,
-                        "101.500000", "RAW", null, "record-1")));
+                        "101.500000", "RAW", null, "record-1")), List.of());
+    }
+
+    private static MarketImportService.PackageInput validIndexPackage(String payload) {
+        return new MarketImportService.PackageInput(MarketImportService.MARKET_PACKAGE_CONTRACT_VERSION,
+                "finvera-vnstock-exporter", "0.2.0", "VNSTOCK_KBS", MarketImportService.sha256(payload),
+                payload, GENERATED_AT, LocalDate.of(2026, 8, 15), LocalDate.of(2026, 8, 15), List.of(),
+                List.of(new MarketImportService.IndexSnapshotRecord("VN_INDEX", "VNINDEX",
+                        LocalDate.of(2026, 8, 15), GENERATED_AT, "CLOSED", "CURRENT",
+                        "1728.000000", "1710.000000", "1000000", null,
+                        List.of("VNSTOCK_DAILY_CLOSE_REFERENCE_DERIVED"), "index-record-1")));
     }
 }

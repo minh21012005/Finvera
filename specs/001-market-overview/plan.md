@@ -3,7 +3,7 @@
 **Feature Directory**: `specs/001-market-overview`  
 **Date**: 2026-08-17  
 **Spec**: [spec.md](spec.md)  
-**Status**: Fixture implementation validated; provider/deployment gates remain open
+**Status**: Hybrid TCBS Thesis live overlay with on-demand equity subscriptions in progress; remote deployment gate remains open
 
 ## Summary
 
@@ -16,18 +16,34 @@ The Spring Boot `market` module ingests deterministic fixtures through the same
 accepted-observation boundary, persists immutable observations in PostgreSQL, calculates
 breadth and `market-regime-v1`, and exposes one coherent
 `GET /api/v1/market/overview` response. A React SPA built with Vite renders
-the response without recalculating authoritative financial facts. TCBS iFlash
-remains the intended initial live adapter behind a provider-neutral contract,
-but that adapter is not implemented until T045 passes. The pinned Vnstock
-offline exporter/importer likewise remains unimplemented until T047 passes.
-Both personal-use sources are restricted to an owner-only private deployment
-and mandatory capability/license gates. The AI service, Gemini, embeddings, Qdrant, Redis,
+the response without recalculating authoritative financial facts. ADR-0010
+uses the official TCBS Thesis price-board WebSocket as a current-session live
+overlay while ADR-0009 retains Vnstock/KBS as the historical/bootstrap and
+completed-session fallback source. Spring owns both boundaries; the browser
+calls Spring only. Both sources are restricted to an owner-only private
+deployment and mandatory capability/license gates. The AI service, Gemini, embeddings, Qdrant, Redis,
 and Kafka are not required.
+
+Equity live coverage is demand-driven rather than configured as a fixed ticker
+list. The validated stock-detail application path asks the TCBS client to retain
+the active symbol. The client deduplicates requests, enforces a configured
+least-recently-used capacity, uses the provider's partial-unsubscribe frame on
+eviction, and restores retained subscriptions after reconnect. The initiating
+read remains non-blocking and uses the accepted PostgreSQL fallback until a
+stream observation is ingested; the existing 30-second frontend refresh then
+surfaces the live quote.
+
+Legacy repair is migration-driven and source-scoped. Flyway removes only
+materialized index snapshots attributed to the proven-invalid retired source
+`TCBS_IFLASH_MARKET_DATA`, retains its ingestion rows as rejected audit evidence,
+and removes dependent regime artifacts when necessary. The overview repository
+also excludes that exact source as defense in depth; current Thesis and
+historical Vnstock/KBS selection semantics are otherwise unchanged.
 
 ## Technical Context
 
 **Affected Projects**: `finvera-be`, `finvera-fe`; PostgreSQL runtime/test
-configuration, TCBS connectivity, and an offline Vnstock bootstrap tool  
+configuration, TCBS Thesis outbound WebSocket, and an offline Vnstock market package tool
 **Languages/Versions**: Java 21 + Spring Boot 4.1.0; TypeScript 5 + React
 19.2.8 + Vite (pinned by T002); PostgreSQL 17 for runtime/test validation
 without changing application semantics  
@@ -38,14 +54,14 @@ feature's runtime and dependency path.
 **Storage/State**: PostgreSQL is authoritative. No required Redis/Qdrant/Kafka
 state; fixture data is test/development-only.  
 **Interfaces**: Versioned owner-only REST API, internal outbound
-`MarketDataProvider` contract, and versioned historical import-package schema; no
+`MarketDataProvider` contract, TCBS Thesis live contract, and versioned historical import-package schema; no
 internal AI/event interface.  
 **Testing/Evaluation**: Pure unit and numerical boundary/property tests;
 sanitized provider contract fixtures; Flyway/JPA integration tests on
 Testcontainers PostgreSQL; Spring MVC/security contract tests; Vitest component
 tests; Playwright P1-P3 E2E and accessibility checks.
 **Target Environment**: Modern browser; Java server with outbound TLS and,
-for TCBS, owner-initiated iOTP renewal and private owner-only ingress; UTC host-safe operation with explicit
+owner-operated Vnstock package import and private owner-only ingress; UTC host-safe operation with explicit
 `Asia/Ho_Chi_Minh` market semantics.  
 **Performance Goals**: NFR-001—95% of visits usable within 3 seconds;
 NFR-002—99% of accepted updates visible within contracted delay +30 seconds.
@@ -60,11 +76,11 @@ one consolidated breadth and one regime assessment per coherent revision;
 shared read-mostly overview. No tick archive, chart delivery, HFT, or order flow.  
 **Open Technical Unknowns**: Owner authentication/private ingress are resolved
 by R-011. A sanitized Vnstock `4.0.6`/KBS probe passed representative
-271-session history coverage on 2026-08-17. TCBS live field behavior and the
-remaining Vnstock upstream-use, request-limit, adjustment/correction, and
-full-universe checks still require gates. Production adapters/importers remain
-blocked until those gates pass; deterministic fixture/domain work may proceed
-only after `tasks.md`. Failure defers the affected journey or selects a
+271-session history coverage on 2026-08-17, and the full-universe scan passed
+on 2026-08-18. Vnstock current quote/realtime semantics remain a separate gate;
+Community data is treated as batch/polling unless proven otherwise. Production
+adapters/importers remain blocked until those gates pass; deterministic
+fixture/domain work may proceed only after `tasks.md`. Failure defers the affected journey or selects a
 licensed provider through a research/contract/ADR amendment. Neither personal
 source is permitted for public/multi-user delivery.
 
@@ -98,8 +114,9 @@ source is permitted for public/multi-user delivery.
 boundaries, and explicit activation gates are defined; no live integration is
 authorized by this result.
 **Post-design result**: PASS for T001-T044 and fixture validation T049-T056
-under the approved, narrow Complexity Tracking exception. TCBS live task T046
-and Vnstock import task T048 remain blocked by T045 and T047 respectively.
+under the approved, narrow Complexity Tracking exception. ADR-0009 supersedes
+the TCBS live task path; Vnstock package import is the active private-provider
+path.
 Loopback-only local fixture acceptance may execute while T051 is deferred by
 the owner. This does not satisfy or waive T051: deployment or access from
 another device remains blocked until the private-ingress checks pass.
@@ -109,7 +126,7 @@ another device remains blocked until the private-ingress checks pass.
 ### Affected User and System Flows
 
 ```text
-private TCBS iFlash / deterministic fixtures / offline Vnstock package
+deterministic fixtures / offline Vnstock market package
         |
         v
 Spring market.provider integration
@@ -151,7 +168,7 @@ finvera-ai / Gemini / embeddings / Qdrant / Kafka: no path in this feature
 |---|---|---|---|
 | Public REST | Add coherent market overview GET endpoint | Additive `/api/v1`; response contract 1.0 | [market-overview.openapi.yaml](contracts/market-overview.openapi.yaml) |
 | Private owner access | Add local session, CSRF, login/logout/status, and TCBS renewal | Private contract 1.0; replaces bearer assumption for Feature 001 | [private-owner-access.openapi.yaml](contracts/private-owner-access.openapi.yaml) |
-| Market provider | Add internal read-only provider contract and TCBS integration | Internal `tcbs-iflash-market-private-v1`; provider replaceable | [tcbs-iflash-adapter.md](contracts/tcbs-iflash-adapter.md) |
+| Market provider | Remove TCBS runtime path and use Vnstock package import | `vnstock-market-private-package-v1`; no runtime Python service | [vnstock-private-market-provider.md](contracts/vnstock-private-market-provider.md) |
 | Historical bootstrap | Add operator-only canonical package import | `vnstock-history-private-bootstrap-v1`; no runtime Python service | [vnstock-historical-bootstrap.md](contracts/vnstock-historical-bootstrap.md) |
 | Database | Add market/calendar/observation/derived tables | Forward Flyway migrations; no existing business data | [data-model.md](data-model.md) |
 
@@ -159,7 +176,7 @@ finvera-ai / Gemini / embeddings / Qdrant / Kafka: no path in this feature
 
 Research is complete in [research.md](research.md). Decisions include:
 
-- TCBS iFlash owner-only live target and capability gate;
+- Vnstock/KBS owner-only private provider package path;
 - pinned Vnstock offline historical bootstrap, upstream-license/fixture gate,
   and cross-source reconciliation; commercial provider migration before public delivery;
 - immutable ingestion/correction ordering and source reconciliation;

@@ -266,7 +266,7 @@ public class ValuationService {
     // TechnicalIndicatorService (T038): a date is conflicted only when more
     // than one source is simultaneously accepted-current for it AND
     // SourceReconciliationService's policy finds a material divergence.
-    private static final List<String> SOURCE_PREFERENCE = List.of("TCBS", "VNSTOCK", "FINVERA_FIXTURE");
+    private static final List<String> SOURCE_PREFERENCE = List.of("VNSTOCK_KBS", "VNSTOCK", "FINVERA_FIXTURE");
 
     private static List<EquityDailyBarEntity> dedupeByTradingDate(List<EquityDailyBarEntity> rows) {
         Map<LocalDate, EquityDailyBarEntity> byDate = new LinkedHashMap<>();

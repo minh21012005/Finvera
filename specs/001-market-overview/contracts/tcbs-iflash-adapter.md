@@ -2,7 +2,15 @@
 
 **Contract version**: `tcbs-iflash-market-private-v1`  
 **Feature**: `001-market-overview`  
-**Status**: Gate APPROVED with three documented constraints — REST timestamp is trading-date-only (label `TCBS_REST_TRADING_DATE_ONLY`), session field is opaque and inferred from `MarketTimePolicy`, breadth full-universe status mapping is PARTIAL pending T046 graceful degradation
+**Status override (2026-08-24)**: Gate PARTIAL after official endpoint review.
+TCBS authentication, low-rate REST access, WebSocket index entitlement, and
+small-sample Ouranos equity evidence are confirmed. No official REST endpoint
+for index-level VN-Index/VN30/HNX/UPCOM snapshots has been identified.
+**Historical status (2026-08-18, superseded for REST index reconciliation)**:
+Gate APPROVED with three documented constraints — REST timestamp is
+trading-date-only (label `TCBS_REST_TRADING_DATE_ONLY`), session field is
+opaque and inferred from `MarketTimePolicy`, breadth full-universe status
+mapping is PARTIAL pending T046 graceful degradation.
 
 ## Purpose and boundary
 
@@ -138,13 +146,35 @@ it cannot use them alone for immutable correction ordering. Final REST
 reconciliation needs a documented timestamp/revision source or must be marked
 partial/unavailable.
 
+**Official REST index endpoint review (2026-08-24)**: The documented
+`GET /tartarus/v1/tickerCommons` endpoint is the stock symbol/price endpoint.
+Its `index` request parameter is a stock-basket selector (`Rổ chứng khoán`),
+and the response is a list of equity rows (`data[].symbol`) with
+`indexNumber`. The documented example returns `FPT` in basket 1, not a
+VN-Index row. The owner's live activation confirmed this: after filtering out
+constituents, `tickerCommons?index={1,2,3,5}` yielded zero valid index
+observations. The official price-history REST endpoint is also per stock
+ticker. No reviewed official REST page documents VN-Index, VN30-Index,
+HNX-Index, or UPCOM-Index levels as REST resources.
+
+The official source for current index levels is the price-board WebSocket
+subscription `d|s|si|rt|<BOARDS>`, with channel `s|8` for stock-index updates.
+Because this stream still does not document a provider timestamp, sequence, or
+revision field, it is display/current-session evidence only unless TCBS
+documents stronger semantics or the owner obtains written confirmation.
+
 ## Capability gate resolution (2026-08-18)
 
 This section records the three open items from the bounded follow-up evidence and
 the design decisions that close the T045 gate. All three constraints must be
 encoded in the adapter implementation (T046); none may be silently dropped.
 
-### Decision A — REST reconciliation (trading-date-only timestamp)
+### Decision A — TCBS index-level REST reconciliation unavailable
+
+**Supersedes the 2026-08-18 REST reconciliation decision.** The earlier
+assumption that `tickerCommons?index={N}` can supply index-level REST snapshots
+is invalid for runtime index persistence. Keep the POC evidence below only as
+proof of low-rate REST access and constituent/equity schema shape.
 
 **Open item closed**: _"Final REST reconciliation needs a documented
 timestamp/revision source or must be marked partial/unavailable."_
@@ -152,6 +182,25 @@ timestamp/revision source or must be marked partial/unavailable."_
 **Evidence from POC**: `GET /tartarus/v1/tickerCommons?index={N}` at
 `https://openapi.tcbs.com.vn` returned HTTP 200 for all four index numbers
 (1, 2, 3, 5). The response envelope is:
+
+**Runtime call shape**: the adapter MUST call the endpoint once per allowlisted
+index number (`index=1`, `index=2`, `index=3`, `index=5`) and merge the
+sanitized rows. Do not collapse these into `index=1,2,3,5`; the owner
+activation log on 2026-08-24 showed TCBS returns HTTP 400 for that aggregate
+query shape even though the per-index POC passes.
+
+**Index-row filter**: `tickerCommons?index={N}` may return constituent rows as
+well as the index row. The adapter MUST persist only rows whose `(indexNumber,
+symbol)` pair matches the explicit allowlist: `(1,VNINDEX)`, `(2,VN30)`,
+`(3,HNXINDEX)`, `(5,UPCOMINDEX)`. Constituents sharing the same `indexNumber`
+are not index observations and MUST be ignored.
+
+**Owner activation correction (2026-08-24)**: after applying the index-row
+filter, the owner's live activation returned constituent rows only
+(`observations=0` after filtering). The adapter therefore treats this REST path
+as `TCBS_INDEX_ROWS_UNAVAILABLE` for index persistence until a documented TCBS
+REST index row or another timestamped reconciliation source is captured. Do not
+persist constituent prices as index levels.
 
 ```
 { "tradingDate": "string", "data": [ { "symbol", "indexNumber", "matchPrice",
@@ -183,14 +232,21 @@ the inferred session close to capture the final reconciliation snapshot. Do not
 poll during inferred non-trading hours. POC rate-probe SHA-256:
 `6a108963f0c415ae6eb7260665d07b80dbfa80c966e4125856a71b2be6c533d6`.
 
-**Authoritativereconciliation flow**:
-1. `MarketTimePolicy` infers session state from wall-clock `Asia/Ho_Chi_Minh`.
-2. While inferred OPEN: poll every 30 s → ingest via `MarketIngestionService`
-   with label `TCBS_REST_TRADING_DATE_ONLY`.
-3. Within five minutes after inferred close: one final poll → ingest as the
-   end-of-session reconciliation snapshot with the same label.
-4. WebSocket `rt` messages update display only; they MUST NOT trigger
-   persistence calls and MUST NOT overwrite REST-sourced accepted observations.
+**Current runtime rule (2026-08-24)**:
+1. `tickerCommons?index={N}` MUST NOT be used to persist index-card levels.
+   Constituent rows are equity observations, not VN-Index/VN30/HNX/UPCOM index
+   facts.
+2. If a TCBS REST index poll returns only constituents, the provider must
+   surface `TCBS_INDEX_ROWS_UNAVAILABLE` and preserve the last accepted
+   non-TCBS/fixture/historical observations rather than writing incorrect
+   index values.
+3. TCBS price-board WebSocket `si/rt` may be used for current-session display
+   only, labelled `TCBS_STREAM_TIMESTAMP_UNAVAILABLE` and
+   `TCBS_STREAM_ORDERING_UNAVAILABLE`.
+4. A final completed-session TCBS index reconciliation remains unavailable
+   until TCBS documents a REST index endpoint, documents timestamped/revisioned
+   stream semantics, or supplies written confirmation for an official endpoint
+   outside the reviewed public docs.
 
 ### Decision B — Session field is opaque; state is inferred from clock
 
@@ -238,6 +294,21 @@ gate requirement.
 
 ### T045 gate closure summary
 
+**Corrected gate summary (2026-08-24)**:
+
+| Item | Status | Label / Action |
+|---|---|---|
+| Authentication (TOTP + token) | Closed | token in memory only |
+| REST read-only access (`tickerCommons` baskets) | Closed | constituent/equity schema only |
+| TCBS REST index-level snapshots | Unavailable | `TCBS_INDEX_ROWS_UNAVAILABLE` |
+| WebSocket index stream (`si/rt`, all 4 index numbers) | Closed for display only | `TCBS_STREAM_TIMESTAMP_UNAVAILABLE`, `TCBS_STREAM_ORDERING_UNAVAILABLE` |
+| Final completed-session TCBS index reconciliation | Open | requires official endpoint, timestamped/revisioned stream semantics, or written TCBS confirmation |
+| Ouranos C001 equity schema | Closed for small-sample evidence | future breadth input only |
+| Breadth full-universe status mapping | PARTIAL | T046 must implement graceful degradation |
+
+The older 2026-08-18 table below is retained only as historical context and is
+superseded for REST index reconciliation by the corrected summary above.
+
 | Item | Status | Label / Action |
 |---|---|---|
 | Authentication (TOTP + token) | ✅ Closed | — |
@@ -273,8 +344,9 @@ provider evidence is obtained.
 
 ## Delivery, rate, and failure behavior
 
-- Use REST reads for reference data, history, and reconciliation; use the
-  documented price-board WebSocket only while an active token exists.
+- Use documented REST reads for equity/reference/breadth candidates only.
+  Do not use `tickerCommons` constituent rows as index-level reconciliation.
+  Use the documented price-board WebSocket only while an active token exists.
 - Begin below TCBS's documented REST and WebSocket limits; exact configured
   budgets, endpoint paths, field mappings, and reconnect behavior are fixed
   only from captured official documentation and fixtures.

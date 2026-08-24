@@ -36,6 +36,22 @@ public class BreadthService {
                 link.priceObservationId(), link.classification(), link.reasonCode())).toList());
         return new Snapshot(id, tradingDate, asOf, status, result, BreadthUniversePolicy.VERSION, universeHash);
     }
+
+    /** Persists provider-supplied exchange aggregates without fabricating constituent links. */
+    @Transactional
+    public Optional<Snapshot> persistProviderAggregate(LocalDate tradingDate, Instant asOf,
+            String universeVersion, BreadthCalculator.Result result, String universeHash) {
+        if (snapshots.existsByTradingDateAndAsOfAndUniverseRevisionHash(tradingDate, asOf, universeHash)) {
+            return Optional.empty();
+        }
+        UUID id = UUID.randomUUID();
+        DataStatus status = result.unclassified() > 0 ? DataStatus.PARTIAL : DataStatus.CURRENT;
+        snapshots.save(new MarketBreadthSnapshotEntity(id, tradingDate, asOf, clock.instant(),
+                universeVersion, universeHash, result.advancing(), result.declining(), result.unchanged(),
+                result.eligible(), result.unclassified(), status.name(), "provider-aggregate-v1",
+                result.reasonCodes(), null));
+        return Optional.of(new Snapshot(id, tradingDate, asOf, status, result, universeVersion, universeHash));
+    }
     @Transactional(readOnly = true)
     public Optional<Snapshot> latestFor(LocalDate tradingDate) {
         return snapshots.findFirstByTradingDateOrderByAsOfDescCalculatedAtDesc(tradingDate).map(entity ->

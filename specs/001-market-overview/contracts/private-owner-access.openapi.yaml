@@ -69,12 +69,23 @@ paths:
           $ref: "#/components/responses/Problem"
         "403":
           $ref: "#/components/responses/Problem"
+  /market/providers/tcbs/status:
+    get:
+      operationId: getTcbsLiveStatus
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Secret-safe state of the optional TCBS Thesis live overlay.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TcbsStatusResponse"
+        "401":
+          $ref: "#/components/responses/Problem"
   /market/providers/tcbs/token-renewal:
     post:
-      operationId: renewTcbsToken
-      description: >-
-        Immediately exchanges one owner-entered iOTP with TCBS. The request
-        body must be redacted from logs and never persisted, retried, or reused.
+      operationId: renewTcbsLiveSession
       security:
         - sessionCookie: []
       parameters:
@@ -84,19 +95,15 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/TcbsTokenRenewalRequest"
+              $ref: "#/components/schemas/TcbsRenewalRequest"
       responses:
         "204":
-          description: Token exchanged and retained only in runtime memory.
+          description: Token renewed in memory and WebSocket connection initiated.
         "400":
           $ref: "#/components/responses/Problem"
         "401":
           $ref: "#/components/responses/Problem"
         "403":
-          $ref: "#/components/responses/Problem"
-        "429":
-          $ref: "#/components/responses/Problem"
-        "502":
           $ref: "#/components/responses/Problem"
 components:
   securitySchemes:
@@ -153,20 +160,26 @@ components:
         expiresAt:
           type: string
           format: date-time
-    TcbsTokenRenewalRequest:
+    TcbsRenewalRequest:
       type: object
       additionalProperties: false
-      required: [iOtp]
+      required: [otp]
       properties:
-        iOtp:
+        otp:
           type: string
           minLength: 1
-          maxLength: 128
+          maxLength: 12
           writeOnly: true
-          description: >-
-            Opaque, transient owner-entered TCBS authentication value. Its
-            provider-specific format is not assumed until the TCBS capability
-            gate is approved.
+    TcbsStatusResponse:
+      type: object
+      additionalProperties: false
+      required: [state, reasonCode]
+      properties:
+        state:
+          type: string
+          enum: [READY, DEGRADED, AUTH_REQUIRED]
+        reasonCode:
+          type: string
     ErrorResponse:
       type: object
       required: [type, title, status, code, correlationId]
@@ -186,7 +199,7 @@ components:
           type: string
   responses:
     Problem:
-      description: Safe RFC 9457-compatible error; never echoes credentials or iOTP.
+      description: Safe RFC 9457-compatible error; never echoes credentials.
       content:
         application/problem+json:
           schema:

@@ -116,10 +116,44 @@ class MarketRepositoryTests {
         assertThat(latest.getFirst().getIndexLevel()).isEqualByComparingTo("1301.000000");
     }
 
+    @Test
+    void deprecatedTcbsSourceCannotOutrankApprovedThesisWithAFutureTimestamp() {
+        LocalDate date = TRADING_DATE.plusDays(2);
+        Instant approvedAt = Instant.parse("2026-08-19T03:00:00Z");
+        saveSnapshot(VN_INDEX_ID, "VN_INDEX", date, approvedAt,
+                new BigDecimal("1786.830000"), 1, null, "TCBS_IFLASH_THESIS");
+        saveSnapshot(UUID.fromString("00000000-0000-0000-0001-000000000002"), "VN30", date,
+                approvedAt, new BigDecimal("1941.050000"), 1, null, "TCBS_IFLASH_THESIS");
+        saveSnapshot(UUID.fromString("00000000-0000-0000-0001-000000000003"), "HNX_INDEX", date,
+                approvedAt, new BigDecimal("285.270000"), 1, null, "TCBS_IFLASH_THESIS");
+        saveSnapshot(UUID.fromString("00000000-0000-0000-0001-000000000004"), "UPCOM_INDEX", date,
+                approvedAt, new BigDecimal("127.980000"), 1, null, "TCBS_IFLASH_THESIS");
+        saveSnapshot(VN_INDEX_ID, "VN_INDEX", date, approvedAt.plusSeconds(21_600),
+                new BigDecimal("27650.000000"), 1294, null, "TCBS_IFLASH_MARKET_DATA");
+
+        var latest = overviewRepository.findLatestAcceptedIndexBoundary();
+
+        assertThat(latest).hasSize(4);
+        assertThat(latest.getFirst().getIndexCode()).isEqualTo("VN_INDEX");
+        assertThat(latest.getFirst().getIndexLevel()).isEqualByComparingTo("1786.830000");
+        assertThat(latest.getFirst().getSource()).isEqualTo("TCBS_IFLASH_THESIS");
+        var regimeReference = snapshots
+                .findFirstByIndexIdAndSourceNotAndTradingDateLessThanEqualOrderByTradingDateDescObservedAtDescRevisionDesc(
+                        VN_INDEX_ID, "TCBS_IFLASH_MARKET_DATA", date)
+                .orElseThrow();
+        assertThat(regimeReference.getIndexLevel()).isEqualByComparingTo("1786.830000");
+        assertThat(regimeReference.getSource()).isEqualTo("TCBS_IFLASH_THESIS");
+    }
+
     private UUID saveSnapshot(UUID indexId, String code, LocalDate date, Instant observedAt,
             BigDecimal level, int revision, UUID supersedesId) {
+        return saveSnapshot(indexId, code, date, observedAt, level, revision, supersedesId, "FINVERA_FIXTURE");
+    }
+
+    private UUID saveSnapshot(UUID indexId, String code, LocalDate date, Instant observedAt,
+            BigDecimal level, int revision, UUID supersedesId, String source) {
         UUID ingestionId = UUID.randomUUID();
-        observations.save(new MarketObservationEntity(ingestionId, "FINVERA_FIXTURE", "INDEX", code, date,
+        observations.save(new MarketObservationEntity(ingestionId, source, "INDEX", code, date,
                 observedAt, observedAt, observedAt.plusSeconds(revision), null,
                 String.format("%064x", ingestionId.getLeastSignificantBits() & Long.MAX_VALUE),
                 "ACCEPTED", null, null));
@@ -129,7 +163,7 @@ class MarketRepositoryTests {
         snapshots.save(new MarketIndexSnapshotEntity(snapshotId, indexId, ingestionId, date, observedAt,
                 observedAt.plusSeconds(revision), "OPEN", level, reference, change,
                 change.multiply(new BigDecimal("100")).divide(reference, 6, java.math.RoundingMode.HALF_UP),
-                420_000_000L, new BigDecimal("11250000000000.0000"), "FINVERA_FIXTURE", revision,
+                420_000_000L, new BigDecimal("11250000000000.0000"), source, revision,
                 supersedesId));
         return snapshotId;
     }

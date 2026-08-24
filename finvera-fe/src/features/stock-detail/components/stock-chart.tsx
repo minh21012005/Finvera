@@ -158,35 +158,76 @@ export function StockChart({ chart }: { chart: StockChartData }) {
   const dragStartXRef = useRef<number>(0);
   const dragStartOffsetRef = useRef<number>(0);
 
-  // 1. Filter bars according to selected time range based on exact calendar intervals
-  const rangeBars = useMemo(() => {
+  // 1. Normalize unit consistency across bars (handles mixed raw VND vs VND-thousands sources seamlessly)
+  const normalizedBars = useMemo(() => {
     if (!bars || bars.length === 0) return [];
-    if (timeRange === "ALL") return bars;
+    // Count how many bars have close price >= 1000
+    const countLarge = bars.filter((b) => Number.parseFloat(b.close) >= 1000).length;
+    const isPredominantlyLarge = countLarge > bars.length / 2;
 
-    const latestBar = bars[bars.length - 1];
+    return bars.map((b) => {
+      const open = Number.parseFloat(b.open);
+      const high = Number.parseFloat(b.high);
+      const low = Number.parseFloat(b.low);
+      const close = Number.parseFloat(b.close);
+
+      if (isPredominantlyLarge) {
+        // Target: Raw VND (>= 1000)
+        return {
+          ...b,
+          open: open < 1000 ? (open * 1000).toFixed(2) : b.open,
+          high: high < 1000 ? (high * 1000).toFixed(2) : b.high,
+          low: low < 1000 ? (low * 1000).toFixed(2) : b.low,
+          close: close < 1000 ? (close * 1000).toFixed(2) : b.close,
+        };
+      } else {
+        // Target: Thousands VND (< 1000)
+        return {
+          ...b,
+          open: open >= 1000 ? (open / 1000).toFixed(2) : b.open,
+          high: high >= 1000 ? (high / 1000).toFixed(2) : b.high,
+          low: low >= 1000 ? (low / 1000).toFixed(2) : b.low,
+          close: close >= 1000 ? (close / 1000).toFixed(2) : b.close,
+        };
+      }
+    });
+  }, [bars]);
+
+  // 2. Filter bars according to selected time range based on exact calendar intervals
+  const rangeBars = useMemo(() => {
+    if (!normalizedBars || normalizedBars.length === 0) return [];
+    if (timeRange === "ALL") return normalizedBars;
+
+    const latestBar = normalizedBars[normalizedBars.length - 1];
     const cutoffDate = getRangeStartDate(latestBar.tradingDate, timeRange);
-    const filtered = bars.filter((b) => b.tradingDate >= cutoffDate);
-    return filtered.length > 0 ? filtered : bars.slice(-10);
-  }, [bars, timeRange]);
+    const filtered = normalizedBars.filter((b) => b.tradingDate >= cutoffDate);
+    return filtered.length > 0 ? filtered : normalizedBars.slice(-10);
+  }, [normalizedBars, timeRange]);
 
-  // 2. Viewport capacity with flexible right margin (SSI / TradingView style)
+  // 3. Viewport capacity with flexible right margin (SSI / TradingView style)
   const totalBars = rangeBars.length;
   const baseSlots = Math.max(10, Math.floor(totalBars / zoomLevel));
-  // Default right margin: 6 empty future slots so the latest candle is not stuck at the right edge
+  // Default right margin: empty future slots so the latest candle is not stuck at the right edge
   const defaultRightMargin = Math.min(10, Math.max(4, Math.floor(baseSlots * 0.12)));
   const capacity = baseSlots + defaultRightMargin;
 
+  // Base starting bar index when panOffset == 0 (latest bar is at slot capacity - 1 - defaultRightMargin)
+  const baseStartBarIndex = (totalBars - 1) - (capacity - 1 - defaultRightMargin);
+
   // Strict Pan Bounds ensuring candles ALWAYS remain visible on screen in both directions:
-  // - Drag left (panOffset > 0): Moves latest candle towards left of screen.
-  //   We clamp so the latest candle stops at slot 3 (never dragged off the left edge).
-  const maxDragLeft = Math.max(0, capacity - 4 - defaultRightMargin);
-  // - Drag right (panOffset < 0): Moves oldest history towards right of screen.
-  //   We clamp so the earliest candle stops at slot (capacity - 4) (never dragged off the right edge).
-  const maxDragRight = Math.min(0, 4 - totalBars - defaultRightMargin);
+  // 1. Rightmost boundary (dragging right to see historical past): bar 0 cannot move past slot (capacity - 3)
+  const minPanOffset = -(capacity - 3) - baseStartBarIndex;
+  // 2. Leftmost boundary (dragging left to see latest/future): bar (totalBars - 1) cannot move before slot 2
+  const maxPanOffset = (totalBars - 3) - baseStartBarIndex;
+
+  const maxDragLeft = Math.max(0, maxPanOffset);
+  const maxDragRight = Math.min(0, minPanOffset);
+
+  // Clamp panOffset within strict boundary bounds so candles remain visible while enabling free panning in both directions
   const clampedPan = Math.min(maxDragLeft, Math.max(maxDragRight, panOffset));
 
   // The starting bar index corresponding to slot 0 (left edge of chart)
-  const startBarIndex = (totalBars - 1) - (capacity - 1 - defaultRightMargin - clampedPan);
+  const startBarIndex = baseStartBarIndex + clampedPan;
 
   interface PositionedBar {
     bar: (typeof rangeBars)[0];
@@ -206,6 +247,14 @@ export function StockChart({ chart }: { chart: StockChartData }) {
           slotIndex: slot,
         });
       }
+    }
+    // Safety fallback: if somehow empty, fallback to visible slice
+    if (result.length === 0) {
+      return rangeBars.slice(0, capacity).map((bar, idx) => ({
+        bar,
+        barIndex: idx,
+        slotIndex: idx,
+      }));
     }
     return result;
   }, [rangeBars, totalBars, capacity, startBarIndex]);
@@ -247,10 +296,10 @@ export function StockChart({ chart }: { chart: StockChartData }) {
   // 4. Coordinate Scaling Calculations
   const highs = visibleBars.length > 0
     ? visibleBars.map((p) => Number.parseFloat(p.bar.high))
-    : [Number.parseFloat(bars[bars.length - 1].high)];
+    : [Number.parseFloat(normalizedBars[normalizedBars.length - 1].high)];
   const lows = visibleBars.length > 0
     ? visibleBars.map((p) => Number.parseFloat(p.bar.low))
-    : [Number.parseFloat(bars[bars.length - 1].low)];
+    : [Number.parseFloat(normalizedBars[normalizedBars.length - 1].low)];
   const minLow = Math.min(...lows);
   const maxHigh = Math.max(...highs);
 
@@ -277,7 +326,7 @@ export function StockChart({ chart }: { chart: StockChartData }) {
 
   // Active bar for OHLCV inspector
   const hoveredBarObj = hoverSlot !== null ? visibleBars.find((p) => p.slotIndex === hoverSlot) : null;
-  const activeBar = hoveredBarObj?.bar || visibleBars.at(-1)?.bar || bars[bars.length - 1];
+  const activeBar = hoveredBarObj?.bar || visibleBars.at(-1)?.bar || normalizedBars[normalizedBars.length - 1];
 
   const activeOpen = Number.parseFloat(activeBar.open);
   const activeClose = Number.parseFloat(activeBar.close);
@@ -289,7 +338,7 @@ export function StockChart({ chart }: { chart: StockChartData }) {
   const isActiveUp = activeClose >= activeOpen;
 
   // Latest bar close for current price horizontal line
-  const latestBar = bars[bars.length - 1];
+  const latestBar = normalizedBars[normalizedBars.length - 1];
   const latestClose = Number.parseFloat(latestBar.close);
   const latestY = yPrice(latestClose);
 
@@ -304,8 +353,8 @@ export function StockChart({ chart }: { chart: StockChartData }) {
   const timeTickIndices = timeTickCount <= 1
     ? (visibleBars.length > 0 ? [0] : [])
     : Array.from({ length: timeTickCount }, (_, i) =>
-        Math.round(i * ((visibleBars.length - 1) / (timeTickCount - 1)))
-      );
+      Math.round(i * ((visibleBars.length - 1) / (timeTickCount - 1)))
+    );
 
   // 5. Handle Mouse Drag (Pan) & Move (Crosshair)
   function handleMouseDown(e: MouseEvent<SVGSVGElement>) {
@@ -390,8 +439,8 @@ export function StockChart({ chart }: { chart: StockChartData }) {
 
   const areaPath = visibleBars.length > 0
     ? `M ${Math.round(xSlot(visibleBars[0].slotIndex))},${PRICE_PANE_BOTTOM} L ${visibleBars
-        .map((p) => `${Math.round(xSlot(p.slotIndex))},${yPrice(Number.parseFloat(p.bar.close))}`)
-        .join(" L ")} L ${Math.round(
+      .map((p) => `${Math.round(xSlot(p.slotIndex))},${yPrice(Number.parseFloat(p.bar.close))}`)
+      .join(" L ")} L ${Math.round(
         xSlot(visibleBars[visibleBars.length - 1].slotIndex)
       )},${PRICE_PANE_BOTTOM} Z`
     : "";
@@ -551,9 +600,8 @@ export function StockChart({ chart }: { chart: StockChartData }) {
         <svg
           ref={svgRef}
           role="img"
-          aria-label={`Biểu đồ giá dạng nến, ${bars.length} phiên, chuỗi ${
-            adjustmentStatus === "ADJUSTED" ? "đã điều chỉnh" : "chưa điều chỉnh"
-          }`}
+          aria-label={`Biểu đồ giá dạng nến, ${bars.length} phiên, chuỗi ${adjustmentStatus === "ADJUSTED" ? "đã điều chỉnh" : "chưa điều chỉnh"
+            }`}
           viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
           width="100%"
           height="100%"

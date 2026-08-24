@@ -72,4 +72,17 @@ public interface MarketDataProvider {
             super("Provider authentication is required");
         }
     }
+
+    final class ProviderDataUnavailableException extends RuntimeException {
+        private final String reasonCode;
+
+        public ProviderDataUnavailableException(String reasonCode) {
+            super(reasonCode);
+            this.reasonCode = reasonCode;
+        }
+
+        public String reasonCode() {
+            return reasonCode;
+        }
+    }
 }

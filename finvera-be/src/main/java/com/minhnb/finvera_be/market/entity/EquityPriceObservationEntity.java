@@ -33,4 +33,10 @@ public class EquityPriceObservationEntity {
         this.adjustedClosePrice=adjustedClosePrice; this.adjustmentStatus=adjustmentStatus; this.qualityReason=qualityReason;
     }
     public UUID getId() { return id; }
+    public UUID getInstrumentId() { return instrumentId; }
+    public LocalDate getTradingDate() { return tradingDate; }
+    public Instant getObservedAt() { return observedAt; }
+    public BigDecimal getMatchedOrClosePrice() { return matchedOrClosePrice; }
+    public BigDecimal getOfficialReferencePrice() { return officialReferencePrice; }
+    public String getQualityReason() { return qualityReason; }
 }

@@ -9,8 +9,8 @@ import { WatchlistList } from "./features/watchlist/components/watchlist-list";
 import { WatchlistDetailPage } from "./features/watchlist/components/watchlist-detail-page";
 import { ResearchPage } from "./features/research/components/research-page";
 import { AnalystPage } from "./features/analyst";
-import { TcbsRenewalPage } from "./features/tcbs-renewal/tcbs-renewal-page";
 import { OwnerAccessGate } from "./features/auth/owner-access-gate";
+import { TcbsRenewalPage } from "./features/tcbs-renewal/tcbs-renewal-page";
 import {
   isAnalystPath,
   isPortfoliosPath,
@@ -41,6 +41,8 @@ export function App() {
     <OwnerAccessGate>
       {symbol ? (
         <StockDetailPage key={symbol} symbol={symbol} />
+      ) : isTcbsRenewalPath(pathname) ? (
+        <TcbsRenewalPage />
       ) : portfolioId ? (
         <PortfolioDetailPage key={portfolioId} portfolioId={portfolioId} />
       ) : isPortfoliosPath(pathname) ? (
@@ -53,8 +55,6 @@ export function App() {
         <ResearchPage />
       ) : isAnalystPath(pathname) ? (
         <AnalystPage />
-      ) : isTcbsRenewalPath(pathname) ? (
-        <TcbsRenewalPage />
       ) : isScreenerPath(pathname) ? (
         <StockScreenerPage />
       ) : isStrategyScanPath(pathname) ? (
@@ -65,4 +65,3 @@ export function App() {
     </OwnerAccessGate>
   );
 }
-

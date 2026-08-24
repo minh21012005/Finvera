@@ -4,6 +4,24 @@
 **Owner**: `finvera-be` / `market` module  
 **System of record**: PostgreSQL
 
+## Live-overlay provenance amendment (ADR-0010)
+
+TCBS Thesis messages use the existing immutable market observation/index
+snapshot model. `source` is `TCBS_IFLASH_THESIS`, `observed_at` is the Spring
+receive instant in UTC, and reason codes include `TCBS_STREAM_RECEIVE_TIME` and
+`TCBS_STREAM_ORDERING_UNAVAILABLE`. Raw WebSocket frames are never persisted.
+
+Exchange breadth from `s|8` is stored as a `breadth_snapshot` with universe
+version `tcbs-thesis-exchange-aggregate-v1`. Its revision hash is SHA-256 over
+the trading date, receive bucket, and HOSE/HNX/UPCOM counts. VN30 counts are
+excluded to prevent duplicate HOSE membership. Input links can be empty because
+TCBS supplies aggregates rather than constituent identities; the reason code
+`PROVIDER_AGGREGATE_BREADTH` makes this limitation explicit.
+
+The runtime token and partial `s|4`/`s|6` equity quote assembly are ephemeral.
+Historical daily bars remain Vnstock facts and are never rewritten by a TCBS
+live quote.
+
 ## Modeling Rules
 
 - Persist transport/ingestion instants in UTC (`timestamptz`); interpret and

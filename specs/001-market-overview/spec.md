@@ -2,10 +2,10 @@
 
 **Feature Directory**: `001-market-overview`  
 **Created**: 2026-08-17  
-**Status**: Fixture mode implemented and validated; live providers and remote deployment gated
+**Status**: Hybrid private provider implementation in progress; fixture and Vnstock package paths validated; remote deployment gated
 **SRS References**: Sections 5.1, 5.3, 36.1, 36.3, 36.5, 47 (MVP-1), 48,
 and 54 (criteria 1-2)  
-**SRS Requirement IDs**: SRS-MKT-01, SRS-MKT-02, SRS-MKT-05, SRS-AUTH-01,
+**SRS Requirement IDs**: SRS-MKT-01, SRS-MKT-02, SRS-MKT-05, SRS-STK-01, SRS-AUTH-01,
 SRS-AUTH-02, SRS-NFR-01, SRS-NFR-03, SRS-NFR-04, SRS-NFR-05, SRS-NFR-06,
 SRS-NFR-07, SRS-NFR-08; MVP-SC-01, MVP-SC-02  
 **Input**: User description: "Create the first Finvera feature specification
@@ -49,7 +49,7 @@ old or incomplete data for a live market condition.
 - Portfolio, watchlist, journal, personalization, and notification behavior.
 - Automated order execution or investment recommendations.
 - Multi-user or public delivery, invitations, sharing links, exports, and any
-  redistribution of TCBS- or Vnstock-derived data.
+  redistribution of provider-derived data.
 - Any trading, account, cash, portfolio, or order API.
 
 ## User Scenarios & Testing *(mandatory)*
@@ -167,13 +167,12 @@ that insufficient data produces an unavailable assessment with reasons.
 - Input values have more precision than the displayed values, or percentage
   rounding could visually contradict absolute direction.
 - A correction changes breadth or regime after an earlier snapshot was shown.
-- TCBS live facts and Vnstock completed-session history disagree for the same
-  subject and effective trading date.
+- Imported provider facts from different accepted package sources disagree for
+  the same subject and effective trading date.
 - The regime engine has sufficient index data but insufficient breadth,
   liquidity, volatility, or sector-strength inputs.
 - Repeated refreshes occur while no new accepted snapshot is available.
-- The TCBS access token expires and the owner has not manually renewed it with
-  iOTP.
+- The configured provider package is unavailable, invalid, stale, or rejected.
 - An external AI service is unavailable; the non-AI market dashboard must
   continue to work.
 
@@ -224,18 +223,24 @@ not be renumbered; removed requirements are deprecated with a reason.
 - **FR-015**: When accepted source data is corrected, the overview MUST show the
   corrected facts and any resulting breadth or regime assessment with a new
   as-of/update indication.
-- **SEC-001**: While the active source is TCBS iFlash, the overview MUST be
+- **FR-016**: While the TCBS Thesis live overlay is ready, requesting the detail
+  of any active supported equity MUST register that normalized symbol for the
+  documented `bp+tm` live stream without an application restart or a
+  preconfigured ticker list. Until the first accepted live observation arrives,
+  the response MUST retain the latest accepted PostgreSQL fallback and its true
+  freshness instead of fabricating a live value.
+- **SEC-001**: While the active sources are TCBS Thesis and Vnstock/KBS, the overview MUST be
   accessible only to the single configured owner identity; self-registration,
   invitations, shared links, and access by every other identity MUST be denied.
-- **SEC-002**: While the active sources are TCBS iFlash and Vnstock, the system MUST NOT
+- **SEC-002**: While the active sources are TCBS Thesis and Vnstock/KBS, the system MUST NOT
   expose raw provider data, transformed market data, provider credentials, or
   tokens through a public endpoint, export, webhook, or third-party delivery.
-- **SEC-003**: The TCBS adapter MUST allow only approved read-only market-data
-  operations and MUST NOT invoke trading, account, cash, portfolio, or order
-  operations.
-- **SEC-004**: Only the authenticated owner may initiate TCBS token renewal.
-  The system MAY accept an iOTP transiently for immediate exchange with TCBS,
-  but MUST NOT persist, log, generate, reuse, or automatically replay it.
+- **SEC-003**: Provider tooling MUST allow only approved read-only market-data
+  export/import operations and MUST NOT invoke trading, account, cash,
+  portfolio, or order operations.
+- **SEC-004**: Only the authenticated owner may activate private import mode.
+  The system MUST NOT persist, log, expose, or send provider credentials or raw
+  package payloads to the browser.
 - **SEC-005**: The private deployment MUST reject public ingress and admit only
   the configured owner through a Tailscale tailnet; Tailscale Funnel and direct
   public exposure of frontend/backend ports MUST remain disabled.
@@ -270,19 +275,26 @@ not be renumbered; removed requirements are deprecated with a reason.
   UPCOM securities can be reconciled without duplicates.
 - **DATA-009**: Regime assessments MUST retain the exact accepted input snapshot
   references and rule version needed to reproduce the result.
-- **DATA-010**: Live TCBS observations and Vnstock historical observations MUST
-  retain distinct source identities. A material cross-source conflict MUST be
-  surfaced and MUST prevent publication of an affected regime assessment until
-  resolved by an approved reconciliation rule.
+- **DATA-010**: Accepted provider observations MUST retain distinct source
+  identities. A material cross-source conflict MUST be surfaced and MUST prevent
+  publication of an affected regime assessment until resolved by an approved
+  reconciliation rule.
+- **DATA-011**: Index facts produced by a provider integration that is later
+  proven to have misclassified equity rows as indices MUST be quarantined and
+  excluded from overview and regime selection. Repair MUST preserve the rejected
+  ingestion audit records and MUST NOT remove observations from approved Thesis,
+  Vnstock/KBS, or fixture sources.
 
 ### Non-Functional Requirements
 
 - **NFR-001**: Under normal operating conditions, at least 95% of dashboard
   visits MUST show a usable market overview within 3 seconds of the user's
   request.
-- **NFR-002**: At least 99% of accepted live market updates MUST become visible
-  within the approved source-delay policy plus 30 seconds; the UI MUST NOT call
-  the feed contractually real-time unless TCBS grants that entitlement.
+- **NFR-002**: At least 99% of accepted TCBS Thesis live observations MUST
+  become visible through the Spring API within 30 seconds, and accepted private
+  package imports MUST become visible within the approved import-delay policy
+  plus 30 seconds. The UI MUST NOT call a feed realtime unless its provider
+  contract grants that entitlement.
 - **NFR-003**: For a shared as-of snapshot, 100% of displayed index changes,
   breadth totals, freshness labels, and regime inputs MUST be internally
   consistent to their declared precision.
@@ -294,9 +306,16 @@ not be renumbered; removed requirements are deprecated with a reason.
   unavailability, stale data, invalid snapshots, calculation failure, and
   user-facing delivery failure without exposing provider credentials or private
   user data.
-- **NFR-007**: When TCBS authentication expires, accepted facts remain visible
-  with their true freshness and a `PROVIDER_AUTH_REQUIRED` reason; the system
-  MUST NOT claim live updates until the owner renews the token.
+- **NFR-007**: When provider package generation/import is unavailable or
+  rejected, accepted facts remain visible with their true freshness and a
+  precise provider-unavailable or invalid-package reason; the system MUST NOT
+  claim live updates from Vnstock Community package data.
+- **NFR-008**: Dynamic equity subscriptions MUST be normalized, validated
+  against active reference data, deduplicated, bounded by a positive configured
+  capacity, and restored after reconnect. At capacity, the least recently used
+  symbol MUST be removed through the documented partial-unsubscribe frame before
+  the new symbol is subscribed; invalid or inactive symbols MUST never reach the
+  provider boundary.
 
 ### Key Entities
 
@@ -323,8 +342,9 @@ not be renumbered; removed requirements are deprecated with a reason.
 ### Assumptions
 
 - This version is a private, personal deployment for exactly one configured
-  owner using that owner's TCBS iFlash account and Vnstock's personal,
-  non-commercial software license. Public or multi-user delivery
+  owner using TCBS Thesis for live updates and Vnstock/KBS through a local
+  package/export workflow for historical/bootstrap data under the
+  approved personal, non-commercial boundary. Public or multi-user delivery
   requires a separately approved provider with display/redistribution rights
   and a new feature/ADR decision.
 - Data may be real-time or delayed depending on licensing, but its actual
@@ -339,10 +359,11 @@ not be renumbered; removed requirements are deprecated with a reason.
 
 ### Dependencies
 
-- A TCBS iFlash account, API key, owner-initiated iOTP access, and successful
-  provider capability/contract-fixture gate for live market facts.
-- A pinned Vnstock version and successful historical bootstrap gate proving
-  completed-session OHLCV coverage, provenance, rate limits, and source terms.
+- A provisioned TCBS iFlash API key, owner-entered OTP renewal, and the approved
+  `tcbs-thesis-private-live-v1` contract.
+- A pinned Vnstock version and successful private package gate proving
+  completed-session OHLCV/index coverage, provenance, rate limits, and source
+  terms.
 - A private owner-only access path with no public ingress.
 - A Tailscale tailnet restricted to the owner's approved identities/devices,
   with Serve/private routing only and Funnel disabled.
@@ -379,8 +400,8 @@ not be renumbered; removed requirements are deprecated with a reason.
   freshness, breadth, confidence, and regime states have a non-color indicator.
 - **SC-008**: Authorization and deployment tests show that the configured owner
   receives the overview while every other identity and public ingress path are
-  denied; no response, log, export, or client bundle contains TCBS credentials,
-  tokens, iOTP, or raw TCBS/Vnstock provider payloads.
+  denied; no response, log, export, or client bundle contains provider
+  credentials, tokens, or raw Vnstock/KBS provider payloads.
 
 ## Requirement Traceability *(mandatory)*
 
@@ -397,6 +418,7 @@ not be renumbered; removed requirements are deprecated with a reason.
 | FR-013 | US3 / Scenario 2 | SC-003 |
 | FR-014 | US3 / Scenario 4 | Acceptance review |
 | FR-015 | US1 / Scenario 3; edge correction case | SC-004 |
+| FR-016 | Stock detail live-overlay journey; first-read fallback | Contract and adapter tests |
 | DATA-001, DATA-002 | US1-US3 | SC-002, SC-003, SC-004 |
 | DATA-003, DATA-004 | US1-US2 | SC-002 |
 | DATA-005 | US1 / Scenario 3 | SC-004 |
@@ -404,10 +426,12 @@ not be renumbered; removed requirements are deprecated with a reason.
 | DATA-008 | US2 / Scenarios 1 and 3 | SC-002, SC-004 |
 | DATA-009 | US3 / Scenarios 1 and 2 | SC-003 |
 | DATA-010 | US3 / Scenario 3; cross-source conflict edge case | SC-003, SC-004 |
+| DATA-011 | Legacy invalid-source repair and future-timestamp edge case | Migration and repository regression tests |
 | NFR-001, NFR-002 | US1 / Scenario 1 | SC-005 |
 | NFR-003 | US1-US3 | SC-002, SC-003 |
 | NFR-004 | AI outage edge case | SC-006 |
 | NFR-005 | US1-US3 | SC-007 |
 | NFR-006 | All failure scenarios | Operational acceptance review |
-| NFR-007 | TCBS token-expiry edge case | Contract and degraded-state tests |
-| SEC-001–SEC-006 | Owner-only access and TCBS boundary | SC-008; authorization, session/CSRF, deployment, and adapter-negative tests |
+| NFR-007 | Provider package/auth unavailable edge case | Contract and degraded-state tests |
+| NFR-008 | Dynamic subscription lifecycle and capacity edge cases | WebSocket client and service tests |
+| SEC-001–SEC-006 | Owner-only access and provider boundary | SC-008; authorization, session/CSRF, deployment, and adapter-negative tests |

@@ -26,6 +26,24 @@ def test_builds_checksum_bound_canonical_package_with_exact_decimal_strings():
     ).hexdigest()
 
 
+def test_builds_market_package_with_index_records_and_derived_reference():
+    index_rows = [
+        {"time": "2026-08-21 00:00:00", "close": "1710.0", "volume": "1000"},
+        {"time": "2026-08-24 00:00:00", "close": "1728.0", "volume": "1200"},
+    ]
+
+    records = export_history.index_records(index_rows, "VN_INDEX", "VNINDEX")
+    package = export_history.build_market_package([], records, "2026-08-21", "2026-08-24", "0.2.0")
+
+    assert package["contractVersion"] == export_history.MARKET_PACKAGE_CONTRACT_VERSION
+    assert package["records"] == []
+    assert package["indexRecords"][0]["code"] == "VN_INDEX"
+    assert package["indexRecords"][0]["level"] == "1728.000000"
+    assert package["indexRecords"][0]["referenceLevel"] == "1710.000000"
+    assert package["indexRecords"][0]["matchedVolume"] == "1200"
+    assert "VNSTOCK_DAILY_CLOSE_REFERENCE_DERIVED" in package["indexRecords"][0]["reasonCodes"]
+
+
 def test_rejects_insufficient_history_and_invalid_decimal():
     with pytest.raises(ValueError, match="271"):
         export_history.build_package([], "2025-01-01", "2026-01-01", "0.1.0")

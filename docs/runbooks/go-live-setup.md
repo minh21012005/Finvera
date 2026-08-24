@@ -4,8 +4,8 @@ Tài liệu này hướng dẫn điền đầy đủ biến môi trường và k
 (`finvera-be`, `finvera-ai`, `finvera-fe`) để chạy với dữ liệu và LLM thật, thay
 vì fixture/demo. Đọc kèm:
 
-- `docs/runbooks/private-market-overview.md` — chi tiết kích hoạt live TCBS cho
-  Feature 001 (gia hạn OTP, kiểm tra sau kích hoạt).
+- `docs/runbooks/private-market-overview.md` — chi tiết kích hoạt TCBS Thesis
+  WebSocket làm lớp dữ liệu live cho Feature 001 (gia hạn TOTP, kiểm tra sau kích hoạt).
 - `tools/market-data/provider-poc/RUN_G03_PROBE.md` — nếu chưa đóng gate G-03.
 - `finvera-project-status.md` — tổng quan trạng thái hiện tại của dự án.
 
@@ -110,20 +110,26 @@ thoát jshell.
 | `FINVERA_MARKET_INDEX_CONTRACTED_DELAY` | `PT0S` (không trễ) hoặc theo hợp đồng dữ liệu TCBS thật của bạn |
 | `FINVERA_STOCK_QUOTE_CONTRACTED_DELAY` | `PT15M` (mặc định hợp lý cho dữ liệu miễn phí/độ trễ 15 phút) |
 
-### 3.4 Feature 001 — TCBS live (chỉ mục thị trường)
+### 3.4 Feature 001 — TCBS Thesis live (chỉ mục và giá cổ phiếu)
 
 | Biến | Giá trị live |
 |---|---|
-| `FINVERA_MARKET_PROVIDER_MODE` | **`live`** (đúng chữ này, không phải tên khác) |
-| `FINVERA_MARKET_PROVIDER_LIVE_ENABLED` | `true` |
-| `FINVERA_MARKET_FIXTURE_BOOTSTRAP_ENABLED` | `false` |
+| `FINVERA_MARKET_PROVIDER_MODE` | Giữ `fixture` khi dev, hoặc `vnstock-package-private` khi nạp gói Vnstock. TCBS là lớp live overlay độc lập, không còn mode `live` |
+| `FINVERA_MARKET_FIXTURE_BOOTSTRAP_ENABLED` | `false` sau khi database đã có dữ liệu thật; có thể giữ `true` lúc dev ban đầu |
+| `FINVERA_TCBS_LIVE_ENABLED` | `true` |
 | `FINVERA_TCBS_BASE_URL` | `https://openapi.tcbs.com.vn` (không đổi) |
+| `FINVERA_TCBS_WEBSOCKET_URL` | `wss://openapi.tcbs.com.vn/ws/thesis/v1/stream/normal` (không đổi) |
 | `FINVERA_TCBS_API_KEY` | API key TCBS OpenAPI thật của bạn |
-| `FINVERA_MARKET_TCBS_POLL_INTERVAL_MS` | `60000` (60 giây/lần, đã kiểm chứng an toàn với rate limit TCBS) |
+| `FINVERA_TCBS_HEARTBEAT_INTERVAL` | `2s` |
+| `FINVERA_TCBS_RECONNECT_MAX_DELAY` | `30s` |
+| `FINVERA_TCBS_MAX_DYNAMIC_SYMBOLS` | Số mã live tối đa được giữ theo nhu cầu, mặc định `100`; mã được tự đăng ký khi mở trang chi tiết và mã ít dùng nhất được hủy khi đầy |
+| `FINVERA_STOCK_QUOTE_LIVE_ENABLED` | `true` nếu muốn trang chi tiết cổ phiếu dùng giá live từ cùng stream |
 
-Sau khi set các biến này và khởi động `finvera-be`, còn **một bước thủ công
-bắt buộc**: gọi API gia hạn OTP một lần (xem mục 6 bên dưới) — nếu không, phiên
-TCBS sẽ luôn báo `PROVIDER_AUTH_REQUIRED`.
+TCBS Thesis là WebSocket push, vì vậy không còn biến polling
+`FINVERA_MARKET_TCBS_POLL_INTERVAL_MS` và cũng không còn
+`FINVERA_MARKET_PROVIDER_LIVE_ENABLED`. Sau khi cấu hình và khởi động
+`finvera-be`, vẫn cần gia hạn phiên bằng TOTP một lần (xem mục 6.2); nếu không,
+backend sẽ báo `PROVIDER_AUTH_REQUIRED`.
 
 ### 3.5 Feature 001 — nạp lịch sử Vnstock (bootstrap một lần, không phải live liên tục)
 
@@ -136,7 +142,7 @@ TCBS sẽ luôn báo `PROVIDER_AUTH_REQUIRED`.
 
 | Biến | Giá trị live | Ghi chú |
 |---|---|---|
-| `FINVERA_STOCK_QUOTE_LIVE_ENABLED` | `true` | bật giá real-time từng mã (`TcbsStockQuoteProvider`) — **yêu cầu `FINVERA_MARKET_PROVIDER_MODE=live` ở trên đã bật**, vì dùng chung phiên TCBS |
+| `FINVERA_STOCK_QUOTE_LIVE_ENABLED` | `true` | bật giá live từng mã từ TCBS Thesis; cần đồng thời bật `FINVERA_TCBS_LIVE_ENABLED=true`; mã active được tự đăng ký khi mở trang chi tiết |
 | `FINVERA_STOCK_SECTOR_BASIS_ENABLED` | `true` sau khi đã import sector reference (mục 3.7) | khuyến nghị bật thử ở non-production trước để kiểm tra độ trễ, theo đúng ghi chú trong `tasks.md` T064 |
 | `FINVERA_STOCK_CHART_MAX_WINDOW` | `2Y` (mặc định) | |
 
@@ -249,14 +255,14 @@ npm run dev
 Mở `http://localhost:5173`, đăng nhập bằng `FINVERA_OWNER_USERNAME` +
 mật khẩu thật bạn đã hash ở mục 3.2.
 
-### 6.2 Kích hoạt live TCBS (Feature 001, bắt buộc để có giá thật)
+### 6.2 Kích hoạt TCBS Thesis live overlay (Feature 001)
 
-Sau khi backend đã chạy với `FINVERA_MARKET_PROVIDER_MODE=live` và
-`FINVERA_TCBS_API_KEY` đã điền, gọi endpoint gia hạn **một lần** với OTP thật
-(hướng dẫn đầy đủ, gồm cả curl mẫu, ở
-`docs/runbooks/private-market-overview.md` → "Activate live TCBS ingestion").
-TCBS giới hạn token tối đa 8 giờ, nên bạn sẽ cần lặp lại bước này mỗi phiên làm
-việc dài.
+Sau khi backend chạy với `FINVERA_TCBS_LIVE_ENABLED=true` và
+`FINVERA_TCBS_API_KEY` đã điền, đăng nhập tài khoản owner, mở
+`/settings/live-data` và nhập TOTP hiện tại để gia hạn phiên. Hướng dẫn đầy đủ
+nằm trong `docs/runbooks/private-market-overview.md`. TCBS giới hạn token tối
+đa 8 giờ, nên bạn sẽ cần lặp lại bước này khi phiên hết hạn. API key và token
+chỉ nằm ở backend; frontend không nhận hai giá trị này.
 
 ### 6.3 Nạp dữ liệu lịch sử Vnstock (Feature 002)
 
@@ -344,7 +350,7 @@ nạp, rồi tắt `*_ENABLED` về `false` lại (tránh nạp trùng lặp ở
 | Kiểm tra | Cách xác nhận |
 |---|---|
 | Backend đọc đúng file `.env` | Log khởi động không báo lỗi bind property; `GET http://localhost:8080/actuator/health` trả `UP` |
-| TCBS live thật | Sau khi gia hạn OTP, `GET /api/v1/market/overview` trả số liệu khớp với giá thị trường thật, không phải các số tròn kiểu fixture |
+| TCBS live thật | Sau khi gia hạn TOTP, log xác nhận WebSocket đã xác thực và nhận frame; `GET /api/v1/market/overview` trả quan sát mới có nguồn TCBS, không phải chỉ còn fixture |
 | Giá real-time từng mã | Mở trang chi tiết một mã bất kỳ, giá phải khớp bảng giá thật (chỉ khi `FINVERA_STOCK_QUOTE_LIVE_ENABLED=true`) |
 | Dữ liệu lịch sử/báo cáo tài chính | Sau khi import, biểu đồ/báo cáo hiển thị đúng số liệu thật của mã đó, không phải "no data" |
 | AI Analyst / RAG hoạt động | Hỏi AI Analyst một câu — nếu `GEMINI_API_KEY` còn là placeholder sẽ báo lỗi rõ ràng (401/invalid key) thay vì trả lời |
@@ -356,8 +362,8 @@ nạp, rồi tắt `*_ENABLED` về `false` lại (tránh nạp trùng lặp ở
 
 | Triệu chứng | Nguyên nhân thường gặp |
 |---|---|
-| `/api/v1/market/providers/tcbs/token-renewal` luôn trả `PROVIDER_AUTH_REQUIRED` | `FINVERA_MARKET_PROVIDER_MODE` không đúng chữ `live`, hoặc `FINVERA_TCBS_API_KEY` để trống |
-| Giá real-time từng mã không lên | `FINVERA_STOCK_QUOTE_LIVE_ENABLED=false`, hoặc Feature 001 chưa live (xem trên) |
+| Gia hạn TCBS luôn trả `PROVIDER_AUTH_REQUIRED` | `FINVERA_TCBS_LIVE_ENABLED=false`, `FINVERA_TCBS_API_KEY` để trống, TOTP hết hạn/sai, hoặc phiên WebSocket chưa xác thực thành công |
+| Giá live từng mã không lên | `FINVERA_STOCK_QUOTE_LIVE_ENABLED=false`, `FINVERA_TCBS_LIVE_ENABLED=false`, mã chưa có trong reference data active, hoặc phiên TCBS chưa được gia hạn |
 | AI Analyst báo lỗi 401/invalid key | `GEMINI_API_KEY` vẫn là placeholder `your-g...` |
 | RAG không tìm thấy tài liệu nào | Qdrant chưa chạy, hoặc chưa ingest tài liệu nào qua Feature 006 |
 | Backend không gọi được `finvera-ai` | `INTERNAL_API_KEY` hai bên không khớp nhau, hoặc `finvera-ai` chưa chạy ở port 8000 |

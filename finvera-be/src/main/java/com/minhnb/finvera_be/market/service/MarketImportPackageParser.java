@@ -26,10 +26,24 @@ public class MarketImportPackageParser {
                         text(value, "adjustmentStatus"), nullableText(value, "sourceSequence"),
                         text(value, "canonicalRecord")));
             }
+            List<MarketImportService.IndexSnapshotRecord> indexRecords = new ArrayList<>();
+            for (JsonNode value : root.path("indexRecords")) {
+                List<String> reasons = new ArrayList<>();
+                for (JsonNode reason : value.path("reasonCodes")) {
+                    if (reason.isTextual()) reasons.add(reason.stringValue());
+                }
+                indexRecords.add(new MarketImportService.IndexSnapshotRecord(text(value, "code"),
+                        text(value, "providerSymbol"), LocalDate.parse(text(value, "tradingDate")),
+                        Instant.parse(text(value, "observedAt")), text(value, "sessionState"),
+                        text(value, "dataStatus"), text(value, "level"), text(value, "referenceLevel"),
+                        nullableText(value, "matchedVolume"), nullableText(value, "matchedValueVnd"),
+                        reasons, text(value, "canonicalRecord")));
+            }
             return new MarketImportService.PackageInput(text(root, "contractVersion"), text(root, "toolName"),
                     text(root, "toolVersion"), text(root, "upstreamSource"), text(root, "packageSha256"),
                     text(root, "canonicalPayload"), Instant.parse(text(root, "generatedAt")),
-                    LocalDate.parse(text(root, "rangeStart")), LocalDate.parse(text(root, "rangeEnd")), records);
+                    LocalDate.parse(text(root, "rangeStart")), LocalDate.parse(text(root, "rangeEnd")),
+                    records, indexRecords);
         } catch (RuntimeException exception) {
             throw new IllegalArgumentException("INVALID_IMPORT_PACKAGE", exception);
         }

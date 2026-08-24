@@ -15,10 +15,8 @@ finvera:
       index-contracted-delay: PT0S
     provider:
       mode: fixture
-      live-enabled: false
   stock:
     provider:
-      quote-live-enabled: false
       sector-basis-enabled: false
     freshness:
       quote-contracted-delay: PT0S

@@ -54,6 +54,7 @@ type SignalsState =
   | { kind: "unavailable" };
 
 export function StockDetailPage({ symbol }: { symbol: string }) {
+  const [attempt, setAttempt] = useState(0);
   const [overviewState, setOverviewState] = useState<OverviewState>({ kind: "loading" });
   const [chartState, setChartState] = useState<ChartState>({ kind: "loading" });
   const [technicalState, setTechnicalState] = useState<TechnicalState>({ kind: "loading" });
@@ -112,6 +113,23 @@ export function StockDetailPage({ symbol }: { symbol: string }) {
       });
 
     return () => controller.abort();
+  }, [symbol, attempt]);
+
+  // Refresh only the lightweight overview/quote. Historical chart,
+  // fundamentals, valuation, indicators, and signals remain independently cached.
+  useEffect(() => {
+    let controller: AbortController | null = null;
+    const timer = window.setInterval(() => {
+      controller?.abort();
+      controller = new AbortController();
+      getStockOverview(symbol, controller.signal)
+        .then((overview) => setOverviewState({ kind: "ready", overview }))
+        .catch(() => { /* retain the last usable quote during a transient refresh failure */ });
+    }, 30_000);
+    return () => {
+      window.clearInterval(timer);
+      controller?.abort();
+    };
   }, [symbol]);
 
   return (
@@ -132,7 +150,25 @@ export function StockDetailPage({ symbol }: { symbol: string }) {
         <p role="alert">Không tìm thấy mã cổ phiếu "{symbol}" trong dữ liệu được hỗ trợ.</p>
       )}
       {overviewState.kind === "error" && (
-        <p role="alert">{errorMessage(overviewState.status)}</p>
+        <div className="error-card" style={{ marginTop: "16px" }}>
+          <p role="alert">{errorMessage(overviewState.status)}</p>
+          <button
+            type="button"
+            className="btn-retry"
+            style={{ marginTop: "12px" }}
+            onClick={() => {
+              setOverviewState({ kind: "loading" });
+              setChartState({ kind: "loading" });
+              setTechnicalState({ kind: "loading" });
+              setFundamentalsState({ kind: "loading" });
+              setValuationState({ kind: "loading" });
+              setSignalsState({ kind: "loading" });
+              setAttempt((c) => c + 1);
+            }}
+          >
+            Thử lại
+          </button>
+        </div>
       )}
       {overviewState.kind === "ready" && (
         <>

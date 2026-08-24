@@ -6,39 +6,23 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
-/**
- * Owner-only TCBS live-session renewal. Reachable only by the authenticated owner: every request
- * already passes through {@code OwnerSecurityConfiguration}'s filter chain (session auth + CSRF)
- * before it reaches this controller. The owner's TCBS API key stays server-side
- * ({@code TcbsProviderProperties}); only the OTP the owner types crosses this boundary, and it is
- * never logged or echoed back. Renewal logic itself lives in {@link TcbsRenewalService}.
- */
 @RestController
 @RequestMapping("/api/v1/market/providers/tcbs")
 public class TcbsRenewalController {
-
-    private final TcbsRenewalService renewalService;
-
-    public TcbsRenewalController(TcbsRenewalService renewalService) {
-        this.renewalService = renewalService;
-    }
-
-    @PostMapping("/token-renewal")
-    void renew(@RequestBody TokenRenewalRequest request) {
-        renewalService.renew(request == null ? null : request.otpMethod(), request == null ? null : request.otp());
-    }
-
-    /** Lets the owner UI show a "needs re-authentication" banner without reading server logs. */
-    @GetMapping("/status")
-    StatusResponse status() {
-        TcbsRenewalService.Status status = renewalService.status();
+    private final TcbsRenewalService service;
+    public TcbsRenewalController(TcbsRenewalService service) { this.service = service; }
+    @GetMapping("/status") StatusResponse status() {
+        var status = service.status();
         return new StatusResponse(status.state(), status.reasonCode());
     }
-
-    public record TokenRenewalRequest(String otpMethod, String otp) {
+    @PostMapping("/token-renewal")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void renew(@RequestBody RenewalRequest request) {
+        service.renew(request == null ? null : request.otp());
     }
-
-    public record StatusResponse(String state, String reasonCode) {
-    }
+    public record RenewalRequest(String otp) { }
+    public record StatusResponse(String state, String reasonCode) { }
 }

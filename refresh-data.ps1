@@ -7,10 +7,11 @@
 .DESCRIPTION
     Runs the exact sequence documented in docs/runbooks/go-live-setup.md 3.7/6.3, automated:
       1. Crawl (export_all_symbols.py + the instrument-reference/equity-profile exporters).
-      2. Restart the backend with instrument-reference + equity-profile import ON, wait for it
-         to finish, stop it.
-      3. Restart with daily-bar + fundamentals import ON, wait, stop.
-      4. Restart with the technical-indicator warmup ON, wait, stop.
+      2. Restart the backend with instrument-reference import ON, wait for it to finish, stop it.
+      3. Restart with equity-profile import ON, wait, stop. This is deliberately separate because
+         ApplicationRunner ordering is not an implicit dependency guarantee.
+      4. Restart with daily-bar + fundamentals import ON, wait, stop.
+      5. Restart with the technical-indicator warmup ON, wait, stop.
     Every import here is safe/idempotent (only adds missing rows or backfills gaps), so this is
     safe to run after a 3-day gap, a 7-day gap, or any length of time.
 
@@ -41,12 +42,16 @@ $exportDir = Join-Path $root "tools\market-data\vnstock-export"
 $envFile = Join-Path $beDir ".env"
 $envRefreshFile = Join-Path $beDir ".env.refresh"
 
-$AllImportFlags = @(
+$ManagedRuntimeFlags = @(
+    "FINVERA_MARKET_IMPORT_ENABLED",
     "FINVERA_MARKET_IMPORT_INSTRUMENT_REFERENCE_ENABLED",
     "FINVERA_STOCK_IMPORT_EQUITY_PROFILE_ENABLED",
     "FINVERA_STOCK_IMPORT_DAILY_BAR_ENABLED",
     "FINVERA_STOCK_IMPORT_FUNDAMENTALS_ENABLED",
-    "FINVERA_STOCK_TECHNICAL_WARMUP_ENABLED"
+    "FINVERA_STOCK_IMPORT_SECTOR_REFERENCE_ENABLED",
+    "FINVERA_STOCK_TECHNICAL_WARMUP_ENABLED",
+    "FINVERA_TCBS_LIVE_ENABLED",
+    "FINVERA_STOCK_QUOTE_LIVE_ENABLED"
 )
 
 function Import-EnvFile([string]$path) {
@@ -63,59 +68,88 @@ function Import-EnvFile([string]$path) {
 }
 
 function Set-StageFlags([string[]]$enabledKeys) {
-    foreach ($key in $AllImportFlags) {
+    foreach ($key in $ManagedRuntimeFlags) {
         $value = if ($enabledKeys -contains $key) { "true" } else { "false" }
         [Environment]::SetEnvironmentVariable($key, $value, "Process")
+    }
+}
+
+function Assert-NativeSuccess([string]$operation) {
+    if ($LASTEXITCODE -ne 0) {
+        throw "$operation failed with exit code $LASTEXITCODE."
     }
 }
 
 function Invoke-BackendStage([string]$name, [string[]]$waitPatterns, [int]$timeoutSec) {
     Write-Host ""
     Write-Host "== $name ==" -ForegroundColor Cyan
-    $logFile = [System.IO.Path]::GetTempFileName()
-    $proc = Start-Process -FilePath (Join-Path $beDir "mvnw.cmd") -ArgumentList "-q", "spring-boot:run" `
-        -WorkingDirectory $beDir -RedirectStandardOutput $logFile -RedirectStandardError "$logFile.err" `
-        -PassThru -WindowStyle Hidden
+    $stdoutLog = [System.IO.Path]::GetTempFileName()
+    $stderrLog = "$stdoutLog.err"
+    $proc = $null
+    $succeeded = $false
+    try {
+        $proc = Start-Process -FilePath (Join-Path $beDir "mvnw.cmd") -ArgumentList "-q", "spring-boot:run" `
+            -WorkingDirectory $beDir -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog `
+            -PassThru -WindowStyle Hidden
 
-    $deadline = (Get-Date).AddSeconds($timeoutSec)
-    $seen = New-Object System.Collections.Generic.HashSet[string]
-    while ((Get-Date) -lt $deadline -and -not $proc.HasExited) {
-        Start-Sleep -Seconds 3
-        $content = Get-Content $logFile -ErrorAction SilentlyContinue
-        foreach ($pattern in $waitPatterns) {
-            if ($seen.Contains($pattern)) { continue }
-            $match = $content | Select-String -Pattern $pattern -SimpleMatch | Select-Object -Last 1
-            if ($match) {
-                Write-Host "  $($match.Line.Trim())"
-                $seen.Add($pattern) | Out-Null
+        $deadline = (Get-Date).AddSeconds($timeoutSec)
+        $seen = New-Object System.Collections.Generic.HashSet[string]
+        while ((Get-Date) -lt $deadline -and -not $proc.HasExited) {
+            Start-Sleep -Seconds 3
+            $content = @(
+                Get-Content $stdoutLog -ErrorAction SilentlyContinue
+                Get-Content $stderrLog -ErrorAction SilentlyContinue
+            )
+            foreach ($pattern in $waitPatterns) {
+                if ($seen.Contains($pattern)) { continue }
+                $match = $content | Select-String -Pattern $pattern -SimpleMatch | Select-Object -Last 1
+                if ($match) {
+                    Write-Host "  $($match.Line.Trim())"
+                    $seen.Add($pattern) | Out-Null
+                }
             }
+            if ($seen.Count -eq $waitPatterns.Count) { break }
+            if ($content -match "APPLICATION FAILED TO START") { break }
         }
-        if ($seen.Count -eq $waitPatterns.Count) { break }
-        if ($content -match "APPLICATION FAILED TO START") { break }
-    }
 
-    if ($seen.Count -lt $waitPatterns.Count) {
-        Write-Host "  CANH BAO: chua thay het cac dong ket qua mong doi trong $timeoutSec giay." -ForegroundColor Yellow
-        Write-Host "  Xem log day du tai: $logFile"
-    }
+        if ($seen.Count -lt $waitPatterns.Count) {
+            throw "$name did not produce every required completion marker within $timeoutSec seconds."
+        }
 
-    if (-not $proc.HasExited) {
-        & taskkill /PID $proc.Id /T /F | Out-Null
-        Start-Sleep -Seconds 2
+        $succeeded = $true
+    } finally {
+        if ($null -ne $proc -and -not $proc.HasExited) {
+            & taskkill /PID $proc.Id /T /F | Out-Null
+            Start-Sleep -Seconds 2
+        }
+        if ($succeeded) {
+            Remove-Item -LiteralPath $stdoutLog, $stderrLog -ErrorAction SilentlyContinue
+        } else {
+            Write-Host "  Stage failed. Logs retained:" -ForegroundColor Red
+            Write-Host "  stdout: $stdoutLog"
+            Write-Host "  stderr: $stderrLog"
+        }
     }
-    Remove-Item $logFile, "$logFile.err" -ErrorAction SilentlyContinue
 }
 
 Write-Host "=== Finvera data refresh ===" -ForegroundColor Green
 
+$listener = Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue
+if ($listener) {
+    throw "Port 8080 is already in use. Stop the normally running backend before refresh-data.ps1."
+}
+
 if (-not $SkipCrawl) {
     Write-Host ""
-    Write-Host "== Buoc 1/4: Crawl gia + danh sach ma moi tu Vnstock ==" -ForegroundColor Cyan
+    Write-Host "== Buoc 1/5: Crawl gia + danh sach ma moi tu Vnstock ==" -ForegroundColor Cyan
     Push-Location $exportDir
     try {
         uv run --project ../provider-poc python export_instrument_reference.py
+        Assert-NativeSuccess "Instrument-reference export"
         uv run --project ../provider-poc python export_equity_profile.py
+        Assert-NativeSuccess "Equity-profile export"
         uv run --project ../provider-poc python export_all_symbols.py --start 2024-01-01
+        Assert-NativeSuccess "Daily-bar/fundamentals export"
     } finally {
         Pop-Location
     }
@@ -125,19 +159,26 @@ if (-not $SkipCrawl) {
 
 Import-EnvFile $envFile
 Import-EnvFile $envRefreshFile
+[Environment]::SetEnvironmentVariable("FINVERA_MARKET_PROVIDER_MODE", "vnstock-package-private", "Process")
+[Environment]::SetEnvironmentVariable("FINVERA_MARKET_FIXTURE_BOOTSTRAP_ENABLED", "false", "Process")
 
-Set-StageFlags @("FINVERA_MARKET_IMPORT_INSTRUMENT_REFERENCE_ENABLED", "FINVERA_STOCK_IMPORT_EQUITY_PROFILE_ENABLED")
-Invoke-BackendStage -Name "Buoc 2/4: Dang ky ma moi + ho so cong ty" `
-    -WaitPatterns @("instrument_reference_import status=", "stock_import dataset=equity-profile total=") `
+Set-StageFlags @("FINVERA_MARKET_IMPORT_INSTRUMENT_REFERENCE_ENABLED")
+Invoke-BackendStage -Name "Buoc 2/5: Dang ky ma moi" `
+    -WaitPatterns @("instrument_reference_import status=") `
     -TimeoutSec 180
 
+Set-StageFlags @("FINVERA_STOCK_IMPORT_EQUITY_PROFILE_ENABLED")
+Invoke-BackendStage -Name "Buoc 3/5: Nap ho so cong ty" `
+    -WaitPatterns @("stock_import dataset=equity-profile total=") `
+    -TimeoutSec 300
+
 Set-StageFlags @("FINVERA_STOCK_IMPORT_DAILY_BAR_ENABLED", "FINVERA_STOCK_IMPORT_FUNDAMENTALS_ENABLED")
-Invoke-BackendStage -Name "Buoc 3/4: Nap gia + bao cao tai chinh moi" `
+Invoke-BackendStage -Name "Buoc 4/5: Nap gia + bao cao tai chinh moi" `
     -WaitPatterns @("stock_import dataset=daily-bar total=", "stock_import dataset=fundamentals total=") `
     -TimeoutSec 1800
 
 Set-StageFlags @("FINVERA_STOCK_TECHNICAL_WARMUP_ENABLED")
-Invoke-BackendStage -Name "Buoc 4/4: Tinh bu chi bao ky thuat (MA/RSI/MACD...)" `
+Invoke-BackendStage -Name "Buoc 5/5: Tinh bu chi bao ky thuat (MA/RSI/MACD...)" `
     -WaitPatterns @("technical_indicator_warmup total=") `
     -TimeoutSec 900
 

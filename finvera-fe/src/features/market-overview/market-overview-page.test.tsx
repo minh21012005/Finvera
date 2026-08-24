@@ -1,6 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MarketOverviewApiError, type MarketOverview } from "./api/market-overview";
 import { MarketOverviewPage } from "./market-overview-page";
 
@@ -34,6 +34,7 @@ const overview: MarketOverview = {
 
 describe("MarketOverviewPage", () => {
   beforeEach(() => getMarketOverview.mockReset());
+  afterEach(() => vi.useRealTimers());
 
   it("shows a loading state then an explicitly degraded overview", async () => {
     getMarketOverview.mockResolvedValue(overview);
@@ -54,5 +55,20 @@ describe("MarketOverviewPage", () => {
     await user.click(screen.getByRole("button", { name: /Thử lại/i }));
     expect(await screen.findByRole("heading", { name: /Tổng quan thị trường/i })).toBeVisible();
     expect(getMarketOverview).toHaveBeenCalledTimes(2);
+  });
+
+  it("refreshes every 30 seconds and keeps the last snapshot when refresh fails", async () => {
+    vi.useFakeTimers();
+    getMarketOverview.mockResolvedValueOnce(overview).mockRejectedValueOnce(new Error("temporary"));
+
+    const view = render(<MarketOverviewPage />);
+    await act(async () => { await Promise.resolve(); });
+    expect(screen.getByRole("heading", { level: 1 })).toBeVisible();
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
+    expect(getMarketOverview).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("heading", { level: 1 })).toBeVisible();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    view.unmount();
   });
 });

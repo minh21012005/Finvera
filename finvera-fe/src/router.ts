@@ -64,4 +64,3 @@ export function isAnalystPath(pathname: string): boolean {
 export function isTcbsRenewalPath(pathname: string): boolean {
   return TCBS_RENEWAL_PATH.test(pathname);
 }
-

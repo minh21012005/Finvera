@@ -264,7 +264,7 @@ public class TechnicalIndicatorService {
     // Same source preference as StockChartService: only decides which single
     // accepted row represents a same-date multi-source conflict in the series
     // this engine consumes; it does not decide whether that date is flagged.
-    private static final List<String> SOURCE_PREFERENCE = List.of("TCBS", "VNSTOCK", "FINVERA_FIXTURE");
+    private static final List<String> SOURCE_PREFERENCE = List.of("VNSTOCK_KBS", "VNSTOCK", "FINVERA_FIXTURE");
 
     private static EquityDailyBarEntity preferred(EquityDailyBarEntity left, EquityDailyBarEntity right) {
         int leftRank = SOURCE_PREFERENCE.indexOf(left.getSource());

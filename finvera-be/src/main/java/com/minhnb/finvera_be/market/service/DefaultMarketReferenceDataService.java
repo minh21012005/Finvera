@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service;
 public class DefaultMarketReferenceDataService implements MarketReferenceDataService {
 
     private static final ZoneId MARKET_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+    private static final String DEPRECATED_TCBS_INDEX_SOURCE = "TCBS_IFLASH_MARKET_DATA";
 
     private final MarketInstrumentRepository instruments;
     private final MarketCalendarDayRepository calendarDays;
@@ -133,8 +134,8 @@ public class DefaultMarketReferenceDataService implements MarketReferenceDataSer
         Objects.requireNonNull(date, "date");
         return indexes.findByCode(indexCode)
                 .flatMap(index -> indexSnapshots
-                        .findFirstByIndexIdAndTradingDateLessThanEqualOrderByTradingDateDescObservedAtDescRevisionDesc(
-                                index.getId(), date))
+                        .findFirstByIndexIdAndSourceNotAndTradingDateLessThanEqualOrderByTradingDateDescObservedAtDescRevisionDesc(
+                                index.getId(), DEPRECATED_TCBS_INDEX_SOURCE, date))
                 .map(snapshot -> new IndexSnapshotReference(
                         indexCode, snapshot.getTradingDate(), snapshot.getIndexLevel()));
     }

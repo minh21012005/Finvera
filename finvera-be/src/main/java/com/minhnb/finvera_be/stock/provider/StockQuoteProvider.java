@@ -4,10 +4,10 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 /**
- * Read-only current-price port (contracts/stock-data-provider.md), extending
- * the Feature 001 TCBS adapter contract from index subjects to instrument
- * subjects (research R-001). No trading, account, cash, or order operation
- * is reachable through this interface (SEC-003).
+ * Read-only current-price port (contracts/stock-data-provider.md). The active
+ * private runtime does not wire a live implementation; Vnstock/KBS facts enter
+ * through explicit import boundaries. No trading, account, cash, or order
+ * operation is reachable through this interface (SEC-003).
  */
 public interface StockQuoteProvider {
 

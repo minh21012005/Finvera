@@ -1,57 +1,138 @@
 # Quickstart and Acceptance: Market Overview
 
-**Feature**: `001-market-overview`  
-**Current phase**: Implemented fixture-mode local acceptance. Live TCBS,
-Vnstock import, and private remote deployment remain gated.
+**Feature:** `001-market-overview`
+
+**Current provider decision:** ADR-0010 uses the official TCBS Thesis WebSocket
+for the private live overlay. ADR-0009 retains Vnstock/KBS for history,
+completed-session fallback, and reproducible bootstrap packages.
 
 ## Prerequisites
 
 - Java 21 and the repository Maven wrapper.
 - Node.js compatible with the committed React/Vite project and `npm`.
-- A Docker-compatible container runtime for PostgreSQL/Testcontainers.
 - PostgreSQL for local runtime, configured only through environment/secret
   values.
-- Sanitized provider contract fixtures for normal and failure scenarios.
-- A TCBS iFlash API key and owner iOTP access only after the gate in
-  [tcbs-iflash-adapter.md](contracts/tcbs-iflash-adapter.md) is approved.
-  Fixture mode must support development without provider credentials.
-- A pinned Vnstock environment only after
-  [vnstock-historical-bootstrap.md](contracts/vnstock-historical-bootstrap.md)
-  passes its license, coverage, and sanitized-fixture gate.
-- A loopback-only owner access path for local acceptance, with no public or LAN
-  ingress.
-- Tailscale is required only before deployment or remote/multi-device access;
-  Serve/private routing, owner-only ACL/grants, and disabled Funnel remain the
-  mandatory T051 release gate.
+- A loopback-only owner access path for local acceptance.
+- A configured local Vnstock Community API key when generating private market
+  packages.
 
-Gemini, an embedding model, Qdrant, Kafka, and `finvera-ai` are not prerequisites.
+Gemini, an embedding model, Qdrant, Kafka, and `finvera-ai` are not
+prerequisites. A TCBS API key and current TOTP are required only when enabling
+the optional live overlay.
 
-## Configuration
-
-The runtime requires these environment values. Supply secrets from the current
-shell or a local secret store; never commit them:
+## Runtime modes
 
 ```text
-PostgreSQL URL / database / user / password
-market timezone = Asia/Ho_Chi_Minh
-FINVERA_MARKET_PROVIDER_MODE = fixture | tcbs-iflash-private
-FINVERA_MARKET_FIXTURE_BOOTSTRAP_ENABLED = true only for local fixture bootstrap
-historical bootstrap mode = fixture | vnstock-offline-package
-contracted delay per dataset
-calendar and session policy version
-configured owner identity and private-access policy
-owner UUID, normalized username, and offline-generated {bcrypt} password hash
-session idle timeout = 30 minutes; absolute lifetime = 8 hours
-TCBS API key and endpoints (tcbs-iflash-private mode only)
-canonical import package contract/version and maximum accepted size
+FINVERA_MARKET_PROVIDER_MODE=fixture
 ```
 
-No provider secret, token, iOTP, Vnstock credential, or raw package may use a
-`VITE_*` variable or appear in frontend configuration. TCBS tokens are
-runtime-only; iOTP is transiently exchanged only after owner authorization and
-is never stored, logged, generated, reused, or automated.
+Use this for deterministic fixture acceptance.
 
-## Quality Commands
+```text
+FINVERA_MARKET_PROVIDER_MODE=vnstock-package-private
+FINVERA_MARKET_IMPORT_ENABLED=true
+FINVERA_MARKET_IMPORT_PACKAGE_PATH=<local package path>
+```
+
+Use this to import a reviewed Vnstock/KBS market package into PostgreSQL. Turn
+`FINVERA_MARKET_IMPORT_ENABLED` back to `false` after import unless you
+intentionally want startup to re-check the same package.
+
+No provider credential, package path, token, OTP, or raw market payload may use
+a `VITE_*` variable or appear in frontend configuration.
+
+For live private data, additionally configure only in the backend environment:
+
+```text
+FINVERA_TCBS_LIVE_ENABLED=true
+FINVERA_TCBS_API_KEY=<secret>
+FINVERA_TCBS_MAX_DYNAMIC_SYMBOLS=100
+FINVERA_STOCK_QUOTE_LIVE_ENABLED=true
+```
+
+Start the backend, sign in as the owner, open `/settings/live-data`, and submit
+the current TOTP. Spring exchanges it for an in-memory token and connects to
+the official Thesis WebSocket. The browser polls Finvera endpoints every 30
+seconds; it never connects to TCBS directly. After restart or token expiry, the
+owner renews the session again. Without a live stream, the last accepted
+PostgreSQL snapshot/history remains available and is labelled stale as needed.
+
+## Generate a Vnstock market package
+
+From `tools/market-data/vnstock-export/`:
+
+```powershell
+uv run --project ..\provider-poc python .\export_history.py `
+  --market-overview `
+  --start 2024-01-01 `
+  --end 2026-08-24 `
+  --output .\output
+```
+
+The package contract is `vnstock-market-private-package-v1`. It contains
+`indexRecords` for `VN_INDEX`, `VN30`, `HNX_INDEX`, and `UPCOM_INDEX`.
+`referenceLevel` is derived from the previous completed daily close and the
+record carries `VNSTOCK_DAILY_CLOSE_REFERENCE_DERIVED`.
+
+## Start local runtime
+
+Backend from `finvera-be/`:
+
+```powershell
+.\mvnw.cmd spring-boot:run
+```
+
+Frontend from `finvera-fe/`:
+
+```powershell
+npm run dev
+```
+
+Keep both services bound to `127.0.0.1` during local development. Tailscale is
+required only before deployment or remote/multi-device access.
+
+## P1 acceptance: four main indices
+
+1. Log in as the configured owner.
+2. Open the market overview page.
+3. Confirm exactly four index cards appear in stable order: VN-Index, VN30,
+   HNX-Index, UPCOM-Index.
+4. Confirm each available card shows level, absolute change, percentage change,
+   matched volume/value when present, source, session state, trading date,
+   as-of timestamp, and data status.
+5. Confirm missing provider fields are shown as unavailable/partial, never as
+   zero placeholders.
+
+Expected evidence: HTTP 200 from `GET /api/v1/market/overview`; no browser
+request to Vnstock, KBS, TCBS, or `finvera-ai`.
+
+## P2 acceptance: breadth
+
+1. Import a package with enough accepted equity observations for the configured
+   breadth universe.
+2. Open consolidated breadth on the overview page.
+3. Verify `advancing + declining + unchanged + unclassified = eligible`.
+4. Verify the UI identifies universe version, source, as-of time, and data
+   status.
+
+If equity coverage is insufficient, breadth must degrade with
+`BREADTH_NOT_AVAILABLE` or a precise partial reason. It must not fabricate a
+market-wide breadth count from incomplete provider data.
+
+## P3 acceptance: deterministic regime
+
+1. Import a package with enough accepted index history for regime evaluation.
+2. Open the overview twice using identical accepted inputs.
+3. Verify identical label, score, confidence, factor list, weights, and as-of
+   time.
+4. Verify confidence is labeled assessment quality, not forecast probability.
+5. Verify the decision-support disclaimer is present and there is no buy/sell
+   instruction.
+
+If the minimum input quality is not met, the regime section is withheld with a
+specific reason code. It must not infer or predict missing facts.
+
+## Quality commands
 
 From `finvera-be/`:
 
@@ -59,178 +140,22 @@ From `finvera-be/`:
 .\mvnw.cmd test
 ```
 
-Expected after implementation: unit/boundary tests, provider contract tests,
-Flyway migration tests, PostgreSQL repository tests, API/security tests, and
-application context loading pass. Docker must be available for Testcontainers.
-
 From `finvera-fe/`:
 
 ```powershell
 npm run test
 npm run lint
 npm run build
-npm run test:e2e
 ```
 
-Expected after implementation: Vitest component/presentation-state tests,
-lint, production build, and Playwright P1-P3 journeys pass.
-
-## Local Runtime
-
-After PostgreSQL and safe local configuration are available:
+From `tools/market-data/provider-poc/`:
 
 ```powershell
-# terminal 1, from finvera-be/
-$env:FINVERA_MARKET_PROVIDER_MODE = "fixture"
-$env:FINVERA_MARKET_FIXTURE_BOOTSTRAP_ENABLED = "true"
-.\mvnw.cmd spring-boot:run
-
-# terminal 2, from finvera-fe/
-npm run dev
+uv run pytest ..\vnstock-export\tests
 ```
 
-The backend starts only after all required database, owner-access, and freshness
-environment variables listed above are present. The fixture bootstrap flag is
-explicit and opt-in; omitting it leaves PostgreSQL untouched. It is also rejected
-unless `finvera.market.provider.mode=fixture`.
+## Operational evidence
 
-For local acceptance, keep both Vite and Spring bound to `127.0.0.1`. Do not
-open router/LAN ports or use a tunnel. Complete T051 before replacing this
-loopback-only setup with remote access.
-
-Use fixture provider mode for deterministic acceptance. The frontend calls the
-Spring endpoint defined in
-[market-overview.openapi.yaml](contracts/market-overview.openapi.yaml); it does
-not call fixture files or the provider directly.
-
-## P1 Happy Path — Four Main Indices
-
-Fixture: a coherent active-session snapshot containing VN-Index, VN30, HNX
-Index, and UPCOM Index with complete level, change, volume, value, source, and
-time data.
-
-1. Open the market overview page as an authorized Finvera user.
-2. Confirm exactly four index cards appear in stable order.
-3. Confirm every card shows value, absolute/percentage change, matched volume,
-   matched value with VND unit, session state, as-of time, source, and
-   `CURRENT` status.
-4. Confirm direction has an icon/text label and is understandable without
-   red/green color.
-5. Inspect `GET /api/v1/market/overview`; all sections belong to the declared
-   trading date/coherent revision and decimal facts match the fixture.
-
-Expected evidence: HTTP 200, usable page within the NFR-001 target, no browser
-request to TCBS or `finvera-ai`, and no missing value represented as zero.
-
-## P2 Happy Path — Consolidated Breadth
-
-Fixture: known eligible common equities across all three venues, including a
-VN30 member, advance/decline/unchanged cases, and no invalid record.
-
-1. Open the overview and locate consolidated breadth.
-2. Verify the VN30 member is counted once as its HOSE security.
-3. Verify `advancing + declining + unchanged = eligible` and unclassified is 0.
-4. Verify the UI identifies the universe version, source, as-of time, and
-   `CURRENT` status.
-
-Expected evidence: displayed counts exactly reconcile with the fixture and use
-unrounded source values for classification.
-
-## P3 Happy Path — Deterministic Regime
-
-Fixture: a complete versioned history with known `market-regime-v1` output.
-
-1. Open the overview twice using identical accepted inputs.
-2. Verify identical label, score, confidence, factors, weights, and as-of time.
-3. Verify confidence is labeled assessment quality, not forecast probability.
-4. Verify the decision-support disclaimer is present and there is no buy/sell
-   instruction.
-
-Expected evidence: API and UI match the approved regime fixture exactly; every
-factor can be traced to recorded input IDs and the rule version.
-
-### Historical bootstrap and reconciliation
-
-Import an approved canonical Vnstock fixture containing at least 271 completed
-sessions. Expected: Spring verifies contract version, checksum, tool/upstream
-source, date coverage, counts, decimal strings, and adjustment status before an
-atomic import. Reimporting the same checksum is idempotent. A conflicting
-completed-session TCBS/Vnstock fact preserves both observations, emits
-`SOURCE_CONFLICT`, and withholds the affected regime instead of averaging or
-silently overwriting data.
-
-## Critical Degraded and Failure Paths
-
-### One index unavailable
-
-Remove the UPCOM Index observation while retaining the other three. Expected:
-HTTP 200; three usable cards; UPCOM card `UNAVAILABLE` with null facts and a
-reason code; no zero placeholder; overview status reflects degradation.
-
-### Delayed, stale, and closed data
-
-Evaluate fixtures exactly at and around contracted delay +30 seconds and +5
-minutes. Expected boundary states follow research R-004. A completed closed-day
-snapshot remains labeled `CLOSED`, not stale merely because wall-clock time
-passes.
-
-### Partial breadth
-
-Remove a valid official reference price for one eligible security. Expected:
-that security is unclassified; reconciliation still holds; breadth is
-`PARTIAL`; regime is withheld if minimum quality is not met.
-
-### Correction and out-of-order delivery
-
-Deliver an older record after a newer accepted record, then a valid correction.
-Expected: the older record cannot regress the page; the correction creates a
-new revision and updates dependent results with a visible updated as-of/revision.
-
-### Provider and AI outage
-
-Disconnect provider fixture transport while accepted data exists and disable
-all AI services. Expected: last accepted facts remain visible with accurate
-freshness/degraded labels; no AI error appears; provider failure is observable.
-
-### TCBS token expiry
-
-Expire the runtime TCBS token while accepted data exists. Expected: no new
-provider request is treated as live; last accepted facts remain visible with
-their normal freshness and `PROVIDER_AUTH_REQUIRED`. The owner must manually
-renew with iOTP. The private renewal action may transiently accept the owner-entered iOTP for one
-immediate TCBS exchange, but it must not persist, log, reuse, or retry that OTP.
-
-### Authentication
-
-Call the endpoint without credentials, with an invalid token, and with a valid
-non-owner identity; then call as the configured owner. Expected: standard
-401/403 error envelope for every denied call and 200 only for the owner. Verify
-there is no public ingress, sharing link, export, market-provider credential,
-or raw payload in responses or logs.
-
-Use [private-owner-access.openapi.yaml](contracts/private-owner-access.openapi.yaml)
-to validate CSRF acquisition, owner login, session status, logout, and TCBS
-renewal. Verify session rotation, `FINVERA_SESSION` Secure/HttpOnly/
-SameSite=Strict, 30-minute idle and eight-hour absolute expiry, uniform invalid
-credential errors, and bounded login rate limiting. Direct host ports and
-Tailscale Funnel must be unreachable; Tailscale access alone must not bypass
-the Spring owner login.
-
-## Operational Evidence
-
-The latest sanitized local execution record is
-[validation/fixture-acceptance.md](validation/fixture-acceptance.md). It records
-pass/fail and counts only; it contains no credential, cookie, raw provider
-payload, or real market fact.
-
-During the paths above, verify metrics/logs distinguish:
-
-- source authentication/connectivity failure;
-- ingest lag and stale data;
-- rejected/invalid or out-of-order records;
-- breadth/regime calculation failure;
-- public API latency/failure.
-
-Correlation IDs, dataset, subject, reason code, and timestamps are allowed.
-Credentials, tokens, signed requests, full provider payloads, and private user
-data are forbidden.
+Record pass/fail, command names, timestamps, package checksum, and accepted
+batch counts only. Do not store raw package contents, credentials, cookies,
+tokens, provider responses, or private user data in docs or logs.

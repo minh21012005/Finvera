@@ -1,7 +1,11 @@
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
-import { getOwnerSession, loginOwner, logoutOwner, OwnerAccessApiError, type OwnerSession } from "./api/owner-access";
-import { getTcbsStatus } from "../tcbs-renewal/api/tcbs-renewal";
-import { navigate } from "../../router";
+import {
+  getOwnerSession,
+  loginOwner,
+  logoutOwner,
+  OwnerAccessApiError,
+  type OwnerSession,
+} from "./api/owner-access";
 import {
   BarChart3,
   SlidersHorizontal,
@@ -10,12 +14,9 @@ import {
   Star,
   BookOpen,
   Bot,
-  KeyRound,
   LogOut,
-  AlertTriangle,
+  Radio,
 } from "lucide-react";
-
-const TCBS_STATUS_POLL_MS = 60_000;
 
 type State =
   | { kind: "loading" }
@@ -26,7 +27,6 @@ type State =
 export function OwnerAccessGate({ children }: { children: ReactNode }) {
   const [state, setState] = useState<State>({ kind: "loading" });
   const [pathname, setPathname] = useState(() => window.location.pathname);
-  const [tcbsAuthRequired, setTcbsAuthRequired] = useState(false);
 
   useEffect(() => {
     const onNavigate = () => setPathname(window.location.pathname);
@@ -45,19 +45,6 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
     return () => controller.abort();
   }, []);
 
-  useEffect(() => {
-    if (state.kind !== "authenticated") return;
-    let cancelled = false;
-    const check = () => {
-      getTcbsStatus()
-        .then((status) => { if (!cancelled) setTcbsAuthRequired(status.state === "AUTH_REQUIRED"); })
-        .catch(() => { /* transient check; keep last known banner state */ });
-    };
-    check();
-    const interval = window.setInterval(check, TCBS_STATUS_POLL_MS);
-    return () => { cancelled = true; window.clearInterval(interval); };
-  }, [state.kind]);
-
   if (state.kind === "loading") {
     return (
       <main className="app-shell" aria-busy="true">
@@ -68,6 +55,7 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
       </main>
     );
   }
+
   if (state.kind === "error") {
     return (
       <main className="app-shell">
@@ -77,6 +65,7 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
       </main>
     );
   }
+
   if (state.kind === "anonymous") {
     return <LoginForm onAuthenticated={(session) => setState({ kind: "authenticated", session })} />;
   }
@@ -94,123 +83,45 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
     <>
       <nav className="top-nav">
         <div className="nav-brand-group">
-          <a
-            href="/"
-            className="brand-section"
-            onClick={(e) => {
-              e.preventDefault();
-              window.history.pushState({}, "", "/");
-              window.dispatchEvent(new PopStateEvent("popstate"));
-            }}
-          >
+          <NavLink href="/" active={isHome} className="brand-section">
             <div className="brand-icon">F</div>
             <span className="brand-logo">FINVERA</span>
             <span className="brand-tag">TERMINAL</span>
-          </a>
+          </NavLink>
 
           <div className="nav-links">
-            <a
-              href="/"
-              className={`nav-link ${isHome ? "active" : ""}`}
-              onClick={(e) => {
-                e.preventDefault();
-                window.history.pushState({}, "", "/");
-                window.dispatchEvent(new PopStateEvent("popstate"));
-              }}
-            >
+            <NavLink href="/" active={isHome}>
               <BarChart3 className="nav-icon-svg" size={15} />
               <span>Thị trường</span>
-            </a>
-            <a
-              href="/screener"
-              className={`nav-link ${isScreener ? "active" : ""}`}
-              onClick={(e) => {
-                e.preventDefault();
-                window.history.pushState({}, "", "/screener");
-                window.dispatchEvent(new PopStateEvent("popstate"));
-              }}
-            >
+            </NavLink>
+            <NavLink href="/screener" active={isScreener}>
               <SlidersHorizontal className="nav-icon-svg" size={15} />
               <span>Bộ lọc CP</span>
-            </a>
-            <a
-              href="/strategies"
-              className={`nav-link ${isStrategies ? "active" : ""}`}
-              onClick={(e) => {
-                e.preventDefault();
-                window.history.pushState({}, "", "/strategies");
-                window.dispatchEvent(new PopStateEvent("popstate"));
-              }}
-            >
+            </NavLink>
+            <NavLink href="/strategies" active={isStrategies}>
               <Zap className="nav-icon-svg" size={15} />
               <span>Chiến lược</span>
-            </a>
-            <a
-              href="/portfolios"
-              className={`nav-link ${isPortfolios ? "active" : ""}`}
-              onClick={(e) => {
-                e.preventDefault();
-                window.history.pushState({}, "", "/portfolios");
-                window.dispatchEvent(new PopStateEvent("popstate"));
-              }}
-            >
+            </NavLink>
+            <NavLink href="/portfolios" active={isPortfolios}>
               <Briefcase className="nav-icon-svg" size={15} />
               <span>Danh mục</span>
-            </a>
-            <a
-              href="/watchlists"
-              className={`nav-link ${isWatchlists ? "active" : ""}`}
-              onClick={(e) => {
-                e.preventDefault();
-                window.history.pushState({}, "", "/watchlists");
-                window.dispatchEvent(new PopStateEvent("popstate"));
-              }}
-            >
+            </NavLink>
+            <NavLink href="/watchlists" active={isWatchlists}>
               <Star className="nav-icon-svg" size={15} />
               <span>Watchlist</span>
-            </a>
-            <a
-              href="/research"
-              className={`nav-link ${isResearch ? "active" : ""}`}
-              onClick={(e) => {
-                e.preventDefault();
-                window.history.pushState({}, "", "/research");
-                window.dispatchEvent(new PopStateEvent("popstate"));
-              }}
-            >
+            </NavLink>
+            <NavLink href="/research" active={isResearch}>
               <BookOpen className="nav-icon-svg" size={15} />
               <span>Nghiên cứu & RAG</span>
-            </a>
-            <a
-              href="/analyst"
-              className={`nav-link ai-nav-link ${isAnalyst ? "active" : ""}`}
-              onClick={(e) => {
-                e.preventDefault();
-                window.history.pushState({}, "", "/analyst");
-                window.dispatchEvent(new PopStateEvent("popstate"));
-              }}
-            >
+            </NavLink>
+            <NavLink href="/analyst" active={isAnalyst} className="ai-nav-link">
               <Bot className="nav-icon-svg" size={15} />
               <span>AI Analyst</span>
-            </a>
-            <a
-              href="/tcbs-renewal"
-              className={`nav-link ${isTcbsRenewal ? "active" : ""}`}
-              onClick={(e) => {
-                e.preventDefault();
-                window.history.pushState({}, "", "/tcbs-renewal");
-                window.dispatchEvent(new PopStateEvent("popstate"));
-              }}
-            >
-              <KeyRound className="nav-icon-svg" size={15} />
-              <span>TCBS Live</span>
-              {tcbsAuthRequired ? (
-                <span
-                  aria-label="Cần xác thực lại"
-                  className="status-dot-pulse"
-                ></span>
-              ) : null}
-            </a>
+            </NavLink>
+            <NavLink href="/tcbs-renewal" active={isTcbsRenewal}>
+              <Radio className="nav-icon-svg" size={15} />
+              <span>Live data</span>
+            </NavLink>
           </div>
         </div>
 
@@ -230,26 +141,34 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
           </button>
         </header>
       </nav>
-      {tcbsAuthRequired && !isTcbsRenewal ? (
-        <div
-          role="alert"
-          className="tcbs-warning-banner"
-        >
-          <div className="banner-content">
-            <AlertTriangle size={16} className="shrink-0 text-rose-400" />
-            <span>Phiên TCBS đã hết hạn hoặc chưa xác thực — giá thời gian thực đang không cập nhật.</span>
-          </div>
-          <button
-            type="button"
-            className="btn-banner-action"
-            onClick={() => navigate("/tcbs-renewal")}
-          >
-            Xác thực ngay
-          </button>
-        </div>
-      ) : null}
       {children}
     </>
+  );
+}
+
+function NavLink({
+  href,
+  active,
+  className,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <a
+      href={href}
+      className={`${className ? `${className} ` : ""}nav-link ${active ? "active" : ""}`.trim()}
+      onClick={(event) => {
+        event.preventDefault();
+        window.history.pushState({}, "", href);
+        window.dispatchEvent(new PopStateEvent("popstate"));
+      }}
+    >
+      {children}
+    </a>
   );
 }
 

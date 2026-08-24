@@ -24,17 +24,15 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 import tools.jackson.databind.json.JsonMapper;
 
-// TcbsRenewalController now depends on TcbsRenewalService (moved out of the controller so it
-// doesn't reach into the provider package directly, per LayeredArchitectureTests). No
-// TcbsHttpSessionState bean exists in this slice, so the service's Optional<TcbsHttpSessionState>
 // binds to empty — exactly the "no live session" path this test already exercises.
 @WebMvcTest(controllers = {OwnerAccessController.class, TcbsRenewalController.class})
-@Import({OwnerSecurityConfiguration.class, OwnerSessionService.class, TcbsRenewalService.class})
+@Import({OwnerSecurityConfiguration.class, OwnerSessionService.class})
 class OwnerAccessSecurityTests {
 
     private static final String OWNER_NAME = "owner-" + UUID.randomUUID();
@@ -55,6 +53,9 @@ class OwnerAccessSecurityTests {
     @Autowired
     private LoginThrottle throttle;
 
+    @MockitoBean
+    private TcbsRenewalService tcbsRenewalService;
+
     @BeforeEach
     void resetThrottle() {
         throttle.reset();
@@ -73,6 +74,15 @@ class OwnerAccessSecurityTests {
         mvc.perform(post("/api/v1/auth/session")
                         .contentType("application/json")
                         .content(loginPayload(OWNER_NAME, LOGIN_PROOF)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void tcbsLiveBoundaryRequiresOwnerSessionAndCsrfForRenewal() throws Exception {
+        mvc.perform(get("/api/v1/market/providers/tcbs/status"))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/v1/market/providers/tcbs/token-renewal")
+                        .contentType("application/json").content("{\"otp\":\"123456\"}"))
                 .andExpect(status().isForbidden());
     }
 
@@ -146,26 +156,6 @@ class OwnerAccessSecurityTests {
                         .content(loginPayload(OWNER_NAME, LOGIN_PROOF)))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(jsonPath("$.code").value("LOGIN_RATE_LIMITED"));
-    }
-
-    @Test
-    void tcbsRenewalIsUnavailableWithoutReadingTheOpaqueValueWhileGateIsOpen() throws Exception {
-        var login = mvc.perform(post("/api/v1/auth/session")
-                        .with(csrf())
-                        .contentType("application/json")
-                        .content(loginPayload(OWNER_NAME, LOGIN_PROOF)))
-                .andReturn();
-        var session = (org.springframework.mock.web.MockHttpSession) login.getRequest().getSession(false);
-
-        mvc.perform(post("/api/v1/market/providers/tcbs/token-renewal")
-                        .with(csrf())
-                        .session(session)
-                        .contentType("application/json")
-                        .content("""
-                                {"iOtp":"opaque-sensitive-fixture"}
-                                """))
-                .andExpect(status().isBadGateway())
-                .andExpect(jsonPath("$.code").value("PROVIDER_AUTH_REQUIRED"));
     }
 
     private static String loginPayload(String username, String password) {

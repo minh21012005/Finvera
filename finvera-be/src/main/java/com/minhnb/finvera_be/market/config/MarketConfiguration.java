@@ -1,14 +1,20 @@
 package com.minhnb.finvera_be.market.config;
 
-import com.minhnb.finvera_be.market.provider.MarketDataProvider;
-import com.minhnb.finvera_be.market.provider.tcbs.TcbsHttpRestClient;
-import com.minhnb.finvera_be.market.provider.tcbs.TcbsHttpSessionState;
-import com.minhnb.finvera_be.market.provider.tcbs.TcbsMarketDataProvider;
 import com.minhnb.finvera_be.market.service.FixtureRuntimeBootstrapService;
 import com.minhnb.finvera_be.market.service.MarketImportPackageParser;
 import com.minhnb.finvera_be.market.service.MarketImportService;
 import com.minhnb.finvera_be.market.service.MarketInstrumentReferenceImportPackageParser;
 import com.minhnb.finvera_be.market.service.MarketInstrumentReferenceImportService;
+import com.minhnb.finvera_be.market.service.BreadthService;
+import com.minhnb.finvera_be.market.service.MarketIngestionService;
+import com.minhnb.finvera_be.market.service.MarketReferenceDataService;
+import com.minhnb.finvera_be.market.service.TcbsLiveMarketIngestionService;
+import com.minhnb.finvera_be.market.service.TcbsLiveEquityQuoteService;
+import com.minhnb.finvera_be.market.service.IngestionRecordService;
+import com.minhnb.finvera_be.market.repository.EquityPriceObservationRepository;
+import com.minhnb.finvera_be.market.provider.tcbs.TcbsHttpSessionState;
+import com.minhnb.finvera_be.market.provider.tcbs.TcbsThesisWebSocketClient;
+import java.net.URI;
 import java.nio.file.Path;
 import java.time.Clock;
 import org.slf4j.Logger;
@@ -21,32 +27,54 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.beans.factory.annotation.Value;
 
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties({MarketFreshnessProperties.class, TcbsProviderProperties.class})
+@EnableConfigurationProperties({MarketFreshnessProperties.class, TcbsThesisProperties.class})
 public class MarketConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(MarketConfiguration.class);
 
-    // Live TCBS wiring: three collaborating beans, all conditional on live mode. Kept as plain,
-    // framework-agnostic classes (see TcbsMarketDataProviderTests, which constructs the provider
-    // with `new` and mocked ports) and assembled here rather than annotated directly, so the
-    // adapter and its tests stay decoupled from Spring.
     @Bean
-    @ConditionalOnProperty(name = "finvera.market.provider.mode", havingValue = "live")
-    TcbsHttpSessionState tcbsHttpSessionState(TcbsProviderProperties properties, Clock clock) {
+    @ConditionalOnProperty(name = "finvera.market.live-overlay.tcbs.enabled", havingValue = "true")
+    TcbsHttpSessionState tcbsHttpSessionState(TcbsThesisProperties properties, Clock clock) {
         return new TcbsHttpSessionState(properties.baseUrl(), properties.apiKey(), clock);
     }
 
-    @Bean
-    @ConditionalOnProperty(name = "finvera.market.provider.mode", havingValue = "live")
-    TcbsHttpRestClient tcbsHttpRestClient(TcbsProviderProperties properties, TcbsHttpSessionState sessionState) {
-        return new TcbsHttpRestClient(properties.baseUrl(), sessionState);
+    @Bean(destroyMethod = "close")
+    @ConditionalOnProperty(name = "finvera.market.live-overlay.tcbs.enabled", havingValue = "true")
+    TcbsThesisWebSocketClient tcbsThesisWebSocketClient(TcbsThesisProperties properties,
+            TcbsHttpSessionState session, Clock clock) {
+        return new TcbsThesisWebSocketClient(URI.create(properties.websocketUrl()), session,
+                properties.heartbeatInterval(), properties.reconnectMaxDelay(), properties.maxDynamicSymbols(), clock);
     }
 
     @Bean
-    @ConditionalOnProperty(name = "finvera.market.provider.mode", havingValue = "live")
-    MarketDataProvider tcbsMarketDataProvider(TcbsHttpRestClient restClient, TcbsHttpSessionState sessionState) {
-        return new TcbsMarketDataProvider(restClient, sessionState);
+    @ConditionalOnProperty(name = "finvera.market.live-overlay.tcbs.enabled", havingValue = "true")
+    TcbsLiveMarketIngestionService tcbsLiveMarketIngestionService(MarketIngestionService ingestion,
+            BreadthService breadth, MarketReferenceDataService referenceData) {
+        return new TcbsLiveMarketIngestionService(ingestion, breadth, referenceData);
     }
+
+    @Bean
+    @ConditionalOnProperty(name = "finvera.market.live-overlay.tcbs.enabled", havingValue = "true")
+    AutoCloseable tcbsThesisObserverRegistration(TcbsThesisWebSocketClient client,
+            TcbsLiveMarketIngestionService ingestion) {
+        return client.observe(ingestion);
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "finvera.market.live-overlay.tcbs.enabled", havingValue = "true")
+    TcbsLiveEquityQuoteService tcbsLiveEquityQuoteService(MarketReferenceDataService referenceData,
+            IngestionRecordService records, EquityPriceObservationRepository prices,
+            TcbsThesisWebSocketClient client, Clock clock) {
+        return new TcbsLiveEquityQuoteService(referenceData, records, prices, client, clock);
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "finvera.market.live-overlay.tcbs.enabled", havingValue = "true")
+    AutoCloseable tcbsThesisEquityObserverRegistration(TcbsThesisWebSocketClient client,
+            TcbsLiveEquityQuoteService quotes) {
+        return client.observe(quotes);
+    }
+
     @Bean
     @ConditionalOnProperty(name = "finvera.market.fixture.bootstrap-enabled", havingValue = "true")
     @ConditionalOnProperty(name = "finvera.market.provider.mode", havingValue = "fixture")

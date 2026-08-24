@@ -68,6 +68,6 @@ class MarketImportPersistenceTests {
                 LocalDate.of(2026, 8, 15), LocalDate.of(2026, 8, 15),
                 List.of(new MarketImportService.EquityHistoryRecord("HOSE", "FPT", null,
                         LocalDate.of(2006, 12, 13), "ACTIVE", LocalDate.of(2026, 8, 15), observedAt,
-                        "101.500000", "RAW", null, "record-persistence-1")));
+                        "101.500000", "RAW", null, "record-persistence-1")), List.of());
     }
 }
