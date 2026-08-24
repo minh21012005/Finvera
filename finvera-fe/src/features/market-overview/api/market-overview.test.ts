@@ -44,6 +44,13 @@ describe("market overview API client", () => {
     expect(parseMarketOverview(validOverview).indices).toHaveLength(4);
   });
 
+  it("accepts the provider-compatible market regime v2 rule version", () => {
+    const withV2 = structuredClone(validOverview);
+    withV2.regime.ruleVersion = "market-regime-v2";
+
+    expect(parseMarketOverview(withV2).regime.ruleVersion).toBe("market-regime-v2");
+  });
+
   it("rejects numbers used in place of precision-safe decimal strings", () => {
     const malformed = structuredClone(validOverview) as Omit<typeof validOverview, "warnings"> & { warnings: unknown[] };
     malformed.indices[0].value = 1280.25 as never;

@@ -146,11 +146,6 @@ function SignalDetail({ signal, symbol }: { signal: SignalData; symbol: string }
           </li>
         ))}
       </ul>
-
-      <p className="signal-copy" role="note">
-        Đây là một kịch bản định lượng dựa trên dữ liệu đã được chấp nhận, không phải khuyến nghị đầu tư hay đảm
-        bảo kết quả.
-      </p>
     </div>
   );
 }

@@ -55,10 +55,19 @@ public class BreadthService {
     @Transactional(readOnly = true)
     public Optional<Snapshot> latestFor(LocalDate tradingDate) {
         return snapshots.findFirstByTradingDateOrderByAsOfDescCalculatedAtDesc(tradingDate).map(entity ->
-                new Snapshot(entity.getId(), entity.getTradingDate(), entity.getAsOf(), DataStatus.valueOf(entity.getDataStatus()),
-                        new BreadthCalculator.Result(entity.getAdvancing(), entity.getDeclining(), entity.getUnchanged(),
-                                entity.getUnclassified(), entity.getEligible(), entity.getReasonCodes()), entity.getUniversePolicyVersion(),
-                        entity.getUniverseRevisionHash()));
+                toSnapshot(entity));
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<Snapshot> latest() {
+        return snapshots.findFirstByOrderByTradingDateDescAsOfDescCalculatedAtDesc().map(BreadthService::toSnapshot);
+    }
+
+    private static Snapshot toSnapshot(MarketBreadthSnapshotEntity entity) {
+        return new Snapshot(entity.getId(), entity.getTradingDate(), entity.getAsOf(), DataStatus.valueOf(entity.getDataStatus()),
+                new BreadthCalculator.Result(entity.getAdvancing(), entity.getDeclining(), entity.getUnchanged(),
+                        entity.getUnclassified(), entity.getEligible(), entity.getReasonCodes()), entity.getUniversePolicyVersion(),
+                entity.getUniverseRevisionHash());
     }
     public record InputLink(UUID instrumentId, UUID priceObservationId, String classification, String reasonCode) { }
     public record Snapshot(UUID id, LocalDate tradingDate, Instant asOf, DataStatus dataStatus, BreadthCalculator.Result result,

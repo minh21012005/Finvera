@@ -591,6 +591,30 @@ persists a withheld assessment with `BREADTH_SMA50_COVERAGE_UNAVAILABLE` and/or
 approved methodology and preventing an apparently precise but fabricated
 regime label.
 
+## R-007B — Provider-Compatible Live Regime V2
+
+**Decision**: Add `market-regime-v2` as the live private regime rule while
+preserving `market-regime-v1` history unchanged. V2 uses only accepted inputs
+available from the current contracts: VN-Index trend, momentum, and volatility
+from daily accepted index history, plus TCBS Thesis aggregate advancing and
+declining counts. Aggregate breadth score is `advancing / (advancing +
+declining) * 100`; unchanged names do not enter the ratio.
+
+V2 publishes only when `TREND` and aggregate `BREADTH` are both present and at
+least three of the four V2 components are present. It does not include the V1
+full-universe percent-above-SMA50 component or liquidity component until a
+provider contract proves those datasets. Missing mandatory or minimum component
+coverage still produces a persisted withheld assessment.
+
+**Rationale**: This gives the private dashboard a useful deterministic regime
+label from real data instead of leaving the section permanently withheld under a
+rule whose inputs the current providers do not supply.
+
+**Alternatives considered**: Relaxing `market-regime-v1` was rejected because it
+would silently change historical semantics under the same rule version. Using
+Vnstock Community as a live per-symbol polling feed was rejected because no
+realtime entitlement or whole-universe polling contract has been approved.
+
 ## R-008 — Persistence, Precision, and Migrations
 
 **Decision**: Use PostgreSQL and Flyway SQL migrations under

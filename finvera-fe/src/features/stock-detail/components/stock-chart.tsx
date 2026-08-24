@@ -348,21 +348,39 @@ export function StockChart({
 
   // Active bar for OHLCV inspector
   const hoveredBarObj = hoverSlot !== null ? visibleBars.find((p) => p.slotIndex === hoverSlot) : null;
-  const activeBar = hoveredBarObj?.bar || visibleBars.at(-1)?.bar || normalizedBars[normalizedBars.length - 1];
+  const activeBarObj = hoveredBarObj || visibleBars.at(-1);
+  const activeBar = activeBarObj?.bar || normalizedBars[normalizedBars.length - 1];
+  const activeBarIndex = activeBarObj ? activeBarObj.barIndex : normalizedBars.length - 1;
 
   const activeOpen = Number.parseFloat(activeBar.open);
   const activeClose = Number.parseFloat(activeBar.close);
   const activeHigh = Number.parseFloat(activeBar.high);
   const activeLow = Number.parseFloat(activeBar.low);
   const activeVol = activeBar.volume;
-  const activeDiff = activeClose - activeOpen;
-  const activeDiffPct = activeOpen > 0 ? (activeDiff / activeOpen) * 100 : 0;
-  const isActiveUp = activeClose >= activeOpen;
+  const activeAvg = (activeHigh + activeLow + activeClose) / 3;
+
+  // Biến động được tính so với giá đóng cửa phiên liền trước (Giá tham chiếu chuẩn thị trường)
+  let refClose = activeOpen;
+  if (activeBarIndex > 0 && rangeBars[activeBarIndex - 1]) {
+    refClose = Number.parseFloat(rangeBars[activeBarIndex - 1].close);
+  } else {
+    const fullIndex = normalizedBars.findIndex((b) => b.tradingDate === activeBar.tradingDate);
+    if (fullIndex > 0 && normalizedBars[fullIndex - 1]) {
+      refClose = Number.parseFloat(normalizedBars[fullIndex - 1].close);
+    }
+  }
+
+  const activeDiff = activeClose - refClose;
+  const activeDiffPct = refClose > 0 ? (activeDiff / refClose) * 100 : 0;
+  const isActiveUp = activeDiff >= 0;
 
   // Latest bar close for current price horizontal line
   const latestBar = normalizedBars[normalizedBars.length - 1];
   const latestClose = Number.parseFloat(latestBar.close);
   const latestY = yPrice(latestClose);
+  const latestPrevBar = normalizedBars.length >= 2 ? normalizedBars[normalizedBars.length - 2] : null;
+  const latestRefClose = latestPrevBar ? Number.parseFloat(latestPrevBar.close) : latestClose;
+  const isLatestUp = latestClose >= latestRefClose;
 
   // Calculate Round "Nice Numbers" Price Ticks for the Right-Side Y-Axis
   const priceTicks = calculateNicePriceTicks(priceMin, priceMax, 6).map((val) => ({
@@ -588,10 +606,10 @@ export function StockChart({
           <span className="value font-mono" style={{ color: COLOR_DOWN }}>{formatChartPrice(activeLow)}</span>
         </div>
         <div className="ohlcv-item">
-          <span className="label">Đóng:</span>
-          <strong className="value font-mono" style={{ color: isActiveUp ? COLOR_UP : COLOR_DOWN }}>
-            {formatChartPrice(activeClose)}
-          </strong>
+          <span className="label">Trung bình:</span>
+          <span className="value font-mono text-amber-300">
+            {formatChartPrice(activeAvg)}
+          </span>
         </div>
         <div className="ohlcv-item diff">
           <span className="label">Biến động:</span>
@@ -899,7 +917,7 @@ export function StockChart({
                 width={MARGIN_RIGHT - 4}
                 height="18"
                 rx="2"
-                fill={COLOR_UP}
+                fill={isLatestUp ? COLOR_UP : COLOR_DOWN}
               />
               <text
                 x={WIDTH - MARGIN_RIGHT + 6}

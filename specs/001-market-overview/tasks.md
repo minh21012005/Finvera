@@ -487,3 +487,14 @@ quotes without maintaining or restarting for a static environment ticker list.
       Verify: focused unit tests prove one reconciliation after a coherent breadth snapshot, exact input links/history hash, no duplicate reconciliation for an unchanged bucket, and reason-coded withholding when provider contracts lack the required inputs.
       Depends: T074, T080, R-007A.
       Evidence (2026-08-24): `LiveMarketRegimeReconciliationServiceTests` and `TcbsLiveMarketIngestionServiceTests` passed 5/5; `mvnw -DskipTests package` and `git diff --check` passed. The runtime now persists linked, reason-coded withheld assessments after a newly accepted breadth bucket. A publishable label remains correctly gated on the missing provider inputs described by R-007A.
+- [x] T082 [FR-012, FR-017, DATA-009, DATA-010, NFR-007] Add regime read-repair for already accepted breadth snapshots in `finvera-be/src/main/java/com/minhnb/finvera_be/market/service/LiveMarketRegimeReconciliationService.java`, `TcbsLiveMarketIngestionService.java`, `BreadthService.java`, `MarketBreadthRepository.java`, and `MarketConfiguration.java`. If a breadth snapshot already exists but no same-or-newer `market-regime-v1` assessment exists, reconcile from accepted PostgreSQL data at startup and on duplicate TCBS breadth buckets; if a same-or-newer assessment exists, skip to avoid duplicate immutable rows.
+      Verify: focused unit tests prove read-repair on duplicate breadth buckets and no duplicate persistence when the latest assessment already covers the breadth as-of.
+      Depends: T081.
+      Evidence (2026-08-24): `LiveMarketRegimeReconciliationServiceTests` and `TcbsLiveMarketIngestionServiceTests` passed 7/7; `mvnw -DskipTests package` and `git diff --check` passed.
+
+## Phase 14: Provider-Compatible Live Regime V2
+
+- [x] T083 [FR-010-FR-014, FR-018, DATA-001, DATA-004, DATA-009, NFR-002, NFR-007] Add `market-regime-v2` as a parallel live rule in `finvera-be/src/main/java/com/minhnb/finvera_be/market/domain/regime/MarketRegimeV2.java`, persist its explicit rule version through `RegimeAssessmentService`, and switch live reconciliation to publish V2 from accepted VN-Index history plus TCBS aggregate breadth when mandatory inputs are present. Keep V1 immutable and update `spec.md`, `research.md`, `plan.md`, and `contracts/market-overview.openapi.yaml` for the new rule version.
+      Verify: domain and service tests prove V2 publishes with trend + aggregate breadth + one additional component, withholds when mandatory trend is missing, preserves input links/history hash, and never requires V1-only SMA50 breadth or liquidity inputs.
+      Depends: T082, R-007B.
+      Evidence (2026-08-24): backend targeted tests passed 15/15, frontend market-overview API parser tests passed 6/6, `mvnw -DskipTests package` passed, and `npm run build` passed.

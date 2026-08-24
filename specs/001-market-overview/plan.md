@@ -404,6 +404,18 @@ percentage-above-SMA50 measure and missing historical matched value cannot
 stand in for liquidity. Such cases are stored as reason-coded withheld
 assessments, not fabricated labels. This is the T081 runtime path for FR-017.
 
+## Phase 14: Provider-Compatible Live Regime V2
+
+`market-regime-v2` is a parallel rule version for the current private live
+provider mix. It keeps `market-regime-v1` immutable and does not reinterpret its
+missing-input constraints. V2 uses only inputs the implemented contracts prove
+available today: VN-Index trend, momentum, and volatility from accepted daily
+history, plus TCBS Thesis aggregate advancing/declining breadth. It excludes
+full-universe percent-above-SMA50 and liquidity history until a provider
+contract supplies those datasets. Publication requires trend and aggregate
+breadth plus at least one additional index-history component; otherwise the
+assessment is still persisted as reason-coded withheld data.
+
 ## Complexity Tracking
 
 | Violation/Addition | Why Required Now | Simpler Alternative Rejected | Approval/ADR | Removal or Review Trigger |

@@ -78,6 +78,13 @@ public class MarketConfiguration {
     }
 
     @Bean
+    ApplicationRunner marketRegimeReadRepair(BreadthService breadth,
+            LiveMarketRegimeReconciliationService regimeReconciliation) {
+        return arguments -> breadth.latest().ifPresent(snapshot ->
+                regimeReconciliation.reconcileIfMissingOrOlder(snapshot.tradingDate(), snapshot));
+    }
+
+    @Bean
     @ConditionalOnProperty(name = "finvera.market.fixture.bootstrap-enabled", havingValue = "true")
     @ConditionalOnProperty(name = "finvera.market.provider.mode", havingValue = "fixture")
     ApplicationRunner fixtureRuntimeBootstrap(FixtureRuntimeBootstrapService bootstrap) {

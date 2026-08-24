@@ -89,7 +89,7 @@ public class RegimeAssessmentService {
     private static MarketRegimeAssessmentEntity toEntity(UUID id, AssessmentCommand command,
             RegimeAssessment assessment, Instant calculatedAt) {
         return new MarketRegimeAssessmentEntity(id, command.tradingDate(), command.asOf(), calculatedAt,
-                MarketRegimeV1.RULE_VERSION, assessment.label() == null ? null : assessment.label().name(),
+                command.ruleVersion(), assessment.label() == null ? null : assessment.label().name(),
                 assessment.score(), assessment.confidence(), assessment.dataStatus().name(), assessment.completeness(),
                 assessment.factorAgreement(), assessment.boundaryDistance(), assessment.renormalized(),
                 assessment.reasonCodes(), command.supersedesAssessmentId());
@@ -114,12 +114,19 @@ public class RegimeAssessmentService {
                 assessment.getBoundaryDistance(), assessment.isRenormalized(), assessment.getReasonCodes(), supportingFactors);
     }
 
-    public record AssessmentCommand(LocalDate tradingDate, Instant asOf, RegimeAssessment assessment,
+    public record AssessmentCommand(LocalDate tradingDate, Instant asOf, String ruleVersion, RegimeAssessment assessment,
                                     UUID supersedesAssessmentId, List<InputLink> inputLinks,
                                     List<SourceValue> sourceValues) {
+        public AssessmentCommand(LocalDate tradingDate, Instant asOf, RegimeAssessment assessment,
+                UUID supersedesAssessmentId, List<InputLink> inputLinks, List<SourceValue> sourceValues) {
+            this(tradingDate, asOf, MarketRegimeV1.RULE_VERSION, assessment, supersedesAssessmentId,
+                    inputLinks, sourceValues);
+        }
+
         public AssessmentCommand {
             Objects.requireNonNull(tradingDate, "tradingDate");
             Objects.requireNonNull(asOf, "asOf");
+            Objects.requireNonNull(ruleVersion, "ruleVersion");
             Objects.requireNonNull(assessment, "assessment");
             inputLinks = List.copyOf(inputLinks);
             sourceValues = List.copyOf(sourceValues);

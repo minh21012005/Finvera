@@ -58,6 +58,7 @@ export interface MarketBreadth {
 export type RegimeLabel = "BULL" | "EARLY_BULL" | "SIDEWAYS" | "EARLY_BEAR" | "BEAR";
 export type FactorDirection = "POSITIVE" | "NEGATIVE" | "NEUTRAL";
 export type RegimeFactorCode = "TREND" | "BREADTH" | "MOMENTUM" | "LIQUIDITY" | "VOLATILITY";
+export type RegimeRuleVersion = "market-regime-v1" | "market-regime-v2";
 
 export interface MarketRegimeFactor {
   code: RegimeFactorCode;
@@ -71,7 +72,7 @@ export interface MarketRegimeFactor {
 
 export interface MarketRegime {
   dataStatus: DataStatus;
-  ruleVersion: "market-regime-v1";
+  ruleVersion: RegimeRuleVersion;
   label: RegimeLabel | null;
   score: number | null;
   confidence: number | null;
@@ -111,6 +112,7 @@ const DIRECTIONS = new Set<Exclude<Direction, null>>(["UP", "DOWN", "UNCHANGED"]
 const REGIME_LABELS = new Set<RegimeLabel>(["BULL", "EARLY_BULL", "SIDEWAYS", "EARLY_BEAR", "BEAR"]);
 const FACTOR_DIRECTIONS = new Set<FactorDirection>(["POSITIVE", "NEGATIVE", "NEUTRAL"]);
 const FACTOR_CODES = new Set<RegimeFactorCode>(["TREND", "BREADTH", "MOMENTUM", "LIQUIDITY", "VOLATILITY"]);
+const REGIME_RULE_VERSIONS = new Set<RegimeRuleVersion>(["market-regime-v1", "market-regime-v2"]);
 const SESSION_STATES = new Set<SessionState>(["PRE_OPEN", "OPEN", "BREAK", "INTERRUPTED", "CLOSED", "NON_TRADING_DAY", "UNKNOWN"]);
 const WARNING_SEVERITIES = new Set<WarningSeverity>(["INFO", "WARNING", "ERROR"]);
 const WARNING_SECTIONS = new Set<WarningSection>(["OVERVIEW", "SESSION", "INDEX", "BREADTH", "REGIME"]);
@@ -154,7 +156,8 @@ export function parseMarketOverview(value: unknown): MarketOverview {
 
 function parseRegime(value: unknown): MarketRegime {
   const regime = record(value, "regime");
-  if (regime.ruleVersion !== "market-regime-v1") throw new Error("Unexpected regime ruleVersion");
+  const ruleVersion = text(regime.ruleVersion, "regime ruleVersion");
+  if (!REGIME_RULE_VERSIONS.has(ruleVersion as RegimeRuleVersion)) throw new Error("Unexpected regime ruleVersion");
   if (regime.confidenceMeaning !== "ASSESSMENT_QUALITY_NOT_FORECAST_PROBABILITY") {
     throw new Error("Unexpected regime confidence meaning");
   }
@@ -172,7 +175,7 @@ function parseRegime(value: unknown): MarketRegime {
   if (factors.length > 5) throw new Error("regime factors may contain at most five entries");
   return {
     dataStatus: status(regime.dataStatus, "regime dataStatus"),
-    ruleVersion: "market-regime-v1",
+    ruleVersion: ruleVersion as RegimeRuleVersion,
     label,
     score,
     confidence,

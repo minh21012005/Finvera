@@ -39,6 +39,7 @@ class TcbsLiveMarketIngestionServiceTests {
         when(referenceData.resolveSession(any(), any()))
                 .thenReturn(new MarketReferenceDataService.SessionContext(SessionState.OPEN, tradingDate));
         lenient().when(breadth.persistProviderAggregate(any(), any(), any(), any(), any())).thenReturn(Optional.empty());
+        lenient().when(breadth.latestFor(any())).thenReturn(Optional.empty());
         service = new TcbsLiveMarketIngestionService(ingestion, breadth, referenceData, regimeReconciliation);
     }
 
@@ -91,7 +92,7 @@ class TcbsLiveMarketIngestionServiceTests {
     }
 
     @Test
-    void triggersRegimeReconciliationOnlyForANewlyPersistedCoherentBreadthBucket() {
+    void triggersRegimeReconciliationForANewlyPersistedCoherentBreadthBucket() {
         var persisted = new BreadthService.Snapshot(java.util.UUID.randomUUID(), tradingDate,
                 Instant.parse("2026-08-24T03:00:00Z"), com.minhnb.finvera_be.market.domain.model.MarketTypes.DataStatus.CURRENT,
                 new BreadthCalculator.Result(400, 200, 100, 0, 700, java.util.List.of()), "provider", "b".repeat(64));
@@ -101,7 +102,22 @@ class TcbsLiveMarketIngestionServiceTests {
         service.accept(index(3, IndexCode.HNX_INDEX, "300", "2", 80, 40, 20));
         service.accept(index(5, IndexCode.UPCOM_INDEX, "100", "1", 120, 60, 30));
 
-        verify(regimeReconciliation).reconcile(tradingDate, persisted);
+        verify(regimeReconciliation).reconcileIfMissingOrOlder(tradingDate, persisted);
+    }
+
+    @Test
+    void repairsMissingRegimeWhenCoherentBreadthBucketAlreadyExists() {
+        var existing = new BreadthService.Snapshot(java.util.UUID.randomUUID(), tradingDate,
+                Instant.parse("2026-08-24T03:00:00Z"), com.minhnb.finvera_be.market.domain.model.MarketTypes.DataStatus.CURRENT,
+                new BreadthCalculator.Result(400, 200, 100, 0, 700, java.util.List.of()), "provider", "b".repeat(64));
+        when(breadth.persistProviderAggregate(any(), any(), any(), any(), any())).thenReturn(Optional.empty());
+        when(breadth.latestFor(tradingDate)).thenReturn(Optional.of(existing));
+
+        service.accept(index(1, IndexCode.VN_INDEX, "1728", "10", 200, 100, 50));
+        service.accept(index(3, IndexCode.HNX_INDEX, "300", "2", 80, 40, 20));
+        service.accept(index(5, IndexCode.UPCOM_INDEX, "100", "1", 120, 60, 30));
+
+        verify(regimeReconciliation).reconcileIfMissingOrOlder(tradingDate, existing);
     }
 
     private TcbsThesisFrameMapper.IndexUpdate index(int number, IndexCode code, String level, String change,

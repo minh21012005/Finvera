@@ -7,7 +7,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Objects;
 
-/** Immutable result of a single {@code market-regime-v1} calculation. */
+/** Immutable result of a single versioned market-regime calculation. */
 public record RegimeAssessment(
         DataStatus dataStatus,
         RegimeLabel label,

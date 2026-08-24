@@ -2,6 +2,7 @@ package com.minhnb.finvera_be.market.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -46,13 +47,80 @@ class LiveMarketRegimeReconciliationServiceTests {
         ArgumentCaptor<RegimeAssessmentService.AssessmentCommand> command =
                 ArgumentCaptor.forClass(RegimeAssessmentService.AssessmentCommand.class);
         verify(assessments).persist(command.capture());
+        assertThat(command.getValue().ruleVersion()).isEqualTo("market-regime-v2");
         assertThat(command.getValue().assessment().label()).isNull();
         assertThat(command.getValue().assessment().reasonCodes()).contains(
-                "INSUFFICIENT_COMPONENT_COMPLETENESS", "BREADTH_SMA50_COVERAGE_UNAVAILABLE",
-                "LIQUIDITY_HISTORY_UNAVAILABLE");
+                "INSUFFICIENT_COMPONENT_COMPLETENESS", "TREND_COMPONENT_UNAVAILABLE");
         assertThat(command.getValue().inputLinks()).extracting(RegimeAssessmentService.InputLink::inputRole)
                 .containsExactly("VN_INDEX_CURRENT", "BREADTH_CURRENT", "VN_INDEX_DAILY_HISTORY");
         assertThat(command.getValue().inputLinks().getLast().inputSetHash()).matches("[0-9a-f]{64}");
+    }
+
+    @Test
+    void publishesV2WhenAcceptedHistoryAndAggregateBreadthAreSufficient() {
+        UUID indexId = UUID.randomUUID();
+        LocalDate date = LocalDate.of(2026, 8, 24);
+        when(indexes.findByCode("VN_INDEX")).thenReturn(Optional.of(new MarketIndexEntity(
+                indexId, "VN_INDEX", "VNINDEX", "VN-Index", "HOSE", date.minusYears(10), null)));
+        when(snapshots.findAcceptedDailyHistory(indexId, "TCBS_IFLASH_MARKET_DATA", date))
+                .thenReturn(history(date, 253));
+        var service = new LiveMarketRegimeReconciliationService(indexes, snapshots, assessments);
+        var breadth = new BreadthService.Snapshot(UUID.randomUUID(), date, Instant.parse("2026-08-24T03:00:00Z"),
+                DataStatus.CURRENT, new BreadthCalculator.Result(450, 150, 100, 0, 700, List.of()), "provider", "a".repeat(64));
+
+        service.reconcile(date, breadth);
+
+        ArgumentCaptor<RegimeAssessmentService.AssessmentCommand> command =
+                ArgumentCaptor.forClass(RegimeAssessmentService.AssessmentCommand.class);
+        verify(assessments).persist(command.capture());
+        assertThat(command.getValue().ruleVersion()).isEqualTo("market-regime-v2");
+        assertThat(command.getValue().assessment().label()).isNotNull();
+        assertThat(command.getValue().assessment().score()).isNotNull();
+        assertThat(command.getValue().assessment().reasonCodes())
+                .doesNotContain("BREADTH_SMA50_COVERAGE_UNAVAILABLE", "LIQUIDITY_HISTORY_UNAVAILABLE");
+    }
+
+    @Test
+    void skipsReadRepairWhenLatestAssessmentAlreadyCoversBreadth() {
+        LocalDate date = LocalDate.of(2026, 8, 24);
+        var service = new LiveMarketRegimeReconciliationService(indexes, snapshots, assessments);
+        var breadth = new BreadthService.Snapshot(UUID.randomUUID(), date, Instant.parse("2026-08-24T03:00:00Z"),
+                DataStatus.CURRENT, new BreadthCalculator.Result(300, 200, 100, 0, 600, List.of()), "provider", "a".repeat(64));
+        when(assessments.latestFor(date)).thenReturn(Optional.of(new RegimeAssessmentService.Snapshot(
+                date, Instant.parse("2026-08-24T03:00:00Z"), "market-regime-v2",
+                new com.minhnb.finvera_be.market.domain.regime.RegimeAssessment(
+                        DataStatus.PARTIAL, null, null, null, BigDecimal.ZERO, null, null,
+                        false, List.of("BREADTH_SMA50_COVERAGE_UNAVAILABLE"), List.of()))));
+
+        service.reconcileIfMissingOrOlder(date, breadth);
+
+        verify(indexes, never()).findByCode(any());
+        verify(assessments, never()).persist(any());
+    }
+
+    @Test
+    void readRepairReconcilesWhenLatestAssessmentUsesOlderRuleVersion() {
+        UUID indexId = UUID.randomUUID();
+        LocalDate date = LocalDate.of(2026, 8, 24);
+        when(assessments.latestFor(date)).thenReturn(Optional.of(new RegimeAssessmentService.Snapshot(
+                date, Instant.parse("2026-08-24T03:00:00Z"), "market-regime-v1",
+                new com.minhnb.finvera_be.market.domain.regime.RegimeAssessment(
+                        DataStatus.PARTIAL, null, null, null, BigDecimal.ZERO, null, null,
+                        false, List.of("BREADTH_SMA50_COVERAGE_UNAVAILABLE"), List.of()))));
+        when(indexes.findByCode("VN_INDEX")).thenReturn(Optional.of(new MarketIndexEntity(
+                indexId, "VN_INDEX", "VNINDEX", "VN-Index", "HOSE", date.minusYears(10), null)));
+        when(snapshots.findAcceptedDailyHistory(indexId, "TCBS_IFLASH_MARKET_DATA", date))
+                .thenReturn(history(date, 253));
+        var service = new LiveMarketRegimeReconciliationService(indexes, snapshots, assessments);
+        var breadth = new BreadthService.Snapshot(UUID.randomUUID(), date, Instant.parse("2026-08-24T03:00:00Z"),
+                DataStatus.CURRENT, new BreadthCalculator.Result(450, 150, 100, 0, 700, List.of()), "provider", "a".repeat(64));
+
+        service.reconcileIfMissingOrOlder(date, breadth);
+
+        ArgumentCaptor<RegimeAssessmentService.AssessmentCommand> command =
+                ArgumentCaptor.forClass(RegimeAssessmentService.AssessmentCommand.class);
+        verify(assessments).persist(command.capture());
+        assertThat(command.getValue().ruleVersion()).isEqualTo("market-regime-v2");
     }
 
     private static List<MarketIndexSnapshotEntity> history(LocalDate end, int count) {

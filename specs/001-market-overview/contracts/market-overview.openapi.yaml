@@ -260,7 +260,7 @@ components:
           $ref: "#/components/schemas/DataStatus"
         ruleVersion:
           type: string
-          const: market-regime-v1
+          enum: [market-regime-v1, market-regime-v2]
         label:
           oneOf:
             - $ref: "#/components/schemas/RegimeLabel"

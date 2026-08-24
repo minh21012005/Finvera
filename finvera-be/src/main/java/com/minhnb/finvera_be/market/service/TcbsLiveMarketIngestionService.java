@@ -82,7 +82,8 @@ public final class TcbsLiveMarketIngestionService implements Consumer<TcbsThesis
                 advancing + declining + unchanged, List.of("PROVIDER_AGGREGATE_BREADTH"));
         breadth.persistProviderAggregate(tradingDate, bucket, UNIVERSE_VERSION, result,
                 breadthHash(tradingDate, bucket, required))
-                .ifPresent(snapshot -> regimeReconciliation.reconcile(tradingDate, snapshot));
+                .or(() -> breadth.latestFor(tradingDate))
+                .ifPresent(snapshot -> regimeReconciliation.reconcileIfMissingOrOlder(tradingDate, snapshot));
     }
 
     private static int sum(Map<Integer, TcbsThesisFrameMapper.IndexUpdate> updates,
