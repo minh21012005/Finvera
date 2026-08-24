@@ -80,6 +80,9 @@ finvera:
     technical:
       warmup:
         enabled: ${FINVERA_STOCK_TECHNICAL_WARMUP_ENABLED:false}
+    valuation:
+      warmup:
+        enabled: ${FINVERA_STOCK_VALUATION_WARMUP_ENABLED:false}
 
 management:
   endpoints:

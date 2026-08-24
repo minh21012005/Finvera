@@ -122,7 +122,7 @@ def export_daily_bars_for(
 def export_fundamentals_for(symbol: str, period: str, unit_scale: int, output: Path) -> None:
     income_statement, ratio, cash_flow = export_fundamentals.fetch_tables(symbol, period)
     records = export_fundamentals.build_metric_records(symbol, income_statement, ratio, cash_flow)
-    package = export_fundamentals.build_package(records, symbol, "0.1.0", unit_scale)
+    package = export_fundamentals.build_package(records, symbol, export_fundamentals.TOOL_VERSION, unit_scale)
     path = output / export_fundamentals.output_filename(symbol, period)
     path.write_text(json.dumps(package, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
@@ -145,9 +145,16 @@ def daily_bars_current(symbol: str, entry: dict[str, Any], args: argparse.Namesp
 
 
 def fundamentals_current(symbol: str, entry: dict[str, Any], args: argparse.Namespace) -> bool:
+    path = args.output / export_fundamentals.output_filename(symbol, args.period)
+    if not path.exists():
+        return False
+    try:
+        package = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return False
     return (entry.get("fundamentals") == DONE
             and entry.get("fundamentals_period") == args.period
-            and (args.output / export_fundamentals.output_filename(symbol, args.period)).exists())
+            and package.get("toolVersion") == export_fundamentals.TOOL_VERSION)
 
 
 def process_symbol(

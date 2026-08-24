@@ -667,3 +667,32 @@ depends on a live provider.
 **Determinism check**: a replay test recomputes every persisted indicator and
 valuation result from its recorded inputs and rule version and asserts exact
 equality of the stored decimal values. This is the direct evidence for SC-003.
+
+---
+
+## R-014 — 2026-08-25 private-data valuation remediation
+
+**Decision**: Keep `valuation-v1` formulas and publishability unchanged, but
+fix the accepted data pipeline and refresh materialization:
+
+1. Normalize Vnstock/KBS per-share fields before import. Observed private
+   packages carried `earnings_per_share_vnd` values at roughly 1000x the VND/
+   share value required by `valuation-v1`, while `unitScale=1`. The exporter
+   now normalizes those per-share fields before packaging.
+2. Keep Java `unitScale` normalization for statement-level monetary values only.
+   `EPS` and `DIVIDEND_PER_SHARE` are per-share facts and must not be multiplied
+   by a report-wide statement scale.
+3. Add an owner-triggered valuation warmup stage to materialize
+   `valuation_assessment` rows for the listed universe after data refresh.
+
+**Rationale**: Real private DB inspection showed fundamentals had been imported,
+but valuation either stayed lazy (only symbols opened on the detail page had
+rows) or was withheld because accepted EPS was inflated and comparison coverage
+was insufficient. The fix improves the data pipeline and persistence coverage
+without fabricating balance-sheet-derived inputs or weakening the published
+`valuation-v1` gate.
+
+**Constraints retained**: `PB` and `EV_EBITDA` remain unavailable when KBS does
+not provide accepted balance-sheet inputs. Symbols with fewer than the required
+comparison points or metric weight still return withheld valuation with reason
+codes rather than a guessed classification.

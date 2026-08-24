@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any
 
 CONTRACT_VERSION = "vnstock-fundamentals-v1"
+TOOL_VERSION = "0.2.0"
 SOURCE = "VNSTOCK_KBS"
 
 # item_id -> Finvera metric_code, confirmed by the G-01 sanitized evidence probe only.
@@ -40,6 +41,8 @@ RATIO_MAP = {
     "debt_to_equity": "DEBT_TO_EQUITY",
 }
 CASH_FLOW_MAP: dict[str, str] = {}  # no confirmed unambiguous item_id yet; nothing mapped
+KBS_PER_SHARE_DIVISOR = Decimal("1000")
+KBS_PER_SHARE_METRIC_CODES = {"EPS", "DIVIDEND_PER_SHARE"}
 
 QUARTER_COLUMN = re.compile(r"^(\d{4})-Q([1-4])$")
 YEAR_COLUMN = re.compile(r"^(\d{4})$")
@@ -49,6 +52,21 @@ def decimal_string(value: Any) -> str:
     decimal = Decimal(str(value))
     if decimal.is_nan() or decimal.is_infinite():
         raise ValueError("metric value must be a finite decimal")
+    return format(decimal, "f")
+
+
+def normalize_metric_value(metric_code: str, value: Any) -> str:
+    decimal = Decimal(str(value))
+    if decimal.is_nan() or decimal.is_infinite():
+        raise ValueError("metric value must be a finite decimal")
+    if metric_code in KBS_PER_SHARE_METRIC_CODES:
+        # KBS/vnstock 4.0.6 exposes per-share fields such as
+        # earnings_per_share_vnd in thousandths of VND/share in the observed
+        # package shape (e.g. 1,036,000 for an EPS that should feed valuation
+        # as 1,036 VND/share). Normalize before the canonical package so Java
+        # import stores a true per-share value and unitScale remains reserved
+        # for statement-level money values.
+        decimal = decimal / KBS_PER_SHARE_DIVISOR
     return format(decimal, "f")
 
 
@@ -101,7 +119,7 @@ def pivot_wide_table(frame, item_id_map: dict[str, str], source_report: str) -> 
             records.append({
                 "metricCode": metric_code, "periodType": period_type, "fiscalYear": year,
                 "fiscalQuarter": quarter, "periodStart": period_start, "periodEnd": period_end,
-                "value": decimal_string(value), "sourceReport": source_report,
+                "value": normalize_metric_value(metric_code, value), "sourceReport": source_report,
             })
     return records
 
@@ -169,7 +187,7 @@ def main() -> None:
     args = parser.parse_args()
     income_statement, ratio, cash_flow = fetch_tables(args.symbol, args.period)
     records = build_metric_records(args.symbol, income_statement, ratio, cash_flow)
-    package = build_package(records, args.symbol, "0.1.0", args.unit_scale)
+    package = build_package(records, args.symbol, TOOL_VERSION, args.unit_scale)
     args.output.mkdir(parents=True, exist_ok=True)
     path = args.output / output_filename(args.symbol, args.period)
     path.write_text(json.dumps(package, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

@@ -17,6 +17,7 @@ import java.util.Set;
 public final class FundamentalReportAcceptance {
 
     public static final String CATALOG_VERSION_V1 = "fundamental-metric-catalog-v1";
+    private static final Set<String> PER_SHARE_METRIC_CODES = Set.of("EPS", "DIVIDEND_PER_SHARE");
 
     public static final Set<String> ALLOWED_METRIC_CODES = Set.of(
             "REVENUE",
@@ -78,8 +79,13 @@ public final class FundamentalReportAcceptance {
                 if (m.value() == null) {
                     return AcceptanceResult.rejected("INVALID_METRIC");
                 }
-                // Normalize value with unitScale
-                BigDecimal normalizedValue = m.value().multiply(scaleMultiplier);
+                // Normalize statement-level monetary values with unitScale. Per-share
+                // figures are already VND/share and must not inherit the statement
+                // currency scale, otherwise valuation ratios are inflated/deflated by
+                // the report unit multiplier (DATA-003/DATA-007).
+                BigDecimal normalizedValue = PER_SHARE_METRIC_CODES.contains(m.metricCode())
+                        ? m.value()
+                        : m.value().multiply(scaleMultiplier);
                 acceptedMetrics.add(new AcceptedMetric(
                         m.metricCode(),
                         normalizedValue,

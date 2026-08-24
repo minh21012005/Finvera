@@ -2,7 +2,7 @@
 .SYNOPSIS
     Catches the local dev DB up after being away for a while: crawls fresh Vnstock prices,
     registers any newly-listed symbols, imports the new prices/fundamentals, and backfills the
-    technical-indicator gap -- all in one command.
+    technical-indicator and valuation gaps -- all in one command.
 
 .DESCRIPTION
     Runs the exact sequence documented in docs/runbooks/go-live-setup.md 3.7/6.3, automated:
@@ -12,7 +12,7 @@
          ApplicationRunner ordering is not an implicit dependency guarantee.
       4. Restart with market-overview index-history import ON, wait, stop.
       5. Restart with daily-bar + fundamentals import ON, wait, stop.
-      6. Restart with the technical-indicator warmup ON, wait, stop.
+      6. Restart with the technical-indicator + valuation warmups ON, wait, stop.
     Every import here is safe/idempotent (only adds missing rows or backfills gaps), so this is
     safe to run after a 3-day gap, a 7-day gap, or any length of time.
 
@@ -63,6 +63,7 @@ $ManagedRuntimeFlags = @(
     "FINVERA_STOCK_IMPORT_FUNDAMENTALS_ENABLED",
     "FINVERA_STOCK_IMPORT_SECTOR_REFERENCE_ENABLED",
     "FINVERA_STOCK_TECHNICAL_WARMUP_ENABLED",
+    "FINVERA_STOCK_VALUATION_WARMUP_ENABLED",
     "FINVERA_TCBS_LIVE_ENABLED",
     "FINVERA_STOCK_QUOTE_LIVE_ENABLED"
 )
@@ -233,9 +234,9 @@ Invoke-BackendStage -Name "Buoc 5/6: Nap gia + bao cao tai chinh moi" `
     -WaitPatterns @("stock_import dataset=daily-bar total=", "stock_import dataset=fundamentals total=") `
     -TimeoutSec 1800
 
-Set-StageFlags @("FINVERA_STOCK_TECHNICAL_WARMUP_ENABLED")
-Invoke-BackendStage -Name "Buoc 6/6: Tinh bu chi bao ky thuat (MA/RSI/MACD...)" `
-    -WaitPatterns @("technical_indicator_warmup total=") `
+Set-StageFlags @("FINVERA_STOCK_TECHNICAL_WARMUP_ENABLED", "FINVERA_STOCK_VALUATION_WARMUP_ENABLED")
+Invoke-BackendStage -Name "Buoc 6/6: Tinh bu chi bao ky thuat + dinh gia" `
+    -WaitPatterns @("technical_indicator_warmup total=", "valuation_warmup total=") `
     -TimeoutSec 900
 
 Write-Host ""

@@ -169,6 +169,31 @@ class FundamentalReportTests {
     }
 
     @Test
+    void unitScaleDoesNotApplyToPerShareMetrics() {
+        // EPS and dividends per share are already per-share VND figures; applying the
+        // report currency scale would inflate valuation ratios by the same multiplier.
+        var acceptance = new FundamentalReportAcceptance();
+        var metrics = List.of(
+                new FundamentalReportAcceptance.MetricInput("EPS", new BigDecimal("1507.000000"), "DEFINED", null),
+                new FundamentalReportAcceptance.MetricInput("DIVIDEND_PER_SHARE",
+                        new BigDecimal("2500.000000"), "DEFINED", null),
+                new FundamentalReportAcceptance.MetricInput("NET_PROFIT",
+                        new BigDecimal("11000.000000"), "DEFINED", null));
+        var input = new FundamentalReportAcceptance.ReportInput(
+                "QUARTER", 2026, 2,
+                LocalDate.of(2026, 4, 1), LocalDate.of(2026, 6, 30),
+                "CONSOLIDATED", "REVIEWED", "VND", 1_000_000, CATALOG_V1,
+                metrics);
+
+        var result = acceptance.accept(input);
+
+        assertThat(result.accepted()).isTrue();
+        assertThat(findMetric(result, "EPS").value()).isEqualByComparingTo("1507.000000");
+        assertThat(findMetric(result, "DIVIDEND_PER_SHARE").value()).isEqualByComparingTo("2500.000000");
+        assertThat(findMetric(result, "NET_PROFIT").value()).isEqualByComparingTo("11000000000.000000");
+    }
+
+    @Test
     void unitScaleOneKeepsValueUnchanged() {
         var acceptance = new FundamentalReportAcceptance();
         BigDecimal raw = new BigDecimal("1675.500000");
