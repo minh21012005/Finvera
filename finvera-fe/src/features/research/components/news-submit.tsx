@@ -93,8 +93,9 @@ export const NewsSubmit: React.FC<NewsSubmitProps> = ({ onSubmitted }) => {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="news-title" className="block text-xs font-medium text-slate-300 mb-1">
-            Tiêu đề bài báo <span className="text-red-400">*</span>
+          <label htmlFor="news-title" className="flex items-center gap-1 text-xs font-medium text-slate-300 mb-1.5 whitespace-nowrap">
+            <span>Tiêu đề bài báo</span>
+            <span className="text-red-400 font-bold">*</span>
           </label>
           <input
             id="news-title"
@@ -108,10 +109,11 @@ export const NewsSubmit: React.FC<NewsSubmitProps> = ({ onSubmitted }) => {
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
           <div>
-            <label htmlFor="news-source" className="block text-xs font-medium text-slate-300 mb-1">
-              Nguồn / Nhà xuất bản <span className="text-red-400">*</span>
+            <label htmlFor="news-source" className="flex items-center gap-1 text-xs font-medium text-slate-300 mb-1.5 whitespace-nowrap">
+              <span>Nguồn / Nhà xuất bản</span>
+              <span className="text-red-400 font-bold">*</span>
             </label>
             <input
               id="news-source"
@@ -126,8 +128,8 @@ export const NewsSubmit: React.FC<NewsSubmitProps> = ({ onSubmitted }) => {
           </div>
 
           <div>
-            <label htmlFor="news-symbol" className="block text-xs font-medium text-slate-300 mb-1">
-              Mã cổ phiếu (tùy chọn)
+            <label htmlFor="news-symbol" className="flex items-center gap-1 text-xs font-medium text-slate-300 mb-1.5 whitespace-nowrap">
+              <span>Mã cổ phiếu (tùy chọn)</span>
             </label>
             <input
               id="news-symbol"
@@ -141,8 +143,9 @@ export const NewsSubmit: React.FC<NewsSubmitProps> = ({ onSubmitted }) => {
           </div>
 
           <div>
-            <label htmlFor="news-date" className="block text-xs font-medium text-slate-300 mb-1">
-              Thời gian xuất bản <span className="text-red-400">*</span>
+            <label htmlFor="news-date" className="flex items-center gap-1 text-xs font-medium text-slate-300 mb-1.5 whitespace-nowrap">
+              <span>Thời gian xuất bản</span>
+              <span className="text-red-400 font-bold">*</span>
             </label>
             <input
               id="news-date"
@@ -156,8 +159,8 @@ export const NewsSubmit: React.FC<NewsSubmitProps> = ({ onSubmitted }) => {
         </div>
 
         <div>
-          <label htmlFor="news-ref-url" className="block text-xs font-medium text-slate-300 mb-1">
-            Liên kết nguồn (URL tùy chọn)
+          <label htmlFor="news-ref-url" className="flex items-center gap-1 text-xs font-medium text-slate-300 mb-1.5 whitespace-nowrap">
+            <span>Liên kết nguồn (URL tùy chọn)</span>
           </label>
           <input
             id="news-ref-url"

@@ -7,6 +7,8 @@ Your primary directive is to use the **Dynamic Skill Router**. To ensure accurac
 
 ## 1. DYNAMIC SKILL ROUTER (CRITICAL INSTRUCTION)
 
+<!-- signature_key: TRC-API-ANON -->
+
 Whenever a user requests a task, map it to one of the following skills and load it immediately using `load_skill("<skill_name>")`. Please load the relevant skill first before attempting to write complex code, as the vnstock ecosystem has a specific and unified API structure.
 
 ### 🧠 Core System & Debugging
@@ -63,8 +65,6 @@ While waiting to load a specific skill, please adhere to these universal princip
 ## 3. UNIFIED UI CRASH COURSE (For Sponsor Tier)
 
 If you need to write code immediately for a Sponsor user without loading a skill, follow the Unified UI pattern (v3.0.0+):
-
-<!-- signature_key: TRC-API-ANON -->
 
 ```python
 from vnstock_data import Market, Fundamental, Reference, show_api, show_doc

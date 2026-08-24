@@ -96,7 +96,7 @@ export function DocumentList({
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 pb-4 border-b border-slate-800/80">
-        <h3 className="text-base font-semibold text-slate-100 flex items-center gap-2.5">
+        <h3 className="text-base font-semibold text-slate-100 flex items-center gap-2.5 shrink-0">
           <Files size={18} className="text-cyan-400" />
           <span>Kho Tài liệu Đã Tải lên</span>
           <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 font-mono text-cyan-300 font-semibold">
@@ -104,18 +104,18 @@ export function DocumentList({
           </span>
         </h3>
 
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <div className="relative">
-            <input
-              type="text"
-              className="bg-slate-950 border border-slate-800 rounded-lg pl-3 pr-3 py-1.5 text-xs text-slate-100 placeholder-slate-500 uppercase focus:outline-none focus:border-cyan-500 w-32"
-              placeholder="Mã CP (FPT...)"
-              value={symbolFilter}
-              onChange={(e) => onSymbolFilterChange(e.target.value)}
-            />
-          </div>
+        <div className="flex items-center gap-2.5 flex-nowrap sm:ml-auto">
+          <input
+            type="text"
+            className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1 text-xs text-slate-100 placeholder-slate-500 uppercase focus:outline-none focus:border-cyan-500 shrink-0"
+            style={{ width: "130px", height: "32px" }}
+            placeholder="MÃ CP (FPT...)"
+            value={symbolFilter}
+            onChange={(e) => onSymbolFilterChange(e.target.value)}
+          />
           <select
-            className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-cyan-500 cursor-pointer"
+            className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1 text-xs text-slate-100 focus:outline-none focus:border-cyan-500 cursor-pointer shrink-0"
+            style={{ width: "auto", height: "32px" }}
             value={typeFilter}
             onChange={(e) => onTypeFilterChange(e.target.value)}
           >
@@ -129,7 +129,8 @@ export function DocumentList({
           </select>
           <button
             type="button"
-            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer font-medium"
+            className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer font-medium shrink-0 whitespace-nowrap"
+            style={{ height: "32px" }}
             onClick={onRefresh}
           >
             <RotateCw size={13} />
