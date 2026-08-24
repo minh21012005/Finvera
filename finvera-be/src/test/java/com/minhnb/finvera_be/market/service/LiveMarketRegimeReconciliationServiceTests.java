@@ -89,13 +89,40 @@ class LiveMarketRegimeReconciliationServiceTests {
         when(assessments.latestFor(date)).thenReturn(Optional.of(new RegimeAssessmentService.Snapshot(
                 date, Instant.parse("2026-08-24T03:00:00Z"), "market-regime-v2",
                 new com.minhnb.finvera_be.market.domain.regime.RegimeAssessment(
-                        DataStatus.PARTIAL, null, null, null, BigDecimal.ZERO, null, null,
-                        false, List.of("BREADTH_SMA50_COVERAGE_UNAVAILABLE"), List.of()))));
+                        DataStatus.CURRENT, com.minhnb.finvera_be.market.domain.model.MarketTypes.RegimeLabel.EARLY_BULL,
+                        62, 90, BigDecimal.valueOf(100), BigDecimal.valueOf(80), BigDecimal.valueOf(70),
+                        false, List.of(), List.of()))));
 
         service.reconcileIfMissingOrOlder(date, breadth);
 
         verify(indexes, never()).findByCode(any());
         verify(assessments, never()).persist(any());
+    }
+
+    @Test
+    void readRepairReconcilesWhenLatestV2IsStillWithheld() {
+        UUID indexId = UUID.randomUUID();
+        LocalDate date = LocalDate.of(2026, 8, 24);
+        when(assessments.latestFor(date)).thenReturn(Optional.of(new RegimeAssessmentService.Snapshot(
+                date, Instant.parse("2026-08-24T03:00:00Z"), "market-regime-v2",
+                new com.minhnb.finvera_be.market.domain.regime.RegimeAssessment(
+                        DataStatus.PARTIAL, null, null, null, BigDecimal.ZERO, null, null,
+                        false, List.of("TREND_COMPONENT_UNAVAILABLE"), List.of()))));
+        when(indexes.findByCode("VN_INDEX")).thenReturn(Optional.of(new MarketIndexEntity(
+                indexId, "VN_INDEX", "VNINDEX", "VN-Index", "HOSE", date.minusYears(10), null)));
+        when(snapshots.findAcceptedDailyHistory(indexId, "TCBS_IFLASH_MARKET_DATA", date))
+                .thenReturn(history(date, 253));
+        var service = new LiveMarketRegimeReconciliationService(indexes, snapshots, assessments);
+        var breadth = new BreadthService.Snapshot(UUID.randomUUID(), date, Instant.parse("2026-08-24T03:00:00Z"),
+                DataStatus.CURRENT, new BreadthCalculator.Result(450, 150, 100, 0, 700, List.of()), "provider", "a".repeat(64));
+
+        service.reconcileIfMissingOrOlder(date, breadth);
+
+        ArgumentCaptor<RegimeAssessmentService.AssessmentCommand> command =
+                ArgumentCaptor.forClass(RegimeAssessmentService.AssessmentCommand.class);
+        verify(assessments).persist(command.capture());
+        assertThat(command.getValue().ruleVersion()).isEqualTo("market-regime-v2");
+        assertThat(command.getValue().assessment().label()).isNotNull();
     }
 
     @Test

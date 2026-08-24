@@ -45,12 +45,18 @@ public class LiveMarketRegimeReconciliationService {
         Objects.requireNonNull(tradingDate, "tradingDate");
         Objects.requireNonNull(breadth, "breadth");
         var latest = assessments.latestFor(tradingDate);
-        if (latest.isPresent()
-                && MarketRegimeV2.RULE_VERSION.equals(latest.orElseThrow().ruleVersion())
-                && !latest.orElseThrow().asOf().isBefore(breadth.asOf())) {
+        if (latest.isPresent() && coversBreadthWithPublishedV2(latest.orElseThrow(), breadth.asOf())) {
             return;
         }
         reconcile(tradingDate, breadth);
+    }
+
+    private static boolean coversBreadthWithPublishedV2(RegimeAssessmentService.Snapshot latest, Instant breadthAsOf) {
+        return MarketRegimeV2.RULE_VERSION.equals(latest.ruleVersion())
+                && !latest.asOf().isBefore(breadthAsOf)
+                && latest.assessment().label() != null
+                && latest.assessment().score() != null
+                && latest.assessment().confidence() != null;
     }
 
     public void reconcile(LocalDate tradingDate, BreadthService.Snapshot breadth) {
