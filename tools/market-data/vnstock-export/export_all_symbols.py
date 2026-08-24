@@ -101,7 +101,8 @@ def export_daily_bars_for(
     if not full_refresh and path.exists():
         try:
             existing_package = json.loads(path.read_text(encoding="utf-8"))
-            existing_records = existing_package.get("records", [])
+            if existing_package.get("toolVersion") == export_daily_bars.TOOL_VERSION:
+                existing_records = existing_package.get("records", [])
         except (json.JSONDecodeError, OSError):
             existing_records = []
         if existing_records:

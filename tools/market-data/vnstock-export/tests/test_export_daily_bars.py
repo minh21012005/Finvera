@@ -38,7 +38,7 @@ def test_kbs_board_price_is_normalized_to_base_vnd_per_share():
 
 
 def test_daily_bar_tool_version_changes_when_canonical_price_unit_changes():
-    assert export_daily_bars.TOOL_VERSION == "0.2.0"
+    assert export_daily_bars.TOOL_VERSION == "0.2.1"
 
 
 def test_full_universe_checkpoint_does_not_skip_old_daily_bar_tool_version(tmp_path):
@@ -61,3 +61,55 @@ def test_full_universe_checkpoint_does_not_skip_old_daily_bar_tool_version(tmp_p
     }
 
     assert not export_all_symbols.daily_bars_current(symbol, entry, Args())
+
+
+def test_full_universe_reexport_drops_records_from_old_daily_bar_tool_version(tmp_path, monkeypatch):
+    symbol = "VIC"
+    path = tmp_path / export_daily_bars.output_filename(symbol)
+    path.write_text(json.dumps({
+        "toolVersion": "0.1.0",
+        "records": [{
+            "adjustmentStatus": "RAW",
+            "canonicalRecord": "{}",
+            "close": "214.500000",
+            "high": "214.900000",
+            "low": "208.000000",
+            "observedAt": "2026-08-23T08:00:00Z",
+            "open": "208.000000",
+            "symbol": symbol,
+            "tradingDate": "2026-08-23",
+            "valueVnd": "769239900.000000",
+            "volume": "3586200.000000",
+        }],
+    }), encoding="utf-8")
+
+    def fake_fetch_rows(symbol_arg, start, end):
+        assert symbol_arg == symbol
+        assert start == "2026-08-01"
+        assert end == "2026-08-24"
+        return [{
+            "time": f"2026-08-{day:02d} 00:00:00",
+            "open": "208.0",
+            "high": "214.9",
+            "low": "208.0",
+            "close": "214.5",
+            "volume": "3586200",
+        } for day in range(1, 21)]
+
+    monkeypatch.setattr(export_all_symbols.export_daily_bars, "fetch_rows", fake_fetch_rows)
+
+    export_all_symbols.export_daily_bars_for(
+        symbol=symbol,
+        start="2026-08-01",
+        end="2026-08-24",
+        output=tmp_path,
+        lookback_days=90,
+        full_refresh=False,
+    )
+
+    package = json.loads(path.read_text(encoding="utf-8"))
+
+    assert package["toolVersion"] == "0.2.1"
+    assert package["records"][0]["tradingDate"] == "2026-08-01"
+    assert package["records"][-1]["tradingDate"] == "2026-08-20"
+    assert package["records"][0]["close"] == "214500.000000"

@@ -10,15 +10,17 @@
       2. Restart the backend with instrument-reference import ON, wait for it to finish, stop it.
       3. Restart with equity-profile import ON, wait, stop. This is deliberately separate because
          ApplicationRunner ordering is not an implicit dependency guarantee.
-      4. Restart with market-overview index-history import ON, wait, stop.
-      5. Restart with daily-bar + fundamentals import ON, wait, stop.
-      6. Restart with the technical-indicator + valuation warmups ON, wait, stop.
+      4. Restart with sector-reference import ON, after company profiles exist, wait, stop.
+      5. Restart with market-overview index-history import ON, wait, stop.
+      6. Restart with daily-bar + fundamentals import ON, wait, stop.
+      7. Restart with the technical-indicator + valuation warmups ON, wait, stop.
     Every import here is safe/idempotent (only adds missing rows or backfills gaps), so this is
     safe to run after a 3-day gap, a 7-day gap, or any length of time.
 
-    Sector reference is NOT part of this script -- industries change rarely enough that it stays
-    a separate, occasional manual step (see the runbook). All overrides here are applied to THIS
-    PowerShell process only, from finvera-be\.env.refresh (flags only, no secrets) layered on top
+    The sector-reference snapshot changes rarely, but is still imported on every refresh. This
+    makes a freshly-created local database complete in one command and is idempotent when the
+    classification package has not changed. All overrides here are applied to THIS PowerShell
+    process only, from finvera-be\.env.refresh (flags only, no secrets) layered on top
     of finvera-be\.env -- the real .env file on disk is never modified, so IntelliJ's own run
     configuration is unaffected.
 
@@ -106,6 +108,19 @@ function Get-LegacyLatestMarketOverviewPackage([string]$outputDir, [string]$star
         Select-Object -First 1
     if ($latest) { return $latest.FullName }
     return $null
+}
+
+function Get-SectorReferencePackage([string]$configuredPath, [string]$outputDir) {
+    if (-not [string]::IsNullOrWhiteSpace($configuredPath) -and (Test-Path -LiteralPath $configuredPath)) {
+        return $configuredPath
+    }
+
+    $latest = Get-ChildItem -LiteralPath $outputDir -Filter "sector-reference-*.json" -File -ErrorAction SilentlyContinue |
+        Sort-Object LastWriteTimeUtc -Descending |
+        Select-Object -First 1
+    if ($latest) { return $latest.FullName }
+
+    throw "Sector-reference package not found. Set FINVERA_STOCK_IMPORT_SECTOR_REFERENCE_PACKAGE_PATH in finvera-be\\.env or generate it with export_sector_reference.py before refresh."
 }
 
 function Invoke-BackendStage([string]$name, [string[]]$waitPatterns, [int]$timeoutSec) {
@@ -213,29 +228,38 @@ Import-EnvFile $envRefreshFile
 [Environment]::SetEnvironmentVariable("FINVERA_MARKET_PROVIDER_MODE", "vnstock-package-private", "Process")
 [Environment]::SetEnvironmentVariable("FINVERA_MARKET_FIXTURE_BOOTSTRAP_ENABLED", "false", "Process")
 [Environment]::SetEnvironmentVariable("FINVERA_MARKET_IMPORT_PACKAGE_PATH", $marketOverviewPackage, "Process")
+$sectorReferencePackage = Get-SectorReferencePackage `
+    $env:FINVERA_STOCK_IMPORT_SECTOR_REFERENCE_PACKAGE_PATH `
+    (Join-Path $exportDir "output")
+[Environment]::SetEnvironmentVariable("FINVERA_STOCK_IMPORT_SECTOR_REFERENCE_PACKAGE_PATH", $sectorReferencePackage, "Process")
 
 Set-StageFlags @("FINVERA_MARKET_IMPORT_INSTRUMENT_REFERENCE_ENABLED")
-Invoke-BackendStage -Name "Buoc 2/6: Dang ky ma moi" `
+Invoke-BackendStage -Name "Buoc 2/7: Dang ky ma moi" `
     -WaitPatterns @("instrument_reference_import status=") `
     -TimeoutSec 180
 
 Set-StageFlags @("FINVERA_STOCK_IMPORT_EQUITY_PROFILE_ENABLED")
-Invoke-BackendStage -Name "Buoc 3/6: Nap ho so cong ty" `
+Invoke-BackendStage -Name "Buoc 3/7: Nap ho so cong ty" `
     -WaitPatterns @("stock_import dataset=equity-profile total=") `
     -TimeoutSec 300
 
+Set-StageFlags @("FINVERA_STOCK_IMPORT_SECTOR_REFERENCE_ENABLED")
+Invoke-BackendStage -Name "Buoc 4/7: Nap phan loai nganh" `
+    -WaitPatterns @("stock_import dataset=sector-reference total=") `
+    -TimeoutSec 300
+
 Set-StageFlags @("FINVERA_MARKET_IMPORT_ENABLED")
-Invoke-BackendStage -Name "Buoc 4/6: Nap lich su chi so thi truong" `
+Invoke-BackendStage -Name "Buoc 5/7: Nap lich su chi so thi truong" `
     -WaitPatterns @("market_import status=") `
     -TimeoutSec 300
 
 Set-StageFlags @("FINVERA_STOCK_IMPORT_DAILY_BAR_ENABLED", "FINVERA_STOCK_IMPORT_FUNDAMENTALS_ENABLED")
-Invoke-BackendStage -Name "Buoc 5/6: Nap gia + bao cao tai chinh moi" `
+Invoke-BackendStage -Name "Buoc 6/7: Nap gia + bao cao tai chinh moi" `
     -WaitPatterns @("stock_import dataset=daily-bar total=", "stock_import dataset=fundamentals total=") `
     -TimeoutSec 1800
 
 Set-StageFlags @("FINVERA_STOCK_TECHNICAL_WARMUP_ENABLED", "FINVERA_STOCK_VALUATION_WARMUP_ENABLED")
-Invoke-BackendStage -Name "Buoc 6/6: Tinh bu chi bao ky thuat + dinh gia" `
+Invoke-BackendStage -Name "Buoc 7/7: Tinh bu chi bao ky thuat + dinh gia" `
     -WaitPatterns @("technical_indicator_warmup total=", "valuation_warmup total=") `
     -TimeoutSec 900
 

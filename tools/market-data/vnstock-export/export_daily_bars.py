@@ -20,7 +20,7 @@ from typing import Any
 
 CONTRACT_VERSION = "vnstock-daily-bar-v1"
 SOURCE = "VNSTOCK_KBS"
-TOOL_VERSION = "0.2.0"
+TOOL_VERSION = "0.2.1"
 MIN_RECORDS = 20
 KBS_PRICE_MULTIPLIER = Decimal("1000")
 

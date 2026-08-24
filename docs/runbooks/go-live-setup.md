@@ -280,7 +280,10 @@ cd D:\Finvera
 Script này tự động export và import cả gói market overview ổn định
 `market-overview.json`, nên `index_snapshot` của `VN_INDEX`, `VN30`,
 `HNX_INDEX`, và `UPCOM_INDEX` được nạp cùng daily bars, fundamentals và
-technical warmup. Mặc định script chạy incremental: market index và nến giá chỉ
+technical warmup. Script cũng nạp `instrument-reference`, `equity-profile` và
+`sector-reference` theo đúng thứ tự phụ thuộc, nên sau khi tạo DB local mới,
+chỉ cần `refresh-data.ps1` là đủ dữ liệu nền cho toàn bộ flow phân tích. Mặc
+định script chạy incremental: market index và nến giá chỉ
 tải lại vùng `-LookbackDays` gần nhất cộng phần ngày mới, rồi merge với file cũ.
 Chỉ khi truyền `-FullRefresh` nó mới tải lại toàn bộ range từ đầu; nên dùng định
 kỳ, ví dụ cuối tháng, để bắt các correction/corporate-action cũ hơn lookback.
@@ -293,8 +296,11 @@ cd D:\Finvera
 ```
 
 Sau remediation ngày 2026-08-25 về đơn vị giá cổ phiếu, nếu đã reset local DB
-thì chỉ cần tạo lại database `finvera`, start backend để Flyway tạo schema sạch,
-rồi chạy `.\refresh-data.ps1`. Daily-bar exporter đã bump `toolVersion` lên
+thì chỉ cần tạo lại database `finvera` rồi chạy trực tiếp `.\refresh-data.ps1`.
+Script tự khởi động backend ở từng stage, nên Flyway sẽ tạo schema sạch trong
+stage đầu tiên; không cần chạy backend bình thường trước. Script nạp cả danh
+mục mã, hồ sơ công ty, phân loại ngành, index, daily bars, fundamentals và tính
+lại derived data. Daily-bar exporter đã bump `toolVersion` lên
 `0.2.0`, nên checkpoint cũ của nến giá sẽ không bị skip: Vnstock/KBS sẽ được
 export lại theo đơn vị canonical `VND/share`, import vào DB sạch, sau đó
 technical warmup và valuation warmup tính lại từ dữ liệu sạch.
