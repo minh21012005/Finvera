@@ -424,11 +424,12 @@ therefore exports the Vnstock/KBS market-overview package for the four approved
 indices, imports it through Spring's existing canonical `MarketImportService`
 boundary, and waits for a safe `market_import` completion marker before moving
 to equity daily bars/fundamentals and technical warmup. Market-index export uses
-the same default policy as equity candles: incremental by default with a bounded
-lookback merge window, and full-range re-fetch only when the owner passes the
-explicit `-FullRefresh` flag. Without this stage, `index_snapshot` can remain
-empty even after an otherwise successful end-of-day refresh, causing
-`market-regime-v2` to be correctly withheld for `TREND_COMPONENT_UNAVAILABLE`.
+the same default policy as equity candles: one stable local package file,
+incremental by default with a bounded lookback merge window, and full-range
+re-fetch only when the owner passes the explicit `-FullRefresh` flag. Without
+this stage, `index_snapshot` can remain empty even after an otherwise successful
+end-of-day refresh, causing `market-regime-v2` to be correctly withheld for
+`TREND_COMPONENT_UNAVAILABLE`.
 
 ## Complexity Tracking
 

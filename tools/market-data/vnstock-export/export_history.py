@@ -134,11 +134,20 @@ def build_market_package(
     }
 
 
-def market_overview_filename(start: str, end: str) -> str:
-    return f"market-overview-{start}-{end}.json"
+def market_overview_filename() -> str:
+    """Stable market-overview package filename.
+
+    Re-running this exporter must behave like daily-bar packages: merge new
+    records into one known local package instead of accumulating dated files that
+    the backend operator then has to choose between.
+    """
+    return "market-overview.json"
 
 
 def latest_market_overview_package(output: Path, start: str) -> Path | None:
+    stable = output / market_overview_filename()
+    if stable.exists():
+        return stable
     candidates = sorted(output.glob(f"market-overview-{start}-*.json"))
     return candidates[-1] if candidates else None
 
@@ -221,7 +230,7 @@ def main() -> None:
         index_snapshot_records = incremental_market_index_records(
             args.start, args.end, args.output, args.lookback_days, args.full_refresh)
         package = build_market_package([], index_snapshot_records, args.start, args.end, "0.2.0")
-        filename = market_overview_filename(args.start, args.end)
+        filename = market_overview_filename()
     else:
         if not args.symbol or not args.venue:
             parser.error("--symbol and --venue are required unless --market-overview is set")

@@ -93,14 +93,18 @@ function Assert-NativeSuccess([string]$operation) {
     }
 }
 
-function Get-LatestMarketOverviewPackage([string]$outputDir, [string]$startDate) {
-    $target = Join-Path $outputDir "market-overview-$startDate-$historyEndDate.json"
+function Get-MarketOverviewPackage([string]$outputDir) {
+    $target = Join-Path $outputDir "market-overview.json"
     if (Test-Path -LiteralPath $target) { return $target }
+    return $target
+}
+
+function Get-LegacyLatestMarketOverviewPackage([string]$outputDir, [string]$startDate) {
     $latest = Get-ChildItem -LiteralPath $outputDir -Filter "market-overview-$startDate-*.json" -File -ErrorAction SilentlyContinue |
         Sort-Object Name -Descending |
         Select-Object -First 1
     if ($latest) { return $latest.FullName }
-    return $target
+    return $null
 }
 
 function Invoke-BackendStage([string]$name, [string[]]$waitPatterns, [int]$timeoutSec) {
@@ -193,9 +197,14 @@ if (-not $SkipCrawl) {
     Write-Host "Bo qua buoc crawl (-SkipCrawl)." -ForegroundColor Yellow
 }
 
-$marketOverviewPackage = Get-LatestMarketOverviewPackage (Join-Path $exportDir "output") $historyStartDate
+$marketOverviewPackage = Get-MarketOverviewPackage (Join-Path $exportDir "output")
 if (-not (Test-Path -LiteralPath $marketOverviewPackage)) {
-    throw "Market-overview package not found: $marketOverviewPackage. Run without -SkipCrawl or regenerate it with export_history.py --market-overview."
+    $legacyMarketOverviewPackage = Get-LegacyLatestMarketOverviewPackage (Join-Path $exportDir "output") $historyStartDate
+    if ($legacyMarketOverviewPackage) {
+        $marketOverviewPackage = $legacyMarketOverviewPackage
+    } else {
+        throw "Market-overview package not found: $marketOverviewPackage. Run without -SkipCrawl or regenerate it with export_history.py --market-overview."
+    }
 }
 
 Import-EnvFile $envFile

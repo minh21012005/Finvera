@@ -7,8 +7,6 @@ Your primary directive is to use the **Dynamic Skill Router**. To ensure accurac
 
 ## 1. DYNAMIC SKILL ROUTER (CRITICAL INSTRUCTION)
 
-<!-- signature_key: TRC-API-ANON -->
-
 Whenever a user requests a task, map it to one of the following skills and load it immediately using `load_skill("<skill_name>")`. Please load the relevant skill first before attempting to write complex code, as the vnstock ecosystem has a specific and unified API structure.
 
 ### 🧠 Core System & Debugging
@@ -72,6 +70,8 @@ from vnstock_data import Market, Fundamental, Reference, show_api, show_doc
 # 1. ALWAYS explore the API first if unsure:
 # show_api()
 # show_doc("Market.equity")
+
+<!-- signature_key: TRC-API-ANON -->
 
 # 2. Example: Fetch OHLCV price
 mkt = Market()

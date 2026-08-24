@@ -277,9 +277,9 @@ cd D:\Finvera
 .\refresh-data.ps1
 ```
 
-Script này tự động export và import cả gói market overview
-`market-overview-<start>-<end>.json`, nên `index_snapshot` của `VN_INDEX`,
-`VN30`, `HNX_INDEX`, và `UPCOM_INDEX` được nạp cùng daily bars, fundamentals và
+Script này tự động export và import cả gói market overview ổn định
+`market-overview.json`, nên `index_snapshot` của `VN_INDEX`, `VN30`,
+`HNX_INDEX`, và `UPCOM_INDEX` được nạp cùng daily bars, fundamentals và
 technical warmup. Mặc định script chạy incremental: market index và nến giá chỉ
 tải lại vùng `-LookbackDays` gần nhất cộng phần ngày mới, rồi merge với file cũ.
 Chỉ khi truyền `-FullRefresh` nó mới tải lại toàn bộ range từ đầu; nên dùng định
@@ -300,10 +300,9 @@ uv run --project ../provider-poc python export_history.py --market-overview --st
 ```
 
 Sau đó bật `FINVERA_MARKET_IMPORT_ENABLED=true`, trỏ
-`FINVERA_MARKET_IMPORT_PACKAGE_PATH` vào file
-`output/market-overview-2024-01-01-2026-08-24.json`, rồi khởi động backend một
-lần để import. Nếu bỏ qua bước này, equity bars vẫn có thể đã được nạp nhưng
-`index_snapshot` sẽ rỗng; regime v2 sẽ bị giữ lại với
+`FINVERA_MARKET_IMPORT_PACKAGE_PATH` vào file `output/market-overview.json`,
+rồi khởi động backend một lần để import. Nếu bỏ qua bước này, equity bars vẫn
+có thể đã được nạp nhưng `index_snapshot` sẽ rỗng; regime v2 sẽ bị giữ lại với
 `TREND_COMPONENT_UNAVAILABLE`.
 
 **Bước 0 — đăng ký danh mục mã (chạy một lần, trước mọi thứ khác):**

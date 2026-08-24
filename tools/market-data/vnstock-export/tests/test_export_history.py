@@ -62,7 +62,8 @@ def test_market_overview_incremental_merges_existing_records(monkeypatch, tmp_pa
         }
     ]
     package = export_history.build_market_package([], existing_records, "2024-01-01", "2026-08-20", "0.2.0")
-    (tmp_path / export_history.market_overview_filename("2024-01-01", "2026-08-20")).write_text(
+    assert export_history.market_overview_filename() == "market-overview.json"
+    (tmp_path / export_history.market_overview_filename()).write_text(
         export_history.json.dumps(package, ensure_ascii=False), encoding="utf-8"
     )
     calls = []
