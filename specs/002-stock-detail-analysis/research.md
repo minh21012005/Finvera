@@ -714,21 +714,19 @@ Vietnamese board units (thousand VND). The exporter therefore multiplies
 is bumped so full-universe checkpoint logic re-exports packages created by the
 old unit policy instead of silently treating them as current.
 
-The legacy `TCBS_IFLASH_STOCK_DATA` completed daily-bar source is hard-deleted
-from this private/local deployment.
-It mixed a live/intraday provider path into the completed daily-bar table and
+The legacy `TCBS_IFLASH_STOCK_DATA` completed daily-bar source is retired. It
+mixed a live/intraday provider path into the completed daily-bar table and
 created cross-source unit contamination. TCBS may still be used for live
 in-session quote observations, but future live frames must pass a
 `totalValue / totalVolume` versus `matchPrice` sanity check before persistence.
 Completed daily-bar imports from `TCBS_IFLASH_STOCK_DATA` are rejected with
 `DEPRECATED_PROVIDER_INVALID_PRICE_UNIT`.
 
-Existing current `VNSTOCK_KBS` daily bars are also hard-deleted by a separate
-forward-only migration (`V011`). This is intentional for the private/local
-deployment: stock daily-bar rows do not currently persist the package
-`toolVersion`, so the DB cannot precisely distinguish old board-unit rows from
-new exporter `0.2.0` VND/share rows before refresh. The refresh pipeline then
-reimports `VNSTOCK_KBS` as corrected current rows from the canonical exporter.
+For the already-contaminated private/local DB, the owner chose to drop and
+recreate the database rather than carry cleanup migrations. This is acceptable
+for the current single-owner local deployment because no shared production DB
+has applied the contaminated rows. A fresh DB plus exporter `0.2.0` refresh is
+the clean source of truth.
 
 **Rationale**: Real private DB inspection found incompatible current prices for
 the same instrument/date, e.g. VIC on `2026-08-24` had `VNSTOCK_KBS` close
@@ -749,10 +747,9 @@ contamination.
   never accepted as a completed-session provider contract, and the observed
   private data already proved it can corrupt downstream calculations.
 
-**Operational consequence**: After this remediation lands, the owner must
-restart the backend so Flyway applies the cleanup migrations, then run the normal
-refresh pipeline. Until the refresh completes, stock detail may have no current
-daily bars for symbols whose rows were deleted. The refresh will re-export old
-Vnstock/KBS daily-bar packages under the new tool version, import corrected
-VND/share rows, and recompute technical indicators and valuations from clean
-current rows.
+**Operational consequence**: After this remediation lands on a reset local DB,
+the owner must create the `finvera` database, start the backend so Flyway creates
+the schema from the normal migrations, then run the normal refresh pipeline. The
+refresh will re-export old Vnstock/KBS daily-bar packages under the new tool
+version, import corrected VND/share rows, and recompute technical indicators and
+valuations from clean current rows.
