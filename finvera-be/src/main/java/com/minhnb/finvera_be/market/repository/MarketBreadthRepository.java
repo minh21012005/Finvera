@@ -9,6 +9,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface MarketBreadthRepository extends JpaRepository<MarketBreadthSnapshotEntity, UUID> {
     Optional<MarketBreadthSnapshotEntity> findFirstByTradingDateOrderByAsOfDescCalculatedAtDesc(LocalDate tradingDate);
+    Optional<MarketBreadthSnapshotEntity> findFirstByTradingDateAndCalculationBasisOrderByAsOfDescCalculatedAtDesc(
+            LocalDate tradingDate, String calculationBasis);
     Optional<MarketBreadthSnapshotEntity> findFirstByOrderByTradingDateDescAsOfDescCalculatedAtDesc();
     boolean existsByTradingDateAndAsOfAndUniverseRevisionHash(LocalDate tradingDate, Instant asOf, String universeRevisionHash);
 }

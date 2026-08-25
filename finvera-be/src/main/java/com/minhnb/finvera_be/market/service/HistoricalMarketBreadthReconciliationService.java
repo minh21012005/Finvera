@@ -33,6 +33,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @ConditionalOnBean(StockReferenceDataService.class)
 public class HistoricalMarketBreadthReconciliationService {
+    private static final List<String> INCLUDED_INSTRUMENT_STATUSES = List.of("ACTIVE", "UNKNOWN");
+
     private final MarketInstrumentRepository instruments;
     private final StockReferenceDataService stockReferenceData;
     private final BreadthService breadth;
@@ -51,7 +53,8 @@ public class HistoricalMarketBreadthReconciliationService {
     @Transactional
     public Result reconcileLatestCompletedSession() {
         List<MarketInstrumentEntity> universe = instruments
-                .findByListedToIsNullAndInstrumentTypeAndStatusOrderByVenueAscSymbolAsc("COMMON_EQUITY", "ACTIVE");
+                .findByListedToIsNullAndInstrumentTypeAndStatusInOrderByVenueAscSymbolAsc(
+                        "COMMON_EQUITY", INCLUDED_INSTRUMENT_STATUSES);
         if (universe.isEmpty()) {
             return Result.skipped("NO_ACTIVE_COMMON_EQUITY_UNIVERSE");
         }
@@ -119,8 +122,9 @@ public class HistoricalMarketBreadthReconciliationService {
                     instrument.getSymbol(), instrument.getIsin(), true, false,
                     BreadthUniversePolicy.InstrumentType.COMMON_EQUITY, currentClose, referencePrice,
                     AdjustmentStatus.RAW));
-            links.add(new BreadthService.InputLink(instrument.getId(), current == null ? null : current.id(),
-                    classification(currentClose, referencePrice), reasonCode(currentClose, officialReference, previousClose)));
+            links.add(BreadthService.InputLink.dailyBar(instrument.getId(), current == null ? null : current.id(),
+                    classification(currentClose, referencePrice),
+                    reasonCode(currentClose, officialReference, previousClose)));
         }
         List<String> reasons = links.stream().map(BreadthService.InputLink::reasonCode)
                 .filter(Objects::nonNull).distinct().toList();

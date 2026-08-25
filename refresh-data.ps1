@@ -186,7 +186,7 @@ if ($listener) {
 
 if (-not $SkipCrawl) {
     Write-Host ""
-    Write-Host "== Buoc 1/6: Crawl gia + danh sach ma moi + index history tu Vnstock ==" -ForegroundColor Cyan
+    Write-Host "== Buoc 1/7: Crawl gia + danh sach ma moi + index history tu Vnstock ==" -ForegroundColor Cyan
     Push-Location $exportDir
     try {
         uv run --project ../provider-poc python export_instrument_reference.py

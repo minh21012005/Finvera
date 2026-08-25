@@ -1,6 +1,7 @@
 package com.minhnb.finvera_be.market.repository;
 import com.minhnb.finvera_be.market.entity.MarketInstrumentEntity;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -19,4 +20,7 @@ public interface MarketInstrumentRepository extends JpaRepository<MarketInstrume
 
     List<MarketInstrumentEntity> findByListedToIsNullAndInstrumentTypeAndStatusOrderByVenueAscSymbolAsc(
             String instrumentType, String status);
+
+    List<MarketInstrumentEntity> findByListedToIsNullAndInstrumentTypeAndStatusInOrderByVenueAscSymbolAsc(
+            String instrumentType, Collection<String> statuses);
 }

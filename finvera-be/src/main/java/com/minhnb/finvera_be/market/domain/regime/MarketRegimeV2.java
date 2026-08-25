@@ -1,7 +1,7 @@
 package com.minhnb.finvera_be.market.domain.regime;
 
-import static com.minhnb.finvera_be.market.domain.model.MarketTypes.DataStatus.DELAYED;
 import static com.minhnb.finvera_be.market.domain.model.MarketTypes.DataStatus.PARTIAL;
+import static com.minhnb.finvera_be.market.domain.model.MarketTypes.DataStatus.STALE;
 import static com.minhnb.finvera_be.market.domain.model.MarketTypes.DataStatus.UNAVAILABLE;
 
 import com.minhnb.finvera_be.market.domain.model.MarketTypes.DataStatus;
@@ -53,8 +53,7 @@ public final class MarketRegimeV2 {
         List<String> reasons = new ArrayList<>();
         DataStatus inputStatus = DataStatus.mostActionable(availability.indexStatus(), availability.breadthStatus());
         BigDecimal completeness = completeness(usable);
-        boolean inputsTimely = availability.indexStatus().ordinal() <= DELAYED.ordinal()
-                && availability.breadthStatus().ordinal() <= DELAYED.ordinal();
+        boolean inputsTimely = isTimely(availability.indexStatus()) && isTimely(availability.breadthStatus());
         boolean hasMandatory = usable.containsKey(Component.TREND) && usable.containsKey(Component.BREADTH);
         boolean publishable = availability.indexAvailable() && availability.breadthAvailable()
                 && inputsTimely && hasMandatory && usable.size() >= 3;
@@ -111,6 +110,10 @@ public final class MarketRegimeV2 {
             }
         }
         return result;
+    }
+
+    private static boolean isTimely(DataStatus status) {
+        return status != STALE && status != UNAVAILABLE;
     }
 
     private static BigDecimal completeness(Map<Component, ComponentScore> usable) {

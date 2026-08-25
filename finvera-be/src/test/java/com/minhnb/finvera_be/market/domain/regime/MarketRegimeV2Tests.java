@@ -1,6 +1,7 @@
 package com.minhnb.finvera_be.market.domain.regime;
 
 import static com.minhnb.finvera_be.market.domain.model.MarketTypes.DataStatus.CURRENT;
+import static com.minhnb.finvera_be.market.domain.model.MarketTypes.DataStatus.PARTIAL;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -40,6 +41,19 @@ class MarketRegimeV2Tests {
 
         assertThat(assessment.label()).isNull();
         assertThat(assessment.reasonCodes()).contains("TREND_COMPONENT_UNAVAILABLE");
+    }
+
+    @Test
+    void publishesWithPartialBreadthButKeepsAssessmentStatusPartial() {
+        var assessment = regime.assess(List.of(
+                        component(Component.TREND, "80"),
+                        component(Component.BREADTH, "70"),
+                        component(Component.MOMENTUM, "50")),
+                new MarketRegimeV2.InputAvailability(true, true, CURRENT, PARTIAL));
+
+        assertThat(assessment.label()).isEqualTo(RegimeLabel.EARLY_BULL);
+        assertThat(assessment.dataStatus()).isEqualTo(PARTIAL);
+        assertThat(assessment.reasonCodes()).doesNotContain("REQUIRED_INPUT_NOT_TIMELY_AVAILABLE");
     }
 
     @Test

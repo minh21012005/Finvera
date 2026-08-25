@@ -48,7 +48,11 @@ class MarketOverviewPerformanceTests {
         service = new MarketOverviewService(repository, breadthService, regimes,
                 Clock.fixed(NOW, ZoneOffset.UTC), new MarketFreshnessProperties(FIXTURE_CONTRACTED_DELAY));
         when(repository.findLatestAcceptedIndexBoundary()).thenAnswer(ignored -> accepted.get());
+        when(breadthService.latestFor(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(Optional.empty());
         when(breadthService.latestFor(org.mockito.ArgumentMatchers.any())).thenReturn(Optional.empty());
+        when(regimes.latestFor(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(Optional.empty());
         when(regimes.latestFor(org.mockito.ArgumentMatchers.any())).thenReturn(Optional.empty());
     }
 

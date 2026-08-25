@@ -42,7 +42,7 @@ public class BreadthService {
                 result.eligible(), result.unclassified(), status.name(), "breadth-v1", calculationBasis,
                 result.reasonCodes(), null));
         inputs.saveAll(inputLinks.stream().map(link -> new MarketBreadthSnapshotInputEntity(id, link.instrumentId(),
-                link.priceObservationId(), link.classification(), link.reasonCode())).toList());
+                link.priceObservationId(), link.dailyBarId(), link.classification(), link.reasonCode())).toList());
         return new Snapshot(id, tradingDate, asOf, status, calculationBasis, result, BreadthUniversePolicy.VERSION,
                 universeHash);
     }
@@ -69,6 +69,13 @@ public class BreadthService {
     }
 
     @Transactional(readOnly = true)
+    public Optional<Snapshot> latestFor(LocalDate tradingDate, String calculationBasis) {
+        validateCalculationBasis(calculationBasis);
+        return snapshots.findFirstByTradingDateAndCalculationBasisOrderByAsOfDescCalculatedAtDesc(
+                tradingDate, calculationBasis).map(BreadthService::toSnapshot);
+    }
+
+    @Transactional(readOnly = true)
     public Optional<Snapshot> latest() {
         return snapshots.findFirstByOrderByTradingDateDescAsOfDescCalculatedAtDesc().map(BreadthService::toSnapshot);
     }
@@ -90,7 +97,20 @@ public class BreadthService {
                 || result.reasonCodes().contains("REFERENCE_PRICE_UNAVAILABLE_USING_PRIOR_CLOSE")
                 ? DataStatus.PARTIAL : DataStatus.CURRENT;
     }
-    public record InputLink(UUID instrumentId, UUID priceObservationId, String classification, String reasonCode) { }
+    public record InputLink(
+            UUID instrumentId,
+            UUID priceObservationId,
+            UUID dailyBarId,
+            String classification,
+            String reasonCode) {
+        public InputLink(UUID instrumentId, UUID priceObservationId, String classification, String reasonCode) {
+            this(instrumentId, priceObservationId, null, classification, reasonCode);
+        }
+
+        public static InputLink dailyBar(UUID instrumentId, UUID dailyBarId, String classification, String reasonCode) {
+            return new InputLink(instrumentId, null, dailyBarId, classification, reasonCode);
+        }
+    }
     public record Snapshot(UUID id, LocalDate tradingDate, Instant asOf, DataStatus dataStatus, String calculationBasis,
                            BreadthCalculator.Result result, String universeVersion, String universeHash) { }
 }

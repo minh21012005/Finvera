@@ -37,8 +37,8 @@ class HistoricalMarketBreadthReconciliationServiceTests {
         UUID fpt = UUID.randomUUID();
         UUID vnm = UUID.randomUUID();
         UUID vic = UUID.randomUUID();
-        when(instruments.findByListedToIsNullAndInstrumentTypeAndStatusOrderByVenueAscSymbolAsc(
-                "COMMON_EQUITY", "ACTIVE"))
+        when(instruments.findByListedToIsNullAndInstrumentTypeAndStatusInOrderByVenueAscSymbolAsc(
+                "COMMON_EQUITY", List.of("ACTIVE", "UNKNOWN")))
                 .thenReturn(List.of(instrument(fpt, "HOSE", "FPT"), instrument(vnm, "HOSE", "VNM"),
                         instrument(vic, "HOSE", "VIC")));
         when(stockReferenceData.findLatestDailyBars(List.of(fpt, vnm, vic), 2)).thenReturn(List.of(
@@ -78,8 +78,8 @@ class HistoricalMarketBreadthReconciliationServiceTests {
     @Test
     void skipsWithoutFabricatingBreadthWhenTheActiveUniverseHasNoDailyBars() {
         UUID fpt = UUID.randomUUID();
-        when(instruments.findByListedToIsNullAndInstrumentTypeAndStatusOrderByVenueAscSymbolAsc(
-                "COMMON_EQUITY", "ACTIVE"))
+        when(instruments.findByListedToIsNullAndInstrumentTypeAndStatusInOrderByVenueAscSymbolAsc(
+                "COMMON_EQUITY", List.of("ACTIVE", "UNKNOWN")))
                 .thenReturn(List.of(instrument(fpt, "HOSE", "FPT")));
         when(stockReferenceData.findLatestDailyBars(List.of(fpt), 2)).thenReturn(List.of());
         var service = new HistoricalMarketBreadthReconciliationService(

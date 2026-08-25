@@ -68,8 +68,13 @@ public class MarketOverviewService {
                 .toList();
         IndexOverview indices = calculator.calculate(new IndexOverviewCalculator.SnapshotInput(
                 tradingDate, asOf, session, freshnessStatus, revision, source, inputs));
-        BreadthService.Snapshot breadth = breadthService.latestFor(tradingDate).orElse(null);
-        RegimeAssessmentService.Snapshot regime = regimeAssessmentService.latestFor(tradingDate).orElse(null);
+        String preferredBasis = preferredMarketBasis(session);
+        BreadthService.Snapshot breadth = breadthService.latestFor(tradingDate, preferredBasis)
+                .or(() -> breadthService.latestFor(tradingDate))
+                .orElse(null);
+        RegimeAssessmentService.Snapshot regime = regimeAssessmentService.latestFor(tradingDate, preferredBasis)
+                .or(() -> regimeAssessmentService.latestFor(tradingDate))
+                .orElse(null);
         DataStatus overall = breadth == null ? overallStatus(indices.indices())
                 : DataStatus.mostActionable(overallStatus(indices.indices()), breadth.dataStatus());
         if (regime != null) overall = DataStatus.mostActionable(overall, regime.assessment().dataStatus());
@@ -99,6 +104,10 @@ public class MarketOverviewService {
     private static String commonSource(List<MarketOverviewRepository.LatestIndexSnapshot> rows) {
         String first = rows.getFirst().getSource();
         return rows.stream().allMatch(row -> first.equals(row.getSource())) ? first : "MULTIPLE_ACCEPTED_SOURCES";
+    }
+
+    private static String preferredMarketBasis(SessionState session) {
+        return session == SessionState.CLOSED || session == SessionState.NON_TRADING_DAY ? "EOD" : "LIVE";
     }
 
     private static DataStatus overallStatus(List<IndexOverview.IndexFact> facts) {

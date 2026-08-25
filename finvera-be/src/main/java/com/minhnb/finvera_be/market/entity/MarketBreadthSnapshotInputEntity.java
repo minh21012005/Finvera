@@ -16,17 +16,24 @@ public class MarketBreadthSnapshotInputEntity {
     @Id @Column(name = "breadth_snapshot_id") private UUID breadthSnapshotId;
     @Id @Column(name = "instrument_id") private UUID instrumentId;
     @Column(name = "price_observation_id") private UUID priceObservationId;
+    @Column(name = "daily_bar_id") private UUID dailyBarId;
     private String classification;
     @Column(name = "reason_code") private String reasonCode;
     protected MarketBreadthSnapshotInputEntity() { }
     public MarketBreadthSnapshotInputEntity(UUID breadthSnapshotId, UUID instrumentId, UUID priceObservationId,
             String classification, String reasonCode) {
+        this(breadthSnapshotId, instrumentId, priceObservationId, null, classification, reasonCode);
+    }
+    public MarketBreadthSnapshotInputEntity(UUID breadthSnapshotId, UUID instrumentId, UUID priceObservationId,
+            UUID dailyBarId, String classification, String reasonCode) {
         this.breadthSnapshotId = breadthSnapshotId; this.instrumentId = instrumentId;
-        this.priceObservationId = priceObservationId; this.classification = classification; this.reasonCode = reasonCode;
+        this.priceObservationId = priceObservationId; this.dailyBarId = dailyBarId;
+        this.classification = classification; this.reasonCode = reasonCode;
     }
     public UUID getBreadthSnapshotId() { return breadthSnapshotId; }
     public UUID getInstrumentId() { return instrumentId; }
     public UUID getPriceObservationId() { return priceObservationId; }
+    public UUID getDailyBarId() { return dailyBarId; }
     public String getClassification() { return classification; }
     public String getReasonCode() { return reasonCode; }
     public static final class Key implements Serializable {

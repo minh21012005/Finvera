@@ -49,7 +49,33 @@ class BreadthServiceTests {
         assertThat(inputCaptor.getValue()).singleElement().satisfies(link -> {
             assertThat(link.getInstrumentId()).isEqualTo(instrumentId);
             assertThat(link.getPriceObservationId()).isEqualTo(observationId);
+            assertThat(link.getDailyBarId()).isNull();
             assertThat(link.getReasonCode()).isEqualTo("MISSING_REFERENCE_PRICE");
+        });
+    }
+
+    @Test
+    void persistsEndOfDayDailyBarInputIdsSeparatelyFromLivePriceObservationIds() {
+        var snapshots = Mockito.mock(MarketBreadthRepository.class);
+        var inputs = Mockito.mock(MarketBreadthSnapshotInputRepository.class);
+        when(snapshots.save(any(MarketBreadthSnapshotEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        var service = new BreadthService(snapshots, inputs,
+                Clock.fixed(Instant.parse("2026-08-17T03:05:00Z"), ZoneOffset.UTC));
+        UUID instrumentId = UUID.randomUUID();
+        UUID dailyBarId = UUID.randomUUID();
+
+        service.persist(LocalDate.of(2026, 8, 17), Instant.parse("2026-08-17T03:00:00Z"), "b".repeat(64),
+                new BreadthCalculator.Result(1, 0, 0, 0, 1, List.of()),
+                List.of(BreadthService.InputLink.dailyBar(instrumentId, dailyBarId, "ADVANCING", null)),
+                "EOD");
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<MarketBreadthSnapshotInputEntity>> inputCaptor = ArgumentCaptor.forClass(List.class);
+        verify(inputs).saveAll(inputCaptor.capture());
+        assertThat(inputCaptor.getValue()).singleElement().satisfies(link -> {
+            assertThat(link.getInstrumentId()).isEqualTo(instrumentId);
+            assertThat(link.getPriceObservationId()).isNull();
+            assertThat(link.getDailyBarId()).isEqualTo(dailyBarId);
         });
     }
 }

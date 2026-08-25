@@ -83,8 +83,13 @@ public class MarketConfiguration {
     @ConditionalOnBean({BreadthService.class, LiveMarketRegimeReconciliationService.class})
     ApplicationRunner marketRegimeReadRepair(BreadthService breadth,
             LiveMarketRegimeReconciliationService regimeReconciliation) {
-        return arguments -> breadth.latest().ifPresent(snapshot ->
-                regimeReconciliation.reconcileIfMissingOrOlder(snapshot.tradingDate(), snapshot));
+        return arguments -> breadth.latest().ifPresent(snapshot -> {
+            if ("EOD".equals(snapshot.calculationBasis())) {
+                regimeReconciliation.reconcileEndOfDayIfMissingOrOlder(snapshot.tradingDate(), snapshot);
+            } else {
+                regimeReconciliation.reconcileIfMissingOrOlder(snapshot.tradingDate(), snapshot);
+            }
+        });
     }
 
     @Bean
