@@ -21,6 +21,7 @@ public class EquityDailyBarEntity {
     @Column(name = "high_price", precision = 20, scale = 6) private BigDecimal highPrice;
     @Column(name = "low_price", precision = 20, scale = 6) private BigDecimal lowPrice;
     @Column(name = "close_price", precision = 20, scale = 6) private BigDecimal closePrice;
+    @Column(name = "reference_price", precision = 20, scale = 6) private BigDecimal referencePrice;
     @Column(name = "adjusted_close", precision = 20, scale = 6) private BigDecimal adjustedClose;
     @Column(name = "adjustment_factor", precision = 20, scale = 12) private BigDecimal adjustmentFactor;
     @Column(name = "adjustment_status") private String adjustmentStatus;
@@ -41,10 +42,20 @@ public class EquityDailyBarEntity {
             BigDecimal closePrice, BigDecimal adjustedClose, BigDecimal adjustmentFactor, String adjustmentStatus,
             Long volume, BigDecimal valueVnd, String source, Instant observedAt, Instant acceptedAt, int revision,
             boolean current, UUID supersedesId, String qualityReason) {
+        this(id, instrumentId, ingestionRecordId, importBatchId, tradingDate, openPrice, highPrice, lowPrice,
+                closePrice, null, adjustedClose, adjustmentFactor, adjustmentStatus, volume, valueVnd, source,
+                observedAt, acceptedAt, revision, current, supersedesId, qualityReason);
+    }
+
+    public EquityDailyBarEntity(UUID id, UUID instrumentId, UUID ingestionRecordId, UUID importBatchId,
+            LocalDate tradingDate, BigDecimal openPrice, BigDecimal highPrice, BigDecimal lowPrice,
+            BigDecimal closePrice, BigDecimal referencePrice, BigDecimal adjustedClose, BigDecimal adjustmentFactor,
+            String adjustmentStatus, Long volume, BigDecimal valueVnd, String source, Instant observedAt,
+            Instant acceptedAt, int revision, boolean current, UUID supersedesId, String qualityReason) {
         this.id = id; this.instrumentId = instrumentId; this.ingestionRecordId = ingestionRecordId;
         this.importBatchId = importBatchId; this.tradingDate = tradingDate; this.openPrice = openPrice;
         this.highPrice = highPrice; this.lowPrice = lowPrice; this.closePrice = closePrice;
-        this.adjustedClose = adjustedClose; this.adjustmentFactor = adjustmentFactor;
+        this.referencePrice = referencePrice; this.adjustedClose = adjustedClose; this.adjustmentFactor = adjustmentFactor;
         this.adjustmentStatus = adjustmentStatus; this.volume = volume; this.valueVnd = valueVnd;
         this.source = source; this.observedAt = observedAt; this.acceptedAt = acceptedAt; this.revision = revision;
         this.current = current; this.supersedesId = supersedesId; this.qualityReason = qualityReason;
@@ -59,6 +70,7 @@ public class EquityDailyBarEntity {
     public BigDecimal getHighPrice() { return highPrice; }
     public BigDecimal getLowPrice() { return lowPrice; }
     public BigDecimal getClosePrice() { return closePrice; }
+    public BigDecimal getReferencePrice() { return referencePrice; }
     public BigDecimal getAdjustedClose() { return adjustedClose; }
     public BigDecimal getAdjustmentFactor() { return adjustmentFactor; }
     public String getAdjustmentStatus() { return adjustmentStatus; }

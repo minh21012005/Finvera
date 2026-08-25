@@ -42,8 +42,8 @@ class HistoricalMarketBreadthReconciliationServiceTests {
                 .thenReturn(List.of(instrument(fpt, "HOSE", "FPT"), instrument(vnm, "HOSE", "VNM"),
                         instrument(vic, "HOSE", "VIC")));
         when(stockReferenceData.findLatestDailyBars(List.of(fpt, vnm, vic), 2)).thenReturn(List.of(
-                bar(fpt, previousDate, "100000.000000", "2026-08-23T08:00:00Z"),
-                bar(fpt, currentDate, "101000.000000", "2026-08-24T08:00:00Z"),
+                bar(fpt, previousDate, "105000.000000", null, "2026-08-23T08:00:00Z"),
+                bar(fpt, currentDate, "101000.000000", "100000.000000", "2026-08-24T08:00:00Z"),
                 bar(vnm, previousDate, "60000.000000", "2026-08-23T08:00:00Z"),
                 bar(vnm, currentDate, "59000.000000", "2026-08-24T08:01:00Z"),
                 bar(vic, currentDate, "110000.000000", "2026-08-24T08:02:00Z")));
@@ -65,10 +65,13 @@ class HistoricalMarketBreadthReconciliationServiceTests {
         ArgumentCaptor<List<BreadthService.InputLink>> links = ArgumentCaptor.forClass(List.class);
         verify(breadth).persist(any(), any(), any(), calculated.capture(), links.capture());
         assertThat(calculated.getValue()).isEqualTo(
-                new BreadthCalculator.Result(1, 1, 0, 1, 3, List.of("MISSING_REFERENCE_PRICE")));
+                new BreadthCalculator.Result(1, 1, 0, 1, 3,
+                        List.of("MISSING_REFERENCE_PRICE", "REFERENCE_PRICE_UNAVAILABLE_USING_PRIOR_CLOSE")));
         assertThat(links.getValue()).extracting(BreadthService.InputLink::classification)
                 .containsExactly("ADVANCING", "DECLINING", "UNCLASSIFIED");
-        verify(regimes).reconcileIfMissingOrOlder(currentDate, persisted);
+        assertThat(links.getValue()).extracting(BreadthService.InputLink::reasonCode)
+                .containsExactly(null, "REFERENCE_PRICE_UNAVAILABLE_USING_PRIOR_CLOSE", "MISSING_REFERENCE_PRICE");
+        verify(regimes).reconcileEndOfDayIfMissingOrOlder(currentDate, persisted);
     }
 
     @Test
@@ -86,7 +89,7 @@ class HistoricalMarketBreadthReconciliationServiceTests {
         assertThat(result.status()).isEqualTo("SKIPPED");
         assertThat(result.reasonCode()).isEqualTo("NO_DAILY_BAR_HISTORY");
         verify(breadth, never()).persist(any(), any(), any(), any(), any());
-        verify(regimes, never()).reconcileIfMissingOrOlder(any(), any());
+        verify(regimes, never()).reconcileEndOfDayIfMissingOrOlder(any(), any());
     }
 
     private static MarketInstrumentEntity instrument(UUID id, String venue, String symbol) {
@@ -96,9 +99,15 @@ class HistoricalMarketBreadthReconciliationServiceTests {
 
     private static StockReferenceDataService.DailyBarReference bar(
             UUID instrumentId, LocalDate tradingDate, String closePrice, String acceptedAt) {
+        return bar(instrumentId, tradingDate, closePrice, null, acceptedAt);
+    }
+
+    private static StockReferenceDataService.DailyBarReference bar(
+            UUID instrumentId, LocalDate tradingDate, String closePrice, String referencePrice, String acceptedAt) {
         return new StockReferenceDataService.DailyBarReference(UUID.randomUUID(), instrumentId, tradingDate,
                 new BigDecimal(closePrice), new BigDecimal(closePrice), new BigDecimal(closePrice),
-                new BigDecimal(closePrice), 1000L, BigDecimal.valueOf(1000000), "VNSTOCK_KBS",
+                new BigDecimal(closePrice), referencePrice == null ? null : new BigDecimal(referencePrice),
+                1000L, BigDecimal.valueOf(1000000), "VNSTOCK_KBS",
                 Instant.parse(acceptedAt));
     }
 }

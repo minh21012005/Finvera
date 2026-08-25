@@ -26,8 +26,8 @@ public class StockHistoryImportPackageParser {
                 records.add(new StockHistoryImportService.DailyBarRecord(
                         text(value, "symbol"), LocalDate.parse(text(value, "tradingDate")),
                         Instant.parse(text(value, "observedAt")), text(value, "open"), text(value, "high"),
-                        text(value, "low"), text(value, "close"), nullableText(value, "volume"),
-                        nullableText(value, "valueVnd"), text(value, "adjustmentStatus"),
+                        text(value, "low"), text(value, "close"), nullableText(value, "referencePrice"),
+                        nullableText(value, "volume"), nullableText(value, "valueVnd"), text(value, "adjustmentStatus"),
                         text(value, "canonicalRecord")));
             }
             return new StockHistoryImportService.PackageInput(text(root, "contractVersion"), text(root, "toolName"),

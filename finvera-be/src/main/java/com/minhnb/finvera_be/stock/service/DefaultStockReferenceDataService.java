@@ -231,6 +231,7 @@ public class DefaultStockReferenceDataService implements StockReferenceDataServi
                 entity.getHighPrice(),
                 entity.getLowPrice(),
                 entity.getClosePrice(),
+                entity.getReferencePrice(),
                 entity.getVolume(),
                 entity.getValueVnd(),
                 entity.getSource(),

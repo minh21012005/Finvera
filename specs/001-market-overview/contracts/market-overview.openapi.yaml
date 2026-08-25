@@ -247,6 +247,7 @@ components:
       required:
         - dataStatus
         - ruleVersion
+        - assessmentBasis
         - label
         - score
         - confidence
@@ -261,6 +262,10 @@ components:
         ruleVersion:
           type: string
           enum: [market-regime-v1, market-regime-v2]
+        assessmentBasis:
+          type: [string, "null"]
+          enum: [LIVE, EOD, UNKNOWN, null]
+          description: LIVE uses current-session overlay inputs; EOD uses completed-session inputs only.
         label:
           oneOf:
             - $ref: "#/components/schemas/RegimeLabel"

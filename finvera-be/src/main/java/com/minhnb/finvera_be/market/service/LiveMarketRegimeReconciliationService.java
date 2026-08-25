@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class LiveMarketRegimeReconciliationService {
     private static final String DEPRECATED_SOURCE = "TCBS_IFLASH_MARKET_DATA";
+    private static final String COMPLETED_SESSION_SOURCE_PREFIX = "VNSTOCK%";
     private final MarketIndexRepository indexes;
     private final MarketIndexSnapshotRepository snapshots;
     private final RegimeAssessmentService assessments;
@@ -44,15 +45,27 @@ public class LiveMarketRegimeReconciliationService {
     public void reconcileIfMissingOrOlder(LocalDate tradingDate, BreadthService.Snapshot breadth) {
         Objects.requireNonNull(tradingDate, "tradingDate");
         Objects.requireNonNull(breadth, "breadth");
-        var latest = assessments.latestFor(tradingDate);
-        if (latest.isPresent() && coversBreadthWithPublishedV2(latest.orElseThrow(), breadth.asOf())) {
+        var latest = assessments.latestFor(tradingDate, "LIVE");
+        if (latest.isPresent() && coversBreadthWithPublishedV2(latest.orElseThrow(), breadth.asOf(), "LIVE")) {
             return;
         }
-        reconcile(tradingDate, breadth);
+        reconcileLive(tradingDate, breadth);
     }
 
-    private static boolean coversBreadthWithPublishedV2(RegimeAssessmentService.Snapshot latest, Instant breadthAsOf) {
+    public void reconcileEndOfDayIfMissingOrOlder(LocalDate tradingDate, BreadthService.Snapshot breadth) {
+        Objects.requireNonNull(tradingDate, "tradingDate");
+        Objects.requireNonNull(breadth, "breadth");
+        var latest = assessments.latestFor(tradingDate, "EOD");
+        if (latest.isPresent() && coversBreadthWithPublishedV2(latest.orElseThrow(), breadth.asOf(), "EOD")) {
+            return;
+        }
+        reconcileEndOfDay(tradingDate, breadth);
+    }
+
+    private static boolean coversBreadthWithPublishedV2(
+            RegimeAssessmentService.Snapshot latest, Instant breadthAsOf, String assessmentBasis) {
         return MarketRegimeV2.RULE_VERSION.equals(latest.ruleVersion())
+                && assessmentBasis.equals(latest.assessmentBasis())
                 && !latest.asOf().isBefore(breadthAsOf)
                 && latest.assessment().label() != null
                 && latest.assessment().score() != null
@@ -60,12 +73,31 @@ public class LiveMarketRegimeReconciliationService {
     }
 
     public void reconcile(LocalDate tradingDate, BreadthService.Snapshot breadth) {
+        reconcileLive(tradingDate, breadth);
+    }
+
+    public void reconcileLive(LocalDate tradingDate, BreadthService.Snapshot breadth) {
         Objects.requireNonNull(tradingDate, "tradingDate");
         Objects.requireNonNull(breadth, "breadth");
         var index = indexes.findByCode("VN_INDEX").orElseThrow(
                 () -> new IllegalStateException("VN_INDEX reference is required"));
         List<MarketIndexSnapshotEntity> history = snapshots.findAcceptedDailyHistory(
                 index.getId(), DEPRECATED_SOURCE, tradingDate);
+        reconcile(tradingDate, breadth, history, "LIVE");
+    }
+
+    public void reconcileEndOfDay(LocalDate tradingDate, BreadthService.Snapshot breadth) {
+        Objects.requireNonNull(tradingDate, "tradingDate");
+        Objects.requireNonNull(breadth, "breadth");
+        var index = indexes.findByCode("VN_INDEX").orElseThrow(
+                () -> new IllegalStateException("VN_INDEX reference is required"));
+        List<MarketIndexSnapshotEntity> history = snapshots.findAcceptedCompletedDailyHistory(
+                index.getId(), COMPLETED_SESSION_SOURCE_PREFIX, tradingDate);
+        reconcile(tradingDate, breadth, history, "EOD");
+    }
+
+    private void reconcile(LocalDate tradingDate, BreadthService.Snapshot breadth,
+            List<MarketIndexSnapshotEntity> history, String assessmentBasis) {
         if (history.isEmpty() || !history.getLast().getTradingDate().equals(tradingDate)) {
             return;
         }
@@ -75,7 +107,7 @@ public class LiveMarketRegimeReconciliationService {
                 new MarketRegimeV2.InputAvailability(true, true, DataStatus.CURRENT, breadth.dataStatus()));
         Instant asOf = current.getObservedAt().isAfter(breadth.asOf()) ? current.getObservedAt() : breadth.asOf();
         assessments.persist(new RegimeAssessmentService.AssessmentCommand(tradingDate, asOf, MarketRegimeV2.RULE_VERSION,
-                calculated, null,
+                calculated, assessmentBasis, null,
                 List.of(RegimeAssessmentService.InputLink.indexSnapshot("VN_INDEX_CURRENT", current.getId()),
                         RegimeAssessmentService.InputLink.breadthSnapshot("BREADTH_CURRENT", breadth.id()),
                         RegimeAssessmentService.InputLink.inputSet("VN_INDEX_DAILY_HISTORY", historyHash(history))),

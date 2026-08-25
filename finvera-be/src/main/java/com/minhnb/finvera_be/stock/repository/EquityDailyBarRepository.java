@@ -38,7 +38,7 @@ public interface EquityDailyBarRepository extends JpaRepository<EquityDailyBarEn
 
     @Query(value = """
             SELECT id, instrument_id, ingestion_record_id, import_batch_id, trading_date, open_price,
-                   high_price, low_price, close_price, adjusted_close, adjustment_factor, adjustment_status,
+                   high_price, low_price, close_price, reference_price, adjusted_close, adjustment_factor, adjustment_status,
                    volume, value_vnd, source, observed_at, accepted_at, revision, is_current, supersedes_id,
                    quality_reason
             FROM equity_daily_bar
@@ -53,7 +53,7 @@ public interface EquityDailyBarRepository extends JpaRepository<EquityDailyBarEn
 
     @Query(value = """
             SELECT id, instrument_id, ingestion_record_id, import_batch_id, trading_date, open_price,
-                   high_price, low_price, close_price, adjusted_close, adjustment_factor, adjustment_status,
+                   high_price, low_price, close_price, reference_price, adjusted_close, adjustment_factor, adjustment_status,
                    volume, value_vnd, source, observed_at, accepted_at, revision, is_current, supersedes_id,
                    quality_reason
             FROM equity_daily_bar
@@ -82,7 +82,7 @@ public interface EquityDailyBarRepository extends JpaRepository<EquityDailyBarEn
 
     @Query(value = """
             SELECT id, instrument_id, ingestion_record_id, import_batch_id, trading_date, open_price,
-                   high_price, low_price, close_price, adjusted_close, adjustment_factor, adjustment_status,
+                   high_price, low_price, close_price, reference_price, adjusted_close, adjustment_factor, adjustment_status,
                    volume, value_vnd, source, observed_at, accepted_at, revision, is_current, supersedes_id,
                    quality_reason
             FROM equity_daily_bar
@@ -128,7 +128,7 @@ public interface EquityDailyBarRepository extends JpaRepository<EquityDailyBarEn
                   AND b.source <> 'TCBS_IFLASH_STOCK_DATA'
             )
             SELECT id, instrument_id, ingestion_record_id, import_batch_id, trading_date, open_price,
-                   high_price, low_price, close_price, adjusted_close, adjustment_factor, adjustment_status,
+                   high_price, low_price, close_price, reference_price, adjusted_close, adjustment_factor, adjustment_status,
                    volume, value_vnd, source, observed_at, accepted_at, revision, is_current, supersedes_id,
                    quality_reason
             FROM ranked

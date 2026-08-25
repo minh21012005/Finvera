@@ -250,7 +250,7 @@ Immutable result over a declared universe revision and coherent as-of boundary.
 | `advancing`, `declining`, `unchanged` | integer | Each non-negative. |
 | `eligible` | integer | Non-negative total. |
 | `unclassified` | integer | Non-negative and visible when nonzero. |
-| `data_status` | varchar(32) | `PARTIAL` if unclassified > 0 or a venue is incomplete. |
+| `data_status` | varchar(32) | `PARTIAL` if unclassified > 0, a venue is incomplete, or EOD breadth used prior accepted close because official reference price was unavailable. |
 | `reason_codes` | text[] | Stable quality reason codes. |
 | `source_summary` | jsonb | Allowlisted sources and times only; no raw payloads. |
 | `calculation_version` | varchar(64) | `breadth-v1`. |
@@ -280,6 +280,7 @@ Immutable deterministic `market-regime-v1` output.
 | `trading_date` | date | Vietnam date. |
 | `as_of`, `calculated_at` | timestamptz | UTC. |
 | `rule_version` | varchar(64) | Immutable methodology version. |
+| `assessment_basis` | varchar(16) | `LIVE`, `EOD`, or `UNKNOWN`; distinguishes current-session overlays from completed-session assessments. |
 | `label` | varchar(32) nullable | Null unless publishable. |
 | `score` | smallint nullable | Integer 0–100; null with unavailable/partial result. |
 | `confidence` | smallint nullable | Quality score 0–100, not probability. |

@@ -406,11 +406,13 @@ assessments, not fabricated labels. This is the T081 runtime path for FR-017.
 
 ## Phase 14: Provider-Compatible Live Regime V2
 
-`market-regime-v2` is a parallel rule version for the current private live
-provider mix. It keeps `market-regime-v1` immutable and does not reinterpret its
-missing-input constraints. V2 uses only inputs the implemented contracts prove
-available today: VN-Index trend, momentum, and volatility from accepted daily
-history, plus TCBS Thesis aggregate advancing/declining breadth. It excludes
+`market-regime-v2` is a parallel rule version for the current private provider
+mix. It keeps `market-regime-v1` immutable and does not reinterpret its
+missing-input constraints. Each V2 row records `assessmentBasis=LIVE` or
+`assessmentBasis=EOD` so the dashboard does not confuse current-session overlays
+with completed-session assessments. LIVE uses only inputs the implemented
+contracts prove available today: VN-Index trend, momentum, and volatility from
+accepted daily history, plus TCBS Thesis aggregate advancing/declining breadth. It excludes
 full-universe percent-above-SMA50 and liquidity history until a provider
 contract supplies those datasets. Publication requires trend and aggregate
 breadth plus at least one additional index-history component; otherwise the
@@ -438,10 +440,14 @@ one deterministic market EOD reconciliation step. The market module reads
 accepted stock bars only through the stock module's published
 `StockReferenceDataService` application API, not through stock repositories or
 tables. Breadth compares each active common equity's latest close for the
-completed session with that instrument's prior accepted close. Missing current
-or prior close remains unclassified with a reason code. The persisted breadth
-snapshot then triggers the existing `market-regime-v2` reconciler against
-accepted PostgreSQL inputs. This closes the gap where a fresh local database
+completed session with that session's official reference price when the accepted
+daily-bar source provides it. If that field is unavailable, the prior accepted
+close is a disclosed fallback and the breadth snapshot is `PARTIAL` with
+`REFERENCE_PRICE_UNAVAILABLE_USING_PRIOR_CLOSE`; missing current close or any
+reference basis remains unclassified with a reason code. The persisted breadth
+snapshot then triggers `market-regime-v2` with `assessmentBasis=EOD`, using only
+completed Vnstock/KBS closed index history for index-history components. This
+closes the gap where a fresh local database
 could have valid index and stock history but no breadth/regime rows unless a
 TCBS live breadth bucket or fixture bootstrap had already run.
 

@@ -111,6 +111,7 @@ Research R-002 records why this is a new table rather than a widening of
 | `import_batch_id` | UUID nullable | FK `market_import_batch` when it arrived by offline package. |
 | `trading_date` | date | Vietnam market date. |
 | `open_price`, `high_price`, `low_price`, `close_price` | numeric(20,6) | Non-negative. |
+| `reference_price` | numeric(20,6) nullable | Same-session official reference when supplied by the accepted source; null is distinct from prior close. |
 | `adjusted_close` | numeric(20,6) nullable | Null when no accepted adjustment basis exists. |
 | `adjustment_factor` | numeric(20,12) nullable | Cumulative factor applied to reach `adjusted_close`. |
 | `adjustment_status` | varchar(32) | `AdjustmentStatus`. |
@@ -124,8 +125,8 @@ Research R-002 records why this is a new table rather than a widening of
 
 Checks: `high_price >= low_price`; `high_price >= open_price` and
 `high_price >= close_price`; `low_price <= open_price` and
-`low_price <= close_price`; `adjusted_close is null or adjustment_factor is not
-null`.
+`low_price <= close_price`; `reference_price is null or reference_price >= 0`;
+`adjusted_close is null or adjustment_factor is not null`.
 
 Indexes: unique `(instrument_id, trading_date, source, revision)`; partial unique
 on the current revision per `(instrument_id, trading_date, source)`; a covering

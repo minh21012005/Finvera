@@ -20,6 +20,7 @@ public class MarketRegimeAssessmentEntity {
     @Column(name = "as_of") private Instant asOf;
     @Column(name = "calculated_at") private Instant calculatedAt;
     @Column(name = "rule_version") private String ruleVersion;
+    @Column(name = "assessment_basis") private String assessmentBasis;
     private String label;
     private Short score;
     private Short confidence;
@@ -37,8 +38,16 @@ public class MarketRegimeAssessmentEntity {
             String ruleVersion, String label, Integer score, Integer confidence, String dataStatus,
             BigDecimal completeness, BigDecimal factorAgreement, BigDecimal boundaryDistance,
             boolean renormalized, List<String> reasonCodes, UUID supersedesId) {
+        this(id, tradingDate, asOf, calculatedAt, ruleVersion, "UNKNOWN", label, score, confidence, dataStatus,
+                completeness, factorAgreement, boundaryDistance, renormalized, reasonCodes, supersedesId);
+    }
+
+    public MarketRegimeAssessmentEntity(UUID id, LocalDate tradingDate, Instant asOf, Instant calculatedAt,
+            String ruleVersion, String assessmentBasis, String label, Integer score, Integer confidence,
+            String dataStatus, BigDecimal completeness, BigDecimal factorAgreement, BigDecimal boundaryDistance,
+            boolean renormalized, List<String> reasonCodes, UUID supersedesId) {
         this.id = id; this.tradingDate = tradingDate; this.asOf = asOf; this.calculatedAt = calculatedAt;
-        this.ruleVersion = ruleVersion; this.label = label;
+        this.ruleVersion = ruleVersion; this.assessmentBasis = assessmentBasis; this.label = label;
         this.score = score == null ? null : score.shortValue();
         this.confidence = confidence == null ? null : confidence.shortValue();
         this.dataStatus = dataStatus; this.completeness = completeness; this.factorAgreement = factorAgreement;
@@ -51,6 +60,7 @@ public class MarketRegimeAssessmentEntity {
     public Instant getAsOf() { return asOf; }
     public Instant getCalculatedAt() { return calculatedAt; }
     public String getRuleVersion() { return ruleVersion; }
+    public String getAssessmentBasis() { return assessmentBasis; }
     public String getLabel() { return label; }
     public Integer getScore() { return score == null ? null : score.intValue(); }
     public Integer getConfidence() { return confidence == null ? null : confidence.intValue(); }

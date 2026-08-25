@@ -593,8 +593,10 @@ regime label.
 
 ## R-007B — Provider-Compatible Live Regime V2
 
-**Decision**: Add `market-regime-v2` as the live private regime rule while
-preserving `market-regime-v1` history unchanged. V2 uses only accepted inputs
+**Decision**: Add `market-regime-v2` as the private provider-compatible regime
+rule while preserving `market-regime-v1` history unchanged. Every persisted V2
+row records `assessmentBasis`: `LIVE` for current-session overlay assessments
+and `EOD` for completed-session assessments. LIVE uses only accepted inputs
 available from the current contracts: VN-Index trend, momentum, and volatility
 from daily accepted index history, plus TCBS Thesis aggregate advancing and
 declining counts. Aggregate breadth score is `advancing / (advancing +
@@ -620,11 +622,15 @@ realtime entitlement or whole-universe polling contract has been approved.
 **Decision**: After the local owner refresh imports completed-session Vnstock/KBS
 daily bars into PostgreSQL, rebuild one consolidated end-of-day breadth
 snapshot by comparing each active common equity's accepted close for the latest
-completed session with its prior accepted close. Persist missing current close
-as `MISSING_PRICE` and missing prior close as `MISSING_REFERENCE_PRICE`; do not
-drop the instrument or fabricate a reference. The resulting breadth snapshot
-triggers the same `market-regime-v2` reconciliation path used after accepted
-live aggregate breadth.
+completed session with its same-session official reference price when present.
+If the completed daily-bar source does not supply that official reference,
+Finvera may use the prior accepted close as a fallback but must mark the
+snapshot `PARTIAL` with `REFERENCE_PRICE_UNAVAILABLE_USING_PRIOR_CLOSE`.
+Persist missing current close as `MISSING_PRICE` and missing reference basis as
+`MISSING_REFERENCE_PRICE`; do not drop the instrument or fabricate a reference.
+The resulting breadth snapshot triggers `market-regime-v2` with
+`assessmentBasis=EOD`, using completed Vnstock/KBS closed index history only
+for the index-history components.
 
 **Rationale**: A recreated local database can legitimately contain index
 history and stock daily bars while `breadth_snapshot` and `regime_assessment`

@@ -96,7 +96,8 @@ public class StockOverviewService {
                 liveQuote.map(QuoteObservation::lastPrice)
                         .orElseGet(() -> latestBar.map(EquityDailyBarEntity::getClosePrice).orElse(null)),
                 liveQuote.map(QuoteObservation::officialReferencePrice)
-                        .orElseGet(() -> previousBar.map(EquityDailyBarEntity::getClosePrice).orElse(null)),
+                        .orElseGet(() -> latestBar.map(EquityDailyBarEntity::getReferencePrice)
+                                .orElseGet(() -> previousBar.map(EquityDailyBarEntity::getClosePrice).orElse(null))),
                 liveQuote.map(QuoteObservation::sessionVolume)
                         .orElseGet(() -> latestBar.map(EquityDailyBarEntity::getVolume).orElse(null)),
                 liveQuote.map(QuoteObservation::sessionValueVnd)

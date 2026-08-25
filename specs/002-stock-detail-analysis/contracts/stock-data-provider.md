@@ -79,9 +79,11 @@ not a new provider relationship.
 getDailyBars(symbol, fromDate, toDate)  -> DailyBar[]
 ```
 
-`DailyBar` carries trading date, open, high, low, close, volume, value, and the
-provider's adjustment indication. Bars arrive either live or inside an offline
-canonical package under
+`DailyBar` carries trading date, open, high, low, close, optional same-session
+official reference price, volume, value, and the provider's adjustment
+indication. Null reference price is preserved as unavailable and may require a
+reason-coded prior-close fallback in downstream EOD breadth. Bars arrive either
+live or inside an offline canonical package under
 [001 contracts/vnstock-historical-bootstrap.md](../../001-market-overview/contracts/vnstock-historical-bootstrap.md);
 both paths pass the same acceptance checks.
 

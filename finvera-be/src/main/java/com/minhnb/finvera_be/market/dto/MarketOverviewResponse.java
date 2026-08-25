@@ -98,20 +98,22 @@ public record MarketOverviewResponse(
     }
 
     public record RegimeResponse(
-            DataStatus dataStatus, String ruleVersion, com.minhnb.finvera_be.market.domain.model.MarketTypes.RegimeLabel label,
+            DataStatus dataStatus, String ruleVersion, String assessmentBasis,
+            com.minhnb.finvera_be.market.domain.model.MarketTypes.RegimeLabel label,
             Integer score, Integer confidence, String confidenceMeaning, List<FactorResponse> factors, LocalDate tradingDate, Instant asOf,
             SourceReference source, List<String> reasonCodes, String disclaimerCode) {
         static RegimeResponse from(com.minhnb.finvera_be.market.service.RegimeAssessmentService.Snapshot snapshot) {
             if (snapshot == null) return unavailable();
             var assessment = snapshot.assessment();
-            return new RegimeResponse(assessment.dataStatus(), snapshot.ruleVersion(), assessment.label(), assessment.score(),
-                    assessment.confidence(), "ASSESSMENT_QUALITY_NOT_FORECAST_PROBABILITY",
+            return new RegimeResponse(assessment.dataStatus(), snapshot.ruleVersion(), snapshot.assessmentBasis(),
+                    assessment.label(), assessment.score(), assessment.confidence(),
+                    "ASSESSMENT_QUALITY_NOT_FORECAST_PROBABILITY",
                     assessment.factors().stream().map(FactorResponse::from).toList(), snapshot.tradingDate(), snapshot.asOf(),
                     new SourceReference("FINVERA_ACCEPTED", "REGIME"), assessment.reasonCodes(),
                     "QUANTITATIVE_DECISION_SUPPORT_NOT_INVESTMENT_ADVICE");
         }
         static RegimeResponse unavailable() {
-            return new RegimeResponse(DataStatus.UNAVAILABLE, "market-regime-v1", null, null, null,
+            return new RegimeResponse(DataStatus.UNAVAILABLE, "market-regime-v1", null, null, null, null,
                     "ASSESSMENT_QUALITY_NOT_FORECAST_PROBABILITY", List.of(), null, null,
                     new SourceReference("UNAVAILABLE", "REGIME"), List.of("REGIME_NOT_AVAILABLE"),
                     "QUANTITATIVE_DECISION_SUPPORT_NOT_INVESTMENT_ADVICE");

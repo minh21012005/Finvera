@@ -25,6 +25,7 @@ def test_kbs_board_price_is_normalized_to_base_vnd_per_share():
         "high": "214.9",
         "low": "208.0",
         "close": "214.5",
+        "ref": "212.0",
         "volume": "3586200",
     }]
 
@@ -34,11 +35,12 @@ def test_kbs_board_price_is_normalized_to_base_vnd_per_share():
     assert record["high"] == "214900.000000"
     assert record["low"] == "208000.000000"
     assert record["close"] == "214500.000000"
+    assert record["referencePrice"] == "212000.000000"
     assert record["valueVnd"] == "769239900000.000000"
 
 
 def test_daily_bar_tool_version_changes_when_canonical_price_unit_changes():
-    assert export_daily_bars.TOOL_VERSION == "0.2.1"
+    assert export_daily_bars.TOOL_VERSION == "0.3.0"
 
 
 def test_full_universe_checkpoint_does_not_skip_old_daily_bar_tool_version(tmp_path):
@@ -109,7 +111,8 @@ def test_full_universe_reexport_drops_records_from_old_daily_bar_tool_version(tm
 
     package = json.loads(path.read_text(encoding="utf-8"))
 
-    assert package["toolVersion"] == "0.2.1"
+    assert package["toolVersion"] == "0.3.0"
     assert package["records"][0]["tradingDate"] == "2026-08-01"
     assert package["records"][-1]["tradingDate"] == "2026-08-20"
     assert package["records"][0]["close"] == "214500.000000"
+    assert package["records"][0]["referencePrice"] is None

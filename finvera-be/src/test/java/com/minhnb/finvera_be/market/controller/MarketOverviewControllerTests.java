@@ -149,6 +149,7 @@ class MarketOverviewControllerTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.regime.dataStatus").value("CURRENT"))
                 .andExpect(jsonPath("$.regime.label").value("BULL"))
+                .andExpect(jsonPath("$.regime.assessmentBasis").value("UNKNOWN"))
                 .andExpect(jsonPath("$.regime.score").value(80))
                 .andExpect(jsonPath("$.regime.confidence").value(90))
                 .andExpect(jsonPath("$.regime.factors[0].code").value("TREND"))

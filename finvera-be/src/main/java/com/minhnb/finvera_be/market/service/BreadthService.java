@@ -27,7 +27,7 @@ public class BreadthService {
     @Transactional
     public Snapshot persist(LocalDate tradingDate, Instant asOf, String universeHash,
             BreadthCalculator.Result result, List<InputLink> inputLinks) {
-        DataStatus status = result.unclassified() > 0 ? DataStatus.PARTIAL : DataStatus.CURRENT;
+        DataStatus status = statusFor(result);
         UUID id = UUID.randomUUID();
         snapshots.save(new MarketBreadthSnapshotEntity(id, tradingDate, asOf, clock.instant(),
                 BreadthUniversePolicy.VERSION, universeHash, result.advancing(), result.declining(), result.unchanged(),
@@ -45,7 +45,7 @@ public class BreadthService {
             return Optional.empty();
         }
         UUID id = UUID.randomUUID();
-        DataStatus status = result.unclassified() > 0 ? DataStatus.PARTIAL : DataStatus.CURRENT;
+        DataStatus status = statusFor(result);
         snapshots.save(new MarketBreadthSnapshotEntity(id, tradingDate, asOf, clock.instant(),
                 universeVersion, universeHash, result.advancing(), result.declining(), result.unchanged(),
                 result.eligible(), result.unclassified(), status.name(), "provider-aggregate-v1",
@@ -68,6 +68,11 @@ public class BreadthService {
                 new BreadthCalculator.Result(entity.getAdvancing(), entity.getDeclining(), entity.getUnchanged(),
                         entity.getUnclassified(), entity.getEligible(), entity.getReasonCodes()), entity.getUniversePolicyVersion(),
                 entity.getUniverseRevisionHash());
+    }
+    private static DataStatus statusFor(BreadthCalculator.Result result) {
+        return result.unclassified() > 0
+                || result.reasonCodes().contains("REFERENCE_PRICE_UNAVAILABLE_USING_PRIOR_CLOSE")
+                ? DataStatus.PARTIAL : DataStatus.CURRENT;
     }
     public record InputLink(UUID instrumentId, UUID priceObservationId, String classification, String reasonCode) { }
     public record Snapshot(UUID id, LocalDate tradingDate, Instant asOf, DataStatus dataStatus, BreadthCalculator.Result result,

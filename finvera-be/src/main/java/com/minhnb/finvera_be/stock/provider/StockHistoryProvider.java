@@ -15,8 +15,13 @@ public interface StockHistoryProvider {
             BigDecimal high,
             BigDecimal low,
             BigDecimal close,
+            BigDecimal referencePrice,
             Long volume,
             BigDecimal valueVnd,
             String adjustmentIndication) {
+        public DailyBar(LocalDate tradingDate, BigDecimal open, BigDecimal high, BigDecimal low,
+                BigDecimal close, Long volume, BigDecimal valueVnd, String adjustmentIndication) {
+            this(tradingDate, open, high, low, close, null, volume, valueVnd, adjustmentIndication);
+        }
     }
 }

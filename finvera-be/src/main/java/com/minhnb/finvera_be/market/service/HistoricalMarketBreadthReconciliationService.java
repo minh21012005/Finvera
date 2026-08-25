@@ -85,12 +85,12 @@ public class HistoricalMarketBreadthReconciliationService {
             return Result.skipped("NO_DAILY_BAR_HISTORY_FOR_LATEST_SESSION");
         }
 
-        BreadthCalculator.Result calculated = calculator.calculate(build.inputs());
+        BreadthCalculator.Result calculated = withAdditionalReasons(calculator.calculate(build.inputs()), build.reasonCodes());
         String universeHash = universeHash(tradingDate, build.inputs(), build.links());
         BreadthService.Snapshot snapshot = breadth.latestFor(tradingDate)
                 .filter(existing -> existing.asOf().equals(asOf) && existing.universeHash().equals(universeHash))
                 .orElseGet(() -> breadth.persist(tradingDate, asOf, universeHash, calculated, build.links()));
-        regimes.reconcileIfMissingOrOlder(tradingDate, snapshot);
+        regimes.reconcileEndOfDayIfMissingOrOlder(tradingDate, snapshot);
         return new Result("APPLIED", tradingDate, snapshot.id(), calculated.eligible(), calculated.advancing(),
                 calculated.declining(), calculated.unchanged(), calculated.unclassified(), null);
     }
@@ -112,15 +112,19 @@ public class HistoricalMarketBreadthReconciliationService {
                     .max(Comparator.comparing(StockReferenceDataService.DailyBarReference::tradingDate))
                     .orElse(null);
             BigDecimal currentClose = current == null ? null : current.closePrice();
+            BigDecimal officialReference = current == null ? null : current.referencePrice();
             BigDecimal previousClose = previous == null ? null : previous.closePrice();
+            BigDecimal referencePrice = officialReference != null ? officialReference : previousClose;
             inputs.add(new BreadthCalculator.SecurityInput(Venue.valueOf(instrument.getVenue()),
                     instrument.getSymbol(), instrument.getIsin(), true, false,
-                    BreadthUniversePolicy.InstrumentType.COMMON_EQUITY, currentClose, previousClose,
+                    BreadthUniversePolicy.InstrumentType.COMMON_EQUITY, currentClose, referencePrice,
                     AdjustmentStatus.RAW));
             links.add(new BreadthService.InputLink(instrument.getId(), current == null ? null : current.id(),
-                    classification(currentClose, previousClose), reasonCode(currentClose, previousClose)));
+                    classification(currentClose, referencePrice), reasonCode(currentClose, officialReference, previousClose)));
         }
-        return new Build(inputs, links);
+        List<String> reasons = links.stream().map(BreadthService.InputLink::reasonCode)
+                .filter(Objects::nonNull).distinct().toList();
+        return new Build(inputs, links, reasons);
     }
 
     private static String classification(BigDecimal currentClose, BigDecimal previousClose) {
@@ -131,10 +135,23 @@ public class HistoricalMarketBreadthReconciliationService {
         return "UNCHANGED";
     }
 
-    private static String reasonCode(BigDecimal currentClose, BigDecimal previousClose) {
+    private static String reasonCode(BigDecimal currentClose, BigDecimal officialReference, BigDecimal previousClose) {
         if (currentClose == null) return "MISSING_PRICE";
+        if (officialReference != null) return null;
         if (previousClose == null) return "MISSING_REFERENCE_PRICE";
-        return null;
+        return "REFERENCE_PRICE_UNAVAILABLE_USING_PRIOR_CLOSE";
+    }
+
+    private static BreadthCalculator.Result withAdditionalReasons(BreadthCalculator.Result result,
+            List<String> additionalReasons) {
+        List<String> reasons = new ArrayList<>(result.reasonCodes());
+        for (String reason : additionalReasons) {
+            if (!reasons.contains(reason)) {
+                reasons.add(reason);
+            }
+        }
+        return new BreadthCalculator.Result(result.advancing(), result.declining(), result.unchanged(),
+                result.unclassified(), result.eligible(), reasons);
     }
 
     private static String universeHash(LocalDate tradingDate, List<BreadthCalculator.SecurityInput> inputs,
@@ -164,7 +181,8 @@ public class HistoricalMarketBreadthReconciliationService {
         return value == null ? "" : value;
     }
 
-    private record Build(List<BreadthCalculator.SecurityInput> inputs, List<BreadthService.InputLink> links) { }
+    private record Build(List<BreadthCalculator.SecurityInput> inputs, List<BreadthService.InputLink> links,
+                         List<String> reasonCodes) { }
 
     public record Result(String status, LocalDate tradingDate, UUID breadthSnapshotId, int eligible, int advancing,
                          int declining, int unchanged, int unclassified, String reasonCode) {

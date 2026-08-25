@@ -62,8 +62,21 @@ public class RegimeAssessmentService {
     @Transactional(readOnly = true)
     public Optional<Snapshot> latestFor(LocalDate tradingDate) {
         return assessments.findFirstByTradingDateOrderByAsOfDescCalculatedAtDesc(tradingDate)
-                .map(entity -> new Snapshot(entity.getTradingDate(), entity.getAsOf(), entity.getRuleVersion(),
-                        fromEntity(entity, factors.findByAssessmentIdOrderByFactorCode(entity.getId()))));
+                .map(this::toSnapshot);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<Snapshot> latestFor(LocalDate tradingDate, String assessmentBasis) {
+        Objects.requireNonNull(assessmentBasis, "assessmentBasis");
+        return assessments.findFirstByTradingDateAndAssessmentBasisOrderByAsOfDescCalculatedAtDesc(
+                        tradingDate, assessmentBasis)
+                .map(this::toSnapshot);
+    }
+
+    private Snapshot toSnapshot(MarketRegimeAssessmentEntity entity) {
+        return new Snapshot(entity.getTradingDate(), entity.getAsOf(), entity.getRuleVersion(),
+                entity.getAssessmentBasis(),
+                fromEntity(entity, factors.findByAssessmentIdOrderByFactorCode(entity.getId())));
     }
 
     private static boolean containsSourceConflict(List<SourceValue> sourceValues) {
@@ -89,7 +102,8 @@ public class RegimeAssessmentService {
     private static MarketRegimeAssessmentEntity toEntity(UUID id, AssessmentCommand command,
             RegimeAssessment assessment, Instant calculatedAt) {
         return new MarketRegimeAssessmentEntity(id, command.tradingDate(), command.asOf(), calculatedAt,
-                command.ruleVersion(), assessment.label() == null ? null : assessment.label().name(),
+                command.ruleVersion(), command.assessmentBasis(),
+                assessment.label() == null ? null : assessment.label().name(),
                 assessment.score(), assessment.confidence(), assessment.dataStatus().name(), assessment.completeness(),
                 assessment.factorAgreement(), assessment.boundaryDistance(), assessment.renormalized(),
                 assessment.reasonCodes(), command.supersedesAssessmentId());
@@ -115,11 +129,17 @@ public class RegimeAssessmentService {
     }
 
     public record AssessmentCommand(LocalDate tradingDate, Instant asOf, String ruleVersion, RegimeAssessment assessment,
-                                    UUID supersedesAssessmentId, List<InputLink> inputLinks,
+                                    String assessmentBasis, UUID supersedesAssessmentId, List<InputLink> inputLinks,
                                     List<SourceValue> sourceValues) {
+        public AssessmentCommand(LocalDate tradingDate, Instant asOf, String ruleVersion, RegimeAssessment assessment,
+                UUID supersedesAssessmentId, List<InputLink> inputLinks, List<SourceValue> sourceValues) {
+            this(tradingDate, asOf, ruleVersion, assessment, "UNKNOWN", supersedesAssessmentId,
+                    inputLinks, sourceValues);
+        }
+
         public AssessmentCommand(LocalDate tradingDate, Instant asOf, RegimeAssessment assessment,
                 UUID supersedesAssessmentId, List<InputLink> inputLinks, List<SourceValue> sourceValues) {
-            this(tradingDate, asOf, MarketRegimeV1.RULE_VERSION, assessment, supersedesAssessmentId,
+            this(tradingDate, asOf, MarketRegimeV1.RULE_VERSION, assessment, "UNKNOWN", supersedesAssessmentId,
                     inputLinks, sourceValues);
         }
 
@@ -128,6 +148,10 @@ public class RegimeAssessmentService {
             Objects.requireNonNull(asOf, "asOf");
             Objects.requireNonNull(ruleVersion, "ruleVersion");
             Objects.requireNonNull(assessment, "assessment");
+            Objects.requireNonNull(assessmentBasis, "assessmentBasis");
+            if (!List.of("LIVE", "EOD", "UNKNOWN").contains(assessmentBasis)) {
+                throw new IllegalArgumentException("unsupported assessment basis");
+            }
             inputLinks = List.copyOf(inputLinks);
             sourceValues = List.copyOf(sourceValues);
         }
@@ -157,5 +181,10 @@ public class RegimeAssessmentService {
 
     public record StoredAssessment(UUID id, LocalDate tradingDate, Instant asOf, RegimeAssessment assessment,
                                    UUID supersedesAssessmentId) { }
-    public record Snapshot(LocalDate tradingDate, Instant asOf, String ruleVersion, RegimeAssessment assessment) { }
+    public record Snapshot(LocalDate tradingDate, Instant asOf, String ruleVersion, String assessmentBasis,
+                           RegimeAssessment assessment) {
+        public Snapshot(LocalDate tradingDate, Instant asOf, String ruleVersion, RegimeAssessment assessment) {
+            this(tradingDate, asOf, ruleVersion, "UNKNOWN", assessment);
+        }
+    }
 }

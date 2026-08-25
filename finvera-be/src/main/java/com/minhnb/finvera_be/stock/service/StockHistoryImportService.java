@@ -44,7 +44,8 @@ public class StockHistoryImportService {
             results.add(ingestion.ingestDailyBar(new IncomingDailyBar(
                     input.upstreamSource(), record.symbol(), record.tradingDate(), record.observedAt(),
                     decimal(record.open()), decimal(record.high()), decimal(record.low()), decimal(record.close()),
-                    longOrNull(record.volume()), decimalOrNull(record.valueVnd()), record.adjustmentStatus(), false)));
+                    decimalOrNull(record.referencePrice()), longOrNull(record.volume()), decimalOrNull(record.valueVnd()),
+                    record.adjustmentStatus(), false)));
         }
         return new Summary(input.symbol(), results);
     }
@@ -99,6 +100,7 @@ public class StockHistoryImportService {
         decimal(record.high());
         decimal(record.low());
         decimal(record.close());
+        decimalOrNull(record.referencePrice());
         required(record.canonicalRecord(), "INVALID_RECORD");
     }
 
@@ -151,7 +153,14 @@ public class StockHistoryImportService {
 
     public record DailyBarRecord(
             String symbol, LocalDate tradingDate, Instant observedAt, String open, String high, String low,
-            String close, String volume, String valueVnd, String adjustmentStatus, String canonicalRecord) {
+            String close, String referencePrice, String volume, String valueVnd, String adjustmentStatus,
+            String canonicalRecord) {
+        public DailyBarRecord(String symbol, LocalDate tradingDate, Instant observedAt, String open, String high,
+                String low, String close, String volume, String valueVnd, String adjustmentStatus,
+                String canonicalRecord) {
+            this(symbol, tradingDate, observedAt, open, high, low, close, null, volume, valueVnd, adjustmentStatus,
+                    canonicalRecord);
+        }
     }
 
     public record Summary(String symbol, List<IngestionResult> results) {

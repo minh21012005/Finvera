@@ -53,6 +53,7 @@ class RegimeAssessmentServiceTests {
         ArgumentCaptor<MarketRegimeAssessmentEntity> assessmentCaptor = ArgumentCaptor.forClass(MarketRegimeAssessmentEntity.class);
         verify(assessments).save(assessmentCaptor.capture());
         assertThat(assessmentCaptor.getValue().getRuleVersion()).isEqualTo("market-regime-v1");
+        assertThat(assessmentCaptor.getValue().getAssessmentBasis()).isEqualTo("UNKNOWN");
         assertThat(assessmentCaptor.getValue().getSupersedesId()).isNull();
         assertThat(assessmentCaptor.getValue().getCalculatedAt()).isEqualTo(Instant.parse("2026-08-17T03:05:00Z"));
         @SuppressWarnings("unchecked")

@@ -157,8 +157,8 @@ public class StockIngestionService {
         UUID barId = UUID.randomUUID();
         dailyBars.save(new EquityDailyBarEntity(barId, instrumentId, ingestionRecordId, null,
                 incoming.tradingDate(), incoming.open(), incoming.high(), incoming.low(), incoming.close(),
-                null, null, incoming.adjustmentStatus(), incoming.volume(), incoming.valueVnd(), incoming.source(),
-                incoming.observedAt(), ingestedAt, revision, true,
+                incoming.referencePrice(), null, null, incoming.adjustmentStatus(), incoming.volume(),
+                incoming.valueVnd(), incoming.source(), incoming.observedAt(), ingestedAt, revision, true,
                 currentBar.map(EquityDailyBarEntity::getId).orElse(null), null));
 
         return new IngestionResult(
@@ -293,7 +293,8 @@ public class StockIngestionService {
             return "INVALID_OHLC";
         }
         if (bar.open().signum() < 0 || bar.high().signum() < 0 || bar.low().signum() < 0
-                || bar.close().signum() < 0 || (bar.volume() != null && bar.volume() < 0)) {
+                || bar.close().signum() < 0 || (bar.referencePrice() != null && bar.referencePrice().signum() < 0)
+                || (bar.volume() != null && bar.volume() < 0)) {
             return "VALUE_OUT_OF_BOUNDS";
         }
         return null;
@@ -317,7 +318,7 @@ public class StockIngestionService {
     private static String hashDailyBar(IncomingDailyBar bar) {
         return sha256(String.join("|", bar.source(), bar.symbol(), bar.tradingDate().toString(),
                 bar.observedAt().toString(), canonicalDecimal(bar.open()), canonicalDecimal(bar.high()),
-                canonicalDecimal(bar.low()), canonicalDecimal(bar.close()),
+                canonicalDecimal(bar.low()), canonicalDecimal(bar.close()), canonicalDecimal(bar.referencePrice()),
                 bar.volume() == null ? "" : bar.volume().toString(), bar.adjustmentStatus()));
     }
 
@@ -363,10 +364,17 @@ public class StockIngestionService {
             BigDecimal high,
             BigDecimal low,
             BigDecimal close,
+            BigDecimal referencePrice,
             Long volume,
             BigDecimal valueVnd,
             String adjustmentStatus,
             boolean isCorrection) {
+        public IncomingDailyBar(String source, String symbol, LocalDate tradingDate, Instant observedAt,
+                BigDecimal open, BigDecimal high, BigDecimal low, BigDecimal close, Long volume,
+                BigDecimal valueVnd, String adjustmentStatus, boolean isCorrection) {
+            this(source, symbol, tradingDate, observedAt, open, high, low, close, null, volume, valueVnd,
+                    adjustmentStatus, isCorrection);
+        }
     }
 
     public record IncomingFundamentalReport(

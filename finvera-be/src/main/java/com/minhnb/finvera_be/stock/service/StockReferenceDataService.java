@@ -97,10 +97,17 @@ public interface StockReferenceDataService {
             BigDecimal highPrice,
             BigDecimal lowPrice,
             BigDecimal closePrice,
+            BigDecimal referencePrice,
             Long volume,
             BigDecimal valueVnd,
             String source,
             Instant acceptedAt) {
+        public DailyBarReference(UUID id, UUID instrumentId, LocalDate tradingDate, BigDecimal openPrice,
+                BigDecimal highPrice, BigDecimal lowPrice, BigDecimal closePrice, Long volume, BigDecimal valueVnd,
+                String source, Instant acceptedAt) {
+            this(id, instrumentId, tradingDate, openPrice, highPrice, lowPrice, closePrice, null, volume, valueVnd,
+                    source, acceptedAt);
+        }
     }
 
     record EquityProfileReference(
