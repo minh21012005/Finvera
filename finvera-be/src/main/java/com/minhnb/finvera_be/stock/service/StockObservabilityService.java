@@ -63,11 +63,11 @@ public class StockObservabilityService implements HealthIndicator {
 
         if (result.status() == IngestionStatus.REJECTED) {
             publishFailure(FailureCategory.INVALID_RECORD, reason, StockOperation.INGESTION_VALIDATION, clock.instant());
-            LOGGER.warn("stock_ingestion source={} dataset={} outcome={} reason={} observed_at={}",
+            LOGGER.debug("stock_ingestion source={} dataset={} outcome={} reason={} observed_at={}",
                     safeSource, dataset, result.status(), reason, observedAt);
             return;
         }
-        LOGGER.info("stock_ingestion source={} dataset={} outcome={} reason={} observed_at={}",
+        LOGGER.debug("stock_ingestion source={} dataset={} outcome={} reason={} observed_at={}",
                 safeSource, dataset, result.status(), reason, observedAt);
     }
 
