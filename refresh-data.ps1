@@ -261,7 +261,7 @@ Invoke-BackendStage -Name "Buoc 6/7: Nap gia + bao cao tai chinh moi" `
 Set-StageFlags @("FINVERA_STOCK_TECHNICAL_WARMUP_ENABLED", "FINVERA_STOCK_VALUATION_WARMUP_ENABLED")
 Invoke-BackendStage -Name "Buoc 7/7: Tinh bu chi bao ky thuat + dinh gia" `
     -WaitPatterns @("technical_indicator_warmup total=", "valuation_warmup total=") `
-    -TimeoutSec 900
+    -TimeoutSec 7200
 
 Write-Host ""
 Write-Host "=== Xong. Gio khoi dong backend binh thuong (IntelliJ, hoac .\mvnw.cmd spring-boot:run trong finvera-be). ===" -ForegroundColor Green

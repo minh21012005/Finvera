@@ -378,6 +378,7 @@ Phases 1-5 are complete.
       Evidence (2026-08-25): `TcbsLiveEquityQuoteServiceTests` and `StockHistoryImportServiceTests` passed in the targeted Maven run before Docker-gated tests started; `StockIngestionServiceTests` could not start because Testcontainers needs Docker. Backend package still compiles successfully.
 - [x] T079 [FR-001, FR-007, DATA-001, DATA-006, NFR-006] Make `refresh-data.ps1` a complete, dependency-ordered bootstrap for a newly-created private local database: import instrument reference, company profiles, sector classification, index history, daily bars and fundamentals, then warm technical and valuation derived data.
       Verify: the script resolves the configured sector package (or newest local sector package when its configured filename is stale), runs sector import only after equity-profile import, and waits for the structured `stock_import dataset=sector-reference total=` completion marker before valuation warmup.
+      Update (2026-08-25): first-run technical/valuation warmup on a reset local database can exceed the original 900-second stage timeout because it materializes the full listed universe rather than a short incremental gap. `refresh-data.ps1` now allows a two-hour stage-7 budget, and both warmup services emit progress logs every 50 instruments plus their final completion marker.
 
 **Checkpoint**: Provider activation happens only on approved evidence; fixture
 completion is never represented as live-data readiness.

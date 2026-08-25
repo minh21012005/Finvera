@@ -82,10 +82,13 @@ public class TechnicalIndicatorWarmupService {
 
         int succeeded = 0;
         int failed = 0;
+        int processed = 0;
         for (UUID instrumentId : instrumentIds) {
+            processed++;
             InstrumentReference reference = instrumentsById.get(instrumentId);
             if (reference == null) {
                 failed++;
+                logProgress(processed, instrumentIds.size(), succeeded, failed);
                 continue;
             }
             try {
@@ -101,11 +104,19 @@ public class TechnicalIndicatorWarmupService {
                 log.warn("technical_indicator_warmup symbol={} failed: {}: {}",
                         reference.symbol(), e.getClass().getSimpleName(), e.getMessage());
             }
+            logProgress(processed, instrumentIds.size(), succeeded, failed);
         }
         Summary summary = new Summary(instrumentIds.size(), succeeded, failed);
         log.info("technical_indicator_warmup total={} succeeded={} failed={}",
                 summary.total(), summary.succeeded(), summary.failed());
         return summary;
+    }
+
+    private static void logProgress(int processed, int total, int succeeded, int failed) {
+        if (processed == total || processed % 50 == 0) {
+            log.info("technical_indicator_warmup progress processed={} total={} succeeded={} failed={}",
+                    processed, total, succeeded, failed);
+        }
     }
 
     /**

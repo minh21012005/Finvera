@@ -50,10 +50,13 @@ public class ValuationWarmupService {
         int succeeded = 0;
         int failed = 0;
         int unavailable = 0;
+        int processed = 0;
         for (UUID instrumentId : instrumentIds) {
+            processed++;
             InstrumentReference reference = instrumentsById.get(instrumentId);
             if (reference == null) {
                 failed++;
+                logProgress(processed, instrumentIds.size(), succeeded, unavailable, failed);
                 continue;
             }
             try {
@@ -67,11 +70,19 @@ public class ValuationWarmupService {
                 log.warn("valuation_warmup symbol={} failed: {}: {}",
                         reference.symbol(), e.getClass().getSimpleName(), e.getMessage());
             }
+            logProgress(processed, instrumentIds.size(), succeeded, unavailable, failed);
         }
         Summary summary = new Summary(instrumentIds.size(), succeeded, unavailable, failed);
         log.info("valuation_warmup total={} succeeded={} unavailable={} failed={}",
                 summary.total(), summary.succeeded(), summary.unavailable(), summary.failed());
         return summary;
+    }
+
+    private static void logProgress(int processed, int total, int succeeded, int unavailable, int failed) {
+        if (processed == total || processed % 50 == 0) {
+            log.info("valuation_warmup progress processed={} total={} succeeded={} unavailable={} failed={}",
+                    processed, total, succeeded, unavailable, failed);
+        }
     }
 
     public record Summary(int total, int succeeded, int unavailable, int failed) {
