@@ -144,7 +144,7 @@ backend sẽ báo `PROVIDER_AUTH_REQUIRED`.
 | Biến | Giá trị live | Ghi chú |
 |---|---|---|
 | `FINVERA_STOCK_QUOTE_LIVE_ENABLED` | `true` | bật giá live từng mã từ TCBS Thesis; cần đồng thời bật `FINVERA_TCBS_LIVE_ENABLED=true`; mã active được tự đăng ký khi mở trang chi tiết |
-| `FINVERA_STOCK_SECTOR_BASIS_ENABLED` | `true` sau khi đã import sector reference (mục 3.7) | khuyến nghị bật thử ở non-production trước để kiểm tra độ trễ, theo đúng ghi chú trong `tasks.md` T064 |
+| `FINVERA_STOCK_SECTOR_BASIS_ENABLED` | `true` (mặc định cho web runtime sau khi đã import sector reference) | Bật so sánh định giá theo ngành (Basis B - Sector Cross-section) theo nhu cầu (on-demand) khi user mở trang chi tiết một mã (~80ms/request). Khi chạy `refresh-data.ps1` bước 7 (warmup hàng loạt 1.500 mã), script tự động cô lập biến này thành `false` để tránh bùng nổ truy vấn $O(N \times M)$. |
 | `FINVERA_STOCK_CHART_MAX_WINDOW` | `2Y` (mặc định) | |
 
 Báo cáo tài chính (fundamentals) không có cờ bật/tắt riêng — chỉ cần đã import
@@ -167,7 +167,8 @@ bị từ chối thẳng với `UNKNOWN_INSTRUMENT`, không phải lỗi tạm t
 | `FINVERA_STOCK_IMPORT_DAILY_BAR_ENABLED` / `_PACKAGE_PATH` | nạp lịch sử giá đầy đủ OHLCV (file `daily-bars-*.json`) |
 | `FINVERA_STOCK_IMPORT_FUNDAMENTALS_ENABLED` / `_PACKAGE_PATH` | nạp báo cáo tài chính (file `fundamentals-*.json`) |
 | `FINVERA_STOCK_IMPORT_SECTOR_REFERENCE_ENABLED` / `_PACKAGE_PATH` | nạp phân loại ngành, gắn vào `equity_profile.sector_reference_id` (file `sector-reference-*.json`) — mã nào chưa có `equity_profile` (bước 0.5) sẽ bị bỏ qua, đếm là `NO_EQUITY_PROFILE`, không lỗi |
-| `FINVERA_STOCK_TECHNICAL_WARMUP_ENABLED` (**chạy sau khi đã có daily-bar, trước khi kỳ vọng trang Chiến lược có tín hiệu**) | tính trước MA/RSI/MACD/... cho mọi mã `LISTED` và lưu vào `technical_indicator_result` — trang Chiến lược (`StrategyScanService`/`StrategySignalService`) chỉ **đọc** bảng này, không tự tính; thiếu bước này thì mọi mã mới nạp sẽ báo `INSUFFICIENT_HISTORY` dù đã có đủ giá. "Giao cắt đường trung bình"/MACD/RSI cần đúng **2 phiên liên tiếp** để phát hiện điểm cắt — mỗi lần chạy, warmup tự tính bù **mọi phiên còn thiếu kể từ lần chạy trước** (không chỉ 2 phiên gần nhất), nên dù bạn nghỉ vài ngày hay vài tuần mới nạp giá + chạy lại, "hôm qua" vẫn luôn là phiên liền kề thật, không bị nhảy cách quãng |
+| `FINVERA_STOCK_TECHNICAL_WARMUP_ENABLED` (**chạy sau khi đã có daily-bar, trước khi kỳ vọng trang Chiến lược có tín hiệu**) | tính trước MA/RSI/MACD/... cho mọi mã `LISTED` và lưu vào `technical_indicator_result` — trang Chiến lược (`StrategyScanService`/`StrategySignalService`) chỉ **đọc** bảng này, không tự tính; thiếu bước này thì mọi mã mới nạp sẽ báo `INSUFFICIENT_HISTORY` dù đã có đủ giá. Tự động bỏ qua (skip) các mã đã tính đủ đến phiên nến mới nhất để tối ưu thời gian chạy. |
+| `FINVERA_STOCK_VALUATION_WARMUP_ENABLED` (**chạy cùng bước 7 trong refresh-data.ps1**) | tính trước định giá theo lịch sử (Basis A - Own History) và chỉ số hiện tại cho toàn bộ mã `LISTED` trong DB để phục vụ Screener / AI Analyst. Tự động bỏ qua (skip) các mã đã được tính trong ngày. |
 
 Bước 0 và 0.5 chỉ tạo những dòng **chưa có sẵn** (mã/hồ sơ đã có bị bỏ qua,
 không sửa/không tạo trùng) nên chạy lại bao nhiêu lần cũng an toàn — không bắt
@@ -181,11 +182,6 @@ quét toàn bộ file đúng loại trong đó — dùng khi nạp nhiều mã c
 Nạp cả thư mục vẫn an toàn nếu một vài mã lỗi — importer bỏ qua file lỗi, ghi
 log, và tiếp tục các file còn lại thay vì dừng cả batch. Xem lệnh export chi
 tiết ở mục 6.3.
-
-`FINVERA_STOCK_TECHNICAL_WARMUP_ENABLED` an toàn để bật lại bất cứ khi nào
-(chỉ tạo bản ghi mới nếu kết quả tính ra thực sự khác bản đã lưu) — nên bật
-lại mỗi khi vừa nạp thêm giá mới (crawl mã mới, hoặc cập nhật phiên gần đây)
-để trang Chiến lược phản ánh đúng dữ liệu mới nhất.
 
 ### 3.8 Kết nối sang `finvera-ai` (Feature 006/007)
 

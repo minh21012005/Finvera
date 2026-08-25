@@ -79,6 +79,7 @@ $ManagedRuntimeFlags = @(
     "FINVERA_STOCK_IMPORT_SECTOR_REFERENCE_ENABLED",
     "FINVERA_STOCK_TECHNICAL_WARMUP_ENABLED",
     "FINVERA_STOCK_VALUATION_WARMUP_ENABLED",
+    "FINVERA_STOCK_SECTOR_BASIS_ENABLED",
     "FINVERA_DATA_RETENTION_CLEANUP_ENABLED",
     "FINVERA_TCBS_LIVE_ENABLED",
     "FINVERA_STOCK_QUOTE_LIVE_ENABLED"
@@ -285,12 +286,8 @@ Invoke-BackendStage -Name "Buoc 6/7: Nap gia + bao cao tai chinh moi" `
     -TimeoutSec 7200
 
 Set-StageFlags @("FINVERA_MARKET_EOD_RECONCILIATION_ENABLED", "FINVERA_STOCK_TECHNICAL_WARMUP_ENABLED", "FINVERA_STOCK_VALUATION_WARMUP_ENABLED")
-# Sector-basis valuation is extremely expensive during bulk warmup (each symbol re-queries all
-# ~83 peers in its sector). Disable it here; sector percentiles will be computed lazily when a
-# user opens an individual stock detail page. The own-history basis and current-metrics valuation
-# are still computed and persisted, so the warmup result is correct and complete for all non-sector
-# purposes (screening, AI context, overview scores).
-[Environment]::SetEnvironmentVariable("FINVERA_STOCK_SECTOR_BASIS_ENABLED", "false", "Process")
+# Sector-basis valuation is disabled during bulk warmup (ManagedRuntimeFlags sets it to false)
+# so ~1600 symbols don't each re-query ~83 peers. Sector percentiles are evaluated on-demand on page view.
 Invoke-BackendStage -Name "Buoc 7/7: Tinh breadth/regime + bu chi bao ky thuat + dinh gia" `
     -WaitPatterns @("market_eod_reconciliation status=", "technical_indicator_warmup total=", "valuation_warmup total=") `
     -TimeoutSec 7200
