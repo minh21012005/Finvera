@@ -8,6 +8,7 @@ import com.minhnb.finvera_be.market.service.MarketInstrumentReferenceImportServi
 import com.minhnb.finvera_be.market.service.BreadthService;
 import com.minhnb.finvera_be.market.service.MarketIngestionService;
 import com.minhnb.finvera_be.market.service.MarketReferenceDataService;
+import com.minhnb.finvera_be.market.service.HistoricalMarketBreadthReconciliationService;
 import com.minhnb.finvera_be.market.service.TcbsLiveMarketIngestionService;
 import com.minhnb.finvera_be.market.service.LiveMarketRegimeReconciliationService;
 import com.minhnb.finvera_be.market.service.TcbsLiveEquityQuoteService;
@@ -102,6 +103,18 @@ public class MarketConfiguration {
             if (packagePath.isBlank()) return;
             var result = importer.importPackage(parser.parse(Path.of(packagePath)));
             log.info("market_import status={} package_sha256={}", result.status(), result.packageSha256());
+        };
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "finvera.market.eod-reconciliation.enabled", havingValue = "true")
+    ApplicationRunner historicalMarketReconciliation(HistoricalMarketBreadthReconciliationService reconciliation) {
+        return arguments -> {
+            var result = reconciliation.reconcileLatestCompletedSession();
+            log.info("market_eod_reconciliation status={} trading_date={} breadth_snapshot_id={} eligible={} advancing={} declining={} unchanged={} unclassified={} reason={}",
+                    result.status(), result.tradingDate(), result.breadthSnapshotId(), result.eligible(),
+                    result.advancing(), result.declining(), result.unchanged(), result.unclassified(),
+                    result.reasonCode());
         };
     }
 

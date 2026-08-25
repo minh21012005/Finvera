@@ -431,6 +431,20 @@ this stage, `index_snapshot` can remain empty even after an otherwise successful
 end-of-day refresh, causing `market-regime-v2` to be correctly withheld for
 `TREND_COMPONENT_UNAVAILABLE`.
 
+## Phase 16: End-of-Day Breadth and Regime Reconciliation
+
+After the root refresh imports completed-session stock daily bars, Spring runs
+one deterministic market EOD reconciliation step. The market module reads
+accepted stock bars only through the stock module's published
+`StockReferenceDataService` application API, not through stock repositories or
+tables. Breadth compares each active common equity's latest close for the
+completed session with that instrument's prior accepted close. Missing current
+or prior close remains unclassified with a reason code. The persisted breadth
+snapshot then triggers the existing `market-regime-v2` reconciler against
+accepted PostgreSQL inputs. This closes the gap where a fresh local database
+could have valid index and stock history but no breadth/regime rows unless a
+TCBS live breadth bucket or fixture bootstrap had already run.
+
 ## Complexity Tracking
 
 | Violation/Addition | Why Required Now | Simpler Alternative Rejected | Approval/ADR | Removal or Review Trigger |

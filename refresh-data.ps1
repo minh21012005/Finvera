@@ -13,7 +13,8 @@
       4. Restart with sector-reference import ON, after company profiles exist, wait, stop.
       5. Restart with market-overview index-history import ON, wait, stop.
       6. Restart with daily-bar + fundamentals import ON, wait, stop.
-      7. Restart with the technical-indicator + valuation warmups ON, wait, stop.
+      7. Restart with market EOD breadth/regime reconciliation plus the technical-indicator
+         and valuation warmups ON, wait, stop.
     Every import here is safe/idempotent (only adds missing rows or backfills gaps), so this is
     safe to run after a 3-day gap, a 7-day gap, or any length of time.
 
@@ -59,6 +60,7 @@ $historyEndDate = (Get-Date).ToString("yyyy-MM-dd")
 
 $ManagedRuntimeFlags = @(
     "FINVERA_MARKET_IMPORT_ENABLED",
+    "FINVERA_MARKET_EOD_RECONCILIATION_ENABLED",
     "FINVERA_MARKET_IMPORT_INSTRUMENT_REFERENCE_ENABLED",
     "FINVERA_STOCK_IMPORT_EQUITY_PROFILE_ENABLED",
     "FINVERA_STOCK_IMPORT_DAILY_BAR_ENABLED",
@@ -258,9 +260,9 @@ Invoke-BackendStage -Name "Buoc 6/7: Nap gia + bao cao tai chinh moi" `
     -WaitPatterns @("stock_import dataset=daily-bar total=", "stock_import dataset=fundamentals total=") `
     -TimeoutSec 1800
 
-Set-StageFlags @("FINVERA_STOCK_TECHNICAL_WARMUP_ENABLED", "FINVERA_STOCK_VALUATION_WARMUP_ENABLED")
-Invoke-BackendStage -Name "Buoc 7/7: Tinh bu chi bao ky thuat + dinh gia" `
-    -WaitPatterns @("technical_indicator_warmup total=", "valuation_warmup total=") `
+Set-StageFlags @("FINVERA_MARKET_EOD_RECONCILIATION_ENABLED", "FINVERA_STOCK_TECHNICAL_WARMUP_ENABLED", "FINVERA_STOCK_VALUATION_WARMUP_ENABLED")
+Invoke-BackendStage -Name "Buoc 7/7: Tinh breadth/regime + bu chi bao ky thuat + dinh gia" `
+    -WaitPatterns @("market_eod_reconciliation status=", "technical_indicator_warmup total=", "valuation_warmup total=") `
     -TimeoutSec 7200
 
 Write-Host ""

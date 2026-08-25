@@ -615,6 +615,28 @@ would silently change historical semantics under the same rule version. Using
 Vnstock Community as a live per-symbol polling feed was rejected because no
 realtime entitlement or whole-universe polling contract has been approved.
 
+## R-007C — Completed-Session Breadth Repair from Accepted Daily Bars
+
+**Decision**: After the local owner refresh imports completed-session Vnstock/KBS
+daily bars into PostgreSQL, rebuild one consolidated end-of-day breadth
+snapshot by comparing each active common equity's accepted close for the latest
+completed session with its prior accepted close. Persist missing current close
+as `MISSING_PRICE` and missing prior close as `MISSING_REFERENCE_PRICE`; do not
+drop the instrument or fabricate a reference. The resulting breadth snapshot
+triggers the same `market-regime-v2` reconciliation path used after accepted
+live aggregate breadth.
+
+**Rationale**: A recreated local database can legitimately contain index
+history and stock daily bars while `breadth_snapshot` and `regime_assessment`
+are empty. The previous read-repair only worked when a breadth row already
+existed. Rebuilding breadth from accepted PostgreSQL daily bars keeps the UI
+data-backed after refresh without introducing a Python runtime service or a
+browser/provider call.
+
+**Boundary**: The market module must not access stock repositories/entities
+directly. It reads only the stock module's published `StockReferenceDataService`
+bulk daily-bar API, preserving the modular-monolith boundary.
+
 ## R-008 — Persistence, Precision, and Migrations
 
 **Decision**: Use PostgreSQL and Flyway SQL migrations under

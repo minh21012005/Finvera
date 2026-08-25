@@ -137,6 +137,7 @@ backend sẽ báo `PROVIDER_AUTH_REQUIRED`.
 |---|---|
 | `FINVERA_MARKET_IMPORT_ENABLED` | `false` bình thường; chỉ bật `true` khi đang nạp một gói lịch sử |
 | `FINVERA_MARKET_IMPORT_PACKAGE_PATH` | đường dẫn file JSON xuất từ `export_history.py`, để trống nếu không nạp |
+| `FINVERA_MARKET_EOD_RECONCILIATION_ENABLED` | `false` bình thường; `refresh-data.ps1` bật tạm ở bước cuối để dựng lại độ rộng thị trường và regime từ dữ liệu PostgreSQL đã import |
 
 ### 3.6 Feature 002 — Stock Detail, các cờ live
 

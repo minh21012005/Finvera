@@ -16,4 +16,7 @@ public interface MarketInstrumentRepository extends JpaRepository<MarketInstrume
 
     List<MarketInstrumentEntity> findByListedToIsNullAndSymbolStartingWithIgnoreCaseOrderBySymbolAsc(
             String symbolPrefix, Limit limit);
+
+    List<MarketInstrumentEntity> findByListedToIsNullAndInstrumentTypeAndStatusOrderByVenueAscSymbolAsc(
+            String instrumentType, String status);
 }

@@ -81,11 +81,19 @@ public class DefaultStockReferenceDataService implements StockReferenceDataServi
 
     @Override
     public List<DailyBarReference> findLatestDailyBars(Collection<UUID> instrumentIds) {
+        return findLatestDailyBars(instrumentIds, 1);
+    }
+
+    @Override
+    public List<DailyBarReference> findLatestDailyBars(Collection<UUID> instrumentIds, int maxBarsPerInstrument) {
         Objects.requireNonNull(instrumentIds, "instrumentIds");
+        if (maxBarsPerInstrument < 1) {
+            throw new IllegalArgumentException("maxBarsPerInstrument must be positive");
+        }
         if (instrumentIds.isEmpty()) {
             return List.of();
         }
-        return dailyBars.findLatestNCurrentByInstrumentIdIn(instrumentIds, 1)
+        return dailyBars.findLatestNCurrentByInstrumentIdIn(instrumentIds, maxBarsPerInstrument)
                 .stream()
                 .map(DefaultStockReferenceDataService::toDailyBarReference)
                 .toList();

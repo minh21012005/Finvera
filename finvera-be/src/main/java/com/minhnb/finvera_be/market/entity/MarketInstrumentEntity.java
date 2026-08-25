@@ -28,8 +28,10 @@ public class MarketInstrumentEntity {
         this.sourceRevision=sourceRevision;
     }
     public UUID getId() { return id; }
+    public String getIsin() { return isin; }
     public String getVenue() { return venue; }
     public String getSymbol() { return symbol; }
     public String getInstrumentType() { return instrumentType; }
+    public LocalDate getListedTo() { return listedTo; }
     public String getStatus() { return status; }
 }

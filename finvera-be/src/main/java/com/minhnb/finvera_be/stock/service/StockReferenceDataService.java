@@ -39,6 +39,13 @@ public interface StockReferenceDataService {
     List<DailyBarReference> findLatestDailyBars(Collection<UUID> instrumentIds);
 
     /**
+     * Bulk resolution of each instrument's latest {@code maxBarsPerInstrument}
+     * accepted daily bars, ordered by instrument and trading date. Cross-module
+     * callers use this instead of reaching into stock persistence.
+     */
+    List<DailyBarReference> findLatestDailyBars(Collection<UUID> instrumentIds, int maxBarsPerInstrument);
+
+    /**
      * Finds accepted daily bars for an instrument within a date range [fromInclusive, toInclusive],
      * ordered by trading date ASC.
      */
