@@ -3,6 +3,7 @@ package com.minhnb.finvera_be.market.service;
 import com.minhnb.finvera_be.market.domain.breadth.BreadthCalculator;
 import com.minhnb.finvera_be.market.domain.breadth.BreadthUniversePolicy;
 import com.minhnb.finvera_be.market.domain.model.MarketTypes.AdjustmentStatus;
+import com.minhnb.finvera_be.market.domain.model.MarketTypes.DataStatus;
 import com.minhnb.finvera_be.market.domain.model.MarketTypes.Venue;
 import com.minhnb.finvera_be.market.entity.MarketInstrumentEntity;
 import com.minhnb.finvera_be.market.repository.MarketInstrumentRepository;
@@ -90,8 +91,11 @@ public class HistoricalMarketBreadthReconciliationService {
 
         BreadthCalculator.Result calculated = withAdditionalReasons(calculator.calculate(build.inputs()), build.reasonCodes());
         String universeHash = universeHash(tradingDate, build.inputs(), build.links());
-        BreadthService.Snapshot snapshot = breadth.latestFor(tradingDate)
-                .filter(existing -> existing.asOf().equals(asOf) && existing.universeHash().equals(universeHash))
+        DataStatus expectedStatus = statusForEndOfDay(calculated);
+        BreadthService.Snapshot snapshot = breadth.latestFor(tradingDate, "EOD")
+                .filter(existing -> existing.asOf().equals(asOf)
+                        && existing.universeHash().equals(universeHash)
+                        && existing.dataStatus() == expectedStatus)
                 .orElseGet(() -> breadth.persist(tradingDate, asOf, universeHash, calculated, build.links(), "EOD"));
         regimes.reconcileEndOfDayIfMissingOrOlder(tradingDate, snapshot);
         return new Result("APPLIED", tradingDate, snapshot.id(), calculated.eligible(), calculated.advancing(),
@@ -115,16 +119,14 @@ public class HistoricalMarketBreadthReconciliationService {
                     .max(Comparator.comparing(StockReferenceDataService.DailyBarReference::tradingDate))
                     .orElse(null);
             BigDecimal currentClose = current == null ? null : current.closePrice();
-            BigDecimal officialReference = current == null ? null : current.referencePrice();
             BigDecimal previousClose = previous == null ? null : previous.closePrice();
-            BigDecimal referencePrice = officialReference != null ? officialReference : previousClose;
             inputs.add(new BreadthCalculator.SecurityInput(Venue.valueOf(instrument.getVenue()),
                     instrument.getSymbol(), instrument.getIsin(), true, false,
-                    BreadthUniversePolicy.InstrumentType.COMMON_EQUITY, currentClose, referencePrice,
+                    BreadthUniversePolicy.InstrumentType.COMMON_EQUITY, currentClose, previousClose,
                     AdjustmentStatus.RAW));
             links.add(BreadthService.InputLink.dailyBar(instrument.getId(), current == null ? null : current.id(),
-                    classification(currentClose, referencePrice),
-                    reasonCode(currentClose, officialReference, previousClose)));
+                    classification(currentClose, previousClose),
+                    reasonCode(currentClose, previousClose)));
         }
         List<String> reasons = links.stream().map(BreadthService.InputLink::reasonCode)
                 .filter(Objects::nonNull).distinct().toList();
@@ -139,16 +141,17 @@ public class HistoricalMarketBreadthReconciliationService {
         return "UNCHANGED";
     }
 
-    private static String reasonCode(BigDecimal currentClose, BigDecimal officialReference, BigDecimal previousClose) {
+    private static String reasonCode(BigDecimal currentClose, BigDecimal previousClose) {
         if (currentClose == null) return "MISSING_PRICE";
-        if (officialReference != null) return null;
-        if (previousClose == null) return "MISSING_REFERENCE_PRICE";
-        return "REFERENCE_PRICE_UNAVAILABLE_USING_PRIOR_CLOSE";
+        if (previousClose == null) return "MISSING_PRIOR_CLOSE";
+        return null;
     }
 
     private static BreadthCalculator.Result withAdditionalReasons(BreadthCalculator.Result result,
             List<String> additionalReasons) {
-        List<String> reasons = new ArrayList<>(result.reasonCodes());
+        List<String> reasons = result.reasonCodes().stream()
+                .filter(reason -> !"MISSING_REFERENCE_PRICE".equals(reason))
+                .collect(Collectors.toCollection(ArrayList::new));
         for (String reason : additionalReasons) {
             if (!reasons.contains(reason)) {
                 reasons.add(reason);
@@ -156,6 +159,10 @@ public class HistoricalMarketBreadthReconciliationService {
         }
         return new BreadthCalculator.Result(result.advancing(), result.declining(), result.unchanged(),
                 result.unclassified(), result.eligible(), reasons);
+    }
+
+    private static DataStatus statusForEndOfDay(BreadthCalculator.Result result) {
+        return result.unclassified() > 0 ? DataStatus.PARTIAL : DataStatus.CURRENT;
     }
 
     private static String universeHash(LocalDate tradingDate, List<BreadthCalculator.SecurityInput> inputs,

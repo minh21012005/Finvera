@@ -152,4 +152,31 @@ describe("stock signals section", () => {
     disclaimers.forEach((node) => expect(node).toBeVisible());
     expect(screen.queryByText(/^Mua ngay$|^Bán ngay$/i)).not.toBeInTheDocument();
   });
+
+  it("formats numeric supporting evidence instead of exposing raw scale-12 decimals", () => {
+    render(
+      <StockSignals
+        symbol="VIC"
+        signals={signalsResponse([
+          {
+            strategyCode: "MACD_BASED",
+            status: "SIGNAL",
+            reasonCode: null,
+            signal: fullSignal({
+              strategyCode: "MACD_BASED",
+              supportingEvidence: {
+                macdHistogramPrior: "-84.832907929210",
+                macdHistogram: "935.783562620474",
+              },
+            }),
+          },
+        ])}
+      />,
+    );
+
+    expect(screen.getByText("−84,83")).toBeVisible();
+    expect(screen.getByText("935,78")).toBeVisible();
+    expect(screen.queryByText("-84.832907929210")).not.toBeInTheDocument();
+    expect(screen.queryByText("935.783562620474")).not.toBeInTheDocument();
+  });
 });

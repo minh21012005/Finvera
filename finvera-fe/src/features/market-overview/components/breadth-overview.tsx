@@ -8,6 +8,9 @@ export function BreadthOverview({ breadth }: { breadth: MarketBreadth }) {
   const dec = breadth.declining ?? 0;
   const unc = breadth.unchanged ?? 0;
   const total = adv + dec + unc;
+  const eligible = breadth.eligible ?? total + (breadth.unclassified ?? 0);
+  const unclassified = breadth.unclassified ?? 0;
+  const classified = Math.max(0, eligible - unclassified);
 
   const advPct = total > 0 ? ((adv / total) * 100).toFixed(1) : "0";
   const decPct = total > 0 ? ((dec / total) * 100).toFixed(1) : "0";
@@ -85,10 +88,17 @@ export function BreadthOverview({ breadth }: { breadth: MarketBreadth }) {
                 <dd>{breadth.unchanged}</dd>
               </div>
               <div className="breadth-stat-card eligible">
-                <dt>Đủ điều kiện</dt>
+                <dt>Tổng universe</dt>
                 <dd>{breadth.eligible}</dd>
               </div>
             </dl>
+
+            <p className="text-xs text-slate-400" style={{ margin: "10px 0 0 0" }}>
+              Đã phân loại: <strong className="text-slate-200">{classified}</strong> / {eligible}
+              {unclassified > 0 ? (
+                <> · Chưa phân loại: <strong className="text-slate-200">{unclassified}</strong></>
+              ) : null}
+            </p>
 
             {breadth.unclassified !== null && breadth.unclassified > 0 && (
               <p role="status" className="unavailable-msg" style={{ margin: "12px 0 0 0" }}>

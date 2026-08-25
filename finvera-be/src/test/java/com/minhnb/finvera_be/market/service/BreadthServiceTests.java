@@ -78,4 +78,28 @@ class BreadthServiceTests {
             assertThat(link.getDailyBarId()).isEqualTo(dailyBarId);
         });
     }
+
+    @Test
+    void marksCompleteEndOfDayBreadthCurrentWhenEveryInputIsClassified() {
+        var snapshots = Mockito.mock(MarketBreadthRepository.class);
+        var inputs = Mockito.mock(MarketBreadthSnapshotInputRepository.class);
+        when(snapshots.save(any(MarketBreadthSnapshotEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        var service = new BreadthService(snapshots, inputs,
+                Clock.fixed(Instant.parse("2026-08-17T03:05:00Z"), ZoneOffset.UTC));
+        UUID instrumentId = UUID.randomUUID();
+        UUID dailyBarId = UUID.randomUUID();
+
+        var snapshot = service.persist(LocalDate.of(2026, 8, 17), Instant.parse("2026-08-17T08:00:00Z"),
+                "c".repeat(64),
+                new BreadthCalculator.Result(1, 0, 0, 0, 1, List.of()),
+                List.of(BreadthService.InputLink.dailyBar(instrumentId, dailyBarId, "ADVANCING", null)),
+                "EOD");
+
+        assertThat(snapshot.dataStatus()).isEqualTo(DataStatus.CURRENT);
+        ArgumentCaptor<MarketBreadthSnapshotEntity> snapshotCaptor =
+                ArgumentCaptor.forClass(MarketBreadthSnapshotEntity.class);
+        verify(snapshots).save(snapshotCaptor.capture());
+        assertThat(snapshotCaptor.getValue().getDataStatus()).isEqualTo("CURRENT");
+        assertThat(snapshotCaptor.getValue().getReasonCodes()).isEmpty();
+    }
 }

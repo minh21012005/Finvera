@@ -42,16 +42,16 @@ class HistoricalMarketBreadthReconciliationServiceTests {
                 .thenReturn(List.of(instrument(fpt, "HOSE", "FPT"), instrument(vnm, "HOSE", "VNM"),
                         instrument(vic, "HOSE", "VIC")));
         when(stockReferenceData.findLatestDailyBars(List.of(fpt, vnm, vic), 2)).thenReturn(List.of(
-                bar(fpt, previousDate, "105000.000000", null, "2026-08-23T08:00:00Z"),
-                bar(fpt, currentDate, "101000.000000", "100000.000000", "2026-08-24T08:00:00Z"),
+                bar(fpt, previousDate, "105000.000000", "2026-08-23T08:00:00Z"),
+                bar(fpt, currentDate, "101000.000000", "2026-08-24T08:00:00Z"),
                 bar(vnm, previousDate, "60000.000000", "2026-08-23T08:00:00Z"),
                 bar(vnm, currentDate, "59000.000000", "2026-08-24T08:01:00Z"),
                 bar(vic, currentDate, "110000.000000", "2026-08-24T08:02:00Z")));
-        when(breadth.latestFor(currentDate)).thenReturn(Optional.empty());
+        when(breadth.latestFor(currentDate, "EOD")).thenReturn(Optional.empty());
         var persisted = new BreadthService.Snapshot(UUID.randomUUID(), currentDate,
                 Instant.parse("2026-08-24T08:02:00Z"), DataStatus.PARTIAL,
                 "EOD",
-                new BreadthCalculator.Result(1, 1, 0, 1, 3, List.of("MISSING_REFERENCE_PRICE")),
+                new BreadthCalculator.Result(0, 2, 0, 1, 3, List.of("MISSING_PRIOR_CLOSE")),
                 "breadth-universe-v1", "a".repeat(64));
         when(breadth.persist(any(), any(), any(), any(), any(), any())).thenReturn(persisted);
         var service = new HistoricalMarketBreadthReconciliationService(
@@ -66,12 +66,11 @@ class HistoricalMarketBreadthReconciliationServiceTests {
         ArgumentCaptor<List<BreadthService.InputLink>> links = ArgumentCaptor.forClass(List.class);
         verify(breadth).persist(any(), any(), any(), calculated.capture(), links.capture(), org.mockito.ArgumentMatchers.eq("EOD"));
         assertThat(calculated.getValue()).isEqualTo(
-                new BreadthCalculator.Result(1, 1, 0, 1, 3,
-                        List.of("MISSING_REFERENCE_PRICE", "REFERENCE_PRICE_UNAVAILABLE_USING_PRIOR_CLOSE")));
+                new BreadthCalculator.Result(0, 2, 0, 1, 3, List.of("MISSING_PRIOR_CLOSE")));
         assertThat(links.getValue()).extracting(BreadthService.InputLink::classification)
-                .containsExactly("ADVANCING", "DECLINING", "UNCLASSIFIED");
+                .containsExactly("DECLINING", "DECLINING", "UNCLASSIFIED");
         assertThat(links.getValue()).extracting(BreadthService.InputLink::reasonCode)
-                .containsExactly(null, "REFERENCE_PRICE_UNAVAILABLE_USING_PRIOR_CLOSE", "MISSING_REFERENCE_PRICE");
+                .containsExactly(null, null, "MISSING_PRIOR_CLOSE");
         verify(regimes).reconcileEndOfDayIfMissingOrOlder(currentDate, persisted);
     }
 
@@ -100,14 +99,9 @@ class HistoricalMarketBreadthReconciliationServiceTests {
 
     private static StockReferenceDataService.DailyBarReference bar(
             UUID instrumentId, LocalDate tradingDate, String closePrice, String acceptedAt) {
-        return bar(instrumentId, tradingDate, closePrice, null, acceptedAt);
-    }
-
-    private static StockReferenceDataService.DailyBarReference bar(
-            UUID instrumentId, LocalDate tradingDate, String closePrice, String referencePrice, String acceptedAt) {
         return new StockReferenceDataService.DailyBarReference(UUID.randomUUID(), instrumentId, tradingDate,
                 new BigDecimal(closePrice), new BigDecimal(closePrice), new BigDecimal(closePrice),
-                new BigDecimal(closePrice), referencePrice == null ? null : new BigDecimal(referencePrice),
+                new BigDecimal(closePrice), null,
                 1000L, BigDecimal.valueOf(1000000), "VNSTOCK_KBS",
                 Instant.parse(acceptedAt));
     }

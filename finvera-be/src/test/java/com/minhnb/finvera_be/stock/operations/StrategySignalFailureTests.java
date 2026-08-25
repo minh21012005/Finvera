@@ -127,6 +127,30 @@ class StrategySignalFailureTests {
     }
 
     @Test
+    void aPartialEndOfDayRegimeWithScoreIsUsedByDailyStrategyRiskFactors() {
+        String symbol = "SIGFAIL05";
+        seedListedInstrument(symbol);
+        seedAscendingBars(symbol, "FINVERA_FIXTURE", LocalDate.of(2025, 1, 1), 260);
+        technicalIndicatorService.findBySymbol(symbol);
+
+        regimeAssessments.save(new MarketRegimeAssessmentEntity(UUID.randomUUID(), LocalDate.of(2026, 8, 14),
+                Instant.parse("2026-08-14T08:00:00Z"), Instant.parse("2026-08-14T08:00:01Z"), "market-regime-v2",
+                "EOD", "SIDEWAYS", 55, 50, "PARTIAL", new BigDecimal("100.00"), new BigDecimal("70.00"),
+                new BigDecimal("10.00"), false, List.of("MISSING_PRICE"), null));
+
+        var result = signalService.findBySymbol(symbol).orElseThrow();
+
+        var trendFollowing = result.evaluations().stream()
+                .filter(e -> e.strategyCode() == StrategyCode.TREND_FOLLOWING).findFirst().orElseThrow();
+        assertThat(trendFollowing.status()).isEqualTo(EvaluationStatus.SIGNAL);
+        var regimeFactor = trendFollowing.signal().riskFactors().stream()
+                .filter(f -> f.factorCode() == RiskFactorCode.MARKET_REGIME).findFirst().orElseThrow();
+        assertThat(regimeFactor.applicability().name()).isEqualTo("DEFINED");
+        assertThat(regimeFactor.inputValue()).isEqualByComparingTo("55");
+        assertThat(regimeFactor.reasonCode()).isNull();
+    }
+
+    @Test
     void aLiveRegimeAssessmentIsIgnoredByDailyStrategyRiskFactors() {
         String symbol = "SIGFAIL04";
         seedListedInstrument(symbol);

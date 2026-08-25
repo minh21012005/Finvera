@@ -81,9 +81,9 @@ getDailyBars(symbol, fromDate, toDate)  -> DailyBar[]
 
 `DailyBar` carries trading date, open, high, low, close, optional same-session
 official reference price, volume, value, and the provider's adjustment
-indication. Null reference price is preserved as unavailable and may require a
-reason-coded prior-close fallback in downstream EOD breadth. Bars arrive either
-live or inside an offline canonical package under
+indication. Vnstock/KBS historical OHLCV packages do not carry a daily-bar
+`referencePrice`; downstream EOD breadth uses prior accepted close as its
+comparison basis. Bars arrive either live or inside an offline canonical package under
 [001 contracts/vnstock-historical-bootstrap.md](../../001-market-overview/contracts/vnstock-historical-bootstrap.md);
 both paths pass the same acceptance checks.
 
@@ -148,16 +148,15 @@ semantics are no longer trusted is rejected with
 `DEPRECATED_PROVIDER_INVALID_PRICE_UNIT` until a new accepted provider contract
 replaces it.
 
-For Vnstock/KBS historical daily bars, `referencePrice` is optional. Verified
-public KBS OHLCV schema evidence as of 2026-08-25 covers historical
-`time/open/high/low/close/volume` only. A local live probe against pinned
-`vnstock==4.0.6` confirmed those exact columns for
-`Market().equity("VIC").ohlcv(..., source="kbs")`; the quote path exposes
+For Vnstock/KBS historical daily bars, verified public KBS OHLCV schema evidence
+as of 2026-08-25 covers historical `time/open/high/low/close/volume` only. A
+local live probe against pinned `vnstock==4.0.6` confirmed those exact columns
+for `Market().equity("VIC").ohlcv(..., source="kbs")`; the quote path exposes
 current-board `reference_price`, not historical daily-bar reference. The
-exporter may pass through a same-session reference only when a reviewed
-provider/package row actually contains `reference`, `ref`, `ref_price`, or
-`reference_price`; it must not derive that value from prior close or another
-session.
+Vnstock/KBS exporter must not emit `referencePrice` for historical packages and
+must not derive that value from prior close or another session. Spring's package
+parser remains tolerant of older reviewed packages that contain a nullable
+`referencePrice`, but current Vnstock/KBS packages omit it.
 
 ## Corrections and cross-source reconciliation
 

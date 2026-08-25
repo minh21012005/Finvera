@@ -207,7 +207,7 @@ export function StockSignals({ signals, symbol }: { signals: StockSignalsData; s
                       {Object.entries(evaluation.signal!.supportingEvidence).map(([key, val]) => (
                         <span key={key} className="signal-evidence-tag">
                           <span className="evidence-key">{key}</span>
-                          <strong className="evidence-val">{val}</strong>
+                          <strong className="evidence-val">{formatEvidenceValue(val)}</strong>
                         </span>
                       ))}
                     </div>
@@ -224,4 +224,32 @@ export function StockSignals({ signals, symbol }: { signals: StockSignalsData; s
       </p>
     </section>
   );
+}
+
+function formatEvidenceValue(value: string): string {
+  if (!/^-?\d+(\.\d+)?$/.test(value)) return value;
+  const negative = value.startsWith("-");
+  const [integerPart, fractionalPart = ""] = (negative ? value.slice(1) : value).split(".");
+  const rounded = roundFraction(integerPart, fractionalPart, 2);
+  const grouped = rounded.integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${negative ? "−" : ""}${grouped}${rounded.fractionalPart ? `,${rounded.fractionalPart}` : ""}`;
+}
+
+function roundFraction(integerPart: string, fractionalPart: string, scale: number): { integerPart: string; fractionalPart: string } {
+  const digits = fractionalPart.padEnd(scale + 1, "0").split("").map((digit) => Number(digit));
+  const output = digits.slice(0, scale);
+  let carry = digits[scale] >= 5 ? 1 : 0;
+  for (let index = output.length - 1; index >= 0 && carry > 0; index--) {
+    const next = output[index] + carry;
+    output[index] = next % 10;
+    carry = next >= 10 ? 1 : 0;
+  }
+  let whole = integerPart;
+  if (carry > 0) {
+    whole = (BigInt(whole) + 1n).toString();
+  }
+  return {
+    integerPart: whole,
+    fractionalPart: output.join("").replace(/0+$/, ""),
+  };
 }

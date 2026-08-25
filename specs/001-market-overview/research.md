@@ -622,13 +622,11 @@ realtime entitlement or whole-universe polling contract has been approved.
 **Decision**: After the local owner refresh imports completed-session Vnstock/KBS
 daily bars into PostgreSQL, rebuild one consolidated end-of-day breadth
 snapshot by comparing each active common equity's accepted close for the latest
-completed session with its same-session official reference price when present.
-If the completed daily-bar source does not supply that official reference,
-Finvera may use the prior accepted close as a fallback but must mark the
-snapshot `PARTIAL` with `REFERENCE_PRICE_UNAVAILABLE_USING_PRIOR_CLOSE`.
-Persist missing current close as `MISSING_PRICE` and missing reference basis as
-`MISSING_REFERENCE_PRICE`; do not drop the instrument or fabricate a reference.
-The resulting breadth snapshot triggers `market-regime-v2` with
+completed session with its prior accepted close. The prior close is the EOD
+comparison basis for Vnstock/KBS historical bars, not a substitute for a missing
+same-session reference price. Persist missing current close as `MISSING_PRICE`
+and missing prior close as `MISSING_PRIOR_CLOSE`; do not drop the instrument or
+fabricate a reference. The resulting breadth snapshot triggers `market-regime-v2` with
 `assessmentBasis=EOD`, using completed Vnstock/KBS closed index history only
 for the index-history components.
 
@@ -639,9 +637,10 @@ against pinned `vnstock==4.0.6` confirmed
 `Market().equity("VIC").ohlcv(..., source="kbs")` returns exactly those six
 columns. The same package's quote path returns current-board fields including
 `reference_price`, but that is not historical daily-bar data and must not be
-backfilled unless an approved import package explicitly supplies it. Therefore
-`equity_daily_bar.reference_price` is optional by design; a null value from
-Vnstock/KBS OHLCV is expected, not a provider defect.
+backfilled into historical daily bars. Therefore `equity_daily_bar.reference_price`
+is optional by design; a null value from Vnstock/KBS OHLCV is expected, not a
+provider defect, and does not make EOD breadth partial when prior close is
+available.
 
 **Rationale**: A recreated local database can legitimately contain index
 history and stock daily bars while `breadth_snapshot` and `regime_assessment`

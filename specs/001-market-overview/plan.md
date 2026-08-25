@@ -440,14 +440,12 @@ one deterministic market EOD reconciliation step. The market module reads
 accepted stock bars only through the stock module's published
 `StockReferenceDataService` application API, not through stock repositories or
 tables. Breadth compares each active common equity's latest close for the
-completed session with that session's official reference price when the accepted
-daily-bar source provides it. If that field is unavailable, the prior accepted
-close is a disclosed fallback and the breadth snapshot is `PARTIAL` with
-`REFERENCE_PRICE_UNAVAILABLE_USING_PRIOR_CLOSE`; missing current close or any
-reference basis remains unclassified with a reason code. The persisted breadth
-snapshot then triggers `market-regime-v2` with `assessmentBasis=EOD`, using only
-completed Vnstock/KBS closed index history for index-history components. This
-closes the gap where a fresh local database
+completed session with its prior accepted close. That prior-close comparison is
+the EOD basis for Vnstock/KBS historical bars, not a missing-reference fallback.
+Missing current close or missing prior close remains unclassified with a reason
+code. The persisted breadth snapshot then triggers `market-regime-v2` with
+`assessmentBasis=EOD`, using only completed Vnstock/KBS closed index history for
+index-history components. This closes the gap where a fresh local database
 could have valid index and stock history but no breadth/regime rows unless a
 TCBS live breadth bucket or fixture bootstrap had already run.
 

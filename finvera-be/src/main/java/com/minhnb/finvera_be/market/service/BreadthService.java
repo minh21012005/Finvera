@@ -93,9 +93,10 @@ public class BreadthService {
         }
     }
     private static DataStatus statusFor(BreadthCalculator.Result result) {
-        return result.unclassified() > 0
-                || result.reasonCodes().contains("REFERENCE_PRICE_UNAVAILABLE_USING_PRIOR_CLOSE")
-                ? DataStatus.PARTIAL : DataStatus.CURRENT;
+        if (result.unclassified() > 0) {
+            return DataStatus.PARTIAL;
+        }
+        return DataStatus.CURRENT;
     }
     public record InputLink(
             UUID instrumentId,

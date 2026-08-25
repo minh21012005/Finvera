@@ -144,10 +144,14 @@ def daily_bars_current(symbol: str, entry: dict[str, Any], args: argparse.Namesp
     except (json.JSONDecodeError, OSError):
         return False
     range_ = entry.get("daily_bars_range")
+    records = package.get("records", [])
+    latest_record_date = max((record.get("tradingDate") for record in records), default=None)
     return (entry.get("daily_bars") == DONE
             and range_ is not None
             and range_[0] <= args.start
             and range_[1] >= args.end
+            and latest_record_date is not None
+            and latest_record_date >= args.end
             and not args.full_refresh
             and package.get("toolVersion") == export_daily_bars.TOOL_VERSION)
 

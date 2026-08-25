@@ -89,7 +89,7 @@ class RiskFactorInputAssembler {
     }
 
     private static boolean isUsableRegime(DataStatus status) {
-        return status == DataStatus.CURRENT || status == DataStatus.DELAYED;
+        return status == DataStatus.CURRENT || status == DataStatus.DELAYED || status == DataStatus.PARTIAL;
     }
 
     private MetricPoint averageValueComponent(List<TechnicalIndicatorResultEntity> rows) {
