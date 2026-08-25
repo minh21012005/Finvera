@@ -46,7 +46,7 @@ public class LiveMarketRegimeReconciliationService {
         Objects.requireNonNull(tradingDate, "tradingDate");
         Objects.requireNonNull(breadth, "breadth");
         var latest = assessments.latestFor(tradingDate, "LIVE");
-        if (latest.isPresent() && coversBreadthWithPublishedV2(latest.orElseThrow(), breadth.asOf(), "LIVE")) {
+        if (latest.isPresent() && coversBreadthWithPublishedV2(latest.orElseThrow(), breadth, "LIVE")) {
             return;
         }
         reconcileLive(tradingDate, breadth);
@@ -56,20 +56,25 @@ public class LiveMarketRegimeReconciliationService {
         Objects.requireNonNull(tradingDate, "tradingDate");
         Objects.requireNonNull(breadth, "breadth");
         var latest = assessments.latestFor(tradingDate, "EOD");
-        if (latest.isPresent() && coversBreadthWithPublishedV2(latest.orElseThrow(), breadth.asOf(), "EOD")) {
+        if (latest.isPresent() && coversBreadthWithPublishedV2(latest.orElseThrow(), breadth, "EOD")) {
             return;
         }
         reconcileEndOfDay(tradingDate, breadth);
     }
 
-    private static boolean coversBreadthWithPublishedV2(
-            RegimeAssessmentService.Snapshot latest, Instant breadthAsOf, String assessmentBasis) {
+    private boolean coversBreadthWithPublishedV2(
+            RegimeAssessmentService.Snapshot latest, BreadthService.Snapshot breadth, String assessmentBasis) {
         return MarketRegimeV2.RULE_VERSION.equals(latest.ruleVersion())
                 && assessmentBasis.equals(latest.assessmentBasis())
-                && !latest.asOf().isBefore(breadthAsOf)
+                && !latest.asOf().isBefore(breadth.asOf())
                 && latest.assessment().label() != null
                 && latest.assessment().score() != null
-                && latest.assessment().confidence() != null;
+                && latest.assessment().confidence() != null
+                && latest.assessment().dataStatus() == breadth.dataStatus()
+                && latest.assessment().reasonCodes().equals(breadth.result().reasonCodes())
+                && assessments.usesBreadthSnapshot(latest, breadth.id())
+                && latest.assessment().factors().stream()
+                        .anyMatch(factor -> factor.component() == MarketRegimeV1.Component.BREADTH);
     }
 
     public void reconcile(LocalDate tradingDate, BreadthService.Snapshot breadth) {

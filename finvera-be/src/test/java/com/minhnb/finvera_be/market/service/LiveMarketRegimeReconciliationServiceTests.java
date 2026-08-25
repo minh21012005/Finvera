@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 
 import com.minhnb.finvera_be.market.domain.breadth.BreadthCalculator;
 import com.minhnb.finvera_be.market.domain.model.MarketTypes.DataStatus;
+import com.minhnb.finvera_be.market.domain.regime.MarketRegimeV1;
 import com.minhnb.finvera_be.market.entity.MarketIndexEntity;
 import com.minhnb.finvera_be.market.entity.MarketIndexSnapshotEntity;
 import com.minhnb.finvera_be.market.repository.MarketIndexRepository;
@@ -86,19 +87,60 @@ class LiveMarketRegimeReconciliationServiceTests {
     void skipsReadRepairWhenLatestAssessmentAlreadyCoversBreadth() {
         LocalDate date = LocalDate.of(2026, 8, 24);
         var service = new LiveMarketRegimeReconciliationService(indexes, snapshots, assessments);
-        var breadth = new BreadthService.Snapshot(UUID.randomUUID(), date, Instant.parse("2026-08-24T03:00:00Z"),
+        UUID breadthId = UUID.randomUUID();
+        var breadth = new BreadthService.Snapshot(breadthId, date, Instant.parse("2026-08-24T03:00:00Z"),
                 DataStatus.CURRENT, "LIVE", new BreadthCalculator.Result(300, 200, 100, 0, 600, List.of()), "provider", "a".repeat(64));
-        when(assessments.latestFor(date, "LIVE")).thenReturn(Optional.of(new RegimeAssessmentService.Snapshot(
+        var latest = new RegimeAssessmentService.Snapshot(
                 date, Instant.parse("2026-08-24T03:00:00Z"), "market-regime-v2", "LIVE",
                 new com.minhnb.finvera_be.market.domain.regime.RegimeAssessment(
                         DataStatus.CURRENT, com.minhnb.finvera_be.market.domain.model.MarketTypes.RegimeLabel.EARLY_BULL,
                         62, 90, BigDecimal.valueOf(100), BigDecimal.valueOf(80), BigDecimal.valueOf(70),
-                        false, List.of(), List.of()))));
+                        false, List.of(), List.of(new com.minhnb.finvera_be.market.domain.regime.RegimeAssessment.SupportingFactor(
+                        MarketRegimeV1.Component.BREADTH,
+                        com.minhnb.finvera_be.market.domain.model.MarketTypes.FactorDirection.POSITIVE,
+                        BigDecimal.valueOf(60), BigDecimal.valueOf(0.25), BigDecimal.valueOf(0.25),
+                        BigDecimal.valueOf(15)))));
+        when(assessments.latestFor(date, "LIVE")).thenReturn(Optional.of(latest));
+        when(assessments.usesBreadthSnapshot(latest, breadthId)).thenReturn(true);
 
         service.reconcileIfMissingOrOlder(date, breadth);
 
         verify(indexes, never()).findByCode(any());
         verify(assessments, never()).persist(any());
+    }
+
+    @Test
+    void readRepairReconcilesWhenPublishedAssessmentReferencesOlderBreadthSnapshot() {
+        UUID indexId = UUID.randomUUID();
+        LocalDate date = LocalDate.of(2026, 8, 24);
+        UUID newBreadthId = UUID.randomUUID();
+        var latest = new RegimeAssessmentService.Snapshot(
+                date, Instant.parse("2026-08-24T08:02:00Z"), "market-regime-v2", "EOD",
+                new com.minhnb.finvera_be.market.domain.regime.RegimeAssessment(
+                        DataStatus.PARTIAL, com.minhnb.finvera_be.market.domain.model.MarketTypes.RegimeLabel.SIDEWAYS,
+                        53, 80, BigDecimal.valueOf(100), BigDecimal.valueOf(80), BigDecimal.valueOf(70),
+                        false, List.of(), List.of(new com.minhnb.finvera_be.market.domain.regime.RegimeAssessment.SupportingFactor(
+                        MarketRegimeV1.Component.BREADTH,
+                        com.minhnb.finvera_be.market.domain.model.MarketTypes.FactorDirection.NEGATIVE,
+                        BigDecimal.valueOf(36), BigDecimal.valueOf(0.25), BigDecimal.valueOf(0.25),
+                        BigDecimal.valueOf(9)))));
+        when(assessments.latestFor(date, "EOD")).thenReturn(Optional.of(latest));
+        when(indexes.findByCode("VN_INDEX")).thenReturn(Optional.of(new MarketIndexEntity(
+                indexId, "VN_INDEX", "VNINDEX", "VN-Index", "HOSE", date.minusYears(10), null)));
+        when(snapshots.findAcceptedCompletedDailyHistory(indexId, "VNSTOCK%", date))
+                .thenReturn(history(date, 253));
+        var service = new LiveMarketRegimeReconciliationService(indexes, snapshots, assessments);
+        var breadth = new BreadthService.Snapshot(newBreadthId, date, Instant.parse("2026-08-24T08:02:00Z"),
+                DataStatus.CURRENT, "EOD", new BreadthCalculator.Result(450, 150, 100, 0, 700, List.of()),
+                "breadth-universe-v1", "a".repeat(64));
+
+        service.reconcileEndOfDayIfMissingOrOlder(date, breadth);
+
+        ArgumentCaptor<RegimeAssessmentService.AssessmentCommand> command =
+                ArgumentCaptor.forClass(RegimeAssessmentService.AssessmentCommand.class);
+        verify(assessments).persist(command.capture());
+        assertThat(command.getValue().assessmentBasis()).isEqualTo("EOD");
+        assertThat(command.getValue().assessment().dataStatus()).isEqualTo(DataStatus.CURRENT);
     }
 
     @Test

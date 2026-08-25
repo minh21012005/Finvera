@@ -74,9 +74,22 @@ public class RegimeAssessmentService {
     }
 
     private Snapshot toSnapshot(MarketRegimeAssessmentEntity entity) {
-        return new Snapshot(entity.getTradingDate(), entity.getAsOf(), entity.getRuleVersion(),
+        return new Snapshot(entity.getId(), entity.getTradingDate(), entity.getAsOf(), entity.getRuleVersion(),
                 entity.getAssessmentBasis(),
                 fromEntity(entity, factors.findByAssessmentIdOrderByFactorCode(entity.getId())));
+    }
+
+    @Transactional(readOnly = true)
+    public boolean usesBreadthSnapshot(Snapshot snapshot, UUID breadthSnapshotId) {
+        Objects.requireNonNull(snapshot, "snapshot");
+        Objects.requireNonNull(breadthSnapshotId, "breadthSnapshotId");
+        if (snapshot.id() == null) {
+            return false;
+        }
+        return inputs.findByAssessmentIdAndInputRole(snapshot.id(), "BREADTH_CURRENT")
+                .map(MarketRegimeAssessmentInputEntity::getBreadthSnapshotId)
+                .filter(breadthSnapshotId::equals)
+                .isPresent();
     }
 
     private static boolean containsSourceConflict(List<SourceValue> sourceValues) {
@@ -181,10 +194,14 @@ public class RegimeAssessmentService {
 
     public record StoredAssessment(UUID id, LocalDate tradingDate, Instant asOf, RegimeAssessment assessment,
                                    UUID supersedesAssessmentId) { }
-    public record Snapshot(LocalDate tradingDate, Instant asOf, String ruleVersion, String assessmentBasis,
+    public record Snapshot(UUID id, LocalDate tradingDate, Instant asOf, String ruleVersion, String assessmentBasis,
                            RegimeAssessment assessment) {
         public Snapshot(LocalDate tradingDate, Instant asOf, String ruleVersion, RegimeAssessment assessment) {
-            this(tradingDate, asOf, ruleVersion, "UNKNOWN", assessment);
+            this(null, tradingDate, asOf, ruleVersion, "UNKNOWN", assessment);
+        }
+        public Snapshot(LocalDate tradingDate, Instant asOf, String ruleVersion, String assessmentBasis,
+                RegimeAssessment assessment) {
+            this(null, tradingDate, asOf, ruleVersion, assessmentBasis, assessment);
         }
     }
 }
