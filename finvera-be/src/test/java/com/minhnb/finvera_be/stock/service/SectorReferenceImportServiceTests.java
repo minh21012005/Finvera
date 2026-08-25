@@ -57,7 +57,7 @@ class SectorReferenceImportServiceTests {
     void reportsUnknownInstrumentWithoutFabricatingAClassification() {
         when(referenceData.findActiveInstrumentBySymbol("ZZZZ")).thenReturn(Optional.empty());
         when(sectors.findBySchemeAndSchemeVersionAndSectorCode(any(), any(), any())).thenReturn(Optional.empty());
-        when(sectors.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(sectors.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         PackageInput input = packageWith("vnstock-sector-reference-v1", List.of(record("ZZZZ", "3")));
         var summary = service.importPackage(input);

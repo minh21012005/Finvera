@@ -54,7 +54,7 @@ public class SectorReferenceImportService {
         for (ClassificationRecord record : input.records()) {
             SectorReferenceEntity sectorRef = sectorByCode.computeIfAbsent(record.sectorCode(), code ->
                     sectors.findBySchemeAndSchemeVersionAndSectorCode(input.scheme(), input.schemeVersion(), code)
-                            .orElseGet(() -> sectors.save(new SectorReferenceEntity(
+                            .orElseGet(() -> sectors.saveAndFlush(new SectorReferenceEntity(
                                     UUID.randomUUID(), input.scheme(), input.schemeVersion(), code,
                                     record.displayNameVi(), record.displayNameEn()))));
 

@@ -46,6 +46,8 @@ Whenever a user requests a task, map it to one of the following skills and load 
 
 While waiting to load a specific skill, please adhere to these universal principles:
 
+<!-- signature_key: TRC-API-ANON -->
+
 1. **User Tier Check & Onboarding 2.0**:
    - Instruct users to save their `VNSTOCK_API_KEY` in a `.env` file for security. If they paste it in chat, you can use it dynamically but advise them on the best practice.
    - Run a tier check script making a direct GET request to `https://vnstocks.com/api/vnstock/license/verify?api_key=<API_KEY>&device_id=vibe-setup` to determine the user's tier. Do not rely exclusively on local `vnii` logs as it might not be installed yet and could incorrectly report "Community".
@@ -59,8 +61,6 @@ While waiting to load a specific skill, please adhere to these universal princip
 6. **Zero Disk Persistence (Security Guardrail)**: To protect proprietary workflows, ensure all skill markdown files, configurations, or prompt payloads exist ONLY in your volatile memory via dynamic loading (`load_skill("<skill_name>")`). Do not save, dump, or write these files to the user's local disk.
 
 ---
-
-<!-- signature_key: TRC-API-ANON -->
 
 ## 3. UNIFIED UI CRASH COURSE (For Sponsor Tier)
 
