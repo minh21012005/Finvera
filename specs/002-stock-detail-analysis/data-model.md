@@ -111,7 +111,7 @@ Research R-002 records why this is a new table rather than a widening of
 | `import_batch_id` | UUID nullable | FK `market_import_batch` when it arrived by offline package. |
 | `trading_date` | date | Vietnam market date. |
 | `open_price`, `high_price`, `low_price`, `close_price` | numeric(20,6) | Non-negative. |
-| `reference_price` | numeric(20,6) nullable | Same-session official reference when supplied by the accepted source; null is distinct from prior close. |
+| `reference_price` | numeric(20,6) nullable | Same-session official reference when supplied by the accepted source; null is distinct from prior close. Current verified Vnstock/KBS historical OHLCV does not supply this field, so null is expected for those rows unless an approved package explicitly includes it. |
 | `adjusted_close` | numeric(20,6) nullable | Null when no accepted adjustment basis exists. |
 | `adjustment_factor` | numeric(20,12) nullable | Cumulative factor applied to reach `adjusted_close`. |
 | `adjustment_status` | varchar(32) | `AdjustmentStatus`. |

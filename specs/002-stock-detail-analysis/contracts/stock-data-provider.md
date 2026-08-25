@@ -148,6 +148,13 @@ semantics are no longer trusted is rejected with
 `DEPRECATED_PROVIDER_INVALID_PRICE_UNIT` until a new accepted provider contract
 replaces it.
 
+For Vnstock/KBS historical daily bars, `referencePrice` is optional. Verified
+public KBS OHLCV schema evidence as of 2026-08-25 covers historical
+`time/open/high/low/close/volume` only. The exporter may pass through a
+same-session reference only when a reviewed provider/package row actually
+contains `reference`, `ref`, `ref_price`, or `reference_price`; it must not
+derive that value from prior close or another session.
+
 ## Corrections and cross-source reconciliation
 
 A record that matches an accepted key but carries different values is a

@@ -632,6 +632,15 @@ The resulting breadth snapshot triggers `market-regime-v2` with
 `assessmentBasis=EOD`, using completed Vnstock/KBS closed index history only
 for the index-history components.
 
+**Provider-schema evidence (2026-08-25)**: the current public Vnstock/KBS
+historical OHLCV schema documents `time`, `open`, `high`, `low`, `close`, and
+`volume`, but not a historical same-session reference price. Vnstock/KBS quote
+or price-board schemas expose `reference_price` for current board data, which
+must not be backfilled into historical daily bars unless an approved import
+package explicitly supplies it. Therefore `equity_daily_bar.reference_price`
+is optional by design; a null value from Vnstock/KBS OHLCV is expected, not a
+provider defect.
+
 **Rationale**: A recreated local database can legitimately contain index
 history and stock daily bars while `breadth_snapshot` and `regime_assessment`
 are empty. The previous read-repair only worked when a breadth row already

@@ -23,6 +23,7 @@ SOURCE = "VNSTOCK_KBS"
 TOOL_VERSION = "0.3.0"
 MIN_RECORDS = 20
 KBS_PRICE_MULTIPLIER = Decimal("1000")
+REFERENCE_PRICE_COLUMNS = ("reference", "ref", "ref_price", "reference_price")
 
 
 def decimal_string(value: Any) -> str:
@@ -57,7 +58,7 @@ def package_records(rows: list[dict[str, Any]], symbol: str) -> list[dict[str, A
         high_price = normalize_kbs_price(row["high"])
         low_price = normalize_kbs_price(row["low"])
         close_price = normalize_kbs_price(row["close"])
-        reference_raw = first_present(row, "reference", "ref", "ref_price", "reference_price")
+        reference_raw = first_present(row, *REFERENCE_PRICE_COLUMNS)
         reference_price = normalize_kbs_price(reference_raw) if reference_raw is not None else None
         volume = Decimal(str(row["volume"])) if row.get("volume") is not None else None
         record = {
@@ -110,9 +111,10 @@ def fetch_rows(symbol: str, start: str, end: str) -> list[dict[str, Any]]:
     required = {"time", "open", "high", "low", "close"}
     if not required.issubset(frame.columns):
         raise ValueError("Vnstock OHLCV schema does not contain the required OHLC columns")
+    # Current public KBS OHLCV schema exposes historical time/OHLCV only. Keep
+    # reference price optional for richer approved packages, but never infer it.
     columns = [c for c in (
-        "time", "open", "high", "low", "close", "volume",
-        "reference", "ref", "ref_price", "reference_price",
+        "time", "open", "high", "low", "close", "volume", *REFERENCE_PRICE_COLUMNS,
     ) if c in frame.columns]
     return frame.loc[:, columns].to_dict("records")
 
