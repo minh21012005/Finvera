@@ -634,12 +634,14 @@ for the index-history components.
 
 **Provider-schema evidence (2026-08-25)**: the current public Vnstock/KBS
 historical OHLCV schema documents `time`, `open`, `high`, `low`, `close`, and
-`volume`, but not a historical same-session reference price. Vnstock/KBS quote
-or price-board schemas expose `reference_price` for current board data, which
-must not be backfilled into historical daily bars unless an approved import
-package explicitly supplies it. Therefore `equity_daily_bar.reference_price`
-is optional by design; a null value from Vnstock/KBS OHLCV is expected, not a
-provider defect.
+`volume`, but not a historical same-session reference price. A local live probe
+against pinned `vnstock==4.0.6` confirmed
+`Market().equity("VIC").ohlcv(..., source="kbs")` returns exactly those six
+columns. The same package's quote path returns current-board fields including
+`reference_price`, but that is not historical daily-bar data and must not be
+backfilled unless an approved import package explicitly supplies it. Therefore
+`equity_daily_bar.reference_price` is optional by design; a null value from
+Vnstock/KBS OHLCV is expected, not a provider defect.
 
 **Rationale**: A recreated local database can legitimately contain index
 history and stock daily bars while `breadth_snapshot` and `regime_assessment`

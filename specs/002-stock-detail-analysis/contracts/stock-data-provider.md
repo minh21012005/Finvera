@@ -150,10 +150,14 @@ replaces it.
 
 For Vnstock/KBS historical daily bars, `referencePrice` is optional. Verified
 public KBS OHLCV schema evidence as of 2026-08-25 covers historical
-`time/open/high/low/close/volume` only. The exporter may pass through a
-same-session reference only when a reviewed provider/package row actually
-contains `reference`, `ref`, `ref_price`, or `reference_price`; it must not
-derive that value from prior close or another session.
+`time/open/high/low/close/volume` only. A local live probe against pinned
+`vnstock==4.0.6` confirmed those exact columns for
+`Market().equity("VIC").ohlcv(..., source="kbs")`; the quote path exposes
+current-board `reference_price`, not historical daily-bar reference. The
+exporter may pass through a same-session reference only when a reviewed
+provider/package row actually contains `reference`, `ref`, `ref_price`, or
+`reference_price`; it must not derive that value from prior close or another
+session.
 
 ## Corrections and cross-source reconciliation
 
