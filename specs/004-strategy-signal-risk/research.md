@@ -132,7 +132,7 @@ disclosed (FR-006/FR-007), banded into `LOW` (`0-33`), `MEDIUM` (`34-66`),
 | Drawdown | Percent decline from the highest close in the last 250 accepted sessions to the current close | Deeper recent drawdown |
 | Liquidity | Inverse of `RELATIVE_VOLUME` and `AVG_VOLUME20` — thin, below-average liquidity scores higher risk | Thinner liquidity |
 | Stop-loss distance | `(C[n] - stopLoss) / C[n]` — the R-003 stop expressed as a percent of price | Wider stop distance as a percent of price |
-| Market regime | Feature 001's current regime assessment score (bearish/high-volatility regimes score higher) | A less favorable regime |
+| Market regime | Feature 001's current end-of-day (`assessmentBasis=EOD`) regime assessment score (bearish/high-volatility regimes score higher) | A less favorable regime |
 
 Each factor is scored 0-100 on its own declared scale (exact thresholds in
 `contracts/strategy-signal-v1.md`), then combined with a fixed, disclosed
@@ -146,6 +146,11 @@ volatility factor avoids a second volatility calculation. Equal weighting
 is the simplest defensible starting point absent any evidence favoring one
 factor over another; Constitution Principle VIII favors the least complex
 design that still satisfies correctness.
+
+Because every strategy in this feature is evaluated on accepted completed
+daily bars, the market-regime factor also uses completed-session EOD regime
+assessments. Current-session `LIVE` regime is reserved for realtime
+market-overview surfaces and is not mixed into daily signal risk scoring.
 
 **Missing-factor handling (FR-007)**: if a factor's own input is
 unavailable (e.g., Feature 001's regime assessment is withheld), that

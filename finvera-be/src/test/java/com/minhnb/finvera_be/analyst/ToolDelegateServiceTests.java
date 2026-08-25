@@ -116,7 +116,7 @@ class ToolDelegateServiceTests {
                 List.of(vnIndex));
 
         BreadthCalculator.Result breadthResult = new BreadthCalculator.Result(280, 120, 50, 0, 450, Collections.emptyList());
-        BreadthService.Snapshot breadthSnapshot = new BreadthService.Snapshot(UUID.randomUUID(), LocalDate.of(2026, 8, 20), asOf, DataStatus.CURRENT, breadthResult, "v1", "hash");
+        BreadthService.Snapshot breadthSnapshot = new BreadthService.Snapshot(UUID.randomUUID(), LocalDate.of(2026, 8, 20), asOf, DataStatus.CURRENT, "EOD", breadthResult, "v1", "hash");
 
         RegimeAssessment regimeAssessment = new RegimeAssessment(
                 DataStatus.CURRENT,

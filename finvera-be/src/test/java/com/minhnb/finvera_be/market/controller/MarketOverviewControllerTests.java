@@ -117,6 +117,7 @@ class MarketOverviewControllerTests {
         Instant now = Instant.parse("2026-08-17T03:00:00Z");
         var empty = MarketOverviewService.empty(now);
         var breadth = new BreadthService.Snapshot(UUID.randomUUID(), empty.indices().tradingDate(), now, DataStatus.PARTIAL,
+                "EOD",
                 new BreadthCalculator.Result(3, 2, 1, 1, 7, java.util.List.of("MISSING_REFERENCE_PRICE")),
                 "breadth-universe-v1", "a".repeat(64));
         given(overviewService.latest()).willReturn(new MarketOverviewService.MarketOverview(
@@ -129,6 +130,7 @@ class MarketOverviewControllerTests {
                 .andExpect(jsonPath("$.breadth.eligible").value(7))
                 .andExpect(jsonPath("$.breadth.unclassified").value(1))
                 .andExpect(jsonPath("$.breadth.universeVersion").value("breadth-universe-v1"))
+                .andExpect(jsonPath("$.breadth.calculationBasis").value("EOD"))
                 .andExpect(jsonPath("$.breadth.reasonCodes[0]").value("MISSING_REFERENCE_PRICE"));
     }
 

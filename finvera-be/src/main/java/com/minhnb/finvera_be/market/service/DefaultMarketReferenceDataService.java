@@ -124,8 +124,18 @@ public class DefaultMarketReferenceDataService implements MarketReferenceDataSer
     @Override
     public Optional<RegimeAssessmentReference> findCurrentRegimeAssessment() {
         return regimeAssessments.findFirstByOrderByTradingDateDescAsOfDescCalculatedAtDesc()
-                .map(entity -> new RegimeAssessmentReference(entity.getId(), entity.getTradingDate(),
-                        entity.getScore(), DataStatus.valueOf(entity.getDataStatus())));
+                .map(DefaultMarketReferenceDataService::toRegimeReference);
+    }
+
+    @Override
+    public Optional<RegimeAssessmentReference> findCurrentRegimeAssessment(String assessmentBasis) {
+        Objects.requireNonNull(assessmentBasis, "assessmentBasis");
+        if (!List.of("LIVE", "EOD", "UNKNOWN").contains(assessmentBasis)) {
+            throw new IllegalArgumentException("assessmentBasis must be LIVE, EOD, or UNKNOWN");
+        }
+        return regimeAssessments
+                .findFirstByAssessmentBasisOrderByTradingDateDescAsOfDescCalculatedAtDesc(assessmentBasis)
+                .map(DefaultMarketReferenceDataService::toRegimeReference);
     }
 
     @Override
@@ -144,5 +154,11 @@ public class DefaultMarketReferenceDataService implements MarketReferenceDataSer
         return new InstrumentReference(
                 entity.getId(), entity.getVenue(), entity.getSymbol(),
                 entity.getInstrumentType(), entity.getStatus());
+    }
+
+    private static RegimeAssessmentReference toRegimeReference(
+            com.minhnb.finvera_be.market.entity.MarketRegimeAssessmentEntity entity) {
+        return new RegimeAssessmentReference(entity.getId(), entity.getTradingDate(), entity.getAssessmentBasis(),
+                entity.getScore(), DataStatus.valueOf(entity.getDataStatus()));
     }
 }

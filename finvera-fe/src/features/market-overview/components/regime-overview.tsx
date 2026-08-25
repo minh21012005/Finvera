@@ -1,10 +1,11 @@
-import type { DataStatus, MarketRegime } from "../api/market-overview";
+import type { CalculationBasis, DataStatus, MarketRegime } from "../api/market-overview";
 import { formatAsOf } from "../format/market-format";
 import { Activity } from "lucide-react";
 
 /** Displays the backend's deterministic regime result; it never calculates a market signal in the browser. */
 export function RegimeOverview({ regime }: { regime: MarketRegime }) {
   const canPresentAssessment = regime.label !== null && regime.score !== null && regime.confidence !== null;
+  const basis = basisCopy(regime.assessmentBasis);
 
   return (
     <section
@@ -24,6 +25,9 @@ export function RegimeOverview({ regime }: { regime: MarketRegime }) {
             {statusLabel(regime.dataStatus)}
           </span>
         </div>
+        <p style={{ margin: "-8px 0 14px 0", fontSize: "0.75rem", color: "var(--text-muted)" }}>
+          {basis.label}: {basis.description}
+        </p>
 
         {canPresentAssessment ? (
           <>
@@ -78,7 +82,7 @@ export function RegimeOverview({ regime }: { regime: MarketRegime }) {
 
       <div style={{ marginTop: "16px" }}>
         <p style={{ margin: "0 0 4px 0", fontSize: "0.75rem", color: "var(--text-muted)" }}>
-          Phiên bản quy tắc: {regime.ruleVersion} · Cập nhật: {formatAsOf(regime.asOf)} · Nguồn: {regime.source.provider}
+          Phiên bản quy tắc: {regime.ruleVersion} · Basis: {regime.assessmentBasis ?? "N/A"} · Cập nhật: {formatAsOf(regime.asOf)} · Nguồn: {regime.source.provider}
         </p>
         <p style={{ margin: "0", color: "var(--text-muted)" }}>
           <small>{regime.disclaimerCode}</small>
@@ -151,4 +155,14 @@ function FactorList({ regime }: { regime: MarketRegime }) {
 
 function statusLabel(status: DataStatus): string {
   return ({ CURRENT: "Hiện tại", DELAYED: "Chậm", STALE: "Cũ", PARTIAL: "Một phần", UNAVAILABLE: "Không có dữ liệu" })[status];
+}
+
+function basisCopy(basis: CalculationBasis | null): { label: string; description: string } {
+  if (basis === "LIVE") {
+    return { label: "Trong phiên", description: "TCBS live, thay đổi theo khớp lệnh và chỉ dùng như overlay realtime." };
+  }
+  if (basis === "EOD") {
+    return { label: "Cuối phiên", description: "Dữ liệu completed-session, phù hợp cho chỉ báo daily và strategy/risk." };
+  }
+  return { label: "Chưa xác định basis", description: "Dữ liệu cũ hoặc chưa đủ provenance LIVE/EOD." };
 }

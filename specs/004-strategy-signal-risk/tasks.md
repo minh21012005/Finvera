@@ -28,6 +28,9 @@ addition every story depends on.
       interface, never `market.entity`/`market.repository` directly
       in `finvera-be/src/main/java/com/minhnb/finvera_be/market/service/MarketReferenceDataService.java`
       and `DefaultMarketReferenceDataService.java`
+      Update (2026-08-25): added the basis-scoped overload so daily
+      strategy risk consumes only `assessmentBasis=EOD`; current-session
+      `LIVE` regime is reserved for realtime market surfaces.
       Verify: `StockModuleArchitectureTests`/`MarketModuleArchitectureTests`
       still pass with the new method present
       Depends: none

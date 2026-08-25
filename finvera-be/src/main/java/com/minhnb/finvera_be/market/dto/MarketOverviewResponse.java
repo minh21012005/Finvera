@@ -81,19 +81,20 @@ public record MarketOverviewResponse(
 
     public record BreadthResponse(
             DataStatus dataStatus, Integer advancing, Integer declining, Integer unchanged,
-            Integer eligible, Integer unclassified, String universeVersion, LocalDate tradingDate,
+            Integer eligible, Integer unclassified, String universeVersion, String calculationBasis, LocalDate tradingDate,
             Instant asOf, SourceReference source, List<String> reasonCodes) {
         static BreadthResponse unavailable() {
             return new BreadthResponse(DataStatus.UNAVAILABLE, null, null, null, null, null,
-                    "breadth-universe-v1", null, null,
+                    "breadth-universe-v1", null, null, null,
                     new SourceReference("UNAVAILABLE", "BREADTH"), List.of("BREADTH_NOT_AVAILABLE"));
         }
         static BreadthResponse from(com.minhnb.finvera_be.market.service.BreadthService.Snapshot snapshot) {
             if (snapshot == null) return unavailable();
             var result = snapshot.result();
             return new BreadthResponse(snapshot.dataStatus(), result.advancing(), result.declining(), result.unchanged(),
-                    result.eligible(), result.unclassified(), snapshot.universeVersion(), snapshot.tradingDate(), snapshot.asOf(),
-                    new SourceReference("FINVERA_ACCEPTED", "BREADTH"), result.reasonCodes());
+                    result.eligible(), result.unclassified(), snapshot.universeVersion(), snapshot.calculationBasis(),
+                    snapshot.tradingDate(), snapshot.asOf(), new SourceReference("FINVERA_ACCEPTED", "BREADTH"),
+                    result.reasonCodes());
         }
     }
 

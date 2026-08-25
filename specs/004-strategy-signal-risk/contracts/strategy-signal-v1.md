@@ -25,7 +25,7 @@ instrument's current accepted `technical_indicator_result` (and, for the
 three crossing strategies, the immediately preceding trading date's
 accepted result for the same indicator), the current accepted daily bar,
 `screener-v1`'s Breakout/Trend derivations, and Feature 001's current
-regime assessment. Nothing here recomputes an indicator, a Breakout
+end-of-day (`assessmentBasis=EOD`) regime assessment. Nothing here recomputes an indicator, a Breakout
 condition, or a Trend direction independently (FR-012).
 
 **U-2 Arithmetic.** All arithmetic is decimal (`BigDecimal`), never binary
@@ -110,7 +110,7 @@ contribution:
 | `DRAWDOWN` | Percent decline from the highest accepted close in the trailing 250 sessions to `C[n]` | Linear `0` at `0%` drawdown, `100` at `>=30%` drawdown, clamped |
 | `LIQUIDITY` | `RELATIVE_VOLUME[n]` (inverse — thin liquidity scores higher risk) | Linear `100` at `<=0.5`, `0` at `>=1.5`, clamped |
 | `STOP_DISTANCE` | `(C[n] - stopLoss) / C[n]` (the level formula's own stop, expressed as a percent of price) | Linear `0` at `<=3%`, `100` at `>=15%`, clamped |
-| `MARKET_REGIME` | Feature 001's current regime assessment score, inverted (a bearish/high-volatility regime scores higher risk here) | Direct: `100 - regimeScore` when the regime score is itself `0`(most bearish)-`100`(most bullish) |
+| `MARKET_REGIME` | Feature 001's current end-of-day (`assessmentBasis=EOD`) regime assessment score, inverted (a bearish/high-volatility regime scores higher risk here) | Direct: `100 - regimeScore` when the regime score is itself `0`(most bearish)-`100`(most bullish) |
 
 `overallScore` = the mean of every **available** factor's score
 (equal-weighted, research R-004). If fewer than four of the six factors

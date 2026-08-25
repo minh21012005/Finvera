@@ -5,7 +5,7 @@ import type { MarketBreadth } from "./api/market-overview";
 
 const complete: MarketBreadth = {
   dataStatus: "CURRENT", advancing: 612, declining: 498, unchanged: 91, eligible: 1201, unclassified: 0,
-  universeVersion: "breadth-universe-v1", tradingDate: "2026-08-17", asOf: "2026-08-17T03:00:00Z",
+  universeVersion: "breadth-universe-v1", calculationBasis: "LIVE", tradingDate: "2026-08-17", asOf: "2026-08-17T03:00:00Z",
   source: { provider: "FINVERA_ACCEPTED", dataset: "BREADTH" }, reasonCodes: [],
 };
 
@@ -17,6 +17,8 @@ describe("BreadthOverview", () => {
     expect(screen.getByText("Tăng giá")).toBeVisible();
     expect(screen.getByText("612")).toBeVisible();
     expect(screen.getByText(/Universe: breadth-universe-v1/i)).toBeVisible();
+    expect(screen.getByText(/Trong phiên/i)).toBeVisible();
+    expect(screen.getByText(/Basis: LIVE/i)).toBeVisible();
     expect(screen.getByText(/Nguồn: FINVERA_ACCEPTED/i)).toBeVisible();
     expect(screen.getByLabelText(/Độ rộng thị trường: Hiện tại/i)).toBeVisible();
   });
@@ -32,7 +34,7 @@ describe("BreadthOverview", () => {
 
   it("does not invent counts when breadth is unavailable", () => {
     render(<BreadthOverview breadth={{ ...complete, dataStatus: "UNAVAILABLE", advancing: null, declining: null,
-      unchanged: null, eligible: null, unclassified: null, tradingDate: null, asOf: null,
+      unchanged: null, eligible: null, unclassified: null, calculationBasis: null, tradingDate: null, asOf: null,
       source: { provider: "UNAVAILABLE", dataset: "BREADTH" }, reasonCodes: ["BREADTH_NOT_AVAILABLE"] }} />);
 
     expect(screen.getByRole("status")).toHaveTextContent(/Không có dữ liệu độ rộng/i);

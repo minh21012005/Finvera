@@ -14,7 +14,7 @@ This feature **reuses without modification**:
 | `market_instrument`, `equity_profile` | Instrument identity; candidate universe for the strategy scan (research R-007), same `LISTED` rule as Feature 003 R-007. |
 | `equity_daily_bar` | Latest accepted close and the prior trading date's bar, for level calculation (research R-003) and crossing-strategy comparison. |
 | `technical_indicator_result` / `technical_indicator_value` | Every strategy condition and every risk factor's `ATR14`/`RELATIVE_VOLUME`/`RSI14`/etc. input (research R-002, R-004) — current **and** the immediately preceding trading date's row, for the three crossing strategies. |
-| Feature 001's regime assessment (via its existing published read interface) | The market-regime risk factor (research R-004). |
+| Feature 001's EOD regime assessment (via its existing published read interface) | The market-regime risk factor (research R-004); daily strategies do not consume current-session `LIVE` regime. |
 
 No Feature 001/002/003 table is altered. `screener-v1`'s Breakout/Trend
 derivation logic (Feature 003, `stock.domain.screener.ScreenerV1`) is

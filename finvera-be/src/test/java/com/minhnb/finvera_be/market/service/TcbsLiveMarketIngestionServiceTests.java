@@ -95,6 +95,7 @@ class TcbsLiveMarketIngestionServiceTests {
     void triggersRegimeReconciliationForANewlyPersistedCoherentBreadthBucket() {
         var persisted = new BreadthService.Snapshot(java.util.UUID.randomUUID(), tradingDate,
                 Instant.parse("2026-08-24T03:00:00Z"), com.minhnb.finvera_be.market.domain.model.MarketTypes.DataStatus.CURRENT,
+                "LIVE",
                 new BreadthCalculator.Result(400, 200, 100, 0, 700, java.util.List.of()), "provider", "b".repeat(64));
         when(breadth.persistProviderAggregate(any(), any(), any(), any(), any())).thenReturn(Optional.of(persisted));
 
@@ -109,6 +110,7 @@ class TcbsLiveMarketIngestionServiceTests {
     void repairsMissingRegimeWhenCoherentBreadthBucketAlreadyExists() {
         var existing = new BreadthService.Snapshot(java.util.UUID.randomUUID(), tradingDate,
                 Instant.parse("2026-08-24T03:00:00Z"), com.minhnb.finvera_be.market.domain.model.MarketTypes.DataStatus.CURRENT,
+                "LIVE",
                 new BreadthCalculator.Result(400, 200, 100, 0, 700, java.util.List.of()), "provider", "b".repeat(64));
         when(breadth.persistProviderAggregate(any(), any(), any(), any(), any())).thenReturn(Optional.empty());
         when(breadth.latestFor(tradingDate)).thenReturn(Optional.of(existing));

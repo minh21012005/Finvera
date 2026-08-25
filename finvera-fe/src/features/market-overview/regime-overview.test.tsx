@@ -6,6 +6,7 @@ import type { MarketRegime } from "./api/market-overview";
 const complete: MarketRegime = {
   dataStatus: "CURRENT",
   ruleVersion: "market-regime-v1",
+  assessmentBasis: "EOD",
   label: "EARLY_BULL",
   score: 62,
   confidence: 84,
@@ -37,6 +38,8 @@ describe("RegimeOverview", () => {
     expect(screen.getByText("62/100")).toBeVisible();
     expect(screen.getByLabelText("Chất lượng đánh giá: 84/100")).toBeVisible();
     expect(screen.getByText(/market-regime-v1/i)).toBeVisible();
+    expect(screen.getByText(/Cuối phiên/i)).toBeVisible();
+    expect(screen.getByText(/Basis: EOD/i)).toBeVisible();
     expect(screen.getByText(/POSITIVE/i)).toBeVisible();
     expect(screen.getByText(/QUANTITATIVE_DECISION_SUPPORT_NOT_INVESTMENT_ADVICE/i)).toBeVisible();
   });
@@ -57,6 +60,7 @@ describe("RegimeOverview", () => {
     render(<RegimeOverview regime={{
       ...complete,
       dataStatus: "UNAVAILABLE",
+      assessmentBasis: null,
       label: null,
       score: null,
       confidence: null,

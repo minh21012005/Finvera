@@ -1,4 +1,4 @@
-import type { DataStatus, MarketBreadth } from "../api/market-overview";
+import type { CalculationBasis, DataStatus, MarketBreadth } from "../api/market-overview";
 import { formatAsOf } from "../format/market-format";
 import { TrendingUp, TrendingDown, Minus, PieChart } from "lucide-react";
 
@@ -13,6 +13,7 @@ export function BreadthOverview({ breadth }: { breadth: MarketBreadth }) {
   const decPct = total > 0 ? ((dec / total) * 100).toFixed(1) : "0";
   const uncPct = total > 0 ? ((unc / total) * 100).toFixed(1) : "0";
   const adRatio = dec > 0 ? (adv / dec).toFixed(2) : adv > 0 ? "N/A (0 Dec)" : "1.00";
+  const basis = basisCopy(breadth.calculationBasis);
 
   return (
     <section
@@ -32,6 +33,9 @@ export function BreadthOverview({ breadth }: { breadth: MarketBreadth }) {
             {statusLabel(breadth.dataStatus)}
           </span>
         </div>
+        <p style={{ margin: "-8px 0 14px 0", fontSize: "0.75rem", color: "var(--text-muted)" }}>
+          {basis.label}: {basis.description}
+        </p>
 
         {unavailable ? (
           <div className="unavailable-msg">
@@ -96,7 +100,7 @@ export function BreadthOverview({ breadth }: { breadth: MarketBreadth }) {
       </div>
 
       <p style={{ margin: "16px 0 0 0", fontSize: "0.75rem", color: "var(--text-muted)" }}>
-        Universe: {breadth.universeVersion} · Cập nhật: {formatAsOf(breadth.asOf)} · Nguồn: {breadth.source.provider}
+        Universe: {breadth.universeVersion} · Basis: {breadth.calculationBasis ?? "N/A"} · Cập nhật: {formatAsOf(breadth.asOf)} · Nguồn: {breadth.source.provider}
       </p>
     </section>
   );
@@ -104,4 +108,14 @@ export function BreadthOverview({ breadth }: { breadth: MarketBreadth }) {
 
 function statusLabel(status: DataStatus): string {
   return ({ CURRENT: "Hiện tại", DELAYED: "Chậm", STALE: "Cũ", PARTIAL: "Một phần", UNAVAILABLE: "Không có dữ liệu" })[status];
+}
+
+function basisCopy(basis: CalculationBasis | null): { label: string; description: string } {
+  if (basis === "LIVE") {
+    return { label: "Trong phiên", description: "TCBS live, phản ánh trạng thái tạm thời trong phiên." };
+  }
+  if (basis === "EOD") {
+    return { label: "Cuối phiên", description: "Dữ liệu completed-session, dùng cho phân tích daily." };
+  }
+  return { label: "Chưa xác định basis", description: "Dữ liệu cũ hoặc chưa đủ provenance LIVE/EOD." };
 }

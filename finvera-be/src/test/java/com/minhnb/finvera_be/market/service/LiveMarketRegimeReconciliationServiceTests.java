@@ -40,7 +40,7 @@ class LiveMarketRegimeReconciliationServiceTests {
                 .thenReturn(history(date, 21));
         var service = new LiveMarketRegimeReconciliationService(indexes, snapshots, assessments);
         var breadth = new BreadthService.Snapshot(UUID.randomUUID(), date, Instant.parse("2026-08-24T03:00:00Z"),
-                DataStatus.CURRENT, new BreadthCalculator.Result(300, 200, 100, 0, 600, List.of()), "provider", "a".repeat(64));
+                DataStatus.CURRENT, "LIVE", new BreadthCalculator.Result(300, 200, 100, 0, 600, List.of()), "provider", "a".repeat(64));
 
         service.reconcile(date, breadth);
 
@@ -67,7 +67,7 @@ class LiveMarketRegimeReconciliationServiceTests {
                 .thenReturn(history(date, 253));
         var service = new LiveMarketRegimeReconciliationService(indexes, snapshots, assessments);
         var breadth = new BreadthService.Snapshot(UUID.randomUUID(), date, Instant.parse("2026-08-24T03:00:00Z"),
-                DataStatus.CURRENT, new BreadthCalculator.Result(450, 150, 100, 0, 700, List.of()), "provider", "a".repeat(64));
+                DataStatus.CURRENT, "LIVE", new BreadthCalculator.Result(450, 150, 100, 0, 700, List.of()), "provider", "a".repeat(64));
 
         service.reconcile(date, breadth);
 
@@ -87,7 +87,7 @@ class LiveMarketRegimeReconciliationServiceTests {
         LocalDate date = LocalDate.of(2026, 8, 24);
         var service = new LiveMarketRegimeReconciliationService(indexes, snapshots, assessments);
         var breadth = new BreadthService.Snapshot(UUID.randomUUID(), date, Instant.parse("2026-08-24T03:00:00Z"),
-                DataStatus.CURRENT, new BreadthCalculator.Result(300, 200, 100, 0, 600, List.of()), "provider", "a".repeat(64));
+                DataStatus.CURRENT, "LIVE", new BreadthCalculator.Result(300, 200, 100, 0, 600, List.of()), "provider", "a".repeat(64));
         when(assessments.latestFor(date, "LIVE")).thenReturn(Optional.of(new RegimeAssessmentService.Snapshot(
                 date, Instant.parse("2026-08-24T03:00:00Z"), "market-regime-v2", "LIVE",
                 new com.minhnb.finvera_be.market.domain.regime.RegimeAssessment(
@@ -116,7 +116,7 @@ class LiveMarketRegimeReconciliationServiceTests {
                 .thenReturn(history(date, 253));
         var service = new LiveMarketRegimeReconciliationService(indexes, snapshots, assessments);
         var breadth = new BreadthService.Snapshot(UUID.randomUUID(), date, Instant.parse("2026-08-24T03:00:00Z"),
-                DataStatus.CURRENT, new BreadthCalculator.Result(450, 150, 100, 0, 700, List.of()), "provider", "a".repeat(64));
+                DataStatus.CURRENT, "LIVE", new BreadthCalculator.Result(450, 150, 100, 0, 700, List.of()), "provider", "a".repeat(64));
 
         service.reconcileIfMissingOrOlder(date, breadth);
 
@@ -143,7 +143,7 @@ class LiveMarketRegimeReconciliationServiceTests {
                 .thenReturn(history(date, 253));
         var service = new LiveMarketRegimeReconciliationService(indexes, snapshots, assessments);
         var breadth = new BreadthService.Snapshot(UUID.randomUUID(), date, Instant.parse("2026-08-24T03:00:00Z"),
-                DataStatus.CURRENT, new BreadthCalculator.Result(450, 150, 100, 0, 700, List.of()), "provider", "a".repeat(64));
+                DataStatus.CURRENT, "LIVE", new BreadthCalculator.Result(450, 150, 100, 0, 700, List.of()), "provider", "a".repeat(64));
 
         service.reconcileIfMissingOrOlder(date, breadth);
 
@@ -164,7 +164,7 @@ class LiveMarketRegimeReconciliationServiceTests {
                 .thenReturn(history(date, 253));
         var service = new LiveMarketRegimeReconciliationService(indexes, snapshots, assessments);
         var breadth = new BreadthService.Snapshot(UUID.randomUUID(), date, Instant.parse("2026-08-24T08:02:00Z"),
-                DataStatus.CURRENT, new BreadthCalculator.Result(450, 150, 100, 0, 700, List.of()),
+                DataStatus.CURRENT, "EOD", new BreadthCalculator.Result(450, 150, 100, 0, 700, List.of()),
                 "breadth-universe-v1", "a".repeat(64));
 
         service.reconcileEndOfDay(date, breadth);

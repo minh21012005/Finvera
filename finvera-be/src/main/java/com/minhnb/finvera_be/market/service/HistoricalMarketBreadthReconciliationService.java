@@ -89,7 +89,7 @@ public class HistoricalMarketBreadthReconciliationService {
         String universeHash = universeHash(tradingDate, build.inputs(), build.links());
         BreadthService.Snapshot snapshot = breadth.latestFor(tradingDate)
                 .filter(existing -> existing.asOf().equals(asOf) && existing.universeHash().equals(universeHash))
-                .orElseGet(() -> breadth.persist(tradingDate, asOf, universeHash, calculated, build.links()));
+                .orElseGet(() -> breadth.persist(tradingDate, asOf, universeHash, calculated, build.links(), "EOD"));
         regimes.reconcileEndOfDayIfMissingOrOlder(tradingDate, snapshot);
         return new Result("APPLIED", tradingDate, snapshot.id(), calculated.eligible(), calculated.advancing(),
                 calculated.declining(), calculated.unchanged(), calculated.unclassified(), null);

@@ -32,6 +32,7 @@ public class MarketBreadthSnapshotEntity {
     @JdbcTypeCode(Types.ARRAY)
     private String[] reasonCodes;
     @Column(name = "calculation_version") private String calculationVersion;
+    @Column(name = "calculation_basis") private String calculationBasis;
     @Column(name = "supersedes_id") private UUID supersedesId;
 
     protected MarketBreadthSnapshotEntity() { }
@@ -40,11 +41,21 @@ public class MarketBreadthSnapshotEntity {
             String universePolicyVersion, String universeRevisionHash, int advancing, int declining,
             int unchanged, int eligible, int unclassified, String dataStatus, String calculationVersion,
             List<String> reasonCodes, UUID supersedesId) {
+        this(id, tradingDate, asOf, calculatedAt, universePolicyVersion, universeRevisionHash, advancing, declining,
+                unchanged, eligible, unclassified, dataStatus, calculationVersion, "UNKNOWN", reasonCodes,
+                supersedesId);
+    }
+
+    public MarketBreadthSnapshotEntity(UUID id, LocalDate tradingDate, Instant asOf, Instant calculatedAt,
+            String universePolicyVersion, String universeRevisionHash, int advancing, int declining,
+            int unchanged, int eligible, int unclassified, String dataStatus, String calculationVersion,
+            String calculationBasis, List<String> reasonCodes, UUID supersedesId) {
         this.id = id; this.tradingDate = tradingDate; this.asOf = asOf; this.calculatedAt = calculatedAt;
         this.universePolicyVersion = universePolicyVersion; this.universeRevisionHash = universeRevisionHash;
         this.advancing = advancing; this.declining = declining; this.unchanged = unchanged;
         this.eligible = eligible; this.unclassified = unclassified; this.dataStatus = dataStatus;
-        this.calculationVersion = calculationVersion; this.reasonCodes = reasonCodes.toArray(String[]::new); this.supersedesId = supersedesId;
+        this.calculationVersion = calculationVersion; this.calculationBasis = calculationBasis;
+        this.reasonCodes = reasonCodes.toArray(String[]::new); this.supersedesId = supersedesId;
     }
     public UUID getId() { return id; }
     public LocalDate getTradingDate() { return tradingDate; }
@@ -57,5 +68,6 @@ public class MarketBreadthSnapshotEntity {
     public int getEligible() { return eligible; }
     public int getUnclassified() { return unclassified; }
     public String getDataStatus() { return dataStatus; }
+    public String getCalculationBasis() { return calculationBasis; }
     public List<String> getReasonCodes() { return List.of(reasonCodes); }
 }

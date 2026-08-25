@@ -13,4 +13,7 @@ public interface RegimeAssessmentRepository extends JpaRepository<MarketRegimeAs
             LocalDate tradingDate, String assessmentBasis);
 
     Optional<MarketRegimeAssessmentEntity> findFirstByOrderByTradingDateDescAsOfDescCalculatedAtDesc();
+
+    Optional<MarketRegimeAssessmentEntity> findFirstByAssessmentBasisOrderByTradingDateDescAsOfDescCalculatedAtDesc(
+            String assessmentBasis);
 }

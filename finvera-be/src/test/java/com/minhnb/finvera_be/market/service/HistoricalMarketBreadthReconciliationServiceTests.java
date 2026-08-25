@@ -50,9 +50,10 @@ class HistoricalMarketBreadthReconciliationServiceTests {
         when(breadth.latestFor(currentDate)).thenReturn(Optional.empty());
         var persisted = new BreadthService.Snapshot(UUID.randomUUID(), currentDate,
                 Instant.parse("2026-08-24T08:02:00Z"), DataStatus.PARTIAL,
+                "EOD",
                 new BreadthCalculator.Result(1, 1, 0, 1, 3, List.of("MISSING_REFERENCE_PRICE")),
                 "breadth-universe-v1", "a".repeat(64));
-        when(breadth.persist(any(), any(), any(), any(), any())).thenReturn(persisted);
+        when(breadth.persist(any(), any(), any(), any(), any(), any())).thenReturn(persisted);
         var service = new HistoricalMarketBreadthReconciliationService(
                 instruments, stockReferenceData, breadth, regimes);
 
@@ -63,7 +64,7 @@ class HistoricalMarketBreadthReconciliationServiceTests {
         ArgumentCaptor<BreadthCalculator.Result> calculated = ArgumentCaptor.forClass(BreadthCalculator.Result.class);
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<BreadthService.InputLink>> links = ArgumentCaptor.forClass(List.class);
-        verify(breadth).persist(any(), any(), any(), calculated.capture(), links.capture());
+        verify(breadth).persist(any(), any(), any(), calculated.capture(), links.capture(), org.mockito.ArgumentMatchers.eq("EOD"));
         assertThat(calculated.getValue()).isEqualTo(
                 new BreadthCalculator.Result(1, 1, 0, 1, 3,
                         List.of("MISSING_REFERENCE_PRICE", "REFERENCE_PRICE_UNAVAILABLE_USING_PRIOR_CLOSE")));
@@ -88,7 +89,7 @@ class HistoricalMarketBreadthReconciliationServiceTests {
 
         assertThat(result.status()).isEqualTo("SKIPPED");
         assertThat(result.reasonCode()).isEqualTo("NO_DAILY_BAR_HISTORY");
-        verify(breadth, never()).persist(any(), any(), any(), any(), any());
+        verify(breadth, never()).persist(any(), any(), any(), any(), any(), any());
         verify(regimes, never()).reconcileEndOfDayIfMissingOrOlder(any(), any());
     }
 

@@ -34,6 +34,7 @@ class RiskFactorInputAssembler {
 
     private static final int TRAILING_RISK_WINDOW = 250;
     private static final String INPUT_UNAVAILABLE = "INPUT_UNAVAILABLE";
+    private static final String DAILY_STRATEGY_REGIME_BASIS = "EOD";
 
     private final MarketReferenceDataService referenceData;
     private final EquityDailyBarRepository dailyBars;
@@ -71,7 +72,8 @@ class RiskFactorInputAssembler {
 
         MetricPoint liquidity = metricPointFromComponent(currentRelativeVolume, IndicatorComponent.VALUE);
 
-        Optional<RegimeAssessmentReference> regimeOpt = referenceData.findCurrentRegimeAssessment();
+        Optional<RegimeAssessmentReference> regimeOpt =
+                referenceData.findCurrentRegimeAssessment(DAILY_STRATEGY_REGIME_BASIS);
         MetricPoint regime;
         UUID regimeAssessmentId = null;
         if (regimeOpt.isPresent() && regimeOpt.get().score() != null && isUsableRegime(regimeOpt.get().dataStatus())) {

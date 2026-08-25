@@ -51,6 +51,13 @@ public interface MarketReferenceDataService {
     Optional<RegimeAssessmentReference> findCurrentRegimeAssessment();
 
     /**
+     * The most recently accepted regime assessment for a specific basis. Daily
+     * stock strategies should request {@code EOD}; realtime market surfaces may
+     * request {@code LIVE}. Empty when that basis has not been accepted yet.
+     */
+    Optional<RegimeAssessmentReference> findCurrentRegimeAssessment(String assessmentBasis);
+
+    /**
      * The latest accepted index snapshot on or before {@code date} for the
      * given index code (e.g. {@code "VN_INDEX"}), for benchmark-comparison
      * callers (Feature 005 FR-015) that need an as-of index level rather
@@ -73,6 +80,7 @@ public interface MarketReferenceDataService {
     record RegimeAssessmentReference(
             UUID id,
             LocalDate tradingDate,
+            String assessmentBasis,
             Integer score,
             DataStatus dataStatus) {
     }

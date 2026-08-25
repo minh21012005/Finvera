@@ -254,6 +254,7 @@ Immutable result over a declared universe revision and coherent as-of boundary.
 | `reason_codes` | text[] | Stable quality reason codes. |
 | `source_summary` | jsonb | Allowlisted sources and times only; no raw payloads. |
 | `calculation_version` | varchar(64) | `breadth-v1`. |
+| `calculation_basis` | varchar(16) | `LIVE`, `EOD`, or `UNKNOWN`; distinguishes current-session breadth from completed-session breadth. |
 | `supersedes_id` | UUID nullable | Recomputed correction chain. |
 
 Check: `advancing + declining + unchanged + unclassified = eligible`.

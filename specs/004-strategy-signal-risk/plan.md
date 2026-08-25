@@ -123,12 +123,12 @@ actually delivered rather than what was planned:
   `StrategySignalV1Tests` (31/31).
 - [x] **II. Evidence, provenance, temporal truth** — `strategy_signal_input`
   links every triggered signal's exact contributing indicator/prior-day/
-  daily-bar/regime rows; `supportingEvidence` in the API response names the
+  daily-bar/EOD-regime rows; `supportingEvidence` in the API response names the
   specific values that satisfied the entry condition; every withheld
   strategy/factor states a reason code, never a silent drop.
 - [x] **III. Explicit boundaries** — `stock` reads Feature 001's regime
-  assessment only through `MarketReferenceDataService.findCurrentRegimeAssessment`,
-  never `market.entity`/`market.repository` directly; enforced by
+  assessment only through `MarketReferenceDataService.findCurrentRegimeAssessment`
+  and its basis-scoped overload, never `market.entity`/`market.repository` directly; enforced by
   `StockModuleArchitectureTests` (4/4, unchanged pass).
 - [x] **IV. Security, privacy, responsible decision support** — both
   endpoints require the existing owner session; the scan `POST` requires
@@ -226,7 +226,7 @@ finvera-ai / TCBS / Vnstock / Redis / Qdrant / Kafka: no path in this feature
 |---|---|---|---|
 | Public REST | Add two owner-only endpoints | Additive under `/api/v1` | [strategy-signal.openapi.yaml](contracts/strategy-signal.openapi.yaml) |
 | Calculation rules | Add one versioned rule set | `strategy-signal-v1` | [strategy-signal-v1.md](contracts/strategy-signal-v1.md) |
-| `market` published interface | Add a regime-assessment read method (mirroring Feature 003's `findInstrumentsByIds` addition) | Additive to `MarketReferenceDataService` | Recorded in `tasks.md` at implementation time, per Feature 003's own precedent for this kind of small interface growth |
+| `market` published interface | Add regime-assessment read methods, including basis-scoped EOD/LIVE lookup (mirroring Feature 003's `findInstrumentsByIds` addition) | Additive to `MarketReferenceDataService` | Daily strategy risk consumes `assessmentBasis=EOD`; LIVE remains a realtime market surface input |
 | Database | Add `strategy_signal`, `strategy_signal_risk_factor`, `strategy_signal_input` | Forward Flyway from `V004`; no existing table altered | [data-model.md](data-model.md) |
 
 ## Phase 0: Research

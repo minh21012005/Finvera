@@ -18,10 +18,10 @@ const overview: MarketOverview = {
     index("UPCOM_INDEX", "UPCoM-Index", null, "UNAVAILABLE"),
   ],
   breadth: { dataStatus: "UNAVAILABLE", advancing: null, declining: null, unchanged: null, eligible: null,
-    unclassified: null, universeVersion: "breadth-universe-v1", tradingDate: null, asOf: null,
+    unclassified: null, universeVersion: "breadth-universe-v1", calculationBasis: null, tradingDate: null, asOf: null,
     source: { provider: "UNAVAILABLE", dataset: "BREADTH" }, reasonCodes: ["BREADTH_NOT_AVAILABLE"] },
   regime: {
-    dataStatus: "UNAVAILABLE", ruleVersion: "market-regime-v1", label: null, score: null, confidence: null,
+    dataStatus: "UNAVAILABLE", ruleVersion: "market-regime-v1", assessmentBasis: null, label: null, score: null, confidence: null,
     confidenceMeaning: "ASSESSMENT_QUALITY_NOT_FORECAST_PROBABILITY", tradingDate: null, asOf: null, factors: [],
     source: { provider: "UNAVAILABLE", dataset: "REGIME" }, reasonCodes: ["REGIME_NOT_AVAILABLE"],
     disclaimerCode: "QUANTITATIVE_DECISION_SUPPORT_NOT_INVESTMENT_ADVICE",

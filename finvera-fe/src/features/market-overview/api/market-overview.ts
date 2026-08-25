@@ -5,6 +5,7 @@ export type Venue = "HOSE" | "HNX" | "UPCOM";
 export type SessionState = "PRE_OPEN" | "OPEN" | "BREAK" | "INTERRUPTED" | "CLOSED" | "NON_TRADING_DAY" | "UNKNOWN";
 export type WarningSeverity = "INFO" | "WARNING" | "ERROR";
 export type WarningSection = "OVERVIEW" | "SESSION" | "INDEX" | "BREADTH" | "REGIME";
+export type CalculationBasis = "LIVE" | "EOD" | "UNKNOWN";
 
 export interface MarketSession {
   state: SessionState;
@@ -49,6 +50,7 @@ export interface MarketBreadth {
   eligible: number | null;
   unclassified: number | null;
   universeVersion: string;
+  calculationBasis: CalculationBasis | null;
   tradingDate: string | null;
   asOf: string | null;
   source: { provider: string; dataset: string };
@@ -73,6 +75,7 @@ export interface MarketRegimeFactor {
 export interface MarketRegime {
   dataStatus: DataStatus;
   ruleVersion: RegimeRuleVersion;
+  assessmentBasis: CalculationBasis | null;
   label: RegimeLabel | null;
   score: number | null;
   confidence: number | null;
@@ -116,6 +119,7 @@ const REGIME_RULE_VERSIONS = new Set<RegimeRuleVersion>(["market-regime-v1", "ma
 const SESSION_STATES = new Set<SessionState>(["PRE_OPEN", "OPEN", "BREAK", "INTERRUPTED", "CLOSED", "NON_TRADING_DAY", "UNKNOWN"]);
 const WARNING_SEVERITIES = new Set<WarningSeverity>(["INFO", "WARNING", "ERROR"]);
 const WARNING_SECTIONS = new Set<WarningSection>(["OVERVIEW", "SESSION", "INDEX", "BREADTH", "REGIME"]);
+const CALCULATION_BASES = new Set<CalculationBasis>(["LIVE", "EOD", "UNKNOWN"]);
 const DECIMAL = /^-?[0-9]+(?:\.[0-9]+)?$/;
 
 export async function getMarketOverview(signal?: AbortSignal): Promise<MarketOverview> {
@@ -176,6 +180,7 @@ function parseRegime(value: unknown): MarketRegime {
   return {
     dataStatus: status(regime.dataStatus, "regime dataStatus"),
     ruleVersion: ruleVersion as RegimeRuleVersion,
+    assessmentBasis: nullableCalculationBasis(regime.assessmentBasis, "regime assessmentBasis"),
     label,
     score,
     confidence,
@@ -226,6 +231,7 @@ function parseBreadth(value: unknown): MarketBreadth {
     eligible: nullableInteger(breadth.eligible, "breadth eligible"),
     unclassified: nullableInteger(breadth.unclassified, "breadth unclassified"),
     universeVersion: text(breadth.universeVersion, "breadth universeVersion"),
+    calculationBasis: nullableCalculationBasis(breadth.calculationBasis, "breadth calculationBasis"),
     tradingDate: nullableText(breadth.tradingDate, "breadth tradingDate"),
     asOf: nullableText(breadth.asOf, "breadth asOf"),
     source: { provider: text(source.provider, "breadth source provider"), dataset: text(source.dataset, "breadth source dataset") },
@@ -338,6 +344,14 @@ function nullableRegimeLabel(value: unknown): RegimeLabel | null {
   if (value === null) return null;
   if (typeof value !== "string" || !REGIME_LABELS.has(value as RegimeLabel)) throw new Error("regime label is invalid");
   return value as RegimeLabel;
+}
+
+function nullableCalculationBasis(value: unknown, name: string): CalculationBasis | null {
+  if (value === null) return null;
+  if (typeof value !== "string" || !CALCULATION_BASES.has(value as CalculationBasis)) {
+    throw new Error(`${name} is invalid`);
+  }
+  return value as CalculationBasis;
 }
 
 function sessionState(value: unknown, name: string): SessionState {

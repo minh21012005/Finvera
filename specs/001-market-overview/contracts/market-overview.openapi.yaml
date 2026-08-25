@@ -208,6 +208,7 @@ components:
         - unchanged
         - eligible
         - unclassified
+        - calculationBasis
         - source
         - reasonCodes
       properties:
@@ -226,6 +227,10 @@ components:
         universeVersion:
           type: string
           minLength: 1
+        calculationBasis:
+          type: [string, "null"]
+          enum: [LIVE, EOD, UNKNOWN, null]
+          description: LIVE uses current-session breadth inputs; EOD uses completed-session inputs only.
         tradingDate:
           oneOf:
             - type: string
