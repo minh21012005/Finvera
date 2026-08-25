@@ -94,7 +94,7 @@ public final class FundamentalSummaryCalculator {
 
         // TTM Metrics (4 quarters required or 1 annual report)
         addTtmSumMetric(summaryMetrics, "NET_PROFIT", "NET_PROFIT_TTM", currentTtmPeriods);
-        addTtmSumMetric(summaryMetrics, "EPS", "EPS_TTM", currentTtmPeriods);
+        addEpsTtmMetric(summaryMetrics, currentTtmPeriods, newest);
         addTtmSumMetric(summaryMetrics, "REVENUE", "REVENUE_TTM", currentTtmPeriods);
         addTtmSumMetric(summaryMetrics, "EBITDA", "EBITDA_TTM", currentTtmPeriods);
         addTtmSumMetric(summaryMetrics, "DIVIDEND_PER_SHARE", "DIVIDEND_PER_SHARE_TTM", currentTtmPeriods);
@@ -119,6 +119,10 @@ public final class FundamentalSummaryCalculator {
         addLatestMetric(summaryMetrics, "CASH_AND_EQUIVALENTS", newest);
         addLatestMetric(summaryMetrics, "GROSS_PROFIT", newest);
         addLatestMetric(summaryMetrics, "OPERATING_PROFIT", newest);
+        addLatestMetric(summaryMetrics, "BVPS", newest);
+        addLatestMetric(summaryMetrics, "TRAILING_EPS", newest);
+        addLatestMetric(summaryMetrics, "DIVIDEND_YIELD", newest);
+        addLatestMetric(summaryMetrics, "EV_EBITDA", newest);
 
         return new SummaryResult(
                 RULE_VERSION,
@@ -129,6 +133,33 @@ public final class FundamentalSummaryCalculator {
                 summaryMetrics,
                 contributingIds
         );
+    }
+
+    private void addEpsTtmMetric(
+            List<SummaryMetric> target,
+            List<ReportPeriod> ttmPeriods,
+            ReportPeriod newest) {
+        if (!ttmPeriods.isEmpty() && (ttmPeriods.size() >= 4 || "ANNUAL".equals(ttmPeriods.get(0).periodType()))) {
+            BigDecimal sum = getTtmSum("EPS", ttmPeriods);
+            if (sum != null) {
+                target.add(new SummaryMetric("EPS_TTM", sum, MetricApplicability.DEFINED, null));
+                return;
+            }
+        }
+        // Fallback to TRAILING_EPS from ratio snapshot (e.g. for banks / securities)
+        if (newest != null && newest.metrics() != null) {
+            for (ReportMetric m : newest.metrics()) {
+                if ("TRAILING_EPS".equals(m.metricCode()) && m.applicability() == MetricApplicability.DEFINED && m.value() != null) {
+                    target.add(new SummaryMetric("EPS_TTM", m.value(), MetricApplicability.DEFINED, null));
+                    return;
+                }
+            }
+        }
+        if (ttmPeriods.size() < 4 && (ttmPeriods.isEmpty() || !"ANNUAL".equals(ttmPeriods.get(0).periodType()))) {
+            target.add(new SummaryMetric("EPS_TTM", null, MetricApplicability.MISSING, "INSUFFICIENT_HISTORY"));
+        } else {
+            target.add(new SummaryMetric("EPS_TTM", null, MetricApplicability.MISSING, "NO_DATA"));
+        }
     }
 
     private void addTtmSumMetric(

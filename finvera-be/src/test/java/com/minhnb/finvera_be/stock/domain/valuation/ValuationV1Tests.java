@@ -571,6 +571,32 @@ class ValuationV1Tests {
                 .build();
     }
 
+    @Test
+    void directBvpsAndDividendYieldComputesCorrectly() {
+        var engine = new ValuationV1();
+        var inputs = ValuationV1.Inputs.builder()
+                .price(new BigDecimal("70000.000000"))
+                .epsTtm(new BigDecimal("5000.000000")) // PE = 14.0
+                .bvps(new BigDecimal("20000.000000")) // PB = 3.5
+                .dividendYield(new BigDecimal("4.500000")) // Dividend Yield = 4.5%
+                .sectorSeries(buildSectorSeries(10))
+                .build();
+
+        var result = engine.classify(inputs);
+        assertThat(result.published()).isTrue();
+        var pb = findMetric(result, "PB");
+        assertThat(pb.applicability()).isEqualTo(MetricApplicability.DEFINED);
+        assertThat(pb.value()).isEqualByComparingTo(new BigDecimal("3.500000000000"));
+
+        var pe = findMetric(result, "PE");
+        assertThat(pe.applicability()).isEqualTo(MetricApplicability.DEFINED);
+        assertThat(pe.value()).isEqualByComparingTo(new BigDecimal("14.000000000000"));
+
+        var divYield = findMetric(result, "DIVIDEND_YIELD");
+        assertThat(divYield.applicability()).isEqualTo(MetricApplicability.DEFINED);
+        assertThat(divYield.value()).isEqualByComparingTo(new BigDecimal("4.500000"));
+    }
+
     private ValuationV1.MetricResult findMetric(ValuationV1.AssessmentResult result, String code) {
         return result.metrics().stream()
                 .filter(m -> m.metricCode().equals(code))

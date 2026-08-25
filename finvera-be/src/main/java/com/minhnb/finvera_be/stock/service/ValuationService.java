@@ -188,10 +188,12 @@ public class ValuationService {
                 .epsTtm(epsTtm)
                 .epsGrowthPercent(epsGrowth)
                 .equityAttributableToParent(equityParent)
+                .bvps(currentFundamentals.bvps())
                 .ebitdaTtm(ebitdaTtm)
                 .totalDebt(totalDebt)
                 .cashAndEquivalents(cash)
                 .dividendPerShareTtm(dividendTtm)
+                .dividendYield(currentFundamentals.dividendYield())
                 .ownHistorySeries(historyPoints)
                 // T064: gated by finvera.stock.provider.sector-basis-enabled (default false —
                 // owner validates latency in non-production first, per tasks.md T064). Sector
@@ -355,9 +357,12 @@ public class ValuationService {
                     .epsTtm(peerFundamentals.epsTtm())
                     .epsGrowthPercent(peerFundamentals.epsGrowthPercent())
                     .equityAttributableToParent(peerFundamentals.equityAttributableToParent())
+                    .bvps(peerFundamentals.bvps())
                     .ebitdaTtm(peerFundamentals.ebitdaTtm())
                     .totalDebt(peerFundamentals.totalDebt())
                     .cashAndEquivalents(peerFundamentals.cashAndEquivalents())
+                    .dividendPerShareTtm(peerFundamentals.dividendPerShareTtm())
+                    .dividendYield(peerFundamentals.dividendYield())
                     .build());
 
             for (MetricValue mv : computed.allScored()) {
@@ -377,31 +382,36 @@ public class ValuationService {
         BigDecimal epsTtm = null;
         BigDecimal epsGrowth = null;
         BigDecimal equityParent = null;
+        BigDecimal bvps = null;
         BigDecimal ebitdaTtm = null;
         BigDecimal totalDebt = null;
         BigDecimal cash = null;
         BigDecimal dividendTtm = null;
+        BigDecimal dividendYield = null;
         for (var m : f.metrics()) {
             if (m.applicability() == MetricApplicability.DEFINED && m.value() != null) {
                 switch (m.metricCode()) {
                     case "EPS_TTM" -> epsTtm = m.value();
                     case "EPS_GROWTH_PERCENT" -> epsGrowth = m.value();
                     case "EQUITY_ATTRIBUTABLE_TO_PARENT" -> equityParent = m.value();
-                    case "EBITDA_TTM" -> ebitdaTtm = m.value();
+                    case "BVPS" -> bvps = m.value();
+                    case "EBITDA_TTM", "EV_EBITDA" -> ebitdaTtm = m.value();
                     case "TOTAL_DEBT" -> totalDebt = m.value();
                     case "CASH_AND_EQUIVALENTS" -> cash = m.value();
                     case "DIVIDEND_PER_SHARE_TTM" -> dividendTtm = m.value();
+                    case "DIVIDEND_YIELD" -> dividendYield = m.value();
                 }
             }
         }
-        return new CurrentFundamentalMetrics(epsTtm, epsGrowth, equityParent, ebitdaTtm, totalDebt, cash, dividendTtm);
+        return new CurrentFundamentalMetrics(epsTtm, epsGrowth, equityParent, bvps, ebitdaTtm, totalDebt, cash, dividendTtm, dividendYield);
     }
 
     private record CurrentFundamentalMetrics(
             BigDecimal epsTtm, BigDecimal epsGrowthPercent, BigDecimal equityAttributableToParent,
-            BigDecimal ebitdaTtm, BigDecimal totalDebt, BigDecimal cashAndEquivalents, BigDecimal dividendPerShareTtm) {
+            BigDecimal bvps, BigDecimal ebitdaTtm, BigDecimal totalDebt, BigDecimal cashAndEquivalents,
+            BigDecimal dividendPerShareTtm, BigDecimal dividendYield) {
         static final CurrentFundamentalMetrics EMPTY =
-                new CurrentFundamentalMetrics(null, null, null, null, null, null, null);
+                new CurrentFundamentalMetrics(null, null, null, null, null, null, null, null, null);
     }
 
     private DataStatus evaluatePriceFreshness(EquityDailyBarEntity latestBar, LocalDate sessionTradingDate) {
@@ -475,9 +485,11 @@ public class ValuationService {
             BigDecimal histEpsTtm = null;
             BigDecimal histEpsGrowth = null;
             BigDecimal histEquityParent = null;
+            BigDecimal histBvps = null;
             BigDecimal histEbitdaTtm = null;
             BigDecimal histTotalDebt = null;
             BigDecimal histCash = null;
+            BigDecimal histDividendYield = null;
             for (var m : asOfSummary.metrics()) {
                 if (m.applicability() != MetricApplicability.DEFINED || m.value() == null) {
                     continue;
@@ -486,9 +498,11 @@ public class ValuationService {
                     case "EPS_TTM" -> histEpsTtm = m.value();
                     case "EPS_GROWTH_PERCENT" -> histEpsGrowth = m.value();
                     case "EQUITY_ATTRIBUTABLE_TO_PARENT" -> histEquityParent = m.value();
-                    case "EBITDA_TTM" -> histEbitdaTtm = m.value();
+                    case "BVPS" -> histBvps = m.value();
+                    case "EBITDA_TTM", "EV_EBITDA" -> histEbitdaTtm = m.value();
                     case "TOTAL_DEBT" -> histTotalDebt = m.value();
                     case "CASH_AND_EQUIVALENTS" -> histCash = m.value();
+                    case "DIVIDEND_YIELD" -> histDividendYield = m.value();
                     default -> { /* not a valuation input */ }
                 }
             }
@@ -499,9 +513,11 @@ public class ValuationService {
                     .epsTtm(histEpsTtm)
                     .epsGrowthPercent(histEpsGrowth)
                     .equityAttributableToParent(histEquityParent)
+                    .bvps(histBvps)
                     .ebitdaTtm(histEbitdaTtm)
                     .totalDebt(histTotalDebt)
                     .cashAndEquivalents(histCash)
+                    .dividendYield(histDividendYield)
                     .build());
 
             for (MetricValue mv : computed.allScored()) {

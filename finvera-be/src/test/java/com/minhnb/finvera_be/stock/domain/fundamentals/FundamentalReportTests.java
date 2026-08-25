@@ -205,6 +205,28 @@ class FundamentalReportTests {
         assertThat(findMetric(result, "EPS").value()).isEqualByComparingTo(raw);
     }
 
+    @Test
+    void bvpsAndTrailingEpsAreAcceptedAsPerShareMetricsWithoutStatementScaling() {
+        var acceptance = new FundamentalReportAcceptance();
+        var bvpsRaw = new BigDecimal("18160.000000");
+        var trailingEpsRaw = new BigDecimal("4159.650000");
+        var divYieldRaw = new BigDecimal("0.040000");
+        var metrics = List.of(
+                new FundamentalReportAcceptance.MetricInput("BVPS", bvpsRaw, "DEFINED", null),
+                new FundamentalReportAcceptance.MetricInput("TRAILING_EPS", trailingEpsRaw, "DEFINED", null),
+                new FundamentalReportAcceptance.MetricInput("DIVIDEND_YIELD", divYieldRaw, "DEFINED", null));
+        var input = new FundamentalReportAcceptance.ReportInput(
+                "QUARTER", 2026, 2,
+                LocalDate.of(2026, 4, 1), LocalDate.of(2026, 6, 30),
+                "CONSOLIDATED", "REVIEWED", "VND", 1_000_000, CATALOG_V1,
+                metrics);
+        var result = acceptance.accept(input);
+        assertThat(result.accepted()).isTrue();
+        assertThat(findMetric(result, "BVPS").value()).isEqualByComparingTo(bvpsRaw);
+        assertThat(findMetric(result, "TRAILING_EPS").value()).isEqualByComparingTo(trailingEpsRaw);
+        assertThat(findMetric(result, "DIVIDEND_YIELD").value()).isEqualByComparingTo(divYieldRaw);
+    }
+
     // ── Restatement identity ────────────────────────────────────────────────────
 
     @Test

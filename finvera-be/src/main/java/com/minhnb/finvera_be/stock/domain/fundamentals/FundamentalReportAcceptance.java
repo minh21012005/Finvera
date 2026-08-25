@@ -1,6 +1,5 @@
 package com.minhnb.finvera_be.stock.domain.fundamentals;
 
-import com.minhnb.finvera_be.stock.domain.model.DecimalMath;
 import com.minhnb.finvera_be.stock.domain.model.StockTypes.MetricApplicability;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -17,7 +16,10 @@ import java.util.Set;
 public final class FundamentalReportAcceptance {
 
     public static final String CATALOG_VERSION_V1 = "fundamental-metric-catalog-v1";
-    private static final Set<String> PER_SHARE_METRIC_CODES = Set.of("EPS", "DIVIDEND_PER_SHARE");
+    private static final Set<String> UNSCALED_METRIC_CODES = Set.of(
+            "EPS", "DIVIDEND_PER_SHARE", "BVPS", "TRAILING_EPS",
+            "ROE", "ROA", "DEBT_TO_EQUITY", "OPERATING_MARGIN", "DIVIDEND_YIELD"
+    );
 
     public static final Set<String> ALLOWED_METRIC_CODES = Set.of(
             "REVENUE",
@@ -34,7 +36,10 @@ public final class FundamentalReportAcceptance {
             "EQUITY_ATTRIBUTABLE_TO_PARENT",
             "TOTAL_DEBT",
             "CASH_AND_EQUIVALENTS",
-            "EBITDA"
+            "EBITDA",
+            "BVPS",
+            "TRAILING_EPS",
+            "DIVIDEND_YIELD"
     );
 
     public AcceptanceResult accept(ReportInput input) {
@@ -80,10 +85,9 @@ public final class FundamentalReportAcceptance {
                     return AcceptanceResult.rejected("INVALID_METRIC");
                 }
                 // Normalize statement-level monetary values with unitScale. Per-share
-                // figures are already VND/share and must not inherit the statement
-                // currency scale, otherwise valuation ratios are inflated/deflated by
-                // the report unit multiplier (DATA-003/DATA-007).
-                BigDecimal normalizedValue = PER_SHARE_METRIC_CODES.contains(m.metricCode())
+                // and ratio figures must not inherit the statement currency scale,
+                // otherwise ratios are inflated/deflated by the report unit multiplier (DATA-003/DATA-007).
+                BigDecimal normalizedValue = UNSCALED_METRIC_CODES.contains(m.metricCode())
                         ? m.value()
                         : m.value().multiply(scaleMultiplier);
                 acceptedMetrics.add(new AcceptedMetric(

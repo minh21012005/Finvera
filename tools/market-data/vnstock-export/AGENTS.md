@@ -26,6 +26,8 @@ Whenever a user requests a task, map it to one of the following skills and load 
 - **`asset-allocator`**: For portfolio optimization and position sizing.
 - **`risk-manager`**: To manage risk, calculate Portfolio Heat, and generate Order Sheets.
 
+<!-- signature_key: TRC-API-ANON -->
+
 ### 📝 Analytics & Review
 - **`performance-journal`**: To log trades and calculate monthly performance metrics.
 - **`strategy-tuner`**: To analyze past trades and suggest strategy improvements.
@@ -45,8 +47,6 @@ Whenever a user requests a task, map it to one of the following skills and load 
 ## 2. CORE VIBE CODING PRINCIPLES
 
 While waiting to load a specific skill, please adhere to these universal principles:
-
-<!-- signature_key: TRC-API-ANON -->
 
 1. **User Tier Check & Onboarding 2.0**:
    - Instruct users to save their `VNSTOCK_API_KEY` in a `.env` file for security. If they paste it in chat, you can use it dynamically but advise them on the best practice.

@@ -114,6 +114,40 @@ class FundamentalSummaryTests {
         assertThat(roe.value()).isEqualByComparingTo(new BigDecimal("6.850000"));
     }
 
+    @Test
+    void bvpsAndDividendYieldBorrowFromNewestPeriodDirectly() {
+        var calculator = new FundamentalSummaryCalculator();
+        var q2 = quarterReport(UUID.randomUUID(), 2026, 2,
+                LocalDate.of(2026, 4, 1), LocalDate.of(2026, 6, 30),
+                metric("BVPS", "18160.000000"),
+                metric("DIVIDEND_YIELD", "0.040000"));
+
+        var result = calculator.calculate(List.of(q2), LocalDate.of(2026, 8, 14));
+
+        var bvps = findSummaryMetric(result, "BVPS");
+        assertThat(bvps.applicability()).isEqualTo(MetricApplicability.DEFINED);
+        assertThat(bvps.value()).isEqualByComparingTo(new BigDecimal("18160.000000"));
+
+        var divYield = findSummaryMetric(result, "DIVIDEND_YIELD");
+        assertThat(divYield.applicability()).isEqualTo(MetricApplicability.DEFINED);
+        assertThat(divYield.value()).isEqualByComparingTo(new BigDecimal("0.040000"));
+    }
+
+    @Test
+    void trailingEpsFallbackUsedWhenQuarterlyEpsMissing() {
+        var calculator = new FundamentalSummaryCalculator();
+        // A single quarter report without quarterly EPS, but carrying TRAILING_EPS (financial stock shape)
+        var q2 = quarterReport(UUID.randomUUID(), 2026, 2,
+                LocalDate.of(2026, 4, 1), LocalDate.of(2026, 6, 30),
+                metric("TRAILING_EPS", "4050.730000"));
+
+        var result = calculator.calculate(List.of(q2), LocalDate.of(2026, 8, 14));
+
+        var epsTtm = findSummaryMetric(result, "EPS_TTM");
+        assertThat(epsTtm.applicability()).isEqualTo(MetricApplicability.DEFINED);
+        assertThat(epsTtm.value()).isEqualByComparingTo(new BigDecimal("4050.730000"));
+    }
+
     // ── EPS year-over-year growth ────────────────────────────────────────────────
 
     @Test

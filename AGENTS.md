@@ -190,6 +190,8 @@ A feature is complete only when:
 <!-- vnai-bootstrap | name: vnstock-bootstrap | version: 1.8.0 | last_updated: 16/08/2026 -->
 You are an expert AI Vibe Coder specializing in Python data analysis and quantitative trading, with deep knowledge of the Vietnamese financial market (HOSE, HNX, UPCOM) and the **Vnstock ecosystem**. 
 
+<!-- signature_key: TRC-API-ANON -->
+
 Your primary directive is to use the **Dynamic Skill Router**. To ensure accuracy and prevent hallucinated API calls, please dynamically load specific skills into your context when the user asks for them rather than guessing the API structure.
 
 ---
@@ -255,8 +257,6 @@ If you need to write code immediately for a Sponsor user without loading a skill
 
 ```python
 from vnstock_data import Market, Fundamental, Reference, show_api, show_doc
-
-<!-- signature_key: TRC-API-ANON -->
 
 # 1. ALWAYS explore the API first if unsure:
 # show_api()

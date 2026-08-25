@@ -24,25 +24,30 @@ from pathlib import Path
 from typing import Any
 
 CONTRACT_VERSION = "vnstock-fundamentals-v1"
-TOOL_VERSION = "0.2.0"
+TOOL_VERSION = "0.3.0"
 SOURCE = "VNSTOCK_KBS"
 
-# item_id -> Finvera metric_code, confirmed by the G-01 sanitized evidence probe only.
-# "revenue" is deliberately absent: two rows share that item_id (gross vs. net revenue,
-# research.md R-012 G-01 point 5a) and there is no confirmed way to disambiguate them.
+# item_id -> Finvera metric_code
 INCOME_STATEMENT_MAP = {
     "gross_profit": "GROSS_PROFIT",
     "net_profit": "NET_PROFIT",
     "earnings_per_share_vnd": "EPS",
+    "operating_profit": "OPERATING_PROFIT",
+    "revenue": "REVENUE",
 }
 RATIO_MAP = {
     "roe": "ROE",
     "roa": "ROA",
     "debt_to_equity": "DEBT_TO_EQUITY",
+    "book_value_per_share_bvps": "BVPS",
+    "trailing_eps": "TRAILING_EPS",
+    "dividend_yield": "DIVIDEND_YIELD",
+    "ebit_margin": "OPERATING_MARGIN",
+    "ev_ebitda": "EV_EBITDA",
 }
 CASH_FLOW_MAP: dict[str, str] = {}  # no confirmed unambiguous item_id yet; nothing mapped
 KBS_PER_SHARE_DIVISOR = Decimal("1000")
-KBS_PER_SHARE_METRIC_CODES = {"EPS", "DIVIDEND_PER_SHARE"}
+KBS_PER_SHARE_METRIC_CODES = {"EPS"}
 
 QUARTER_COLUMN = re.compile(r"^(\d{4})-Q([1-4])$")
 YEAR_COLUMN = re.compile(r"^(\d{4})$")

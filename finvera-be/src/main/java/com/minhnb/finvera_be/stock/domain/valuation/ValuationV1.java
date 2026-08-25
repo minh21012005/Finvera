@@ -321,10 +321,12 @@ public final class ValuationV1 {
                 ? price.multiply(BigDecimal.valueOf(shares))
                 : null;
 
-        // bvps = equityAttributableToParent / sharesOutstanding
-        BigDecimal bvps = (inputs.equityAttributableToParent() != null && shares != null && shares > 0)
-                ? DecimalMath.divide12(inputs.equityAttributableToParent(), BigDecimal.valueOf(shares))
-                : null;
+        // bvps = direct bvps input or (equityAttributableToParent / sharesOutstanding)
+        BigDecimal bvps = inputs.bvps() != null
+                ? inputs.bvps()
+                : ((inputs.equityAttributableToParent() != null && shares != null && shares > 0)
+                        ? DecimalMath.divide12(inputs.equityAttributableToParent(), BigDecimal.valueOf(shares))
+                        : null);
 
         // ev = marketCap + totalDebt - cashAndEquivalents
         BigDecimal ev = (marketCap != null && inputs.totalDebt() != null && inputs.cashAndEquivalents() != null)
@@ -379,13 +381,11 @@ public final class ValuationV1 {
             peg = new MetricValue("PEG", DecimalMath.divide12(pe.value(), inputs.epsGrowthPercent()), MetricApplicability.DEFINED, null);
         }
 
-        // 5. DIVIDEND_YIELD = dividendPerShareTtm / price * 100
-        // A missing price (input absence) and a genuinely zero price are kept
-        // distinct per DATA-007/U-3: the former is MISSING, only the latter is
-        // NOT_APPLICABLE, mirroring how PE/PB/EV_EBITDA separate MISSING_PRICE
-        // from their own NOT_APPLICABLE conditions above.
+        // 5. DIVIDEND_YIELD = dividendYield or (dividendPerShareTtm / price * 100)
         MetricValue dividendYield;
-        if (inputs.dividendPerShareTtm() == null) {
+        if (inputs.dividendYield() != null) {
+            dividendYield = new MetricValue("DIVIDEND_YIELD", inputs.dividendYield(), MetricApplicability.DEFINED, null);
+        } else if (inputs.dividendPerShareTtm() == null) {
             dividendYield = new MetricValue("DIVIDEND_YIELD", null, MetricApplicability.MISSING, "MISSING_DIVIDEND");
         } else if (price == null) {
             dividendYield = new MetricValue("DIVIDEND_YIELD", null, MetricApplicability.MISSING, "MISSING_PRICE");
@@ -490,10 +490,12 @@ public final class ValuationV1 {
             BigDecimal epsTtm,
             BigDecimal epsGrowthPercent,
             BigDecimal equityAttributableToParent,
+            BigDecimal bvps,
             BigDecimal ebitdaTtm,
             BigDecimal totalDebt,
             BigDecimal cashAndEquivalents,
             BigDecimal dividendPerShareTtm,
+            BigDecimal dividendYield,
             List<HistoryPoint> ownHistorySeries,
             List<SectorPoint> sectorSeries,
             String priceDataStatus,
@@ -510,10 +512,12 @@ public final class ValuationV1 {
             private BigDecimal epsTtm;
             private BigDecimal epsGrowthPercent;
             private BigDecimal equityAttributableToParent;
+            private BigDecimal bvps;
             private BigDecimal ebitdaTtm;
             private BigDecimal totalDebt;
             private BigDecimal cashAndEquivalents;
             private BigDecimal dividendPerShareTtm;
+            private BigDecimal dividendYield;
             private List<HistoryPoint> ownHistorySeries = List.of();
             private List<SectorPoint> sectorSeries = List.of();
             private String priceDataStatus = "CURRENT";
@@ -525,10 +529,12 @@ public final class ValuationV1 {
             public Builder epsTtm(BigDecimal eps) { this.epsTtm = eps; return this; }
             public Builder epsGrowthPercent(BigDecimal g) { this.epsGrowthPercent = g; return this; }
             public Builder equityAttributableToParent(BigDecimal eq) { this.equityAttributableToParent = eq; return this; }
+            public Builder bvps(BigDecimal b) { this.bvps = b; return this; }
             public Builder ebitdaTtm(BigDecimal eb) { this.ebitdaTtm = eb; return this; }
             public Builder totalDebt(BigDecimal d) { this.totalDebt = d; return this; }
             public Builder cashAndEquivalents(BigDecimal c) { this.cashAndEquivalents = c; return this; }
             public Builder dividendPerShareTtm(BigDecimal div) { this.dividendPerShareTtm = div; return this; }
+            public Builder dividendYield(BigDecimal dy) { this.dividendYield = dy; return this; }
             public Builder ownHistorySeries(List<HistoryPoint> h) { this.ownHistorySeries = h; return this; }
             public Builder sectorSeries(List<SectorPoint> s) { this.sectorSeries = s; return this; }
             public Builder priceDataStatus(String s) { this.priceDataStatus = s; return this; }
@@ -538,8 +544,8 @@ public final class ValuationV1 {
             public Inputs build() {
                 return new Inputs(
                         price, sharesOutstanding, epsTtm, epsGrowthPercent,
-                        equityAttributableToParent, ebitdaTtm, totalDebt,
-                        cashAndEquivalents, dividendPerShareTtm,
+                        equityAttributableToParent, bvps, ebitdaTtm, totalDebt,
+                        cashAndEquivalents, dividendPerShareTtm, dividendYield,
                         ownHistorySeries, sectorSeries, priceDataStatus,
                         fundamentalsDataStatus, sourceConflict
                 );
