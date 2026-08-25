@@ -1,5 +1,7 @@
 package com.minhnb.finvera_be.stock.service;
 
+import com.minhnb.finvera_be.market.entity.MarketImportBatchEntity;
+import com.minhnb.finvera_be.market.repository.MarketImportBatchRepository;
 import com.minhnb.finvera_be.stock.service.StockIngestionService.IncomingDailyBar;
 import com.minhnb.finvera_be.stock.service.StockIngestionService.IngestionResult;
 import java.math.BigDecimal;
@@ -13,8 +15,10 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Owner-operated, offline import boundary for full-OHLCV daily bars produced by
@@ -32,20 +36,30 @@ public class StockHistoryImportService {
     private static final String SOURCE_PREFIX = "VNSTOCK";
 
     private final StockIngestionService ingestion;
+    private final MarketImportBatchRepository importBatches;
 
-    public StockHistoryImportService(StockIngestionService ingestion) {
+    public StockHistoryImportService(StockIngestionService ingestion, MarketImportBatchRepository importBatches) {
         this.ingestion = ingestion;
+        this.importBatches = importBatches;
     }
 
+    @Transactional
     public Summary importPackage(PackageInput input) {
         validate(input);
+        if (importBatches.existsByPackageSha256(input.packageSha256())) {
+            return new Summary(input.symbol(), List.of());
+        }
+        UUID importBatchId = UUID.randomUUID();
+        importBatches.save(new MarketImportBatchEntity(importBatchId, input.contractVersion(), input.toolName(),
+                input.toolVersion(), input.upstreamSource(), input.packageSha256(), input.rangeStart(), input.rangeEnd(),
+                input.generatedAt(), Instant.now(), "ACCEPTED", input.records().size(), null));
         List<IngestionResult> results = new ArrayList<>(input.records().size());
         for (DailyBarRecord record : input.records()) {
             results.add(ingestion.ingestDailyBar(new IncomingDailyBar(
                     input.upstreamSource(), record.symbol(), record.tradingDate(), record.observedAt(),
                     decimal(record.open()), decimal(record.high()), decimal(record.low()), decimal(record.close()),
                     decimalOrNull(record.referencePrice()), longOrNull(record.volume()), decimalOrNull(record.valueVnd()),
-                    record.adjustmentStatus(), false)));
+                    record.adjustmentStatus(), importBatchId, false)));
         }
         return new Summary(input.symbol(), results);
     }

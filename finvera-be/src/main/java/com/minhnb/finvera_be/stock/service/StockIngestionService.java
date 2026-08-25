@@ -155,7 +155,7 @@ public class StockIngestionService {
         }
 
         UUID barId = UUID.randomUUID();
-        dailyBars.save(new EquityDailyBarEntity(barId, instrumentId, ingestionRecordId, null,
+        dailyBars.save(new EquityDailyBarEntity(barId, instrumentId, ingestionRecordId, incoming.importBatchId(),
                 incoming.tradingDate(), incoming.open(), incoming.high(), incoming.low(), incoming.close(),
                 incoming.referencePrice(), null, null, incoming.adjustmentStatus(), incoming.volume(),
                 incoming.valueVnd(), incoming.source(), incoming.observedAt(), ingestedAt, revision, true,
@@ -368,12 +368,20 @@ public class StockIngestionService {
             Long volume,
             BigDecimal valueVnd,
             String adjustmentStatus,
+            UUID importBatchId,
             boolean isCorrection) {
         public IncomingDailyBar(String source, String symbol, LocalDate tradingDate, Instant observedAt,
                 BigDecimal open, BigDecimal high, BigDecimal low, BigDecimal close, Long volume,
                 BigDecimal valueVnd, String adjustmentStatus, boolean isCorrection) {
             this(source, symbol, tradingDate, observedAt, open, high, low, close, null, volume, valueVnd,
-                    adjustmentStatus, isCorrection);
+                    adjustmentStatus, null, isCorrection);
+        }
+
+        public IncomingDailyBar(String source, String symbol, LocalDate tradingDate, Instant observedAt,
+                BigDecimal open, BigDecimal high, BigDecimal low, BigDecimal close, BigDecimal referencePrice,
+                Long volume, BigDecimal valueVnd, String adjustmentStatus, boolean isCorrection) {
+            this(source, symbol, tradingDate, observedAt, open, high, low, close, referencePrice, volume, valueVnd,
+                    adjustmentStatus, null, isCorrection);
         }
     }
 

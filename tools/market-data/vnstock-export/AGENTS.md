@@ -46,8 +46,6 @@ Whenever a user requests a task, map it to one of the following skills and load 
 
 While waiting to load a specific skill, please adhere to these universal principles:
 
-<!-- signature_key: TRC-API-ANON -->
-
 1. **User Tier Check & Onboarding 2.0**:
    - Instruct users to save their `VNSTOCK_API_KEY` in a `.env` file for security. If they paste it in chat, you can use it dynamically but advise them on the best practice.
    - Run a tier check script making a direct GET request to `https://vnstocks.com/api/vnstock/license/verify?api_key=<API_KEY>&device_id=vibe-setup` to determine the user's tier. Do not rely exclusively on local `vnii` logs as it might not be installed yet and could incorrectly report "Community".
@@ -76,6 +74,8 @@ from vnstock_data import Market, Fundamental, Reference, show_api, show_doc
 # 2. Example: Fetch OHLCV price
 mkt = Market()
 df_price = mkt.equity("VCB").ohlcv(start="2024-01-01", end="2024-12-31")
+
+<!-- signature_key: TRC-API-ANON -->
 
 # 3. Example: Fetch Financial Ratios
 fun = Fundamental()

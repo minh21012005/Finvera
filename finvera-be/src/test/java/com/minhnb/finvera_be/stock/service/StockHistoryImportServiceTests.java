@@ -8,6 +8,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.minhnb.finvera_be.market.entity.MarketImportBatchEntity;
+import com.minhnb.finvera_be.market.repository.MarketImportBatchRepository;
 import com.minhnb.finvera_be.stock.service.StockHistoryImportService.DailyBarRecord;
 import com.minhnb.finvera_be.stock.service.StockHistoryImportService.PackageInput;
 import com.minhnb.finvera_be.stock.service.StockIngestionService.IncomingDailyBar;
@@ -21,7 +23,8 @@ import org.junit.jupiter.api.Test;
 class StockHistoryImportServiceTests {
 
     private final StockIngestionService ingestion = mock(StockIngestionService.class);
-    private final StockHistoryImportService service = new StockHistoryImportService(ingestion);
+    private final MarketImportBatchRepository importBatches = mock(MarketImportBatchRepository.class);
+    private final StockHistoryImportService service = new StockHistoryImportService(ingestion, importBatches);
 
     @Test
     void rejectsAnUnsupportedContractVersion() {
@@ -60,7 +63,12 @@ class StockHistoryImportServiceTests {
                 (IncomingDailyBar incoming) -> incoming.source().equals("VNSTOCK_KBS")
                         && incoming.symbol().equals("VNM")
                         && incoming.tradingDate().equals(LocalDate.of(2026, 1, 15))
-                        && incoming.adjustmentStatus().equals("RAW")));
+                        && incoming.adjustmentStatus().equals("RAW")
+                        && incoming.importBatchId() != null));
+        verify(importBatches).save(org.mockito.ArgumentMatchers.argThat(
+                (MarketImportBatchEntity batch) -> batch.getPackageSha256().equals(input.packageSha256())
+                        && batch.getRecordCount() == 1
+                        && batch.getStatus().equals("ACCEPTED")));
     }
 
     private static DailyBarRecord record(String tradingDate) {
