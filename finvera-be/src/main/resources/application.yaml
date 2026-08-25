@@ -33,6 +33,13 @@ finvera:
       id: ${FINVERA_OWNER_ID}
       username: ${FINVERA_OWNER_USERNAME}
       password-hash: ${FINVERA_OWNER_PASSWORD_HASH}
+  data-retention:
+    cleanup:
+      enabled: ${FINVERA_DATA_RETENTION_CLEANUP_ENABLED:false}
+      audit-retention-days: ${FINVERA_DATA_RETENTION_AUDIT_DAYS:30}
+      live-retention-days: ${FINVERA_DATA_RETENTION_LIVE_DAYS:7}
+      eod-calculation-retention-days: ${FINVERA_DATA_RETENTION_EOD_CALCULATION_DAYS:252}
+      revision-retention-days: ${FINVERA_DATA_RETENTION_REVISION_DAYS:30}
   market:
     timezone: Asia/Ho_Chi_Minh
     freshness:

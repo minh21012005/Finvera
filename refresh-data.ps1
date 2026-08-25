@@ -40,12 +40,23 @@
     Incremental refresh window. On normal runs, re-fetch this many days before the
     latest existing package/checkpoint and merge with older local files.
 
+.PARAMETER Cleanup
+    Run conservative retention cleanup after step 7. This removes old audit rows,
+    stale live observations, and non-current derived revisions only; it does not
+    delete current historical prices, index snapshots, instruments, profiles, sectors,
+    or fundamentals.
+
+.PARAMETER CleanupOnly
+    Run only the conservative retention cleanup stage, without crawl/import/warmup.
+
 .EXAMPLE
     .\refresh-data.ps1
 #>
 param(
     [switch]$SkipCrawl,
     [switch]$FullRefresh,
+    [switch]$Cleanup,
+    [switch]$CleanupOnly,
     [int]$LookbackDays = 90
 )
 
@@ -68,6 +79,7 @@ $ManagedRuntimeFlags = @(
     "FINVERA_STOCK_IMPORT_SECTOR_REFERENCE_ENABLED",
     "FINVERA_STOCK_TECHNICAL_WARMUP_ENABLED",
     "FINVERA_STOCK_VALUATION_WARMUP_ENABLED",
+    "FINVERA_DATA_RETENTION_CLEANUP_ENABLED",
     "FINVERA_TCBS_LIVE_ENABLED",
     "FINVERA_STOCK_QUOTE_LIVE_ENABLED"
 )
@@ -184,6 +196,18 @@ if ($listener) {
     throw "Port 8080 is already in use. Stop the normally running backend before refresh-data.ps1."
 }
 
+if ($CleanupOnly) {
+    Import-EnvFile $envFile
+    Import-EnvFile $envRefreshFile
+    Set-StageFlags @("FINVERA_DATA_RETENTION_CLEANUP_ENABLED")
+    Invoke-BackendStage -Name "Don dep retention: audit + revision cu khong con dung" `
+        -WaitPatterns @("data_retention_cleanup total_deleted=") `
+        -TimeoutSec 300
+    Write-Host ""
+    Write-Host "=== Xong cleanup. Gio khoi dong backend binh thuong (IntelliJ, hoac .\mvnw.cmd spring-boot:run trong finvera-be). ===" -ForegroundColor Green
+    return
+}
+
 if (-not $SkipCrawl) {
     Write-Host ""
     Write-Host "== Buoc 1/7: Crawl gia + danh sach ma moi + index history tu Vnstock ==" -ForegroundColor Cyan
@@ -264,6 +288,13 @@ Set-StageFlags @("FINVERA_MARKET_EOD_RECONCILIATION_ENABLED", "FINVERA_STOCK_TEC
 Invoke-BackendStage -Name "Buoc 7/7: Tinh breadth/regime + bu chi bao ky thuat + dinh gia" `
     -WaitPatterns @("market_eod_reconciliation status=", "technical_indicator_warmup total=", "valuation_warmup total=") `
     -TimeoutSec 7200
+
+if ($Cleanup) {
+    Set-StageFlags @("FINVERA_DATA_RETENTION_CLEANUP_ENABLED")
+    Invoke-BackendStage -Name "Don dep retention: audit + revision cu khong con dung" `
+        -WaitPatterns @("data_retention_cleanup total_deleted=") `
+        -TimeoutSec 300
+}
 
 Write-Host ""
 Write-Host "=== Xong. Gio khoi dong backend binh thuong (IntelliJ, hoac .\mvnw.cmd spring-boot:run trong finvera-be). ===" -ForegroundColor Green

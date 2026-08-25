@@ -294,7 +294,16 @@ cd D:\Finvera
 .\refresh-data.ps1                 # incremental mặc định, lookback 90 ngày
 .\refresh-data.ps1 -LookbackDays 30 # incremental hẹp hơn
 .\refresh-data.ps1 -FullRefresh     # tải lại full range cho index + nến giá
+.\refresh-data.ps1 -Cleanup         # sau refresh, dọn audit/revision cũ không còn được dùng
+.\refresh-data.ps1 -CleanupOnly     # chỉ dọn retention, không crawl/import/warmup
 ```
+
+`-Cleanup` là tùy chọn riêng cho local/private. Nó chỉ xóa audit cũ,
+observations LIVE quá retention, và các revision derived `is_current=false`
+không còn được input nào tham chiếu. Nó không xóa daily bar/index/fundamental
+lịch sử đang current, nên không làm mất chuỗi dữ liệu cần cho MA/RSI/MACD,
+valuation, breadth, regime, chart, hoặc import idempotency.
+Nếu vừa refresh xong rồi mới muốn dọn, dùng `-CleanupOnly`.
 
 Sau remediation ngày 2026-08-25 về đơn vị giá cổ phiếu, nếu đã reset local DB
 thì chỉ cần tạo lại database `finvera` rồi chạy trực tiếp `.\refresh-data.ps1`.
@@ -302,7 +311,7 @@ Script tự khởi động backend ở từng stage, nên Flyway sẽ tạo sche
 stage đầu tiên; không cần chạy backend bình thường trước. Script nạp cả danh
 mục mã, hồ sơ công ty, phân loại ngành, index, daily bars, fundamentals và tính
 lại derived data. Daily-bar exporter đã bump `toolVersion` lên
-`0.2.0`, nên checkpoint cũ của nến giá sẽ không bị skip: Vnstock/KBS sẽ được
+`0.4.0`, nên checkpoint cũ của nến giá sẽ không bị skip: Vnstock/KBS sẽ được
 export lại theo đơn vị canonical `VND/share`, import vào DB sạch, sau đó
 technical warmup và valuation warmup tính lại từ dữ liệu sạch.
 
