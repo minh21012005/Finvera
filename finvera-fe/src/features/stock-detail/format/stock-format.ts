@@ -108,6 +108,8 @@ export function formatIndicatorValue(value: string | null, unit: IndicatorUnit):
 
 const FUNDAMENTAL_METRIC_LABELS: Record<string, string> = {
   REVENUE: "Doanh thu",
+  REVENUE_TTM: "Doanh thu TTM",
+  REVENUE_GROWTH_PERCENT: "Tăng trưởng Doanh thu TTM",
   GROSS_PROFIT: "Lợi nhuận gộp",
   OPERATING_PROFIT: "Lợi nhuận thuần HĐKD",
   NET_PROFIT: "Lợi nhuận sau thuế",
@@ -127,6 +129,10 @@ const FUNDAMENTAL_METRIC_LABELS: Record<string, string> = {
   CASH_AND_EQUIVALENTS: "Tiền & tương đương tiền",
   EBITDA: "EBITDA",
   EBITDA_TTM: "EBITDA TTM",
+  BVPS: "Giá trị sổ sách / CP (BVPS)",
+  TRAILING_EPS: "EPS 4 quý (Trailing EPS)",
+  DIVIDEND_YIELD: "Tỷ suất cổ tức",
+  EV_EBITDA: "EV / EBITDA",
 };
 
 export function fundamentalMetricLabel(code: string): string {
