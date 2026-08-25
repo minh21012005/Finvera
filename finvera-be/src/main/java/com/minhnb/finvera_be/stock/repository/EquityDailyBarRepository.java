@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -138,4 +139,41 @@ public interface EquityDailyBarRepository extends JpaRepository<EquityDailyBarEn
     List<EquityDailyBarEntity> findLatestNCurrentByInstrumentIdIn(
             @Param("instrumentIds") Collection<UUID> instrumentIds,
             @Param("maxBarsPerInstrument") int maxBarsPerInstrument);
+
+    @Modifying
+    @Query(value = """
+            UPDATE equity_daily_bar current_bar
+            SET supersedes_id = NULL
+            WHERE current_bar.instrument_id = :instrumentId
+              AND current_bar.source = :source
+              AND current_bar.supersedes_id IN (
+                  SELECT old_bar.id
+                  FROM equity_daily_bar old_bar
+                  WHERE old_bar.instrument_id = :instrumentId
+                    AND old_bar.source = :source
+                    AND old_bar.is_current = false
+              )
+            """, nativeQuery = true)
+    int clearSupersededDailyBarLinks(
+            @Param("instrumentId") UUID instrumentId,
+            @Param("source") String source);
+
+    @Modifying
+    @Query(value = """
+            DELETE FROM equity_daily_bar old_bar
+            WHERE old_bar.instrument_id = :instrumentId
+              AND old_bar.source = :source
+              AND old_bar.is_current = false
+              AND NOT EXISTS (
+                  SELECT 1 FROM valuation_assessment_input input
+                  WHERE input.daily_bar_id = old_bar.id
+              )
+              AND NOT EXISTS (
+                  SELECT 1 FROM strategy_signal_input input
+                  WHERE input.daily_bar_id = old_bar.id
+              )
+            """, nativeQuery = true)
+    int deleteUnreferencedSupersededDailyBars(
+            @Param("instrumentId") UUID instrumentId,
+            @Param("source") String source);
 }

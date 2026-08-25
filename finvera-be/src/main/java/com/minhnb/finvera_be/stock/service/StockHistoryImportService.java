@@ -2,8 +2,10 @@ package com.minhnb.finvera_be.stock.service;
 
 import com.minhnb.finvera_be.market.entity.MarketImportBatchEntity;
 import com.minhnb.finvera_be.market.repository.MarketImportBatchRepository;
+import com.minhnb.finvera_be.stock.repository.EquityDailyBarRepository;
 import com.minhnb.finvera_be.stock.service.StockIngestionService.IncomingDailyBar;
 import com.minhnb.finvera_be.stock.service.StockIngestionService.IngestionResult;
+import com.minhnb.finvera_be.stock.service.StockIngestionService.IngestionStatus;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
@@ -37,17 +39,20 @@ public class StockHistoryImportService {
 
     private final StockIngestionService ingestion;
     private final MarketImportBatchRepository importBatches;
+    private final EquityDailyBarRepository dailyBars;
 
-    public StockHistoryImportService(StockIngestionService ingestion, MarketImportBatchRepository importBatches) {
+    public StockHistoryImportService(StockIngestionService ingestion, MarketImportBatchRepository importBatches,
+            EquityDailyBarRepository dailyBars) {
         this.ingestion = ingestion;
         this.importBatches = importBatches;
+        this.dailyBars = dailyBars;
     }
 
     @Transactional
     public Summary importPackage(PackageInput input) {
         validate(input);
         if (importBatches.existsByPackageSha256(input.packageSha256())) {
-            return new Summary(input.symbol(), List.of());
+            return new Summary(input.symbol(), List.of(), 0);
         }
         UUID importBatchId = UUID.randomUUID();
         importBatches.save(new MarketImportBatchEntity(importBatchId, input.contractVersion(), input.toolName(),
@@ -61,7 +66,23 @@ public class StockHistoryImportService {
                     decimalOrNull(record.referencePrice()), longOrNull(record.volume()), decimalOrNull(record.valueVnd()),
                     record.adjustmentStatus(), importBatchId, false)));
         }
-        return new Summary(input.symbol(), results);
+        int prunedRows = pruneSupersededDailyBars(results, input.upstreamSource());
+        return new Summary(input.symbol(), results, prunedRows);
+    }
+
+    private int pruneSupersededDailyBars(List<IngestionResult> results, String source) {
+        return results.stream()
+                .filter(result -> result.status() == IngestionStatus.ACCEPTED
+                        || result.status() == IngestionStatus.CORRECTED)
+                .map(IngestionResult::barId)
+                .filter(java.util.Objects::nonNull)
+                .findFirst()
+                .flatMap(dailyBars::findById)
+                .map(bar -> {
+                    dailyBars.clearSupersededDailyBarLinks(bar.getInstrumentId(), source);
+                    return dailyBars.deleteUnreferencedSupersededDailyBars(bar.getInstrumentId(), source);
+                })
+                .orElse(0);
     }
 
     private static void validate(PackageInput input) {
@@ -177,6 +198,6 @@ public class StockHistoryImportService {
         }
     }
 
-    public record Summary(String symbol, List<IngestionResult> results) {
+    public record Summary(String symbol, List<IngestionResult> results, int prunedRows) {
     }
 }
