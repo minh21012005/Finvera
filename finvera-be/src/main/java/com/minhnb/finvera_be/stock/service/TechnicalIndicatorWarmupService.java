@@ -81,6 +81,7 @@ public class TechnicalIndicatorWarmupService {
                 .collect(java.util.stream.Collectors.groupingBy(EquityDailyBarEntity::getInstrumentId));
 
         int succeeded = 0;
+        int skipped = 0;
         int failed = 0;
         int processed = 0;
         for (UUID instrumentId : instrumentIds) {
@@ -88,12 +89,20 @@ public class TechnicalIndicatorWarmupService {
             InstrumentReference reference = instrumentsById.get(instrumentId);
             if (reference == null) {
                 failed++;
-                logProgress(processed, instrumentIds.size(), succeeded, failed);
+                logProgress(processed, instrumentIds.size(), succeeded, skipped, failed);
                 continue;
             }
             try {
                 List<LocalDate> datesToBackfill = datesToBackfill(recentBarsByInstrument.get(instrumentId),
                         lastComputedByInstrument.get(instrumentId));
+                if (datesToBackfill.isEmpty()) {
+                    // Already up-to-date: last computed date >= latest bar date. Skip the
+                    // expensive findBySymbol round-trip entirely — no new data means the
+                    // indicator result and its persisted row would be identical.
+                    skipped++;
+                    logProgress(processed, instrumentIds.size(), succeeded, skipped, failed);
+                    continue;
+                }
                 for (int i = 0; i < datesToBackfill.size() - 1; i++) {
                     technicalIndicators.findBySymbol(reference.symbol(), datesToBackfill.get(i));
                 }
@@ -104,18 +113,18 @@ public class TechnicalIndicatorWarmupService {
                 log.warn("technical_indicator_warmup symbol={} failed: {}: {}",
                         reference.symbol(), e.getClass().getSimpleName(), e.getMessage());
             }
-            logProgress(processed, instrumentIds.size(), succeeded, failed);
+            logProgress(processed, instrumentIds.size(), succeeded, skipped, failed);
         }
-        Summary summary = new Summary(instrumentIds.size(), succeeded, failed);
-        log.info("technical_indicator_warmup total={} succeeded={} failed={}",
-                summary.total(), summary.succeeded(), summary.failed());
+        Summary summary = new Summary(instrumentIds.size(), succeeded, skipped, failed);
+        log.info("technical_indicator_warmup total={} succeeded={} skipped={} failed={}",
+                summary.total(), summary.succeeded(), summary.skipped(), summary.failed());
         return summary;
     }
 
-    private static void logProgress(int processed, int total, int succeeded, int failed) {
+    private static void logProgress(int processed, int total, int succeeded, int skipped, int failed) {
         if (processed == total || processed % 50 == 0) {
-            log.info("technical_indicator_warmup progress processed={} total={} succeeded={} failed={}",
-                    processed, total, succeeded, failed);
+            log.info("technical_indicator_warmup progress processed={} total={} succeeded={} skipped={} failed={}",
+                    processed, total, succeeded, skipped, failed);
         }
     }
 
@@ -138,6 +147,6 @@ public class TechnicalIndicatorWarmupService {
         return ascendingDates.stream().filter(date -> date.isAfter(lastComputed)).toList();
     }
 
-    public record Summary(int total, int succeeded, int failed) {
+    public record Summary(int total, int succeeded, int skipped, int failed) {
     }
 }

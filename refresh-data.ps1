@@ -285,6 +285,12 @@ Invoke-BackendStage -Name "Buoc 6/7: Nap gia + bao cao tai chinh moi" `
     -TimeoutSec 7200
 
 Set-StageFlags @("FINVERA_MARKET_EOD_RECONCILIATION_ENABLED", "FINVERA_STOCK_TECHNICAL_WARMUP_ENABLED", "FINVERA_STOCK_VALUATION_WARMUP_ENABLED")
+# Sector-basis valuation is extremely expensive during bulk warmup (each symbol re-queries all
+# ~83 peers in its sector). Disable it here; sector percentiles will be computed lazily when a
+# user opens an individual stock detail page. The own-history basis and current-metrics valuation
+# are still computed and persisted, so the warmup result is correct and complete for all non-sector
+# purposes (screening, AI context, overview scores).
+[Environment]::SetEnvironmentVariable("FINVERA_STOCK_SECTOR_BASIS_ENABLED", "false", "Process")
 Invoke-BackendStage -Name "Buoc 7/7: Tinh breadth/regime + bu chi bao ky thuat + dinh gia" `
     -WaitPatterns @("market_eod_reconciliation status=", "technical_indicator_warmup total=", "valuation_warmup total=") `
     -TimeoutSec 7200

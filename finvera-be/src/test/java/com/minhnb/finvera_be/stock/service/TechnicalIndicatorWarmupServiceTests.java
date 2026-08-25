@@ -96,10 +96,14 @@ class TechnicalIndicatorWarmupServiceTests {
         EquityDailyBarEntity latestBar = bar(vnmId, latest);
         when(dailyBars.findLatestNCurrentByInstrumentIdIn(List.of(vnmId), 30)).thenReturn(List.of(latestBar));
 
-        service.warmUp();
+        var summary = service.warmUp();
 
+        // With the skip optimization, an up-to-date symbol is entirely skipped — no
+        // findBySymbol calls are made at all (neither with cutoff nor without).
         verify(technicalIndicators, never()).findBySymbol(any(), any());
-        verify(technicalIndicators).findBySymbol("VNM");
+        verify(technicalIndicators, never()).findBySymbol(any());
+        assertThat(summary.skipped()).isEqualTo(1);
+        assertThat(summary.succeeded()).isZero();
     }
 
     @Test
@@ -109,7 +113,12 @@ class TechnicalIndicatorWarmupServiceTests {
         givenListedInstrument(vnmId, "VNM", fptId, "FPT");
         when(indicatorResults.findByInstrumentIdInAndRuleVersionAndCurrentTrue(List.of(vnmId, fptId),
                 TechnicalIndicatorsV1.RULE_VERSION)).thenReturn(List.of());
-        when(dailyBars.findLatestNCurrentByInstrumentIdIn(List.of(vnmId, fptId), 30)).thenReturn(List.of());
+        // Create bar mocks before any other when() to avoid UnfinishedStubbingException.
+        LocalDate day = LocalDate.of(2026, 8, 25);
+        EquityDailyBarEntity vnmBar = bar(vnmId, day);
+        EquityDailyBarEntity fptBar = bar(fptId, day);
+        when(dailyBars.findLatestNCurrentByInstrumentIdIn(List.of(vnmId, fptId), 30))
+                .thenReturn(List.of(vnmBar, fptBar));
         when(technicalIndicators.findBySymbol("VNM")).thenThrow(new RuntimeException("boom"));
 
         var summary = service.warmUp();
