@@ -60,9 +60,9 @@ While waiting to load a specific skill, please adhere to these universal princip
 
 ---
 
-## 3. UNIFIED UI CRASH COURSE (For Sponsor Tier)
-
 <!-- signature_key: TRC-API-ANON -->
+
+## 3. UNIFIED UI CRASH COURSE (For Sponsor Tier)
 
 If you need to write code immediately for a Sponsor user without loading a skill, follow the Unified UI pattern (v3.0.0+):
 

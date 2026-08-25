@@ -49,9 +49,9 @@ class HistoricalMarketBreadthReconciliationServiceTests {
                 bar(vic, currentDate, "110000.000000", "2026-08-24T08:02:00Z")));
         when(breadth.latestFor(currentDate, "EOD")).thenReturn(Optional.empty());
         var persisted = new BreadthService.Snapshot(UUID.randomUUID(), currentDate,
-                Instant.parse("2026-08-24T08:02:00Z"), DataStatus.PARTIAL,
+                Instant.parse("2026-08-24T08:02:00Z"), DataStatus.CURRENT,
                 "EOD",
-                new BreadthCalculator.Result(0, 2, 0, 1, 3, List.of("MISSING_PRIOR_CLOSE")),
+                new BreadthCalculator.Result(0, 2, 0, 0, 2, List.of()),
                 "breadth-universe-v1", "a".repeat(64));
         when(breadth.persist(any(), any(), any(), any(), any(), any())).thenReturn(persisted);
         var service = new HistoricalMarketBreadthReconciliationService(
@@ -66,11 +66,11 @@ class HistoricalMarketBreadthReconciliationServiceTests {
         ArgumentCaptor<List<BreadthService.InputLink>> links = ArgumentCaptor.forClass(List.class);
         verify(breadth).persist(any(), any(), any(), calculated.capture(), links.capture(), org.mockito.ArgumentMatchers.eq("EOD"));
         assertThat(calculated.getValue()).isEqualTo(
-                new BreadthCalculator.Result(0, 2, 0, 1, 3, List.of("MISSING_PRIOR_CLOSE")));
+                new BreadthCalculator.Result(0, 2, 0, 0, 2, List.of()));
         assertThat(links.getValue()).extracting(BreadthService.InputLink::classification)
-                .containsExactly("DECLINING", "DECLINING", "UNCLASSIFIED");
+                .containsExactly("DECLINING", "DECLINING");
         assertThat(links.getValue()).extracting(BreadthService.InputLink::reasonCode)
-                .containsExactly(null, null, "MISSING_PRIOR_CLOSE");
+                .containsExactly(null, null);
         verify(regimes).reconcileEndOfDayIfMissingOrOlder(currentDate, persisted);
     }
 

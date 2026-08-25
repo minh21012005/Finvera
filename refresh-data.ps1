@@ -258,7 +258,7 @@ Invoke-BackendStage -Name "Buoc 5/7: Nap lich su chi so thi truong" `
 Set-StageFlags @("FINVERA_STOCK_IMPORT_DAILY_BAR_ENABLED", "FINVERA_STOCK_IMPORT_FUNDAMENTALS_ENABLED")
 Invoke-BackendStage -Name "Buoc 6/7: Nap gia + bao cao tai chinh moi" `
     -WaitPatterns @("stock_import dataset=daily-bar total=", "stock_import dataset=fundamentals total=") `
-    -TimeoutSec 1800
+    -TimeoutSec 7200
 
 Set-StageFlags @("FINVERA_MARKET_EOD_RECONCILIATION_ENABLED", "FINVERA_STOCK_TECHNICAL_WARMUP_ENABLED", "FINVERA_STOCK_VALUATION_WARMUP_ENABLED")
 Invoke-BackendStage -Name "Buoc 7/7: Tinh breadth/regime + bu chi bao ky thuat + dinh gia" `

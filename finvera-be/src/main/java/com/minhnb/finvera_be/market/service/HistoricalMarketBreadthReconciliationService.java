@@ -120,6 +120,9 @@ public class HistoricalMarketBreadthReconciliationService {
                     .orElse(null);
             BigDecimal currentClose = current == null ? null : current.closePrice();
             BigDecimal previousClose = previous == null ? null : previous.closePrice();
+            if (currentClose == null || previousClose == null) {
+                continue;
+            }
             inputs.add(new BreadthCalculator.SecurityInput(Venue.valueOf(instrument.getVenue()),
                     instrument.getSymbol(), instrument.getIsin(), true, false,
                     BreadthUniversePolicy.InstrumentType.COMMON_EQUITY, currentClose, previousClose,
