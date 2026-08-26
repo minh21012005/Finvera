@@ -259,7 +259,9 @@ public class StockIngestionService {
                 incoming.currency(), incoming.unitScale(), incoming.catalogVersion(), null, incoming.observedAt(),
                 ingestedAt, incoming.source(), revision, true,
                 currentReport.map(FundamentalReportEntity::getId).orElse(null),
-                isRestatement ? incoming.restatementReason() : null));
+                isRestatement
+                        ? (incoming.restatementReason() != null ? incoming.restatementReason() : "DATA_REFRESH")
+                        : null));
 
         for (AcceptedMetric metric : metricAcceptanceResult.metrics()) {
             fundamentalReportMetrics.save(new FundamentalReportMetricEntity(

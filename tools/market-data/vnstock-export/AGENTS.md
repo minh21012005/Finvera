@@ -26,8 +26,6 @@ Whenever a user requests a task, map it to one of the following skills and load 
 - **`asset-allocator`**: For portfolio optimization and position sizing.
 - **`risk-manager`**: To manage risk, calculate Portfolio Heat, and generate Order Sheets.
 
-<!-- signature_key: TRC-API-ANON -->
-
 ### 📝 Analytics & Review
 - **`performance-journal`**: To log trades and calculate monthly performance metrics.
 - **`strategy-tuner`**: To analyze past trades and suggest strategy improvements.
@@ -68,6 +66,8 @@ If you need to write code immediately for a Sponsor user without loading a skill
 
 ```python
 from vnstock_data import Market, Fundamental, Reference, show_api, show_doc
+
+<!-- signature_key: TRC-API-ANON -->
 
 # 1. ALWAYS explore the API first if unsure:
 # show_api()
