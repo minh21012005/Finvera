@@ -193,6 +193,15 @@ export function StockDetailPage({ symbol }: { symbol: string }) {
               liveReferencePrice={
                 overviewState.kind === "ready" ? overviewState.overview.price.referencePrice : null
               }
+              liveOpenPrice={
+                overviewState.kind === "ready" ? overviewState.overview.price.openPrice : null
+              }
+              liveHighPrice={
+                overviewState.kind === "ready" ? overviewState.overview.price.highPrice : null
+              }
+              liveLowPrice={
+                overviewState.kind === "ready" ? overviewState.overview.price.lowPrice : null
+              }
               liveVolume={
                 overviewState.kind === "ready" ? overviewState.overview.price.volume : null
               }

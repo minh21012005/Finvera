@@ -17,10 +17,25 @@ public interface StockQuoteProvider {
             String symbol,
             BigDecimal lastPrice,
             BigDecimal officialReferencePrice,
+            BigDecimal openPrice,
+            BigDecimal highPrice,
+            BigDecimal lowPrice,
             Long sessionVolume,
             BigDecimal sessionValueVnd,
             Instant observedAt,
             String sessionIndication) {
+
+        public QuoteObservation(
+                String symbol,
+                BigDecimal lastPrice,
+                BigDecimal officialReferencePrice,
+                Long sessionVolume,
+                BigDecimal sessionValueVnd,
+                Instant observedAt,
+                String sessionIndication) {
+            this(symbol, lastPrice, officialReferencePrice, null, null, null,
+                    sessionVolume, sessionValueVnd, observedAt, sessionIndication);
+        }
     }
 
     /** Mirrors MarketDataProvider.ProviderAuthenticationRequiredException for the stock module (NFR-007). */

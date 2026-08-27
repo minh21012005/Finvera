@@ -15,6 +15,8 @@ import com.minhnb.finvera_be.stock.repository.EquityProfileRepository;
 import com.minhnb.finvera_be.stock.repository.SectorReferenceRepository;
 import com.minhnb.finvera_be.stock.provider.StockQuoteProvider;
 import com.minhnb.finvera_be.stock.provider.StockQuoteProvider.QuoteObservation;
+
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.Instant;
@@ -92,12 +94,22 @@ public class StockOverviewService {
             }
         });
 
+        BigDecimal openPrice = liveQuote.map(QuoteObservation::openPrice)
+                .orElseGet(() -> latestBar.map(EquityDailyBarEntity::getOpenPrice).orElse(null));
+        BigDecimal highPrice = liveQuote.map(QuoteObservation::highPrice)
+                .orElseGet(() -> latestBar.map(EquityDailyBarEntity::getHighPrice).orElse(null));
+        BigDecimal lowPrice = liveQuote.map(QuoteObservation::lowPrice)
+                .orElseGet(() -> latestBar.map(EquityDailyBarEntity::getLowPrice).orElse(null));
+
         StockOverviewResult price = calculator.calculate(new StockOverviewCalculator.Input(
                 liveQuote.map(QuoteObservation::lastPrice)
                         .orElseGet(() -> latestBar.map(EquityDailyBarEntity::getClosePrice).orElse(null)),
                 liveQuote.map(QuoteObservation::officialReferencePrice)
                         .orElseGet(() -> latestBar.map(EquityDailyBarEntity::getReferencePrice)
                                 .orElseGet(() -> previousBar.map(EquityDailyBarEntity::getClosePrice).orElse(null))),
+                openPrice,
+                highPrice,
+                lowPrice,
                 liveQuote.map(QuoteObservation::sessionVolume)
                         .orElseGet(() -> latestBar.map(EquityDailyBarEntity::getVolume).orElse(null)),
                 liveQuote.map(QuoteObservation::sessionValueVnd)

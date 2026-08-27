@@ -44,6 +44,9 @@ public record StockOverviewResponse(
             String currency,
             String last,
             String referencePrice,
+            String openPrice,
+            String highPrice,
+            String lowPrice,
             String absoluteChange,
             String percentageChange,
             Direction direction,
@@ -55,9 +58,27 @@ public record StockOverviewResponse(
 
         static PriceResponse from(com.minhnb.finvera_be.stock.domain.overview.StockOverviewCalculator.StockOverviewResult price) {
             return new PriceResponse("VND", decimal(price.lastPrice()), decimal(price.referencePrice()),
+                    decimal(price.openPrice()), decimal(price.highPrice()), decimal(price.lowPrice()),
                     decimal(price.absoluteChange()), decimal(price.percentageChange()), price.direction(),
                     price.volume(), decimal(price.valueVnd()), decimal(price.marketCapVnd()),
                     price.priceApplicability(), price.changeBasisReason());
+        }
+
+        public PriceResponse(
+                String currency,
+                String last,
+                String referencePrice,
+                String absoluteChange,
+                String percentageChange,
+                Direction direction,
+                Long volume,
+                String valueVnd,
+                String marketCapVnd,
+                MetricApplicability applicability,
+                String changeBasisReason) {
+            this(currency, last, referencePrice, null, null, null,
+                    absoluteChange, percentageChange, direction, volume, valueVnd, marketCapVnd,
+                    applicability, changeBasisReason);
         }
     }
 

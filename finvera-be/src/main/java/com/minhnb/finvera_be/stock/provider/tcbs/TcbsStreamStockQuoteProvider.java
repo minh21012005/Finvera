@@ -12,6 +12,7 @@ public final class TcbsStreamStockQuoteProvider implements StockQuoteProvider {
         quotes.ensureSubscribed(symbol);
         var quote = quotes.findLatest(symbol).orElseThrow(() -> new QuoteUnavailableException(symbol));
         return new QuoteObservation(quote.symbol(), quote.lastPrice(), quote.referencePrice(),
+                quote.openPrice(), quote.highPrice(), quote.lowPrice(),
                 quote.sessionVolume(), quote.sessionValueVnd(), quote.observedAt(), "TCBS_THESIS_STREAM");
     }
     public static final class QuoteUnavailableException extends RuntimeException {

@@ -1,6 +1,9 @@
 package com.minhnb.finvera_be.market.service;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.minhnb.finvera_be.market.entity.EquityPriceObservationEntity;
+import com.minhnb.finvera_be.market.provider.tcbs.TcbsHttpSessionState;
 import com.minhnb.finvera_be.market.provider.tcbs.TcbsThesisFrameMapper;
 import com.minhnb.finvera_be.market.provider.tcbs.TcbsThesisWebSocketClient;
 import com.minhnb.finvera_be.market.repository.EquityPriceObservationRepository;
@@ -11,18 +14,24 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Persists accepted TCBS matched-price ticks and exposes them through an application API. */
 public class TcbsLiveEquityQuoteService implements LiveStockQuoteService,
         Consumer<TcbsThesisFrameMapper.Event> {
+    private static final Logger log = LoggerFactory.getLogger(TcbsLiveEquityQuoteService.class);
     private static final String SOURCE = "TCBS_IFLASH_THESIS";
     private static final String DATASET = "EQUITY_PRICE";
     private static final BigDecimal MAX_AVERAGE_PRICE_RATIO = new BigDecimal("50");
@@ -31,6 +40,7 @@ public class TcbsLiveEquityQuoteService implements LiveStockQuoteService,
     private final IngestionRecordService ingestionRecords;
     private final EquityPriceObservationRepository prices;
     private final TcbsThesisWebSocketClient client;
+    private final Optional<TcbsHttpSessionState> sessionState;
     private final Clock clock;
     private final Map<String, BigDecimal> referencePrices = new ConcurrentHashMap<>();
     private final Map<String, SessionFacts> sessionFacts = new ConcurrentHashMap<>();
@@ -38,10 +48,17 @@ public class TcbsLiveEquityQuoteService implements LiveStockQuoteService,
     public TcbsLiveEquityQuoteService(MarketReferenceDataService referenceData,
             IngestionRecordService ingestionRecords, EquityPriceObservationRepository prices,
             TcbsThesisWebSocketClient client, Clock clock) {
+        this(referenceData, ingestionRecords, prices, client, Optional.empty(), clock);
+    }
+
+    public TcbsLiveEquityQuoteService(MarketReferenceDataService referenceData,
+            IngestionRecordService ingestionRecords, EquityPriceObservationRepository prices,
+            TcbsThesisWebSocketClient client, Optional<TcbsHttpSessionState> sessionState, Clock clock) {
         this.referenceData = referenceData;
         this.ingestionRecords = ingestionRecords;
         this.prices = prices;
         this.client = client;
+        this.sessionState = Objects.requireNonNull(sessionState);
         this.clock = clock;
     }
 
@@ -54,6 +71,7 @@ public class TcbsLiveEquityQuoteService implements LiveStockQuoteService,
             throw new IllegalArgumentException("active symbol is required");
         }
         client.ensureEquitySubscribed(symbol);
+        fetchSnapshotIfMissing(symbol);
     }
 
     @Override
@@ -85,22 +103,125 @@ public class TcbsLiveEquityQuoteService implements LiveStockQuoteService,
         prices.save(new EquityPriceObservationEntity(UUID.randomUUID(), instrument.instrumentId(), recordId,
                 session.tradingDate(), observedAt, trade.matchPrice(), reference, null, null,
                 "NOT_APPLICABLE", "TCBS_STREAM_RECEIVE_TIME"));
-        sessionFacts.put(trade.symbol(), new SessionFacts(trade.totalVolume(), trade.totalValueVnd()));
+        final BigDecimal finalReference = reference;
+        sessionFacts.compute(trade.symbol(), (sym, prev) -> {
+            BigDecimal match = trade.matchPrice();
+            boolean hasOfficial = prev != null && prev.hasOfficialSnapshot();
+            BigDecimal open = hasOfficial ? prev.openPrice() : match;
+            BigDecimal high = hasOfficial ? prev.highPrice().max(match) : match;
+            BigDecimal low = hasOfficial ? prev.lowPrice().min(match) : match;
+            return new SessionFacts(match, finalReference, open, high, low,
+                    trade.totalVolume(), trade.totalValueVnd(), session.tradingDate(), hasOfficial);
+        });
     }
 
     @Override
     @Transactional(readOnly = true)
     public Optional<LiveQuote> findLatest(String symbol) {
-        var instrument = referenceData.findActiveInstrumentBySymbol(symbol.toUpperCase(Locale.ROOT));
+        String sym = symbol.toUpperCase(Locale.ROOT);
+        var instrument = referenceData.findActiveInstrumentBySymbol(sym);
         if (instrument.isEmpty()) return Optional.empty();
-        return prices.findFirstByInstrumentIdOrderByObservedAtDesc(instrument.orElseThrow().instrumentId())
+
+        var currentSession = referenceData.resolveSession(instrument.orElseThrow().venue(), clock.instant());
+        SessionFacts facts = sessionFacts.get(sym);
+        if (facts == null || !facts.hasOfficialSnapshot()) {
+            fetchSnapshotIfMissing(sym);
+            facts = sessionFacts.get(sym);
+        }
+
+        var latestObs = prices.findFirstByInstrumentIdOrderByObservedAtDesc(instrument.orElseThrow().instrumentId())
                 .filter(row -> "TCBS_STREAM_RECEIVE_TIME".equals(row.getQualityReason()))
-                .map(row -> {
-                    SessionFacts facts = sessionFacts.getOrDefault(symbol.toUpperCase(Locale.ROOT), new SessionFacts(null, null));
-                    return new LiveQuote(symbol.toUpperCase(Locale.ROOT), row.getMatchedOrClosePrice(),
-                            row.getOfficialReferencePrice(), facts.volume(), facts.valueVnd(), row.getTradingDate(),
-                            row.getObservedAt(), SOURCE);
-                });
+                .filter(row -> row.getTradingDate().equals(currentSession.tradingDate()));
+
+        if (latestObs.isPresent()) {
+            var row = latestObs.get();
+            BigDecimal matchPrice = row.getMatchedOrClosePrice();
+            BigDecimal refPrice = row.getOfficialReferencePrice();
+            BigDecimal openPrice = facts != null && facts.openPrice() != null ? facts.openPrice() : refPrice;
+            BigDecimal highPrice = facts != null && facts.highPrice() != null
+                    ? (matchPrice != null ? facts.highPrice().max(matchPrice) : facts.highPrice())
+                    : matchPrice;
+            BigDecimal lowPrice = facts != null && facts.lowPrice() != null
+                    ? (matchPrice != null ? facts.lowPrice().min(matchPrice) : facts.lowPrice())
+                    : matchPrice;
+            Long volume = facts != null ? facts.volume() : null;
+            BigDecimal valueVnd = facts != null ? facts.valueVnd() : null;
+
+            return Optional.of(new LiveQuote(sym, matchPrice, refPrice,
+                    openPrice, highPrice, lowPrice,
+                    volume, valueVnd, row.getTradingDate(),
+                    row.getObservedAt(), SOURCE));
+        }
+
+        if (facts != null && facts.matchPrice() != null && facts.matchPrice().signum() > 0) {
+            LocalDate tradeDate = facts.tradingDate() != null ? facts.tradingDate() : currentSession.tradingDate();
+            BigDecimal matchPrice = facts.matchPrice();
+            BigDecimal refPrice = facts.refPrice() != null ? facts.refPrice() : matchPrice;
+            BigDecimal openPrice = facts.openPrice() != null ? facts.openPrice() : matchPrice;
+            BigDecimal highPrice = facts.highPrice() != null ? facts.highPrice().max(matchPrice) : matchPrice;
+            BigDecimal lowPrice = facts.lowPrice() != null ? facts.lowPrice().min(matchPrice) : matchPrice;
+
+            return Optional.of(new LiveQuote(sym, matchPrice, refPrice,
+                    openPrice, highPrice, lowPrice,
+                    facts.volume(), facts.valueVnd(), tradeDate,
+                    clock.instant(), SOURCE));
+        }
+
+        return Optional.empty();
+    }
+
+    private void fetchSnapshotIfMissing(String symbol) {
+        if (sessionState.isEmpty() || !sessionState.get().isTokenPresent()) {
+            log.warn("fetchSnapshotIfMissing skipped for {}: sessionState empty or token not present", symbol);
+            return;
+        }
+        try {
+            sessionState.get().getAuthenticated("/tartarus/v1/tickerCommons?tickers=" + symbol, TickerCommonsResponse.class)
+                    .ifPresent(response -> {
+                        if (response.data() == null || response.data().isEmpty()) {
+                            log.warn("tickerCommons returned empty data for {}", symbol);
+                            return;
+                        }
+                        var item = response.data().getFirst();
+                        if (item == null) return;
+                        LocalDate tradingDate = null;
+                        if (response.tradingDate() != null && response.tradingDate().length() >= 10) {
+                            try {
+                                tradingDate = LocalDate.parse(response.tradingDate().substring(0, 10));
+                            } catch (Exception ignored) { }
+                        }
+                        final LocalDate finalTradingDate = tradingDate;
+                        sessionFacts.compute(symbol.toUpperCase(Locale.ROOT), (sym, existing) -> {
+                            BigDecimal match = item.matchPrice() != null && item.matchPrice().signum() > 0
+                                    ? item.matchPrice()
+                                    : (existing != null ? existing.matchPrice() : null);
+                            BigDecimal ref = item.refPrice() != null && item.refPrice().signum() > 0
+                                    ? item.refPrice()
+                                    : (existing != null ? existing.refPrice() : null);
+                            BigDecimal open = item.open() != null && item.open().signum() > 0
+                                    ? item.open()
+                                    : (existing != null ? existing.openPrice() : null);
+                            BigDecimal high = item.high() != null && item.high().signum() > 0
+                                    ? item.high()
+                                    : (existing != null ? existing.highPrice() : null);
+                            BigDecimal low = item.low() != null && item.low().signum() > 0
+                                    ? item.low()
+                                    : (existing != null ? existing.lowPrice() : null);
+                            if (existing != null && existing.matchPrice() != null) {
+                                if (high != null) high = high.max(existing.matchPrice());
+                                if (low != null) low = low.min(existing.matchPrice());
+                            }
+                            Long vol = item.totalVol() != null ? item.totalVol() : (existing != null ? existing.volume() : null);
+                            BigDecimal val = item.totalVal() != null ? item.totalVal() : (existing != null ? existing.valueVnd() : null);
+                            LocalDate date = finalTradingDate != null ? finalTradingDate : (existing != null ? existing.tradingDate() : null);
+                            return new SessionFacts(match, ref, open, high, low, vol, val, date, true);
+                        });
+                        log.info("Successfully fetched tickerCommons snapshot for {}: open={}, high={}, low={}, match={}",
+                                symbol, item.open(), item.high(), item.low(), item.matchPrice());
+                    });
+        } catch (Exception e) {
+            log.warn("fetchSnapshotIfMissing failed for {}: {}", symbol, e.getMessage(), e);
+        }
     }
 
     private static Instant bucket(Instant instant) {
@@ -130,5 +251,30 @@ public class TcbsLiveEquityQuoteService implements LiveStockQuoteService,
         }
     }
 
-    private record SessionFacts(Long volume, BigDecimal valueVnd) { }
+    private record SessionFacts(
+            BigDecimal matchPrice,
+            BigDecimal refPrice,
+            BigDecimal openPrice,
+            BigDecimal highPrice,
+            BigDecimal lowPrice,
+            Long volume,
+            BigDecimal valueVnd,
+            LocalDate tradingDate,
+            boolean hasOfficialSnapshot) { }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record TickerCommonsResponse(
+            @JsonProperty("data") List<TickerCommonsItem> data,
+            @JsonProperty("tradingDate") String tradingDate) { }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record TickerCommonsItem(
+            @JsonProperty("symbol") String symbol,
+            @JsonProperty("open") BigDecimal open,
+            @JsonProperty("high") BigDecimal high,
+            @JsonProperty("low") BigDecimal low,
+            @JsonProperty("matchPrice") BigDecimal matchPrice,
+            @JsonProperty("refPrice") BigDecimal refPrice,
+            @JsonProperty("totalVol") Long totalVol,
+            @JsonProperty("totalVal") BigDecimal totalVal) { }
 }

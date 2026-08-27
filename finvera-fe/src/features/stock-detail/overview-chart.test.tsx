@@ -159,5 +159,29 @@ describe("stock chart", () => {
     // Latest close reflects 22,000
     expect(screen.getAllByText("22.000").length).toBeGreaterThan(0);
   });
+
+  it("renders authentic open, high, and low values when liveOpenPrice, liveHighPrice, and liveLowPrice are supplied", () => {
+    const bars: StockChartData["bars"] = [
+      { tradingDate: "2026-08-13", open: "21000.00", high: "21500.00", low: "20800.00", close: "21200.00", volume: 1000000 },
+      { tradingDate: "2026-08-14", open: "21200.00", high: "21400.00", low: "20900.00", close: "21100.00", volume: 1500000 },
+    ];
+    render(
+      <StockChart
+        chart={chart(bars)}
+        livePrice="22000.00"
+        liveTradingDate="2026-08-17"
+        liveReferencePrice="21100.00"
+        liveOpenPrice="21300.00"
+        liveHighPrice="22800.00"
+        liveLowPrice="20900.00"
+        liveVolume={500000}
+      />
+    );
+    expect(screen.getByRole("img", { name: /biểu đồ giá/i })).toBeInTheDocument();
+    // Status bar displays High (22.800) and Low (20.900)
+    expect(screen.getAllByText("22.800").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("20.900").length).toBeGreaterThan(0);
+  });
 });
+
 

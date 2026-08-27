@@ -146,12 +146,18 @@ export function StockChart({
   livePrice,
   liveTradingDate,
   liveReferencePrice,
+  liveOpenPrice,
+  liveHighPrice,
+  liveLowPrice,
   liveVolume,
 }: {
   chart: StockChartData;
   livePrice?: string | null;
   liveTradingDate?: string | null;
   liveReferencePrice?: string | null;
+  liveOpenPrice?: string | null;
+  liveHighPrice?: string | null;
+  liveLowPrice?: string | null;
   liveVolume?: number | null;
 }) {
   const { meta, bars, adjustmentStatus } = chart;
@@ -223,6 +229,24 @@ export function StockChart({
         ? toScaledNum(parsedRef)
         : null;
 
+    const parsedOpen = liveOpenPrice ? Number.parseFloat(liveOpenPrice) : null;
+    const normalizedOpen =
+      parsedOpen !== null && !Number.isNaN(parsedOpen) && parsedOpen > 0
+        ? toScaledNum(parsedOpen)
+        : null;
+
+    const parsedHigh = liveHighPrice ? Number.parseFloat(liveHighPrice) : null;
+    const normalizedHigh =
+      parsedHigh !== null && !Number.isNaN(parsedHigh) && parsedHigh > 0
+        ? toScaledNum(parsedHigh)
+        : null;
+
+    const parsedLow = liveLowPrice ? Number.parseFloat(liveLowPrice) : null;
+    const normalizedLow =
+      parsedLow !== null && !Number.isNaN(parsedLow) && parsedLow > 0
+        ? toScaledNum(parsedLow)
+        : null;
+
     const lastBar = historyBars[historyBars.length - 1];
     const targetDate = liveTradingDate?.trim();
 
@@ -232,10 +256,10 @@ export function StockChart({
 
     if (isNewSession && targetDate) {
       const prevClose = Number.parseFloat(lastBar.close);
-      const open = normalizedRef ?? prevClose;
+      const open = normalizedOpen ?? normalizedRef ?? prevClose;
       const close = normalizedLive;
-      const high = Math.max(open, close);
-      const low = Math.min(open, close);
+      const high = normalizedHigh !== null ? Math.max(normalizedHigh, open, close) : Math.max(open, close);
+      const low = normalizedLow !== null ? Math.min(normalizedLow, open, close) : Math.min(open, close);
       const vol = typeof liveVolume === "number" && liveVolume >= 0 ? liveVolume : 0;
 
       const liveBar: StockChartData["bars"][0] = {
@@ -252,12 +276,13 @@ export function StockChart({
       // Target date matches the last bar, or no target date supplied (e.g. legacy/mock tests)
       const lastIndex = historyBars.length - 1;
       const existing = historyBars[lastIndex];
-      const open = Number.parseFloat(existing.open);
-      let high = Number.parseFloat(existing.high);
-      let low = Number.parseFloat(existing.low);
+      const prevOpen = Number.parseFloat(existing.open);
+      const open = normalizedOpen ?? prevOpen;
+      let high = normalizedHigh ?? Number.parseFloat(existing.high);
+      let low = normalizedLow ?? Number.parseFloat(existing.low);
       const close = normalizedLive;
-      high = Math.max(high, normalizedLive);
-      low = Math.min(low, normalizedLive);
+      high = Math.max(high, normalizedLive, open);
+      low = Math.min(low, normalizedLive, open);
       const vol = typeof liveVolume === "number" && liveVolume >= 0 ? liveVolume : existing.volume;
 
       historyBars[lastIndex] = {
@@ -270,7 +295,7 @@ export function StockChart({
       };
       return historyBars;
     }
-  }, [bars, livePrice, liveTradingDate, liveReferencePrice, liveVolume]);
+  }, [bars, livePrice, liveTradingDate, liveReferencePrice, liveOpenPrice, liveHighPrice, liveLowPrice, liveVolume]);
 
   // 2. Filter bars according to selected time range based on exact calendar intervals
   const rangeBars = useMemo(() => {

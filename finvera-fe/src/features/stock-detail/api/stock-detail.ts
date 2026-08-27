@@ -33,6 +33,9 @@ export interface StockPrice {
   currency: "VND";
   last: string | null;
   referencePrice: string | null;
+  openPrice?: string | null;
+  highPrice?: string | null;
+  lowPrice?: string | null;
   absoluteChange: string | null;
   percentageChange: string | null;
   direction: Direction;
@@ -296,6 +299,9 @@ function parsePrice(value: unknown): StockPrice {
     currency: "VND",
     last: decimal(price.last, "price last"),
     referencePrice: decimal(price.referencePrice, "price referencePrice"),
+    openPrice: decimal(price.openPrice, "price openPrice"),
+    highPrice: decimal(price.highPrice, "price highPrice"),
+    lowPrice: decimal(price.lowPrice, "price lowPrice"),
     absoluteChange: decimal(price.absoluteChange, "price absoluteChange"),
     percentageChange: decimal(price.percentageChange, "price percentageChange"),
     direction: direction(price.direction, "price direction"),

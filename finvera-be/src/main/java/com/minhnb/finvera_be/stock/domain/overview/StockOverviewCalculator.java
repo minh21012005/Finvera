@@ -22,8 +22,9 @@ public final class StockOverviewCalculator {
         Objects.requireNonNull(input, "input");
 
         if (input.lastPrice() == null) {
-            return new StockOverviewResult(MetricApplicability.MISSING, null, null, null, null,
-                    Direction.UNCHANGED, input.volume(), input.valueVnd(), null, "PRICE_UNAVAILABLE");
+            return new StockOverviewResult(MetricApplicability.MISSING, null, null,
+                    input.openPrice(), input.highPrice(), input.lowPrice(),
+                    null, null, Direction.UNCHANGED, input.volume(), input.valueVnd(), null, "PRICE_UNAVAILABLE");
         }
 
         BigDecimal marketCap = (input.sharesOutstanding() == null)
@@ -32,8 +33,9 @@ public final class StockOverviewCalculator {
                         .setScale(6, RoundingMode.UNNECESSARY);
 
         if (input.referencePrice() == null) {
-            return new StockOverviewResult(MetricApplicability.MISSING, input.lastPrice(), null, null, null,
-                    Direction.UNCHANGED, input.volume(), input.valueVnd(), marketCap,
+            return new StockOverviewResult(MetricApplicability.MISSING, input.lastPrice(), null,
+                    input.openPrice(), input.highPrice(), input.lowPrice(),
+                    null, null, Direction.UNCHANGED, input.volume(), input.valueVnd(), marketCap,
                     "REFERENCE_PRICE_UNAVAILABLE");
         }
 
@@ -51,22 +53,33 @@ public final class StockOverviewCalculator {
                 : MetricApplicability.DEFINED;
         String reason = percentageChange == null ? "REFERENCE_PRICE_INVALID" : null;
 
-        return new StockOverviewResult(applicability, input.lastPrice(), input.referencePrice(), absoluteChange,
-                percentageChange, direction, input.volume(), input.valueVnd(), marketCap, reason);
+        return new StockOverviewResult(applicability, input.lastPrice(), input.referencePrice(),
+                input.openPrice(), input.highPrice(), input.lowPrice(),
+                absoluteChange, percentageChange, direction, input.volume(), input.valueVnd(), marketCap, reason);
     }
 
     public record Input(
             BigDecimal lastPrice,
             BigDecimal referencePrice,
+            BigDecimal openPrice,
+            BigDecimal highPrice,
+            BigDecimal lowPrice,
             Long volume,
             BigDecimal valueVnd,
             Long sharesOutstanding) {
+
+        public Input(BigDecimal lastPrice, BigDecimal referencePrice, Long volume, BigDecimal valueVnd, Long sharesOutstanding) {
+            this(lastPrice, referencePrice, null, null, null, volume, valueVnd, sharesOutstanding);
+        }
     }
 
     public record StockOverviewResult(
             MetricApplicability priceApplicability,
             BigDecimal lastPrice,
             BigDecimal referencePrice,
+            BigDecimal openPrice,
+            BigDecimal highPrice,
+            BigDecimal lowPrice,
             BigDecimal absoluteChange,
             BigDecimal percentageChange,
             Direction direction,
@@ -74,5 +87,20 @@ public final class StockOverviewCalculator {
             BigDecimal valueVnd,
             BigDecimal marketCapVnd,
             String changeBasisReason) {
+
+        public StockOverviewResult(
+                MetricApplicability priceApplicability,
+                BigDecimal lastPrice,
+                BigDecimal referencePrice,
+                BigDecimal absoluteChange,
+                BigDecimal percentageChange,
+                Direction direction,
+                Long volume,
+                BigDecimal valueVnd,
+                BigDecimal marketCapVnd,
+                String changeBasisReason) {
+            this(priceApplicability, lastPrice, referencePrice, null, null, null,
+                    absoluteChange, percentageChange, direction, volume, valueVnd, marketCapVnd, changeBasisReason);
+        }
     }
 }

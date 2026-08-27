@@ -4,6 +4,7 @@ import com.minhnb.finvera_be.market.provider.MarketDataProvider.ProviderAuthenti
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,6 +57,21 @@ public final class TcbsHttpSessionState {
             throw new ProviderAuthenticationRequiredException();
         }
         return current.value();
+    }
+
+    public <T> Optional<T> getAuthenticated(String uri, Class<T> responseType) {
+        try {
+            String tokenValue = requireToken();
+            return Optional.ofNullable(client.get()
+                    .uri(uri)
+                    .header("Authorization", "Bearer " + tokenValue)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .body(responseType));
+        } catch (Exception exception) {
+            log.warn("TCBS authenticated GET {} failed: {}", uri, exception.getMessage());
+            return Optional.empty();
+        }
     }
 
     public boolean isTokenPresent() {

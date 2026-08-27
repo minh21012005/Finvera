@@ -19,6 +19,7 @@ import com.minhnb.finvera_be.market.provider.tcbs.TcbsThesisWebSocketClient;
 import java.net.URI;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationRunner;
@@ -68,8 +69,8 @@ public class MarketConfiguration {
     @ConditionalOnProperty(name = "finvera.market.live-overlay.tcbs.enabled", havingValue = "true")
     TcbsLiveEquityQuoteService tcbsLiveEquityQuoteService(MarketReferenceDataService referenceData,
             IngestionRecordService records, EquityPriceObservationRepository prices,
-            TcbsThesisWebSocketClient client, Clock clock) {
-        return new TcbsLiveEquityQuoteService(referenceData, records, prices, client, clock);
+            TcbsThesisWebSocketClient client, Optional<TcbsHttpSessionState> sessionState, Clock clock) {
+        return new TcbsLiveEquityQuoteService(referenceData, records, prices, client, sessionState, clock);
     }
 
     @Bean
