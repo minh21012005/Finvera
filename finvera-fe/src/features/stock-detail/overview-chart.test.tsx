@@ -138,4 +138,26 @@ describe("stock chart", () => {
     // The latest close and price guideline badge should reflect 22,500
     expect(screen.getAllByText("22.500").length).toBeGreaterThan(0);
   });
+
+  it("synthesizes and renders the current session candle when liveTradingDate is after the last historical date", () => {
+    const bars: StockChartData["bars"] = [
+      { tradingDate: "2026-08-13", open: "21000.00", high: "21500.00", low: "20800.00", close: "21200.00", volume: 1000000 },
+      { tradingDate: "2026-08-14", open: "21200.00", high: "21400.00", low: "20900.00", close: "21100.00", volume: 1500000 },
+    ];
+    render(
+      <StockChart
+        chart={chart(bars)}
+        livePrice="22000.00"
+        liveTradingDate="2026-08-17"
+        liveReferencePrice="21100.00"
+        liveVolume={500000}
+      />
+    );
+    expect(screen.getByRole("img", { name: /biểu đồ giá/i })).toBeInTheDocument();
+    // Active session status bar reflects the current trading session date (17/08/2026)
+    expect(screen.getByText("17/08/2026")).toBeInTheDocument();
+    // Latest close reflects 22,000
+    expect(screen.getAllByText("22.000").length).toBeGreaterThan(0);
+  });
 });
+

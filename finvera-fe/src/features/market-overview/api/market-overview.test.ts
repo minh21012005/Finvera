@@ -45,7 +45,9 @@ describe("market overview API client", () => {
   });
 
   it("accepts the provider-compatible market regime v2 rule version", () => {
-    const withV2 = structuredClone(validOverview) as any;
+    const withV2 = structuredClone(validOverview) as unknown as {
+      regime: { ruleVersion: string; assessmentBasis: string };
+    };
     withV2.regime.ruleVersion = "market-regime-v2";
     withV2.regime.assessmentBasis = "LIVE";
 

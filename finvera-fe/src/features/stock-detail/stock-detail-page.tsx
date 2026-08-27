@@ -185,6 +185,17 @@ export function StockDetailPage({ symbol }: { symbol: string }) {
             <StockChart
               chart={chartState.chart}
               livePrice={overviewState.kind === "ready" ? overviewState.overview.price.last : null}
+              liveTradingDate={
+                overviewState.kind === "ready"
+                  ? (overviewState.overview.session.tradingDate || overviewState.overview.meta.tradingDate)
+                  : null
+              }
+              liveReferencePrice={
+                overviewState.kind === "ready" ? overviewState.overview.price.referencePrice : null
+              }
+              liveVolume={
+                overviewState.kind === "ready" ? overviewState.overview.price.volume : null
+              }
             />
           )}
 

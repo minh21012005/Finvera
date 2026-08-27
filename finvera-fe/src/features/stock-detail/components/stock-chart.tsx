@@ -144,9 +144,15 @@ function calculateNicePriceTicks(min: number, max: number, targetCount: number =
 export function StockChart({
   chart,
   livePrice,
+  liveTradingDate,
+  liveReferencePrice,
+  liveVolume,
 }: {
   chart: StockChartData;
   livePrice?: string | null;
+  liveTradingDate?: string | null;
+  liveReferencePrice?: string | null;
+  liveVolume?: number | null;
 }) {
   const { meta, bars, adjustmentStatus } = chart;
 
@@ -164,56 +170,107 @@ export function StockChart({
   const dragStartXRef = useRef<number>(0);
   const dragStartOffsetRef = useRef<number>(0);
 
-  // 1. Normalize unit consistency across bars and incorporate live price into latest candle
+  // 1. Normalize unit consistency across bars and incorporate live price into forming/latest candle
   const normalizedBars = useMemo(() => {
     if (!bars || bars.length === 0) return [];
     // Count how many bars have close price >= 1000
     const countLarge = bars.filter((b) => Number.parseFloat(b.close) >= 1000).length;
     const isPredominantlyLarge = countLarge > bars.length / 2;
 
+    const toScaledStr = (val: number): string => {
+      if (isPredominantlyLarge) {
+        const scaled = val < 1000 ? val * 1000 : val;
+        return scaled.toFixed(2);
+      } else {
+        const scaled = val >= 1000 ? val / 1000 : val;
+        return scaled.toFixed(2);
+      }
+    };
+
+    const toScaledNum = (val: number): number => {
+      if (isPredominantlyLarge) {
+        return val < 1000 ? val * 1000 : val;
+      } else {
+        return val >= 1000 ? val / 1000 : val;
+      }
+    };
+
+    const historyBars: StockChartData["bars"] = bars.map((b) => {
+      const open = Number.parseFloat(b.open);
+      const high = Number.parseFloat(b.high);
+      const low = Number.parseFloat(b.low);
+      const close = Number.parseFloat(b.close);
+
+      return {
+        ...b,
+        open: toScaledStr(open),
+        high: toScaledStr(high),
+        low: toScaledStr(low),
+        close: toScaledStr(close),
+      };
+    });
+
     const parsedLive = livePrice ? Number.parseFloat(livePrice) : null;
     const validLive = parsedLive !== null && !Number.isNaN(parsedLive) && parsedLive > 0;
+    if (!validLive || parsedLive === null) {
+      return historyBars;
+    }
 
-    return bars.map((b, index) => {
-      let open = Number.parseFloat(b.open);
-      let high = Number.parseFloat(b.high);
-      let low = Number.parseFloat(b.low);
-      let close = Number.parseFloat(b.close);
+    const normalizedLive = toScaledNum(parsedLive);
+    const parsedRef = liveReferencePrice ? Number.parseFloat(liveReferencePrice) : null;
+    const normalizedRef =
+      parsedRef !== null && !Number.isNaN(parsedRef) && parsedRef > 0
+        ? toScaledNum(parsedRef)
+        : null;
 
-      // If this is the latest bar and we have a valid live real-time price, update close/high/low in real time
-      if (index === bars.length - 1 && validLive && parsedLive !== null) {
-        let normalizedLive = parsedLive;
-        if (isPredominantlyLarge && parsedLive < 1000) {
-          normalizedLive = parsedLive * 1000;
-        } else if (!isPredominantlyLarge && parsedLive >= 1000) {
-          normalizedLive = parsedLive / 1000;
-        }
-        close = normalizedLive;
-        high = Math.max(high, normalizedLive);
-        low = Math.min(low, normalizedLive);
-      }
+    const lastBar = historyBars[historyBars.length - 1];
+    const targetDate = liveTradingDate?.trim();
 
-      if (isPredominantlyLarge) {
-        // Target: Raw VND (>= 1000)
-        return {
-          ...b,
-          open: open < 1000 ? (open * 1000).toFixed(2) : open.toFixed(2),
-          high: high < 1000 ? (high * 1000).toFixed(2) : high.toFixed(2),
-          low: low < 1000 ? (low * 1000).toFixed(2) : low.toFixed(2),
-          close: close < 1000 ? (close * 1000).toFixed(2) : close.toFixed(2),
-        };
-      } else {
-        // Target: Thousands VND (< 1000)
-        return {
-          ...b,
-          open: open >= 1000 ? (open / 1000).toFixed(2) : open.toFixed(2),
-          high: high >= 1000 ? (high / 1000).toFixed(2) : high.toFixed(2),
-          low: low >= 1000 ? (low / 1000).toFixed(2) : low.toFixed(2),
-          close: close >= 1000 ? (close / 1000).toFixed(2) : close.toFixed(2),
-        };
-      }
-    });
-  }, [bars, livePrice]);
+    // If liveTradingDate is provided and strictly after the last historical bar's date,
+    // this live quote represents the current active forming session (phiên hiện tại).
+    const isNewSession = Boolean(targetDate && lastBar && targetDate > lastBar.tradingDate);
+
+    if (isNewSession && targetDate) {
+      const prevClose = Number.parseFloat(lastBar.close);
+      const open = normalizedRef ?? prevClose;
+      const close = normalizedLive;
+      const high = Math.max(open, close);
+      const low = Math.min(open, close);
+      const vol = typeof liveVolume === "number" && liveVolume >= 0 ? liveVolume : 0;
+
+      const liveBar: StockChartData["bars"][0] = {
+        tradingDate: targetDate,
+        open: toScaledStr(open),
+        high: toScaledStr(high),
+        low: toScaledStr(low),
+        close: toScaledStr(close),
+        volume: vol,
+      };
+
+      return [...historyBars, liveBar];
+    } else {
+      // Target date matches the last bar, or no target date supplied (e.g. legacy/mock tests)
+      const lastIndex = historyBars.length - 1;
+      const existing = historyBars[lastIndex];
+      const open = Number.parseFloat(existing.open);
+      let high = Number.parseFloat(existing.high);
+      let low = Number.parseFloat(existing.low);
+      const close = normalizedLive;
+      high = Math.max(high, normalizedLive);
+      low = Math.min(low, normalizedLive);
+      const vol = typeof liveVolume === "number" && liveVolume >= 0 ? liveVolume : existing.volume;
+
+      historyBars[lastIndex] = {
+        ...existing,
+        open: toScaledStr(open),
+        high: toScaledStr(high),
+        low: toScaledStr(low),
+        close: toScaledStr(close),
+        volume: vol,
+      };
+      return historyBars;
+    }
+  }, [bars, livePrice, liveTradingDate, liveReferencePrice, liveVolume]);
 
   // 2. Filter bars according to selected time range based on exact calendar intervals
   const rangeBars = useMemo(() => {
