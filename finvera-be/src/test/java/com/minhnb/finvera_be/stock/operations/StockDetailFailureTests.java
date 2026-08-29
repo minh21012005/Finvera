@@ -35,6 +35,8 @@ class StockDetailFailureTests {
     private StockObservabilityService observability;
     private ListAppender<ILoggingEvent> appender;
 
+    private ch.qos.logback.classic.Level previousLevel;
+
     @BeforeEach
     void setUp() {
         meters = new SimpleMeterRegistry();
@@ -43,11 +45,16 @@ class StockDetailFailureTests {
         appender = new ListAppender<>();
         appender.start();
         logger.addAppender(appender);
+        // Ingestion telemetry logs at DEBUG (deliberately quiet during owner
+        // refreshes); the redaction assertions still need to observe the lines.
+        previousLevel = logger.getLevel();
+        logger.setLevel(ch.qos.logback.classic.Level.DEBUG);
     }
 
     @AfterEach
     void tearDown() {
         Logger logger = (Logger) LoggerFactory.getLogger(StockObservabilityService.class);
+        logger.setLevel(previousLevel);
         logger.detachAppender(appender);
         appender.stop();
         meters.close();

@@ -160,9 +160,13 @@ class StockIngestionServiceTests {
         ingestion.ingestDailyBar(bar("TCBS_IFLASH_THESIS", "STK12",
                 LocalDate.of(2026, 8, 24), Instant.parse("2026-08-24T03:00:00Z"), false));
 
+        // A structurally valid bar (close inside [low, high]) whose close still
+        // materially diverges from the TCBS bar's 100.5 — so acceptance succeeds
+        // and the SOURCE_CONFLICT branch is genuinely exercised, not short-circuited
+        // by OHLC validation rejecting the fixture.
         var vnstockBar = new IncomingDailyBar("VNSTOCK_KBS", "STK12", LocalDate.of(2026, 8, 24),
                 Instant.parse("2026-08-24T08:00:00Z"), new BigDecimal("100.000000"), new BigDecimal("101.000000"),
-                new BigDecimal("98.000000"), new BigDecimal("80.000000"), 900_000L, null, "RAW", false);
+                new BigDecimal("98.000000"), new BigDecimal("98.500000"), 900_000L, null, "RAW", false);
         var second = ingestion.ingestDailyBar(vnstockBar);
         assertThat(second.status()).isEqualTo(IngestionStatus.ACCEPTED);
 

@@ -1,7 +1,6 @@
 package com.minhnb.finvera_be.stock.service;
 
-import com.minhnb.finvera_be.market.entity.MarketImportBatchEntity;
-import com.minhnb.finvera_be.market.repository.MarketImportBatchRepository;
+import com.minhnb.finvera_be.market.service.MarketImportBatchService;
 import com.minhnb.finvera_be.stock.repository.EquityDailyBarRepository;
 import com.minhnb.finvera_be.stock.service.StockIngestionService.IncomingDailyBar;
 import com.minhnb.finvera_be.stock.service.StockIngestionService.IngestionResult;
@@ -38,10 +37,10 @@ public class StockHistoryImportService {
     private static final String SOURCE_PREFIX = "VNSTOCK";
 
     private final StockIngestionService ingestion;
-    private final MarketImportBatchRepository importBatches;
+    private final MarketImportBatchService importBatches;
     private final EquityDailyBarRepository dailyBars;
 
-    public StockHistoryImportService(StockIngestionService ingestion, MarketImportBatchRepository importBatches,
+    public StockHistoryImportService(StockIngestionService ingestion, MarketImportBatchService importBatches,
             EquityDailyBarRepository dailyBars) {
         this.ingestion = ingestion;
         this.importBatches = importBatches;
@@ -51,13 +50,13 @@ public class StockHistoryImportService {
     @Transactional
     public Summary importPackage(PackageInput input) {
         validate(input);
-        if (importBatches.existsByPackageSha256(input.packageSha256())) {
+        if (importBatches.isPackageAlreadyImported(input.packageSha256())) {
             return new Summary(input.symbol(), List.of(), 0);
         }
-        UUID importBatchId = UUID.randomUUID();
-        importBatches.save(new MarketImportBatchEntity(importBatchId, input.contractVersion(), input.toolName(),
-                input.toolVersion(), input.upstreamSource(), input.packageSha256(), input.rangeStart(), input.rangeEnd(),
-                input.generatedAt(), Instant.now(), "ACCEPTED", input.records().size(), null));
+        UUID importBatchId = importBatches.recordAcceptedBatch(new MarketImportBatchService.AcceptedBatch(
+                input.contractVersion(), input.toolName(), input.toolVersion(), input.upstreamSource(),
+                input.packageSha256(), input.rangeStart(), input.rangeEnd(), input.generatedAt(),
+                input.records().size()));
         List<IngestionResult> results = new ArrayList<>(input.records().size());
         for (DailyBarRecord record : input.records()) {
             results.add(ingestion.ingestDailyBar(new IncomingDailyBar(

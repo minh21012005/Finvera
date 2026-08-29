@@ -65,13 +65,91 @@ class HistoricalMarketBreadthReconciliationServiceTests {
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<BreadthService.InputLink>> links = ArgumentCaptor.forClass(List.class);
         verify(breadth).persist(any(), any(), any(), calculated.capture(), links.capture(), org.mockito.ArgumentMatchers.eq("EOD"));
+        // R-007C: VIC has no prior accepted close, so it stays in the universe as
+        // UNCLASSIFIED/MISSING_PRIOR_CLOSE rather than being dropped — eligible
+        // counts all three instruments and the snapshot is honestly PARTIAL.
         assertThat(calculated.getValue()).isEqualTo(
-                new BreadthCalculator.Result(0, 2, 0, 0, 2, List.of()));
+                new BreadthCalculator.Result(0, 2, 0, 1, 3, List.of("MISSING_PRIOR_CLOSE")));
         assertThat(links.getValue()).extracting(BreadthService.InputLink::classification)
-                .containsExactly("DECLINING", "DECLINING");
+                .containsExactly("DECLINING", "DECLINING", "UNCLASSIFIED");
         assertThat(links.getValue()).extracting(BreadthService.InputLink::reasonCode)
-                .containsExactly(null, null);
+                .containsExactly(null, null, "MISSING_PRIOR_CLOSE");
         verify(regimes).reconcileEndOfDayIfMissingOrOlder(currentDate, persisted);
+    }
+
+    @Test
+    void countsAnInstrumentWithNoCurrentSessionBarAsUnclassifiedMissingPriceRatherThanDroppingIt() {
+        LocalDate previousDate = LocalDate.of(2026, 8, 23);
+        LocalDate currentDate = LocalDate.of(2026, 8, 24);
+        UUID fpt = UUID.randomUUID();
+        UUID alt = UUID.randomUUID();
+        when(instruments.findByListedToIsNullAndInstrumentTypeAndStatusInOrderByVenueAscSymbolAsc(
+                "COMMON_EQUITY", List.of("ACTIVE", "UNKNOWN")))
+                .thenReturn(List.of(instrument(fpt, "HOSE", "FPT"), instrument(alt, "HNX", "ALT")));
+        // ALT's latest accepted bar is stale (previous session only) — the exact
+        // shape of the 706-instrument gap the 2026-08-30 review measured.
+        when(stockReferenceData.findLatestDailyBars(List.of(fpt, alt), 2)).thenReturn(List.of(
+                bar(fpt, previousDate, "105000.000000", "2026-08-23T08:00:00Z"),
+                bar(fpt, currentDate, "106000.000000", "2026-08-24T08:00:00Z"),
+                bar(alt, previousDate, "9000.000000", "2026-08-23T08:00:00Z")));
+        when(breadth.latestFor(currentDate, "EOD")).thenReturn(Optional.empty());
+        var persisted = new BreadthService.Snapshot(UUID.randomUUID(), currentDate,
+                Instant.parse("2026-08-24T08:00:00Z"), DataStatus.PARTIAL, "EOD",
+                new BreadthCalculator.Result(1, 0, 0, 1, 2, List.of("MISSING_PRICE")),
+                "breadth-universe-v1", "b".repeat(64));
+        when(breadth.persist(any(), any(), any(), any(), any(), any())).thenReturn(persisted);
+        var service = new HistoricalMarketBreadthReconciliationService(
+                instruments, stockReferenceData, breadth, regimes);
+
+        var result = service.reconcileLatestCompletedSession();
+
+        assertThat(result.status()).isEqualTo("APPLIED");
+        ArgumentCaptor<BreadthCalculator.Result> calculated = ArgumentCaptor.forClass(BreadthCalculator.Result.class);
+        verify(breadth).persist(any(), any(), any(), calculated.capture(), any(), org.mockito.ArgumentMatchers.eq("EOD"));
+        assertThat(calculated.getValue().eligible()).isEqualTo(2);
+        assertThat(calculated.getValue().unclassified()).isEqualTo(1);
+        assertThat(calculated.getValue().reasonCodes()).contains("MISSING_PRICE");
+    }
+
+    @Test
+    void aSingleMisDatedImportCannotReAnchorTheSessionAwayFromTheUniverseConsensusDate() {
+        LocalDate previousDate = LocalDate.of(2026, 8, 23);
+        LocalDate currentDate = LocalDate.of(2026, 8, 24);
+        LocalDate rogueFutureDate = LocalDate.of(2026, 8, 26);
+        UUID fpt = UUID.randomUUID();
+        UUID vnm = UUID.randomUUID();
+        UUID bad = UUID.randomUUID();
+        when(instruments.findByListedToIsNullAndInstrumentTypeAndStatusInOrderByVenueAscSymbolAsc(
+                "COMMON_EQUITY", List.of("ACTIVE", "UNKNOWN")))
+                .thenReturn(List.of(instrument(fpt, "HOSE", "FPT"), instrument(vnm, "HOSE", "VNM"),
+                        instrument(bad, "UPCOM", "BAD")));
+        when(stockReferenceData.findLatestDailyBars(List.of(fpt, vnm, bad), 2)).thenReturn(List.of(
+                bar(fpt, previousDate, "105000.000000", "2026-08-23T08:00:00Z"),
+                bar(fpt, currentDate, "106000.000000", "2026-08-24T08:00:00Z"),
+                bar(vnm, previousDate, "60000.000000", "2026-08-23T08:00:00Z"),
+                bar(vnm, currentDate, "61000.000000", "2026-08-24T08:00:00Z"),
+                bar(bad, rogueFutureDate, "500.000000", "2026-08-26T08:00:00Z")));
+        when(breadth.latestFor(currentDate, "EOD")).thenReturn(Optional.empty());
+        var persisted = new BreadthService.Snapshot(UUID.randomUUID(), currentDate,
+                Instant.parse("2026-08-24T08:00:00Z"), DataStatus.PARTIAL, "EOD",
+                new BreadthCalculator.Result(2, 0, 0, 1, 3, List.of("MISSING_PRICE")),
+                "breadth-universe-v1", "c".repeat(64));
+        when(breadth.persist(any(), any(), any(), any(), any(), any())).thenReturn(persisted);
+        var service = new HistoricalMarketBreadthReconciliationService(
+                instruments, stockReferenceData, breadth, regimes);
+
+        var result = service.reconcileLatestCompletedSession();
+
+        // The universe consensus (two of three latest bars) anchors the session to
+        // 2026-08-24; the rogue 2026-08-26 bar neither moves the date nor produces
+        // a one-instrument "session" — its owner is honestly UNCLASSIFIED instead.
+        assertThat(result.status()).isEqualTo("APPLIED");
+        assertThat(result.tradingDate()).isEqualTo(currentDate);
+        ArgumentCaptor<BreadthCalculator.Result> calculated = ArgumentCaptor.forClass(BreadthCalculator.Result.class);
+        verify(breadth).persist(any(), any(), any(), calculated.capture(), any(), org.mockito.ArgumentMatchers.eq("EOD"));
+        assertThat(calculated.getValue().eligible()).isEqualTo(3);
+        assertThat(calculated.getValue().advancing()).isEqualTo(2);
+        assertThat(calculated.getValue().unclassified()).isEqualTo(1);
     }
 
     @Test

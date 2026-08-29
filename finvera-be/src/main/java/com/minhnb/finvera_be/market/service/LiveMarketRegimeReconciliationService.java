@@ -30,12 +30,28 @@ public class LiveMarketRegimeReconciliationService {
     private final RegimeAssessmentService assessments;
     private final MarketRegimeV1 scoreFunctions = new MarketRegimeV1();
     private final MarketRegimeV2 rule = new MarketRegimeV2();
+    private final BigDecimal minBreadthClassifiedFraction;
 
+    /** Test/fixture convenience: the default 0.5 classified-coverage floor. */
     public LiveMarketRegimeReconciliationService(MarketIndexRepository indexes,
             MarketIndexSnapshotRepository snapshots, RegimeAssessmentService assessments) {
+        this(indexes, snapshots, assessments, new BigDecimal("0.5"));
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public LiveMarketRegimeReconciliationService(MarketIndexRepository indexes,
+            MarketIndexSnapshotRepository snapshots, RegimeAssessmentService assessments,
+            @org.springframework.beans.factory.annotation.Value(
+                    "${finvera.market.regime.min-breadth-classified-fraction:0.5}")
+            BigDecimal minBreadthClassifiedFraction) {
         this.indexes = indexes;
         this.snapshots = snapshots;
         this.assessments = assessments;
+        if (minBreadthClassifiedFraction == null || minBreadthClassifiedFraction.signum() < 0
+                || minBreadthClassifiedFraction.compareTo(BigDecimal.ONE) > 0) {
+            throw new IllegalArgumentException("min-breadth-classified-fraction must be within [0, 1]");
+        }
+        this.minBreadthClassifiedFraction = minBreadthClassifiedFraction;
     }
 
     /**
@@ -142,11 +158,35 @@ public class LiveMarketRegimeReconciliationService {
         }
         int advancing = breadth.result().advancing();
         int declining = breadth.result().declining();
-        if (advancing + declining > 0) {
+        if (advancing + declining > 0 && meetsClassifiedCoverageFloor(breadth.result())) {
             scores.add(new MarketRegimeV1.ComponentScore(MarketRegimeV1.Component.BREADTH,
                     rule.aggregateBreadthScore(advancing, declining)));
         }
         return scores;
+    }
+
+    /**
+     * The BREADTH component carries weight 0.25 of a published regime score, so a
+     * sample that classified only a sliver of the eligible universe (one advancing
+     * instrument and nothing else would previously have scored BREADTH = 100) must
+     * not be admitted as if it represented the market. `unchanged` counts as
+     * classified — it is a successful classification, not a gap. The floor is
+     * configuration (`finvera.market.regime.min-breadth-classified-fraction`,
+     * default 0.5), never a hard-coded constant, per ARCHITECTURE.md section 8.
+     * A snapshot below the floor simply withholds the component; market-regime-v2
+     * then discloses AGGREGATE_BREADTH_COMPONENT_UNAVAILABLE through its own
+     * unchanged publishability rules.
+     */
+    private boolean meetsClassifiedCoverageFloor(
+            com.minhnb.finvera_be.market.domain.breadth.BreadthCalculator.Result result) {
+        if (result.eligible() <= 0) {
+            return false;
+        }
+        BigDecimal classified = BigDecimal.valueOf(
+                (long) result.advancing() + result.declining() + result.unchanged());
+        BigDecimal fraction = classified.divide(
+                BigDecimal.valueOf(result.eligible()), 6, java.math.RoundingMode.HALF_UP);
+        return fraction.compareTo(minBreadthClassifiedFraction) >= 0;
     }
 
     private static BigDecimal smaEndingAt(List<BigDecimal> values, int exclusiveEnd, int period) {

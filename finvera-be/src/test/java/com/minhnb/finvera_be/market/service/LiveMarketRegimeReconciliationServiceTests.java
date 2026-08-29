@@ -84,6 +84,58 @@ class LiveMarketRegimeReconciliationServiceTests {
     }
 
     @Test
+    void withholdsTheBreadthComponentWhenClassifiedCoverageIsBelowTheConfiguredFloor() {
+        UUID indexId = UUID.randomUUID();
+        LocalDate date = LocalDate.of(2026, 8, 24);
+        when(indexes.findByCode("VN_INDEX")).thenReturn(Optional.of(new MarketIndexEntity(
+                indexId, "VN_INDEX", "VNINDEX", "VN-Index", "HOSE", date.minusYears(10), null)));
+        when(snapshots.findAcceptedDailyHistory(indexId, "TCBS_IFLASH_MARKET_DATA", date))
+                .thenReturn(history(date, 253));
+        var service = new LiveMarketRegimeReconciliationService(indexes, snapshots, assessments);
+        // One advancing instrument out of an eligible universe of 700: previously
+        // this scored BREADTH = 100 at weight 0.25; under the 0.5 coverage floor
+        // the component is withheld and market-regime-v2's own mandatory-input
+        // rule withholds the assessment with its standard disclosure.
+        var breadth = new BreadthService.Snapshot(UUID.randomUUID(), date, Instant.parse("2026-08-24T03:00:00Z"),
+                DataStatus.PARTIAL, "LIVE", new BreadthCalculator.Result(1, 0, 0, 699, 700,
+                        List.of("MISSING_PRICE")), "provider", "a".repeat(64));
+
+        service.reconcile(date, breadth);
+
+        ArgumentCaptor<RegimeAssessmentService.AssessmentCommand> command =
+                ArgumentCaptor.forClass(RegimeAssessmentService.AssessmentCommand.class);
+        verify(assessments).persist(command.capture());
+        assertThat(command.getValue().assessment().label()).isNull();
+        assertThat(command.getValue().assessment().reasonCodes())
+                .contains("AGGREGATE_BREADTH_COMPONENT_UNAVAILABLE");
+    }
+
+    @Test
+    void admitsTheBreadthComponentExactlyAtTheConfiguredFloor() {
+        UUID indexId = UUID.randomUUID();
+        LocalDate date = LocalDate.of(2026, 8, 24);
+        when(indexes.findByCode("VN_INDEX")).thenReturn(Optional.of(new MarketIndexEntity(
+                indexId, "VN_INDEX", "VNINDEX", "VN-Index", "HOSE", date.minusYears(10), null)));
+        when(snapshots.findAcceptedDailyHistory(indexId, "TCBS_IFLASH_MARKET_DATA", date))
+                .thenReturn(history(date, 253));
+        var service = new LiveMarketRegimeReconciliationService(indexes, snapshots, assessments,
+                new java.math.BigDecimal("0.5"));
+        // 350 classified of 700 eligible = exactly the floor: admitted.
+        var breadth = new BreadthService.Snapshot(UUID.randomUUID(), date, Instant.parse("2026-08-24T03:00:00Z"),
+                DataStatus.PARTIAL, "LIVE", new BreadthCalculator.Result(200, 100, 50, 350, 700,
+                        List.of("MISSING_PRICE")), "provider", "a".repeat(64));
+
+        service.reconcile(date, breadth);
+
+        ArgumentCaptor<RegimeAssessmentService.AssessmentCommand> command =
+                ArgumentCaptor.forClass(RegimeAssessmentService.AssessmentCommand.class);
+        verify(assessments).persist(command.capture());
+        assertThat(command.getValue().assessment().label()).isNotNull();
+        assertThat(command.getValue().assessment().reasonCodes())
+                .doesNotContain("AGGREGATE_BREADTH_COMPONENT_UNAVAILABLE");
+    }
+
+    @Test
     void skipsReadRepairWhenLatestAssessmentAlreadyCoversBreadth() {
         LocalDate date = LocalDate.of(2026, 8, 24);
         var service = new LiveMarketRegimeReconciliationService(indexes, snapshots, assessments);

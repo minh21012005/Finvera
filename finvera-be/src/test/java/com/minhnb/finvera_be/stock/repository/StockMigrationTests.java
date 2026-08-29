@@ -53,7 +53,9 @@ class StockMigrationTests {
             }
             try (var result = catalog.executeQuery()) {
                 result.next();
-                assertThat(result.getInt(1)).isEqualTo(15);
+                // V003 seeds 15 metric codes; V014 adds BVPS, TRAILING_EPS, and
+                // DIVIDEND_YIELD under the same catalog version.
+                assertThat(result.getInt(1)).isEqualTo(18);
             }
         }
     }

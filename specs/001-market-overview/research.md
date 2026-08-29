@@ -777,3 +777,63 @@ and makes a leaked tailnet device insufficient without the application password.
 **Risks/validation**: Negative tests cover direct-port/public access, Funnel
 disabled, session fixation, cookie flags, CSRF, logout/invalidation,
 idle/absolute expiry, rate limiting, and secret/iOTP log redaction.
+
+## R-012 — 2026-08-30 honest EOD breadth coverage and a regime admission floor
+
+**Decision**: Two conformance repairs to the completed-session breadth/regime
+path, tracked as Q-06 and Q-07 in `docs/REMEDIATION_PLAN.md`.
+
+1. `HistoricalMarketBreadthReconciliationService` no longer drops an eligible
+   instrument whose current or prior accepted close is missing. The instrument
+   stays in the calculated universe with a null price, so `BreadthCalculator`
+   classifies it `UNCLASSIFIED` with `MISSING_PRICE`/`MISSING_PRIOR_CLOSE`,
+   `eligible` counts the whole active common-equity universe, and
+   `unclassified > 0` drives the snapshot to `PARTIAL` — restoring what R-007C
+   already mandated ("do not drop the instrument") and what the data model
+   already declares (`data_status`: "`PARTIAL` if unclassified > 0").
+
+2. The `BREADTH` component of `market-regime-v2` is admitted only when the
+   classified fraction of the eligible universe — `(advancing + declining +
+   unchanged) / eligible` — meets a configured floor,
+   `finvera.market.regime.min-breadth-classified-fraction` (default `0.5`).
+   Below the floor the component is withheld and the rule's own unchanged
+   publishability logic discloses `AGGREGATE_BREADTH_COMPONENT_UNAVAILABLE`.
+   `unchanged` counts as classified: it is a successful classification, not a
+   data gap. The rule version does not change — no formula changed; an input
+   admission precondition became honest.
+
+3. The session being reconciled is the trading date the accepted universe
+   agrees on — the mode of each instrument's latest accepted bar date, with the
+   later date winning a tie — never the plain maximum. A single mis-dated or
+   future-dated import could previously re-anchor the entire breadth
+   calculation onto a date where only that one instrument had data (Q-08).
+
+**Evidence (2026-08-30)**: the private local database had 706 of ~1,430 active
+common equities without a bar for the latest completed session (94 with no bar
+at all — `tmp/missing-breadth-price.csv`). The drop-on-missing behaviour made
+`eligible` count only instruments with data, forced `unclassified` to zero, and
+therefore published every EOD breadth snapshot as `CURRENT` over an arbitrarily
+small sample; the `MISSING_PRICE`/`MISSING_PRIOR_CLOSE` reason-code paths were
+unreachable code. With no coverage floor, one advancing instrument and zero
+declining would have scored `BREADTH = 100` at weight 0.25 of the published
+regime score.
+
+**Alternatives rejected**:
+
+- Keeping the drop and lowering the status to `PARTIAL` heuristically: the
+  counts themselves would still misrepresent the universe, and
+  `advancing + declining + unchanged + unclassified = eligible` (data-model
+  check) would still be computed over a shrunken denominator.
+- A hard-coded floor: contracted thresholds are configuration
+  (`ARCHITECTURE.md` section 8).
+- Adding a new reason code to `market-regime-v2` for the floor: the rule's
+  existing `AGGREGATE_BREADTH_COMPONENT_UNAVAILABLE` already describes the
+  outcome, and the breadth snapshot's own `PARTIAL` + reason codes carry the
+  cause; changing the rule's disclosed vocabulary would require a version bump
+  for no informational gain.
+
+**Consequence**: with today's local data (~51% classified) the default floor
+still admits the component; the owner can tighten the fraction via
+`FINVERA_MARKET_REGIME_MIN_BREADTH_CLASSIFIED_FRACTION` once daily-bar coverage
+improves. A future full-universe daily-bar refresh naturally raises the
+fraction toward 1.

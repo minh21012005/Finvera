@@ -80,8 +80,18 @@ public class MarketConfiguration {
         return client.observe(quotes);
     }
 
+    /**
+     * Startup read-repair for late-arriving VN-Index history. Never runs alongside
+     * the fixture runtime bootstrap: that dataset is complete by construction, and
+     * repairing it only manufactures a withheld LIVE-basis assessment (the fixture
+     * history is far shorter than the 220-session trend window) whose later
+     * calculatedAt then shadows the bootstrap's published assessment in the
+     * latest-per-trading-date overview read.
+     */
     @Bean
     @ConditionalOnBean({BreadthService.class, LiveMarketRegimeReconciliationService.class})
+    @ConditionalOnProperty(name = "finvera.market.fixture.bootstrap-enabled", havingValue = "false",
+            matchIfMissing = true)
     ApplicationRunner marketRegimeReadRepair(BreadthService breadth,
             LiveMarketRegimeReconciliationService regimeReconciliation) {
         return arguments -> breadth.latest().ifPresent(snapshot -> {

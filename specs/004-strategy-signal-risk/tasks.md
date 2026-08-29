@@ -316,6 +316,9 @@ T007/T018 fixture set.
       checks all recorded; every finding resolved or explicitly deferred
       with reason
       Depends: T033
+- [x] T035 [FR-007, DATA-003] Make the regime scenarios in `finvera-be/src/test/java/com/minhnb/finvera_be/stock/operations/StrategySignalFailureTests.java` order-independent and schema-valid: batch-clear `strategy_signal_risk_factor` -> `strategy_signal_input` -> `strategy_signal` -> `regime_assessment` before each test (persisted signals hold an FK into regime assessments, and `strategy_signal.supersedes_id` is a self-FK that row-by-row deletion order can trip), and correct the invalid fixture label `"BULLISH"` to the schema's `"BULL"`.
+      Verify: `StrategySignalFailureTests` passes 5/5 in any execution order.
+      Evidence (2026-08-30): tracked as part of Q-04 in `docs/REMEDIATION_PLAN.md`. The stale-regime scenario asserted against "the current EOD assessment" — a latest-by-trading-date lookup — while a sibling test's PARTIAL row at a later trading date leaked across tests and won that lookup, flipping the expected MISSING factor to DEFINED; the `"BULLISH"` fixture additionally violated the `regime_assessment_label_check` constraint the migration itself defines. Assertions were not weakened; only fixture state and isolation were repaired.
 
 ## Dependencies and Parallel Execution
 

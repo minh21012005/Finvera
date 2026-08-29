@@ -43,7 +43,10 @@ class TcbsLiveEquityQuoteServiceTests {
         var instrument = new MarketReferenceDataService.InstrumentReference(
                 instrumentId, "HOSE", "TCB", "EQUITY", "ACTIVE");
         lenient().when(referenceData.findActiveInstrumentBySymbol("TCB")).thenReturn(Optional.of(instrument));
-        lenient().when(referenceData.resolveSession("HOSE", receivedAt)).thenReturn(
+        // Production resolveSession never returns null, so the stub must answer for
+        // every instant the service asks about — accept() passes the frame's
+        // receivedAt while findLatest() passes clock.instant(), one second later.
+        lenient().when(referenceData.resolveSession(org.mockito.ArgumentMatchers.eq("HOSE"), any())).thenReturn(
                 new MarketReferenceDataService.SessionContext(SessionState.OPEN, LocalDate.of(2026, 8, 24)));
         lenient().when(ingestionRecords.isDuplicate(any(), any(), any(), any(), any(), any())).thenReturn(false);
         lenient().when(ingestionRecords.findLatestAccepted(any(), any(), any(), any())).thenReturn(Optional.empty());

@@ -8,8 +8,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.minhnb.finvera_be.market.entity.MarketImportBatchEntity;
-import com.minhnb.finvera_be.market.repository.MarketImportBatchRepository;
+import com.minhnb.finvera_be.market.service.MarketImportBatchService;
 import com.minhnb.finvera_be.stock.entity.EquityDailyBarEntity;
 import com.minhnb.finvera_be.stock.repository.EquityDailyBarRepository;
 import com.minhnb.finvera_be.stock.service.StockHistoryImportService.DailyBarRecord;
@@ -27,7 +26,7 @@ import org.junit.jupiter.api.Test;
 class StockHistoryImportServiceTests {
 
     private final StockIngestionService ingestion = mock(StockIngestionService.class);
-    private final MarketImportBatchRepository importBatches = mock(MarketImportBatchRepository.class);
+    private final MarketImportBatchService importBatches = mock(MarketImportBatchService.class);
     private final EquityDailyBarRepository dailyBars = mock(EquityDailyBarRepository.class);
     private final StockHistoryImportService service = new StockHistoryImportService(ingestion, importBatches, dailyBars);
 
@@ -57,6 +56,8 @@ class StockHistoryImportServiceTests {
     void delegatesEachRecordToIngestDailyBarWithTheDeclaredSource() {
         UUID barId = UUID.randomUUID();
         UUID instrumentId = UUID.randomUUID();
+        UUID importBatchId = UUID.randomUUID();
+        when(importBatches.recordAcceptedBatch(any())).thenReturn(importBatchId);
         when(ingestion.ingestDailyBar(any())).thenReturn(
                 new IngestionResult(IngestionStatus.ACCEPTED, null, barId, 1));
         when(dailyBars.findById(barId)).thenReturn(Optional.of(new EquityDailyBarEntity(
@@ -79,10 +80,11 @@ class StockHistoryImportServiceTests {
                         && incoming.tradingDate().equals(LocalDate.of(2026, 1, 15))
                         && incoming.adjustmentStatus().equals("RAW")
                         && incoming.importBatchId() != null));
-        verify(importBatches).save(org.mockito.ArgumentMatchers.argThat(
-                (MarketImportBatchEntity batch) -> batch.getPackageSha256().equals(input.packageSha256())
-                        && batch.getRecordCount() == 1
-                        && batch.getStatus().equals("ACCEPTED")));
+        verify(importBatches).recordAcceptedBatch(org.mockito.ArgumentMatchers.argThat(
+                (MarketImportBatchService.AcceptedBatch batch) ->
+                        batch.packageSha256().equals(input.packageSha256())
+                        && batch.recordCount() == 1
+                        && batch.upstreamSource().equals("VNSTOCK_KBS")));
         verify(dailyBars).clearSupersededDailyBarLinks(instrumentId, "VNSTOCK_KBS");
         verify(dailyBars).deleteUnreferencedSupersededDailyBars(instrumentId, "VNSTOCK_KBS");
     }

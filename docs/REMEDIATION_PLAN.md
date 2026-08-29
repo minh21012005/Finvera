@@ -85,11 +85,15 @@ predominantly above 1,000 VND.
 
 ## Group B — Release gate
 
-`.\mvnw.cmd test` currently reports **643 run, 7 failures, 3 errors, BUILD
-FAILURE**. Constitution *Release Gate* requires these to pass. Q-02 and Q-03 are
-production defects; Q-04 and Q-05 are test debt.
+**2026-08-30: gate is green — 643 run, 0 failures, 0 errors, BUILD SUCCESS**
+(was 7 failures + 3 errors). Q-02 and Q-03 were production defects; Q-04 and
+Q-05 were test debt. During Q-04 the `FixtureRuntimeBootstrapServiceTests`
+failures turned out to be a real regression, not test debt: the startup
+`marketRegimeReadRepair` runner shadowed the fixture bootstrap's published
+assessment with a withheld LIVE-basis one (fixed by gating the runner off when
+the bootstrap is enabled — specs/001 T087).
 
-### Q-02 · `stock` module reaches into `market` persistence — `TODO`
+### Q-02 · `stock` module reaches into `market` persistence — `DONE` (2026-08-30)
 
 - **Severity**: Medium · **Confidence**: `CONFIRMED` (failing ArchUnit rule)
 - **Where**: `finvera-be/.../stock/service/StockHistoryImportService.java:54,58,60`
@@ -106,10 +110,12 @@ fails with 5 violations.
   and have `StockHistoryImportService` depend on that instead. Mirrors the
   existing `MarketReferenceDataService` / `StockReferenceDataService` pattern.
 - **Verify**: the ArchUnit rule passes; `StockHistoryImportServiceTests` still pass.
-- **Note**: this is the one Group B item that changes production structure, not
-  just tests. Confirm the interface shape before implementing.
+- **Verification**: `MarketImportBatchService` + `DefaultMarketImportBatchService`
+  published in `market/service/` mirroring the `MarketReferenceDataService`
+  precedent; `StockModuleArchitectureTests` 4/4, `StockHistoryImportServiceTests`
+  3/3. SDD: specs/002 T081.
 
-### Q-03 · `contextLoads` smoke test broken by retention cleanup — `TODO`
+### Q-03 · `contextLoads` smoke test broken by retention cleanup — `DONE` (2026-08-30)
 
 - **Severity**: Medium · **Confidence**: `CONFIRMED`
 - **Where**: `finvera-be/.../shared/maintenance/DataRetentionCleanupService.java`
@@ -125,9 +131,12 @@ context fails with `NoSuchBeanDefinitionException`.
   `@ConditionalOnProperty("finvera.data-retention.cleanup.enabled")`, so the
   service should sit behind the same gate rather than being always-on. Adding a
   `@MockitoBean JdbcTemplate` to the test hides the coupling instead of removing it.
-- **Verify**: `FinveraBeApplicationTests.contextLoads` passes.
+- **Verification (2026-08-30)**: service registration moved into
+  `DataRetentionCleanupConfiguration` behind the same enablement gate
+  (`@ConditionalOnMissingBean` keeps the config test's mock override working);
+  `contextLoads` + both cleanup test classes pass. SDD: specs/002 T081.
 
-### Q-04 · Stale and invalid test fixtures — `TODO`
+### Q-04 · Stale and invalid test fixtures — `DONE` (2026-08-30)
 
 - **Severity**: Low · **Confidence**: `CONFIRMED`
 - **SDD home**: owning feature per test
@@ -145,7 +154,14 @@ not clear the regime row another test in the same class inserts for a later
 trading date, so `findCurrentRegimeAssessment("EOD")` returns the wrong row.
 Fix by scoping or cleaning fixture state, not by loosening the assertion.
 
-### Q-05 · Cross-source conflict detection is untested — `TODO`
+- **Verification (2026-08-30)**: all five fixtures repaired without weakening any
+  assertion — catalog count 18 (V014), label `BULL`, `resolveSession` stub
+  broadened to production's never-null contract, batch-ordered cleanup for the
+  regime scenarios, DEBUG capture for the redaction test; the
+  `FixtureRuntimeBootstrap` pair was a real regression fixed in
+  `MarketConfiguration` (specs/001 T087). SDD: specs/002 T081, specs/004 T035.
+
+### Q-05 · Cross-source conflict detection is untested — `DONE` (2026-08-30)
 
 - **Severity**: Medium · **Confidence**: `CONFIRMED`
 - **Where**: `StockIngestionServiceTests.detectsAProductionSourceFamilyConflictAndRetainsBothProvenances:167`
@@ -158,6 +174,9 @@ cross-source reconciliation path has no passing test guarding it.**
 
 - **Fix**: repair the fixture to a valid OHLC bar that still diverges from the
   TCBS bar's close, so the `SOURCE_CONFLICT` decision is genuinely exercised.
+- **Verification (2026-08-30)**: fixture close `98.5` (inside `[98, 101]`) vs
+  TCBS `100.5`; `StockIngestionServiceTests` 12/12 with the DATA-010 branch
+  genuinely reached. SDD: specs/002 T081.
 
 ---
 
@@ -171,7 +190,7 @@ One recurring defect, found independently in four modules:
 This violates `ARCHITECTURE.md` section 4 invariant #4 ("Missing, zero, invalid,
 and not-applicable are four different things") and Constitution II.
 
-### Q-06 · EOD breadth drops instruments with no price and still reports `CURRENT` — `TODO`
+### Q-06 · EOD breadth drops instruments with no price and still reports `CURRENT` — `DONE` (2026-08-30)
 
 - **Severity**: High · **Confidence**: `CONFIRMED` (see [Evidence E-2](#e-2--instruments-without-a-current-session-bar))
 - **Where**: `finvera-be/.../market/service/HistoricalMarketBreadthReconciliationService.java:124`
@@ -197,8 +216,14 @@ all). Breadth is being computed on the remainder and labelled complete.
 - **Verify**: an integration test with a universe where some instruments lack the
   session's bar produces `PARTIAL` with `MISSING_PRICE`, and `eligible` equals the
   full universe size.
+- **Verification (2026-08-30)**: instruments now stay in the universe with null
+  prices; the service test that had enshrined the drop (`eligible=2` over a
+  3-instrument universe) now asserts `Result(0,2,0,1,3,[MISSING_PRIOR_CLOSE])`,
+  plus a new stale-bar `MISSING_PRICE` scenario. R-007C conformance restored —
+  the research already mandated "do not drop the instrument". SDD: specs/001
+  R-012, T088.
 
-### Q-07 · Regime v2 has no minimum breadth coverage floor — `TODO`
+### Q-07 · Regime v2 has no minimum breadth coverage floor — `DONE` (2026-08-30)
 
 - **Severity**: High · **Confidence**: `CODE-READ`
 - **Where**: `finvera-be/.../market/service/LiveMarketRegimeReconciliationService.java:145`
@@ -214,8 +239,13 @@ while the assessment still publishes.
   otherwise. Threshold is configuration, never a hard-coded constant
   (`ARCHITECTURE.md` section 8).
 - **Depends on**: Q-06 (needs an honest `eligible`/`unclassified` split to measure against).
+- **Verification (2026-08-30)**: `finvera.market.regime.min-breadth-classified-fraction`
+  (default 0.5) admits BREADTH only when `(adv+dec+unch)/eligible` meets the
+  floor; below it, market-regime-v2's own `AGGREGATE_BREADTH_COMPONENT_UNAVAILABLE`
+  fires — no rule-version change. Below-floor and exactly-at-floor tests added
+  (9/9). SDD: specs/001 R-012, T088.
 
-### Q-08 · Breadth trading date is the max across the whole universe — `TODO`
+### Q-08 · Breadth trading date is the max across the whole universe — `DONE` (2026-08-30)
 
 - **Severity**: Medium · **Confidence**: `CODE-READ`
 - **Where**: `HistoricalMarketBreadthReconciliationService.java:78-82`
@@ -227,6 +257,10 @@ Q-06 unfixed this publishes as `CURRENT`.
 
 - **Fix**: derive the session from the market calendar, or require a quorum of
   instruments sharing the date before accepting it.
+- **Verification (2026-08-30)**: session anchored to the universe-consensus date
+  (mode of latest bar dates, later date wins ties); a future-dated rogue bar
+  test proves it cannot re-anchor the session (4/4). SDD: specs/001 R-012 pt 3,
+  T089.
 
 ### Q-09 · Portfolio totals silently exclude unpriced positions — `TODO`
 
@@ -551,3 +585,4 @@ clean. `finvera-ai`: `uv run pytest` 81/81.
 | Date | Change |
 |---|---|
 | 2026-08-30 | Opened from the full-system review. Q-01 completed (R-016, T080). |
+| 2026-08-30 | Group B complete: Q-02..Q-05 — backend suite 643/643 green (was 7F+3E). Q-06..Q-08 complete: honest EOD breadth coverage, regime coverage floor, consensus session date (specs/001 R-012, T087-T089; specs/002 T081; specs/004 T035). |

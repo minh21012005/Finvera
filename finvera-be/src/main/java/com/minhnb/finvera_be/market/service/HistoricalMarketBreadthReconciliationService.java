@@ -74,9 +74,18 @@ public class HistoricalMarketBreadthReconciliationService {
             return Result.skipped("NO_DAILY_BAR_HISTORY");
         }
 
+        // The session being reconciled is the date the accepted universe agrees on
+        // (the mode of each instrument's latest bar date, later date winning a tie)
+        // — not the maximum. A single mis-dated or future-dated import must not be
+        // able to re-anchor the whole breadth calculation onto a date where only
+        // that one instrument has data.
         LocalDate tradingDate = currentBars.stream()
-                .map(StockReferenceDataService.DailyBarReference::tradingDate)
-                .max(Comparator.naturalOrder())
+                .collect(Collectors.groupingBy(StockReferenceDataService.DailyBarReference::tradingDate,
+                        Collectors.counting()))
+                .entrySet().stream()
+                .max(Map.Entry.<LocalDate, Long>comparingByValue()
+                        .thenComparing(Map.Entry.comparingByKey()))
+                .map(Map.Entry::getKey)
                 .orElseThrow();
         Instant asOf = currentBars.stream()
                 .filter(bar -> tradingDate.equals(bar.tradingDate()))
@@ -120,9 +129,11 @@ public class HistoricalMarketBreadthReconciliationService {
                     .orElse(null);
             BigDecimal currentClose = current == null ? null : current.closePrice();
             BigDecimal previousClose = previous == null ? null : previous.closePrice();
-            if (currentClose == null || previousClose == null) {
-                continue;
-            }
+            // R-007C: "Persist missing current close as MISSING_PRICE and missing
+            // prior close as MISSING_PRIOR_CLOSE; do not drop the instrument or
+            // fabricate a reference." Dropping it here would shrink `eligible` to
+            // only the instruments that happen to have data, force unclassified to
+            // zero, and let the snapshot claim CURRENT over an incomplete universe.
             inputs.add(new BreadthCalculator.SecurityInput(Venue.valueOf(instrument.getVenue()),
                     instrument.getSymbol(), instrument.getIsin(), true, false,
                     BreadthUniversePolicy.InstrumentType.COMMON_EQUITY, currentClose, previousClose,

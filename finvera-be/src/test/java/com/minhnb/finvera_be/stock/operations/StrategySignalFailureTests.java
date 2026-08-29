@@ -69,6 +69,28 @@ class StrategySignalFailureTests {
     @Autowired RegimeAssessmentRepository regimeAssessments;
     @Autowired StrategySignalService signalService;
 
+    @Autowired com.minhnb.finvera_be.stock.repository.StrategySignalRiskFactorRepository signalRiskFactors;
+    @Autowired com.minhnb.finvera_be.stock.repository.StrategySignalInputRepository signalInputs;
+    @Autowired com.minhnb.finvera_be.stock.repository.StrategySignalRepository signals;
+
+    /**
+     * Each regime scenario below asserts against "the current EOD assessment",
+     * which is a latest-by-trading-date lookup — a leftover row from a sibling
+     * test dated later than this test's fixture silently wins that lookup.
+     * Persisted signals reference regime assessments via strategy_signal_input,
+     * so signal children go first; every test seeds its own symbol and
+     * recomputes, making this wipe safe.
+     */
+    @org.junit.jupiter.api.BeforeEach
+    void clearRegimeAssessments() {
+        signalRiskFactors.deleteAllInBatch();
+        signalInputs.deleteAllInBatch();
+        // Single-statement deletes: strategy_signal has a supersedes_id self-FK
+        // that row-by-row deletion order could trip.
+        signals.deleteAllInBatch();
+        regimeAssessments.deleteAllInBatch();
+    }
+
     @Test
     void aCrossSourceConflictWithholdsAffectedStrategiesRatherThanFabricatingASignal() {
         String symbol = "SIGFAIL01";
@@ -159,7 +181,7 @@ class StrategySignalFailureTests {
 
         regimeAssessments.save(new MarketRegimeAssessmentEntity(UUID.randomUUID(), LocalDate.of(2026, 8, 10),
                 Instant.parse("2026-08-10T07:00:00Z"), Instant.parse("2026-08-10T07:00:01Z"), "market-regime-v2",
-                "LIVE", "BULLISH", 85, 80, "CURRENT", new BigDecimal("100.00"), new BigDecimal("90.00"),
+                "LIVE", "BULL", 85, 80, "CURRENT", new BigDecimal("100.00"), new BigDecimal("90.00"),
                 new BigDecimal("15.00"), false, List.of(), null));
 
         var result = signalService.findBySymbol(symbol).orElseThrow();

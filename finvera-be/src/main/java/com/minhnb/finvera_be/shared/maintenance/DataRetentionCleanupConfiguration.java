@@ -14,6 +14,19 @@ public class DataRetentionCleanupConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(DataRetentionCleanupConfiguration.class);
 
+    /**
+     * The cleanup service is registered here — not component-scanned — behind the
+     * same enablement gate as its runner, so a context that never turns cleanup on
+     * (including datasource-less test slices) never requires a {@code JdbcTemplate}.
+     */
+    @Bean
+    @ConditionalOnProperty(name = "finvera.data-retention.cleanup.enabled", havingValue = "true")
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
+    DataRetentionCleanupService dataRetentionCleanupService(
+            org.springframework.jdbc.core.JdbcTemplate jdbcTemplate, java.time.Clock clock) {
+        return new DataRetentionCleanupService(jdbcTemplate, clock);
+    }
+
     @Bean
     @ConditionalOnProperty(name = "finvera.data-retention.cleanup.enabled", havingValue = "true")
     ApplicationRunner dataRetentionCleanupRunner(

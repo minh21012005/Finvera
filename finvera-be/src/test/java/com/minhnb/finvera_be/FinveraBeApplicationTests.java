@@ -69,6 +69,9 @@ class FinveraBeApplicationTests {
 	MarketInstrumentRepository marketInstrumentRepository;
 
 	@MockitoBean
+	com.minhnb.finvera_be.market.repository.MarketImportBatchRepository marketImportBatchRepository;
+
+	@MockitoBean
 	MarketCalendarDayRepository marketCalendarDayRepository;
 
 	@MockitoBean

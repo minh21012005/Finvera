@@ -5,7 +5,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -15,8 +14,13 @@ import org.springframework.transaction.annotation.Transactional;
  * instrument, profile, sector, or fundamental facts. Those rows are the inputs
  * for technical indicators, valuation, regime assessment, charts, and future
  * rebuilds.
+ *
+ * <p>Not a component-scanned {@code @Service}: it is registered by
+ * {@link DataRetentionCleanupConfiguration} behind the same
+ * {@code finvera.data-retention.cleanup.enabled} gate as its runner, so a
+ * context that never enables cleanup (including datasource-less test slices)
+ * never demands the {@code JdbcTemplate} this class requires.
  */
-@Service
 public class DataRetentionCleanupService {
 
     static final String DELETE_SOURCE_RECONCILIATION_AUDIT = """

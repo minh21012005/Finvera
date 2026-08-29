@@ -46,6 +46,12 @@ finvera:
       index-contracted-delay: ${FINVERA_MARKET_INDEX_CONTRACTED_DELAY}
     provider:
       mode: ${FINVERA_MARKET_PROVIDER_MODE:fixture}
+    regime:
+      # Minimum fraction of the eligible breadth universe that must be classified
+      # (advancing + declining + unchanged) before the BREADTH component is
+      # admitted into a market-regime-v2 assessment. Below the floor the
+      # component is withheld and the rule's own publishability disclosures apply.
+      min-breadth-classified-fraction: ${FINVERA_MARKET_REGIME_MIN_BREADTH_CLASSIFIED_FRACTION:0.5}
     live-overlay:
       tcbs:
         enabled: ${FINVERA_TCBS_LIVE_ENABLED:false}
