@@ -753,3 +753,65 @@ the schema from the normal migrations, then run the normal refresh pipeline. The
 refresh will re-export old Vnstock/KBS daily-bar packages under the new tool
 version, import corrected VND/share rows, and recompute technical indicators and
 valuations from clean current rows.
+
+---
+
+## R-016 — 2026-08-30 client-side price-unit heuristic removal
+
+**Decision**: The web client MUST NOT infer, convert, or rescale an equity price
+unit. `finvera-fe`'s stock chart renders exactly the decimal strings the API
+returned, and derives pixel geometry from them without re-serializing a
+displayed value through `Number`. The magnitude-vote rescaling block in
+`finvera-fe/src/features/stock-detail/components/stock-chart.tsx` is removed.
+
+**Rationale**: R-015 already made base VND/share the canonical unit at the stock
+module boundary and explicitly rejected both "normalize only in the UI" and
+"let the service infer units from arbitrary price magnitude on every read". The
+chart component implemented exactly those two rejected alternatives: it counted
+how many bars had `close >= 1000`, and then multiplied every sub-1000 value by
+1000 (majority large) or divided every >=1000 value by 1000 (majority small).
+
+Private-database inspection on 2026-08-30 confirms the contamination R-015 was
+written to fix is gone and that both accepted providers now agree on the unit:
+
+| Table | Source | Rows | Min | Max |
+|---|---|---|---|---|
+| `equity_daily_bar` (current) | `VNSTOCK_KBS` | 632,956 | `180.000000` | `685000.000000` |
+| `equity_price_observation` | `TCBS_IFLASH_THESIS` | 1,843 | `20850.000000` | `232400.000000` |
+| `index_snapshot` | `TCBS_IFLASH_THESIS` | 2,713 | `127.070000` | `1977.660000` |
+| `index_snapshot` | `VNSTOCK_KBS` | 2,634 | `84.410000` | `2096.760000` |
+
+No `TCBS_IFLASH_STOCK_DATA` daily bar remains (retired by R-015, excluded at
+runtime by T077). Vnstock/KBS board units are converted once in
+`export_daily_bars.normalize_kbs_price`; the TCBS Thesis stream already
+publishes base VND and `TcbsThesisFrameMapper` deliberately performs no
+conversion; `TcbsLiveEquityQuoteService.hasImplausibleValueScale` is the R-015
+sanity check that would reject a future unit change rather than silently
+absorbing it. There is therefore no live cross-provider unit discrepancy for the
+client to compensate for.
+
+The heuristic was also actively wrong. 30 of 1,430 instruments with accepted
+bars close below 1,000 VND — `ACM`, `QBS`, `CAD`, `PXM`, `DCT`, `LO5`, `DFF`,
+`HKB`, `ATA` at 400 VND and `PPI`, `FTM`, `LUT` at 500 VND, all UPCOM. Whenever
+such an instrument's window was mostly above 1,000 VND (a real collapse), its
+current 400 VND price was rendered as 400,000 VND; in the mirror case a penny
+stock rallying past 1,000 VND had that session divided down to 1.2 VND. A
+sub-1,000 VND price is a real Vietnamese equity price, never a board-unit
+artifact, and no client-side rule can distinguish the two without guessing.
+
+**Alternatives rejected**:
+
+- Keep the heuristic but exclude known penny stocks: an allowlist of magnitudes
+  is still magnitude inference, still unreproducible, and still client-side
+  business logic that ARCHITECTURE.md section 6 forbids.
+- Have the API return a `priceUnit` field for the client to convert with: moves
+  the conversion to the client again. The contract already guarantees one unit;
+  a second representation would create the ambiguity it claims to resolve.
+- Leave it in place as defence in depth: it cannot detect contamination (both
+  units are plausible prices) and it corrupts correct data, so it is a net
+  negative even as a guard.
+
+**Consequence**: If a future provider ever publishes board units, the fix
+belongs in that provider's adapter or exporter plus a
+`hasImplausibleValueScale`-style acceptance guard, never in the client. Charts
+for the 30 sub-1,000 VND instruments above now display their true price.

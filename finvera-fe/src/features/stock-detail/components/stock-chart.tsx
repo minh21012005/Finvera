@@ -47,6 +47,30 @@ function formatChartPrice(val: number | string): string {
   return num.toLocaleString("vi-VN", { maximumFractionDigits: 0 });
 }
 
+/**
+ * Returns a positive server decimal string unchanged, or `null` when it is absent,
+ * unparseable, or non-positive. The string itself is never rebuilt from a `Number`,
+ * so the server's declared precision survives (ARCHITECTURE.md section 6).
+ */
+function positiveDecimal(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const parsed = Number.parseFloat(value);
+  return Number.isNaN(parsed) || parsed <= 0 ? null : value;
+}
+
+/**
+ * Orders two server decimal strings and returns the winning **original string**.
+ * Parsing is used only to compare; the returned value is never a re-serialized
+ * `Number`, so `"400.000000"` stays `"400.000000"` rather than collapsing to `"400"`.
+ */
+function maxDecimal(left: string, right: string): string {
+  return Number.parseFloat(left) >= Number.parseFloat(right) ? left : right;
+}
+
+function minDecimal(left: string, right: string): string {
+  return Number.parseFloat(left) <= Number.parseFloat(right) ? left : right;
+}
+
 function formatVolCompact(vol: number): string {
   if (vol >= 1_000_000) {
     const m = vol / 1_000_000;
@@ -176,76 +200,33 @@ export function StockChart({
   const dragStartXRef = useRef<number>(0);
   const dragStartOffsetRef = useRef<number>(0);
 
-  // 1. Normalize unit consistency across bars and incorporate live price into forming/latest candle
+  // 1. Merge the live quote into the forming/latest candle.
+  //
+  // No unit conversion happens here. `research.md` R-015 makes base VND/share the
+  // canonical equity price unit at the *stock module boundary*: the Vnstock/KBS
+  // exporter multiplies board units by 1000 and the TCBS Thesis stream already
+  // publishes base VND, so every `bars[]` entry and every live field below is
+  // already in the same unit by the time it reaches this component. R-015
+  // explicitly rejected both "normalize only in the UI" and "infer the unit from
+  // price magnitude on every read", and ARCHITECTURE.md section 6 forbids the
+  // client from computing an authoritative financial value at all. A sub-1000 VND
+  // price (ACM, QBS, CAD, ... trade at 400 VND) is a real price, never a
+  // board-unit artifact to be rescaled.
   const normalizedBars = useMemo(() => {
     if (!bars || bars.length === 0) return [];
-    // Count how many bars have close price >= 1000
-    const countLarge = bars.filter((b) => Number.parseFloat(b.close) >= 1000).length;
-    const isPredominantlyLarge = countLarge > bars.length / 2;
 
-    const toScaledStr = (val: number): string => {
-      if (isPredominantlyLarge) {
-        const scaled = val < 1000 ? val * 1000 : val;
-        return scaled.toFixed(2);
-      } else {
-        const scaled = val >= 1000 ? val / 1000 : val;
-        return scaled.toFixed(2);
-      }
-    };
-
-    const toScaledNum = (val: number): number => {
-      if (isPredominantlyLarge) {
-        return val < 1000 ? val * 1000 : val;
-      } else {
-        return val >= 1000 ? val / 1000 : val;
-      }
-    };
-
-    const historyBars: StockChartData["bars"] = bars.map((b) => {
-      const open = Number.parseFloat(b.open);
-      const high = Number.parseFloat(b.high);
-      const low = Number.parseFloat(b.low);
-      const close = Number.parseFloat(b.close);
-
-      return {
-        ...b,
-        open: toScaledStr(open),
-        high: toScaledStr(high),
-        low: toScaledStr(low),
-        close: toScaledStr(close),
-      };
-    });
+    const historyBars: StockChartData["bars"] = bars.map((b) => ({ ...b }));
 
     const parsedLive = livePrice ? Number.parseFloat(livePrice) : null;
     const validLive = parsedLive !== null && !Number.isNaN(parsedLive) && parsedLive > 0;
-    if (!validLive || parsedLive === null) {
+    if (!validLive || !livePrice) {
       return historyBars;
     }
 
-    const normalizedLive = toScaledNum(parsedLive);
-    const parsedRef = liveReferencePrice ? Number.parseFloat(liveReferencePrice) : null;
-    const normalizedRef =
-      parsedRef !== null && !Number.isNaN(parsedRef) && parsedRef > 0
-        ? toScaledNum(parsedRef)
-        : null;
-
-    const parsedOpen = liveOpenPrice ? Number.parseFloat(liveOpenPrice) : null;
-    const normalizedOpen =
-      parsedOpen !== null && !Number.isNaN(parsedOpen) && parsedOpen > 0
-        ? toScaledNum(parsedOpen)
-        : null;
-
-    const parsedHigh = liveHighPrice ? Number.parseFloat(liveHighPrice) : null;
-    const normalizedHigh =
-      parsedHigh !== null && !Number.isNaN(parsedHigh) && parsedHigh > 0
-        ? toScaledNum(parsedHigh)
-        : null;
-
-    const parsedLow = liveLowPrice ? Number.parseFloat(liveLowPrice) : null;
-    const normalizedLow =
-      parsedLow !== null && !Number.isNaN(parsedLow) && parsedLow > 0
-        ? toScaledNum(parsedLow)
-        : null;
+    const liveRef = positiveDecimal(liveReferencePrice);
+    const liveOpen = positiveDecimal(liveOpenPrice);
+    const liveHigh = positiveDecimal(liveHighPrice);
+    const liveLow = positiveDecimal(liveLowPrice);
 
     const lastBar = historyBars[historyBars.length - 1];
     const targetDate = liveTradingDate?.trim();
@@ -255,46 +236,35 @@ export function StockChart({
     const isNewSession = Boolean(targetDate && lastBar && targetDate > lastBar.tradingDate);
 
     if (isNewSession && targetDate) {
-      const prevClose = Number.parseFloat(lastBar.close);
-      const open = normalizedOpen ?? normalizedRef ?? prevClose;
-      const close = normalizedLive;
-      const high = normalizedHigh !== null ? Math.max(normalizedHigh, open, close) : Math.max(open, close);
-      const low = normalizedLow !== null ? Math.min(normalizedLow, open, close) : Math.min(open, close);
+      const open = liveOpen ?? liveRef ?? lastBar.close;
+      const close = livePrice;
+      const high = maxDecimal(maxDecimal(liveHigh ?? close, open), close);
+      const low = minDecimal(minDecimal(liveLow ?? close, open), close);
       const vol = typeof liveVolume === "number" && liveVolume >= 0 ? liveVolume : 0;
 
       const liveBar: StockChartData["bars"][0] = {
         tradingDate: targetDate,
-        open: toScaledStr(open),
-        high: toScaledStr(high),
-        low: toScaledStr(low),
-        close: toScaledStr(close),
+        open,
+        high,
+        low,
+        close,
         volume: vol,
       };
 
       return [...historyBars, liveBar];
-    } else {
-      // Target date matches the last bar, or no target date supplied (e.g. legacy/mock tests)
-      const lastIndex = historyBars.length - 1;
-      const existing = historyBars[lastIndex];
-      const prevOpen = Number.parseFloat(existing.open);
-      const open = normalizedOpen ?? prevOpen;
-      let high = normalizedHigh ?? Number.parseFloat(existing.high);
-      let low = normalizedLow ?? Number.parseFloat(existing.low);
-      const close = normalizedLive;
-      high = Math.max(high, normalizedLive, open);
-      low = Math.min(low, normalizedLive, open);
-      const vol = typeof liveVolume === "number" && liveVolume >= 0 ? liveVolume : existing.volume;
-
-      historyBars[lastIndex] = {
-        ...existing,
-        open: toScaledStr(open),
-        high: toScaledStr(high),
-        low: toScaledStr(low),
-        close: toScaledStr(close),
-        volume: vol,
-      };
-      return historyBars;
     }
+
+    // Target date matches the last bar, or no target date supplied (e.g. legacy/mock tests)
+    const lastIndex = historyBars.length - 1;
+    const existing = historyBars[lastIndex];
+    const open = liveOpen ?? existing.open;
+    const close = livePrice;
+    const high = maxDecimal(maxDecimal(liveHigh ?? existing.high, close), open);
+    const low = minDecimal(minDecimal(liveLow ?? existing.low, close), open);
+    const vol = typeof liveVolume === "number" && liveVolume >= 0 ? liveVolume : existing.volume;
+
+    historyBars[lastIndex] = { ...existing, open, high, low, close, volume: vol };
+    return historyBars;
   }, [bars, livePrice, liveTradingDate, liveReferencePrice, liveOpenPrice, liveHighPrice, liveLowPrice, liveVolume]);
 
   // 2. Filter bars according to selected time range based on exact calendar intervals

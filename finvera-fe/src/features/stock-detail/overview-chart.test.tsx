@@ -182,6 +182,79 @@ describe("stock chart", () => {
     expect(screen.getAllByText("22.800").length).toBeGreaterThan(0);
     expect(screen.getAllByText("20.900").length).toBeGreaterThan(0);
   });
+
+  // ---------------------------------------------------------------------------
+  // R-016 regression guards.
+  //
+  // The removed heuristic rescaled every bar by 1000 in whichever direction a
+  // majority vote on `close >= 1000` suggested. Both directions are reproduced
+  // here against the status bar, which renders the latest bar's O/H/L/C.
+  // research.md R-015 rejected UI-side and magnitude-inferred normalization;
+  // ARCHITECTURE.md section 6 forbids the client computing an authoritative value.
+  // ---------------------------------------------------------------------------
+
+  it("does not multiply a sub-1000 VND latest bar by 1000 when older bars are larger", () => {
+    // A real collapse (ACM/FTM-style): the majority of the window is >= 1000 VND
+    // while the current price is 400 VND. The old heuristic voted
+    // "predominantly large" and rendered 400 VND as 400.000 VND.
+    const bars: StockChartData["bars"] = [
+      { tradingDate: "2026-04-21", open: "5000.000000", high: "5000.000000", low: "5000.000000", close: "5000.000000", volume: 100000 },
+      { tradingDate: "2026-05-21", open: "3000.000000", high: "3000.000000", low: "3000.000000", close: "3000.000000", volume: 100000 },
+      { tradingDate: "2026-06-22", open: "1500.000000", high: "1500.000000", low: "1500.000000", close: "1500.000000", volume: 100000 },
+      { tradingDate: "2026-07-21", open: "900.000000", high: "900.000000", low: "900.000000", close: "900.000000", volume: 100000 },
+      { tradingDate: "2026-08-21", open: "500.000000", high: "500.000000", low: "400.000000", close: "400.000000", volume: 100000 },
+    ];
+    render(<StockChart chart={chart(bars)} />);
+    expect(screen.getAllByText(/^400,00$/).length).toBeGreaterThan(0);
+    expect(screen.queryByText("400.000")).not.toBeInTheDocument();
+    expect(screen.queryByText("500.000")).not.toBeInTheDocument();
+  });
+
+  it("does not divide a four-digit latest bar by 1000 when older bars are sub-1000", () => {
+    // The mirror-image failure: a penny stock rallying past 1000 VND. The old
+    // heuristic voted "predominantly small" and rendered 1.200 VND as 1,20.
+    const bars: StockChartData["bars"] = [
+      { tradingDate: "2026-05-21", open: "400.000000", high: "400.000000", low: "400.000000", close: "400.000000", volume: 100000 },
+      { tradingDate: "2026-06-22", open: "500.000000", high: "500.000000", low: "500.000000", close: "500.000000", volume: 100000 },
+      { tradingDate: "2026-07-21", open: "600.000000", high: "600.000000", low: "600.000000", close: "600.000000", volume: 100000 },
+      { tradingDate: "2026-08-21", open: "1100.000000", high: "1200.000000", low: "1100.000000", close: "1200.000000", volume: 100000 },
+    ];
+    render(<StockChart chart={chart(bars)} />);
+    expect(screen.getAllByText(/^1\.200$/).length).toBeGreaterThan(0);
+    expect(screen.queryByText("1,20")).not.toBeInTheDocument();
+    expect(screen.queryByText("1,10")).not.toBeInTheDocument();
+  });
+
+  it("does not rescale a sub-1000 VND live quote forming the current session candle", () => {
+    const bars: StockChartData["bars"] = [
+      { tradingDate: "2026-05-21", open: "5000.000000", high: "5000.000000", low: "5000.000000", close: "5000.000000", volume: 100000 },
+      { tradingDate: "2026-06-22", open: "3000.000000", high: "3000.000000", low: "3000.000000", close: "3000.000000", volume: 100000 },
+      { tradingDate: "2026-07-21", open: "1500.000000", high: "1500.000000", low: "1500.000000", close: "1500.000000", volume: 100000 },
+      { tradingDate: "2026-08-21", open: "900.000000", high: "900.000000", low: "900.000000", close: "900.000000", volume: 100000 },
+    ];
+    render(
+      <StockChart
+        chart={chart(bars)}
+        livePrice="400.000000"
+        liveTradingDate="2026-08-24"
+        liveReferencePrice="900.000000"
+        liveVolume={30000}
+      />
+    );
+    expect(screen.getAllByText(/^400,00$/).length).toBeGreaterThan(0);
+    expect(screen.queryByText("400.000")).not.toBeInTheDocument();
+  });
+
+  it("preserves the server's declared decimal precision instead of re-serializing it", () => {
+    // The old code rebuilt every value with `Number#toFixed(2)`, so a scale-6
+    // server decimal silently became a scale-2 client-computed number.
+    const bars: StockChartData["bars"] = [
+      { tradingDate: "2026-08-20", open: "21000.000000", high: "21500.000000", low: "20800.000000", close: "21200.000000", volume: 1000000 },
+      { tradingDate: "2026-08-21", open: "21200.000000", high: "21400.000000", low: "20900.000000", close: "21100.000000", volume: 1500000 },
+    ];
+    render(<StockChart chart={chart(bars)} livePrice="21350.000000" />);
+    // 21.350 VND, not 21,35 and not 21.350.000
+    expect(screen.getAllByText(/^21\.350$/).length).toBeGreaterThan(0);
+    expect(screen.queryByText("21,35")).not.toBeInTheDocument();
+  });
 });
-
-

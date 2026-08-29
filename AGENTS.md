@@ -16,6 +16,12 @@ Read these files before planning or changing code:
 5. `docs/ARCHITECTURE.md` for cross-feature boundaries, data/API/security
    conventions, and the decision index.
 
+`docs/REMEDIATION_PLAN.md` tracks known defects and gaps with stable `Q-` ids
+and their evidence. It is a backlog, not an authority: it never overrides the
+constitution, a spec, a contract, or an ADR, and a `Q-` id is never referenced
+from production code. Check it before starting work in an area so you do not
+re-diagnose a known issue or build on top of one.
+
 More specific `AGENTS.md` files override this file only within their directory.
 
 ## Repository Map
