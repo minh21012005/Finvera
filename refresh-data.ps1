@@ -49,6 +49,11 @@
 .PARAMETER CleanupOnly
     Run only the conservative retention cleanup stage, without crawl/import/warmup.
 
+.PARAMETER WarmupOnly
+    Run only step 7 (breadth/regime reconciliation + technical + valuation warmup) on the
+    data already in the database -- e.g. after a rule-version change (valuation-v2) when
+    nothing new has to be crawled or imported. ~20-40 minutes instead of ~1.5 hours.
+
 .EXAMPLE
     .\refresh-data.ps1
 #>
@@ -57,6 +62,7 @@ param(
     [switch]$FullRefresh,
     [switch]$Cleanup,
     [switch]$CleanupOnly,
+    [switch]$WarmupOnly,
     [int]$LookbackDays = 90
 )
 
@@ -199,6 +205,18 @@ Write-Host "=== Finvera data refresh ===" -ForegroundColor Green
 $listener = Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue
 if ($listener) {
     throw "Port 8080 is already in use. Stop the normally running backend before refresh-data.ps1."
+}
+
+if ($WarmupOnly) {
+    Import-EnvFile $envFile
+    Import-EnvFile $envRefreshFile
+    Set-StageFlags @("FINVERA_MARKET_EOD_RECONCILIATION_ENABLED", "FINVERA_STOCK_TECHNICAL_WARMUP_ENABLED", "FINVERA_STOCK_VALUATION_WARMUP_ENABLED")
+    Invoke-BackendStage -Name "Warmup-only: Tinh breadth/regime + bu chi bao ky thuat + dinh gia" `
+        -WaitPatterns @("market_eod_reconciliation status=", "technical_indicator_warmup total=", "valuation_warmup total=") `
+        -TimeoutSec 7200
+    Write-Host ""
+    Write-Host "=== Xong warmup. Gio khoi dong backend binh thuong. ===" -ForegroundColor Green
+    return
 }
 
 if ($CleanupOnly) {

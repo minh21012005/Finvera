@@ -677,4 +677,22 @@ class ValuationV1Tests {
         assertThat(result.published()).isFalse();
         assertThat(result.reasonCodes()).contains("INSUFFICIENT_METRIC_COVERAGE");
     }
+
+    @Test
+    void v2PegNotApplicableAloneDoesNotFlagAReducedMetricSet() {
+        var engine = new ValuationV1();
+        var inputs = ValuationV1.Inputs.builder()
+                .price(new BigDecimal("69200.000000"))
+                .sharesOutstanding(1_462_000_000L)
+                .epsTtm(new BigDecimal("4580.000000"))
+                .epsGrowthPercent(new BigDecimal("-3.000000"))   // PEG NOT_APPLICABLE only
+                .equityAttributableToParent(new BigDecimal("42000000000000.000000"))
+                .ebitdaTtm(null).totalDebt(null).cashAndEquivalents(null)
+                .ownHistorySeries(buildMinimalHistory(600))
+                .sectorSeries(List.of())
+                .build();
+        var result = engine.classify(inputs);
+        assertThat(result.published()).isTrue();
+        assertThat(result.reasonCodes()).doesNotContain(ValuationV1.REDUCED_METRIC_SET);
+    }
 }

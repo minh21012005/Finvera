@@ -27,7 +27,7 @@ All other publishability conditions of v1 remain blocking as written.
 
 | Code | Meaning | Blocking |
 |---|---|---|
-| `REDUCED_METRIC_SET` | At least one scored metric was `NOT_APPLICABLE` and excluded from the coverage denominator; the classification rests on fewer metrics than the full set. | No |
+| `REDUCED_METRIC_SET` | A **core** metric (`PE` or `PB`) was `NOT_APPLICABLE` and excluded from the coverage denominator; the classification rests on the other core multiple. `PEG` being `NOT_APPLICABLE` (growth ≤ 0) is routine and is disclosed only on its metric row (clarified 2026-08-31 after the first v2 run flagged 236 profitable companies for PEG alone). | No |
 
 ## Confidence — clarified
 

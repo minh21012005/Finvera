@@ -22,8 +22,9 @@ import java.util.Objects;
 public final class ValuationV1 {
 
     public static final String RULE_VERSION = "valuation-v2";
-    /** v2: a scored metric that is NOT_APPLICABLE was excluded from the coverage denominator. */
+    /** v2: a CORE metric (PE or PB) was NOT_APPLICABLE and excluded from the coverage denominator. */
     public static final String REDUCED_METRIC_SET = "REDUCED_METRIC_SET";
+    private static final Set<String> CORE_METRICS = Set.of("PE", "PB");
     private static final BigDecimal COVERAGE_FLOOR = new BigDecimal("0.50");
     /** EV/EBITDA cannot be formed without balance-sheet inputs the provider never supplies (research 012 R-003). */
     private static final Set<String> STRUCTURAL_EV_EBITDA_GAPS = Set.of("MISSING_EBITDA", "MISSING_EV_INPUTS");
@@ -142,7 +143,11 @@ public final class ValuationV1 {
         for (MetricValue mv : computed.allScored()) {
             BigDecimal weight = BASE_WEIGHTS.get(mv.metricCode());
             if (mv.applicability() == MetricApplicability.NOT_APPLICABLE) {
-                reducedMetricSet = true;
+                // PEG being N/A (growth <= 0) is routine and already visible on the metric row;
+                // the disclosure flag is reserved for a missing CORE multiple (contract v2).
+                if (CORE_METRICS.contains(mv.metricCode())) {
+                    reducedMetricSet = true;
+                }
                 continue;
             }
             if ("EV_EBITDA".equals(mv.metricCode()) && mv.applicability() == MetricApplicability.MISSING

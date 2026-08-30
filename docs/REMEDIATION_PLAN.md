@@ -649,6 +649,8 @@ After Feature 009 and Q-25/Q-28/Q-30 (2026-08-30): backend 659/659, exporter 23/
 
 Feature-readiness measurement 2026-08-30 (pre-refresh DB): technical indicators computed for 1,428 instruments (250-session family INSUFFICIENT_HISTORY for ~412 thin/new listings — legitimate); regime v2 `EARLY_BULL` CURRENT 100 % completeness; 4 indices 2024-01-03..2026-08-27; strategy signals 10 LONG, no risk withholds; fundamentals summaries 1,355 CURRENT / 185 STALE / 3 DELAYED; valuation history_point_count ≤ 133 for 1,178 instruments and null for 1,858 (quarter-only history — the annual pass in the running refresh is what unlocks ≥ 500); BVPS present on 1,333 instruments' reports but only 198 summaries (packages exported before tool 0.5.0 — full refresh re-exports).
 
+**valuation-v2 measurement 2026-08-31 00:05 (owner ran `-WarmupOnly`):** latest per instrument 1,524 — published **701 (46.0 %)**, up from 650 (42.7 %); 305 of them on a reduced metric set (69 with P/E not applicable, 236 with PEG only — the flag was then narrowed to core metrics, see contract v2). v1 rows retained (4,583). SC-002: **0** assessments published with a `MISSING` core metric. Confidence: reduced-set avg 63.6 (45–69) vs full-set 68.4 (49–74). Still withheld among the 888 with a basis: `PRICE_STALE` 123 (no bar for ≥ 2 sessions — illiquid), `INSUFFICIENT_METRIC_COVERAGE` 77 (typically P/E `DEFINED` but with < 500 history points, i.e. a recently profitable company, plus PEG missing growth), `CORE_METRIC_UNAVAILABLE` 4. SC-001 (≥ 50 %) is **not** met and cannot be met by rule: 636 instruments have no comparison basis and 507 have no recent trade; both are data facts, not gates.
+
 **Post-refresh measurement 2026-08-31 (owner ran `-FullRefresh` then `-Cleanup` with history start 2023-01-01):**
 
 | Criterion | Before | After |
@@ -681,6 +683,7 @@ clean. `finvera-ai`: `uv run pytest` 81/81.
 | Date | Change |
 |---|---|
 | 2026-08-30 | Opened from the full-system review. Q-01 completed (R-016, T080). |
+| 2026-08-31 | v2 measured: 46.0 % published (SC-001 not met — basis/price limits, not gates); `REDUCED_METRIC_SET` narrowed to core metrics; backend 666/666. |
 | 2026-08-31 | Feature 012 `valuation-v2` implemented (spec → research → contract → plan → tasks → code); Q-42 done. |
 | 2026-08-31 | Post-refresh measurement recorded (Evidence); Q-42 opened; UNVERIFIED share rule relaxed for treasury shares (AAM 10.45M vs 12.3M charter). |
 | 2026-08-30 | Q-39: quota-aware pacing + transient rate-limit retries in the universe exporter (effective from the next run). |

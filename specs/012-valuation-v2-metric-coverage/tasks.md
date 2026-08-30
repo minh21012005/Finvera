@@ -9,7 +9,7 @@ Written before implementation (2026-08-31).
       Verify: FE vitest + lint/build.
       Evidence: OpenAPI const, `stock-detail.ts` type/parser, test fixture; three backend tests that spelled the literal now use the constant.
 - [x] T003 Full backend suite; `docs/REMEDIATION_PLAN.md` Q-42 → DONE with plan for SC-001 measurement after the owner's next refresh.
-      Evidence: see REMEDIATION_PLAN changelog 2026-08-31; SC-001 measured after the next stage-7 warmup.
+      Evidence: measured 2026-08-31 after `-WarmupOnly`: 701 / 1,524 published (46.0 %, from 42.7 %); SC-002 0 violations; SC-003 reduced-set confidence ≤ full-set (avg 63.6 vs 68.4). SC-001 (≥ 50 %) not met — remaining withholds are basis/price data limits (REMEDIATION_PLAN Evidence). `REDUCED_METRIC_SET` narrowed to core metrics (`v2PegNotApplicableAloneDoesNotFlagAReducedMetricSet`).
 
 | Requirement | Tasks |
 |---|---|

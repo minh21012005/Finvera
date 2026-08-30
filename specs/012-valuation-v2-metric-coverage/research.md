@@ -45,7 +45,7 @@ obtainable = { m ∈ scored : applicability(m) ≠ NOT_APPLICABLE
 qualifying = { m ∈ obtainable : DEFINED ∧ percentile available in ≥ 1 basis }
 coverage   = Σ w(qualifying) / Σ w(obtainable)           (scale-12 division)
 gate       : coverage ≥ 0.50   else INSUFFICIENT_METRIC_COVERAGE
-REDUCED_METRIC_SET when any scored metric is NOT_APPLICABLE (non-blocking)
+REDUCED_METRIC_SET when a CORE metric (PE/PB) is NOT_APPLICABLE (non-blocking; PEG alone does not raise it)
 confidence : metricCoverage = Σ w(qualifying)   (absolute, unchanged from v1)
 ```
 
