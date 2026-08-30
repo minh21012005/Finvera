@@ -81,4 +81,27 @@ class EquityProfileImportServiceTests {
         return new PackageInput(contractVersion, "finvera-vnstock-exporter", "0.1.0", "VNSTOCK_KBS",
                 EquityProfileImportService.sha256(payload), payload, Instant.parse("2026-08-22T00:00:00Z"), records);
     }
+
+    @Test
+    void revisesTheCurrentProfileWhenOutstandingSharesArrive() {
+        UUID instrumentId = UUID.randomUUID();
+        UUID sectorId = UUID.randomUUID();
+        when(referenceData.findActiveInstrumentBySymbol("VNM")).thenReturn(
+                Optional.of(new InstrumentReference(instrumentId, "HOSE", "VNM", "COMMON_EQUITY", "ACTIVE")));
+        var existing = new EquityProfileEntity(UUID.randomUUID(), instrumentId, "CTCP VNM", "VNM Corp", sectorId,
+                null, null, "LISTED", LocalDate.of(2026, 8, 22), null, "VNSTOCK_KBS", "old", "SHARES_OUTSTANDING_UNAVAILABLE");
+        when(profiles.findFirstByInstrumentIdAndEffectiveToIsNull(instrumentId)).thenReturn(Optional.of(existing));
+
+        var withShares = new ProfileRecord("VNM", "CTCP VNM", "VNM Corp", "LISTED", LocalDate.of(2026, 8, 30), null, "x",
+                2_089_955_445L, new java.math.BigDecimal("35.5"));
+        var summary = service.importPackage(packageWith(EquityProfileImportService.CONTRACT_VERSION, List.of(withShares)));
+
+        assertThat(summary.results().get(0).status()).isEqualTo(ProfileStatus.UPDATED);
+        assertThat(existing.getEffectiveTo()).isEqualTo(LocalDate.of(2026, 8, 30));
+        org.mockito.ArgumentCaptor<EquityProfileEntity> saved = org.mockito.ArgumentCaptor.forClass(EquityProfileEntity.class);
+        org.mockito.Mockito.verify(profiles).save(saved.capture());
+        assertThat(saved.getValue().getSharesOutstanding()).isEqualTo(2_089_955_445L);
+        assertThat(saved.getValue().getSectorReferenceId()).isEqualTo(sectorId); // carried, not lost
+        assertThat(saved.getValue().getEffectiveTo()).isNull();
+    }
 }

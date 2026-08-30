@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -49,7 +50,41 @@ def fetch_universe():
     return frame[(frame["type"] == "stock") & (frame["exchange"].isin(["HOSE", "HNX", "UPCOM"]))]
 
 
-def build_records(frame, effective_from: str) -> list[dict[str, Any]]:
+def fetch_overview(symbol: str) -> dict[str, Any] | None:
+    """Feature 010 R-003: Company(kbs).overview() carries outstanding_shares / free_float_percentage.
+    A failed call returns None so the profile keeps SHARES_OUTSTANDING_UNAVAILABLE rather than a guess."""
+    try:
+        from vnstock import Company
+        frame = Company(symbol=symbol, source="kbs").overview()
+        if frame is None or len(frame) == 0:
+            return None
+        row = frame.iloc[0]
+        return {k: row[k] for k in frame.columns}
+    except Exception:  # noqa: BLE001 -- one symbol's overview failure must not stop the batch
+        return None
+
+
+def share_fields(overview: dict[str, Any] | None) -> tuple[int | None, str | None]:
+    if not overview:
+        return None, None
+    shares_raw = overview.get("outstanding_shares")
+    shares = None
+    try:
+        if shares_raw is not None and shares_raw == shares_raw and int(shares_raw) > 0:
+            shares = int(shares_raw)
+    except (TypeError, ValueError):
+        shares = None
+    free_float = None
+    ff = overview.get("free_float_percentage")
+    try:
+        if ff is not None and ff == ff and float(ff) >= 0:
+            free_float = format(round(float(ff), 6), "f")
+    except (TypeError, ValueError):
+        free_float = None
+    return shares, free_float
+
+
+def build_records(frame, effective_from: str, overview_lookup=fetch_overview) -> list[dict[str, Any]]:
     records = []
     seen_symbols = set()
     for _, row in frame.iterrows():
@@ -62,13 +97,16 @@ def build_records(frame, effective_from: str) -> list[dict[str, Any]]:
             continue  # company_name_vi is not-null in the schema; skip rather than fabricate a name
         name_en_raw = row.get("en_organ_name")
         name_en = str(name_en_raw).strip() if name_en_raw not in (None, "") else None
+        shares, free_float = share_fields(overview_lookup(symbol))
         record = {
             "canonicalRecord": "",
             "companyNameEn": name_en,
             "companyNameVi": name_vi,
             "effectiveFrom": effective_from,
+            "freeFloatRatio": free_float,
             "listingStatus": "LISTED",
-            "qualityReason": QUALITY_REASON,
+            "qualityReason": None if shares is not None else QUALITY_REASON,
+            "sharesOutstanding": shares,
             "symbol": symbol,
         }
         record["canonicalRecord"] = canonical_json({k: v for k, v in record.items() if k != "canonicalRecord"})
@@ -94,10 +132,25 @@ def build_package(records: list[dict[str, Any]], tool_version: str) -> dict[str,
 def main() -> None:
     parser = argparse.ArgumentParser(description="Create a local-only canonical Vnstock equity-profile package")
     parser.add_argument("--output", type=Path, default=Path("output"))
+    parser.add_argument("--requests-per-minute", type=float, default=30.0,
+                        help="Pacing for the per-symbol overview calls (Community tier ~60/min).")
     args = parser.parse_args()
     effective_from = datetime.now().date().isoformat()
-    records = build_records(fetch_universe(), effective_from)
-    package = build_package(records, "0.1.0")
+    interval_seconds = 60.0 / max(1, args.requests_per_minute)
+    progress = {"n": 0}
+
+    def paced_overview(symbol: str):
+        if progress["n"]:
+            time.sleep(interval_seconds)
+        progress["n"] += 1
+        if progress["n"] % 100 == 0:
+            print(f"  overview {progress['n']} symbols ...")
+        return fetch_overview(symbol)
+
+    records = build_records(fetch_universe(), effective_from, paced_overview)
+    with_shares = sum(1 for r in records if r["sharesOutstanding"] is not None)
+    print(f"Outstanding shares present for {with_shares}/{len(records)} symbols")
+    package = build_package(records, "0.2.0")  # 0.2.0: outstanding shares / free float (Feature 010)
     args.output.mkdir(parents=True, exist_ok=True)
     path = args.output / "equity-profile.json"
     path.write_text(json.dumps(package, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

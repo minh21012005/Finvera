@@ -26,7 +26,9 @@ public class EquityProfileImportPackageParser {
                 records.add(new EquityProfileImportService.ProfileRecord(
                         text(value, "symbol"), text(value, "companyNameVi"), nullableText(value, "companyNameEn"),
                         text(value, "listingStatus"), LocalDate.parse(text(value, "effectiveFrom")),
-                        nullableText(value, "qualityReason"), text(value, "canonicalRecord")));
+                        nullableText(value, "qualityReason"), text(value, "canonicalRecord"),
+                        value.path("sharesOutstanding").isNumber() ? value.path("sharesOutstanding").longValue() : null,
+                        value.path("freeFloatRatio").isTextual() ? new java.math.BigDecimal(value.path("freeFloatRatio").stringValue()) : null));
             }
             return new EquityProfileImportService.PackageInput(text(root, "contractVersion"),
                     text(root, "toolName"), text(root, "toolVersion"), text(root, "upstreamSource"),

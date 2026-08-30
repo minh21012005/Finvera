@@ -550,6 +550,7 @@ server-side ownership checks, but the input should be typed properly.
 | **Q-28** | `DONE` (2026-08-30, specs/002 T084 + specs/005 T042: bulk metric fetch for own-history; single replay per date in performance history) | Low | `CODE-READ` | Performance: `ValuationService.findBySymbol` runs up to 750 `FundamentalSummaryCalculator.calculate` passes plus an N+1 metric fetch on every read; `buildSectorSeries` calls `findBySymbol` per peer. `PortfolioAnalyticsV1.calculatePerformanceHistory` replays holdings twice per trading date. |
 | **Q-29** | `DONE` (2026-08-30: ARCHITECTURE §3 module map, logs untracked, zero-reference guard in specs/001 T090) | Low | `CONFIRMED` | `ARCHITECTURE.md` section 3's module map omits `portfolio/`, `research/`, `analyst/`. `finvera-be/local-import.out.log` and `.err.log` are tracked in git despite `*.log` in `.gitignore`. `BreadthCalculator.java:47` accepts a zero reference price, which would classify every instrument `ADVANCING`. |
 | **Q-30** | `DONE` (2026-08-30, specs/008 T011: fiscal-period staleness rule + `--full-refresh`) | Medium | `CONFIRMED` | `export_all_symbols.py` — fundamentals packages are checkpoint-"current" until the exporter version changes; unlike daily bars there is no date-aware staleness, so a new quarterly/annual report is never re-exported by a routine run. 2026-08-30: `--full-refresh` now forces fundamentals (and the new annual pass) to re-export; a proper fix is a fiscal-period staleness rule (re-export when `today > last period end + ~45 days`). |
+| **Q-31** | `DONE` code-side (2026-08-30, Feature 010 T001–T004; SC-001..003 measured after the owner's next `-FullRefresh`) | High | `CONFIRMED` | `valuation-v1` publishes for **7 / 3,050** current assessments. Measured causes (specs/010 R-001): `equity_profile.shares_outstanding` null for 1,524/1,524 (exporter never read `Company(kbs).overview()`); bank EPS `item_id` `earning_per_share_vnd` unmapped (483 `NO_DATA`); provider returns 4 periods, so the 8-quarter growth rule is unreachable (growth `MISSING` 1,543/1,543). Fix: profile exporter 0.2.0 + effective-dated profile revisions; EPS id mapped; `fundamental-summary-v2` annual fallback labelled `ANNUAL_BASIS`. |
 
 ---
 
@@ -635,6 +636,8 @@ After Groups E/F and Feature 008 (2026-08-30): backend 654/654 (+2 limits tests)
 
 After Feature 009 and Q-25/Q-28/Q-30 (2026-08-30): backend 659/659, exporter 23/23, AI 85/85, FE 129/129. Plan: 29 done, 0 deferred, 0 open.
 
+After Feature 010 (2026-08-30): backend 662/662 (+3 v2 summary, +1 profile revision), exporter 26/26 (+3). Plan: 30 done (Q-31 awaits the post-refresh measurement). Measurement plan once the owner runs `.efresh-data.ps1 -FullRefresh`: `select count(*) filter (where shares_outstanding is not null) from equity_profile where effective_to is null` (SC-001 ≥ 95 %); `select published, count(*) from valuation_assessment where is_current group by 1` (SC-002 ≥ 50 %); `EPS_GROWTH_PERCENT` `DEFINED` share among instruments with ≥ 2 annual reports (SC-003 ≥ 60 %).
+
 `finvera-fe`: `npx vitest run` 126/126, `npm run lint` clean, `npm run build`
 clean. `finvera-ai`: `uv run pytest` 81/81.
 
@@ -645,6 +648,7 @@ clean. `finvera-ai`: `uv run pytest` 81/81.
 | Date | Change |
 |---|---|
 | 2026-08-30 | Opened from the full-system review. Q-01 completed (R-016, T080). |
+| 2026-08-30 | Feature 010 implemented (spec → research → plan → tasks → code): outstanding shares/free float via provider overview with profile revisions, bank EPS id, `fundamental-summary-v2` annual fallback. Q-31 opened and closed code-side. |
 | 2026-08-30 | Feature 009 implemented (spec → research → plan → contract → tasks → code): extended fundamentals + screener filters; Q-17 done. |
 | 2026-08-30 | Q-25, Q-28, Q-30 done (reconciliation v2, N+1/double-replay removal, fiscal-period staleness). Remaining: Q-17 deferred by design. |
 | 2026-08-30 | Feature 008 implemented (US1 EBITDA facts, US2 free cash flow, US3 price limits/room); balance sheet confirmed unavailable so EV_EBITDA remains honestly withheld. Q-13..Q-16 done, Q-17 deferred. |

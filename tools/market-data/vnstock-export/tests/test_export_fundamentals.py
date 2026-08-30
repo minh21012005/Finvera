@@ -194,3 +194,10 @@ def test_dividend_yield_fraction_becomes_percent_with_derivation():
     assert records[0]["metricCode"] == "DIVIDEND_YIELD"
     assert records[0]["value"] == "4.000000"
     assert records[0]["derivation"] == "kbs-dividend-yield-fraction-to-percent"
+
+
+def test_bank_eps_item_id_is_mapped_and_normalized_like_non_bank_eps():
+    frame = FakeFrame([{"item_id": "earning_per_share_vnd", "item": "Lãi cơ bản trên cổ phiếu", "2026-Q2": "4050730.0"}])
+    records = export_fundamentals.pivot_wide_table(frame, export_fundamentals.INCOME_STATEMENT_MAP, "INCOME_STATEMENT")
+    assert records[0]["metricCode"] == "EPS"
+    assert records[0]["value"] == "4050.73"

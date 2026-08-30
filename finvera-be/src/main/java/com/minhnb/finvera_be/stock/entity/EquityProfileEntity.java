@@ -48,6 +48,8 @@ public class EquityProfileEntity {
     public String getListingStatus() { return listingStatus; }
     public LocalDate getEffectiveFrom() { return effectiveFrom; }
     public LocalDate getEffectiveTo() { return effectiveTo; }
+    /** Closes this revision the day a newer one takes effect (Feature 010 profile revisions). */
+    public void closeAt(LocalDate effectiveTo) { this.effectiveTo = effectiveTo; }
     public String getSource() { return source; }
     public String getSourceRevision() { return sourceRevision; }
     public String getQualityReason() { return qualityReason; }

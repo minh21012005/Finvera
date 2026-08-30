@@ -75,7 +75,7 @@ class FundamentalReportServiceTests {
 
         assertThat(result.periodType()).isNull();
         assertThat(summaries.findFirstByInstrumentIdAndRuleVersionOrderByAsOfTradingDateDescCalculatedAtDesc(
-                instrumentId, "fundamental-summary-v1")).isEmpty();
+                instrumentId, com.minhnb.finvera_be.stock.domain.fundamentals.FundamentalSummaryCalculator.RULE_VERSION)).isEmpty();
     }
 
     @Test
@@ -88,7 +88,7 @@ class FundamentalReportServiceTests {
 
         var persisted = summaries
                 .findFirstByInstrumentIdAndRuleVersionOrderByAsOfTradingDateDescCalculatedAtDesc(
-                        instrumentId, "fundamental-summary-v1")
+                        instrumentId, com.minhnb.finvera_be.stock.domain.fundamentals.FundamentalSummaryCalculator.RULE_VERSION)
                 .orElseThrow();
         assertThat(persisted.getBasisPeriodLabel()).isEqualTo("2025-Q4");
         assertThat(summaryInputs.findBySummaryId(persisted.getId())).hasSize(4);
@@ -97,7 +97,7 @@ class FundamentalReportServiceTests {
         fundamentals.findBySymbol("STF02");
         var stillCurrent = summaries
                 .findFirstByInstrumentIdAndRuleVersionOrderByAsOfTradingDateDescCalculatedAtDesc(
-                        instrumentId, "fundamental-summary-v1")
+                        instrumentId, com.minhnb.finvera_be.stock.domain.fundamentals.FundamentalSummaryCalculator.RULE_VERSION)
                 .orElseThrow();
         assertThat(stillCurrent.getId()).isEqualTo(persisted.getId());
     }
@@ -109,7 +109,7 @@ class FundamentalReportServiceTests {
         var beforeRestatement = fundamentals.findBySymbol("STF03").orElseThrow();
         UUID previousSummaryId = summaries
                 .findFirstByInstrumentIdAndRuleVersionOrderByAsOfTradingDateDescCalculatedAtDesc(
-                        resolveInstrumentId("STF03"), "fundamental-summary-v1")
+                        resolveInstrumentId("STF03"), com.minhnb.finvera_be.stock.domain.fundamentals.FundamentalSummaryCalculator.RULE_VERSION)
                 .orElseThrow().getId();
         assertThat(beforeRestatement.metrics()).isNotEmpty();
 
@@ -123,7 +123,7 @@ class FundamentalReportServiceTests {
 
         UUID newSummaryId = summaries
                 .findFirstByInstrumentIdAndRuleVersionOrderByAsOfTradingDateDescCalculatedAtDesc(
-                        resolveInstrumentId("STF03"), "fundamental-summary-v1")
+                        resolveInstrumentId("STF03"), com.minhnb.finvera_be.stock.domain.fundamentals.FundamentalSummaryCalculator.RULE_VERSION)
                 .orElseThrow().getId();
         assertThat(newSummaryId).isNotEqualTo(previousSummaryId);
 

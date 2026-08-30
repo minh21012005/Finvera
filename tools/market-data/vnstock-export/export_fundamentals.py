@@ -32,6 +32,7 @@ INCOME_STATEMENT_MAP = {
     "gross_profit": "GROSS_PROFIT",
     "net_profit": "NET_PROFIT",
     "earnings_per_share_vnd": "EPS",
+    "earning_per_share_vnd": "EPS",  # banks (MBB) use the singular id -- Feature 010 R-004
     "operating_profit": "OPERATING_PROFIT",
     "revenue": "REVENUE",
 }

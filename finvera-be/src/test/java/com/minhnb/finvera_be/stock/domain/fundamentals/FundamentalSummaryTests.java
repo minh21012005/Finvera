@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
  */
 class FundamentalSummaryTests {
 
-    private static final String RULE_VERSION = "fundamental-summary-v1";
+    private static final String RULE_VERSION = FundamentalSummaryCalculator.RULE_VERSION;
 
     // ── TTM from four quarters ─────────────────────────────────────────────────
 
@@ -501,5 +501,65 @@ class FundamentalSummaryTests {
         assertThat(fcf.qualityReason()).isEqualTo("kbs-fcf-ocf-plus-capex-v1");
         // The newest period is still the quarter; the annual fallback does not move the basis.
         assertThat(result.basisPeriodLabel()).isEqualTo("2026-Q2");
+    }
+
+    private static FundamentalSummaryCalculator.ReportPeriod annualReport(int fiscalYear,
+            FundamentalSummaryCalculator.ReportMetric... metrics) {
+        return new FundamentalSummaryCalculator.ReportPeriod(UUID.randomUUID(), "ANNUAL", fiscalYear, null,
+                LocalDate.of(fiscalYear, 1, 1), LocalDate.of(fiscalYear, 12, 31), "CONSOLIDATED", List.of(metrics));
+    }
+
+    @Test
+    void v2UsesTheLatestAnnualReportForTtmWhenFewerThanFourQuartersAreVisible() {
+        var calculator = new FundamentalSummaryCalculator();
+        var reports = List.of(
+                quarterReport(UUID.randomUUID(), 2026, 1, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 3, 31), metric("EPS", "1000.000000")),
+                quarterReport(UUID.randomUUID(), 2026, 2, LocalDate.of(2026, 4, 1), LocalDate.of(2026, 6, 30), metric("EPS", "1100.000000")),
+                annualReport(2025, metric("EPS", "4159.650000"), metric("REVENUE", "62000.000000")),
+                annualReport(2024, metric("EPS", "3800.000000"), metric("REVENUE", "60000.000000")));
+
+        var result = calculator.calculate(reports, LocalDate.of(2026, 8, 30));
+
+        var eps = findSummaryMetric(result, "EPS_TTM");
+        assertThat(eps.applicability()).isEqualTo(MetricApplicability.DEFINED);
+        assertThat(eps.value()).isEqualByComparingTo("4159.65");   // annual, never 1000 + 1100
+        assertThat(eps.qualityReason()).isEqualTo("ANNUAL_BASIS");
+        assertThat(result.basisPeriodLabel()).isEqualTo("2026-Q2"); // basis period is still the newest quarter
+        var growth = findSummaryMetric(result, "EPS_GROWTH_PERCENT");
+        assertThat(growth.applicability()).isEqualTo(MetricApplicability.DEFINED);
+        assertThat(growth.value()).isEqualByComparingTo("9.464473684200"); // (4159.65/3800 - 1) * 100 at scale 12
+        assertThat(growth.qualityReason()).isEqualTo("ANNUAL_BASIS");
+        var revenueGrowth = findSummaryMetric(result, "REVENUE_GROWTH_PERCENT");
+        assertThat(revenueGrowth.value()).isEqualByComparingTo("3.333333333300");
+    }
+
+    @Test
+    void v2AnnualGrowthIsNotApplicableWhenThePriorYearIsNonPositive() {
+        var calculator = new FundamentalSummaryCalculator();
+        var reports = List.of(
+                annualReport(2025, metric("EPS", "500.000000")),
+                annualReport(2024, metric("EPS", "-20.000000")));
+        var result = calculator.calculate(reports, LocalDate.of(2026, 8, 30));
+        assertThat(findSummaryMetric(result, "EPS_GROWTH_PERCENT").applicability()).isEqualTo(MetricApplicability.NOT_APPLICABLE);
+    }
+
+    @Test
+    void v2KeepsTheQuarterlyRuleWhenEightQuartersAreVisibleEvenIfAnnualsExist() {
+        var calculator = new FundamentalSummaryCalculator();
+        var reports = new java.util.ArrayList<FundamentalSummaryCalculator.ReportPeriod>();
+        int[][] q = {{2024, 3}, {2024, 4}, {2025, 1}, {2025, 2}, {2025, 3}, {2025, 4}, {2026, 1}, {2026, 2}};
+        String[] eps = {"100", "100", "100", "100", "150", "150", "150", "150"};
+        for (int i = 0; i < q.length; i++) {
+            int y = q[i][0], qq = q[i][1];
+            reports.add(quarterReport(UUID.randomUUID(), y, qq, LocalDate.of(y, (qq - 1) * 3 + 1, 1),
+                    LocalDate.of(y, qq * 3, 28), metric("EPS", eps[i] + ".000000")));
+        }
+        reports.add(annualReport(2025, metric("EPS", "9999.000000")));
+        reports.add(annualReport(2024, metric("EPS", "1.000000")));
+        var result = calculator.calculate(reports, LocalDate.of(2026, 8, 30));
+        var growth = findSummaryMetric(result, "EPS_GROWTH_PERCENT");
+        assertThat(growth.value()).isEqualByComparingTo("50"); // 600 vs 400, quarterly rule, not 9999 vs 1
+        assertThat(growth.qualityReason()).isNull();
+        assertThat(findSummaryMetric(result, "EPS_TTM").qualityReason()).isNull();
     }
 }

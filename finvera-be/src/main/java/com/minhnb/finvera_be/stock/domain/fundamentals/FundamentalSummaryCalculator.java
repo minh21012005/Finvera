@@ -22,7 +22,14 @@ import java.util.UUID;
  */
 public final class FundamentalSummaryCalculator {
 
-    public static final String RULE_VERSION = "fundamental-summary-v1";
+    /**
+     * v2 (Feature 010 research R-005): when fewer than four quarters are visible the TTM
+     * figures come from the latest annual report, and when fewer than eight quarters are
+     * visible growth is annual-over-prior-annual; every such metric carries
+     * {@code ANNUAL_BASIS}. Partial quarter sets are never mixed with annual figures.
+     */
+    public static final String RULE_VERSION = "fundamental-summary-v2";
+    public static final String ANNUAL_BASIS = "ANNUAL_BASIS";
     private static final BigDecimal ONE_HUNDRED = new BigDecimal("100");
 
     public SummaryResult calculate(List<ReportPeriod> reports, LocalDate asOfDate) {
@@ -74,11 +81,17 @@ public final class FundamentalSummaryCalculator {
                 .filter(r -> "QUARTER".equals(r.periodType()))
                 .toList();
 
+        List<ReportPeriod> annualReports = sorted.stream()
+                .filter(r -> "ANNUAL".equals(r.periodType()))
+                .toList();
         List<ReportPeriod> currentTtmPeriods;
+        boolean ttmOnAnnualBasis = false;
         if (quarterReports.size() >= 4) {
             currentTtmPeriods = quarterReports.subList(0, 4);
-        } else if (quarterReports.isEmpty() && "ANNUAL".equals(newest.periodType())) {
-            currentTtmPeriods = List.of(newest);
+        } else if (!annualReports.isEmpty()) {
+            // v2: fewer than four quarters visible -> latest annual report is the TTM basis.
+            currentTtmPeriods = List.of(annualReports.get(0));
+            ttmOnAnnualBasis = true;
         } else {
             currentTtmPeriods = quarterReports;
         }
@@ -93,20 +106,21 @@ public final class FundamentalSummaryCalculator {
         }
 
         // TTM Metrics (4 quarters required or 1 annual report)
+        int before = summaryMetrics.size();
         addTtmSumMetric(summaryMetrics, "NET_PROFIT", "NET_PROFIT_TTM", currentTtmPeriods);
         addEpsTtmMetric(summaryMetrics, currentTtmPeriods, newest);
         addTtmSumMetric(summaryMetrics, "REVENUE", "REVENUE_TTM", currentTtmPeriods);
         addTtmSumMetric(summaryMetrics, "EBITDA", "EBITDA_TTM", currentTtmPeriods);
         addTtmSumMetric(summaryMetrics, "DIVIDEND_PER_SHARE", "DIVIDEND_PER_SHARE_TTM", currentTtmPeriods);
+        if (ttmOnAnnualBasis) {
+            labelAnnualBasis(summaryMetrics, before);
+        }
 
-        // EPS Growth Percent
+        // Growth: quarterly TTM vs prior TTM when eight quarters are visible; else annual YoY (v2).
         addGrowthMetric(summaryMetrics, contributingIds, "EPS", "EPS_GROWTH_PERCENT",
-                "NEGATIVE_OR_ZERO_PRIOR_EPS", quarterReports, currentTtmPeriods);
-
-        // Revenue Growth Percent (Feature 003 research R-005: additive coverage under the
-        // unchanged fundamental-summary-v1 rule version, mirroring EPS_GROWTH_PERCENT exactly).
+                "NEGATIVE_OR_ZERO_PRIOR_EPS", quarterReports, currentTtmPeriods, annualReports);
         addGrowthMetric(summaryMetrics, contributingIds, "REVENUE", "REVENUE_GROWTH_PERCENT",
-                "NEGATIVE_OR_ZERO_PRIOR_REVENUE", quarterReports, currentTtmPeriods);
+                "NEGATIVE_OR_ZERO_PRIOR_REVENUE", quarterReports, currentTtmPeriods, annualReports);
 
         // Newest Report Snapshot Metrics
         addLatestMetric(summaryMetrics, "ROE", newest);
@@ -216,8 +230,30 @@ public final class FundamentalSummaryCalculator {
             String targetMetricCode,
             String notApplicableReason,
             List<ReportPeriod> quarterReports,
-            List<ReportPeriod> currentTtmPeriods) {
+            List<ReportPeriod> currentTtmPeriods,
+            List<ReportPeriod> annualReports) {
         BigDecimal currentTtm = getTtmSum(sourceMetricCode, currentTtmPeriods);
+        if (quarterReports.size() < 8 && annualReports.size() >= 2) {
+            // v2 annual-over-prior-annual fallback (research R-005).
+            List<ReportPeriod> latest = List.of(annualReports.get(0));
+            List<ReportPeriod> prior = List.of(annualReports.get(1));
+            for (ReportPeriod a : List.of(annualReports.get(0), annualReports.get(1))) {
+                if (a.reportId() != null) {
+                    contributingIds.add(a.reportId());
+                }
+            }
+            BigDecimal latestValue = getTtmSum(sourceMetricCode, latest);
+            BigDecimal priorValue = getTtmSum(sourceMetricCode, prior);
+            if (latestValue == null || priorValue == null) {
+                summaryMetrics.add(new SummaryMetric(targetMetricCode, null, MetricApplicability.MISSING, "INSUFFICIENT_HISTORY"));
+            } else if (priorValue.compareTo(BigDecimal.ZERO) <= 0) {
+                summaryMetrics.add(new SummaryMetric(targetMetricCode, null, MetricApplicability.NOT_APPLICABLE, notApplicableReason));
+            } else {
+                BigDecimal growthPercent = DecimalMath.divide12(latestValue, priorValue).subtract(BigDecimal.ONE).multiply(ONE_HUNDRED);
+                summaryMetrics.add(new SummaryMetric(targetMetricCode, growthPercent, MetricApplicability.DEFINED, ANNUAL_BASIS));
+            }
+            return;
+        }
         if (quarterReports.size() >= 8) {
             List<ReportPeriod> priorTtmQuarters = quarterReports.subList(4, 8);
             for (ReportPeriod q : priorTtmQuarters) {
@@ -243,6 +279,15 @@ public final class FundamentalSummaryCalculator {
         } else {
             summaryMetrics.add(new SummaryMetric(
                     targetMetricCode, null, MetricApplicability.MISSING, "INSUFFICIENT_HISTORY"));
+        }
+    }
+
+    private static void labelAnnualBasis(List<SummaryMetric> metrics, int fromIndex) {
+        for (int i = fromIndex; i < metrics.size(); i++) {
+            SummaryMetric m = metrics.get(i);
+            if (m.applicability() == MetricApplicability.DEFINED) {
+                metrics.set(i, new SummaryMetric(m.metricCode(), m.value(), m.applicability(), ANNUAL_BASIS));
+            }
         }
     }
 

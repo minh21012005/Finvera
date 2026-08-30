@@ -50,13 +50,31 @@ public class EquityProfileImportService {
                 continue;
             }
             UUID instrumentId = instrumentOpt.get().instrumentId();
-            if (profiles.findFirstByInstrumentIdAndEffectiveToIsNull(instrumentId).isPresent()) {
-                results.add(new ProfileResult(record.symbol(), ProfileStatus.ALREADY_PRESENT));
+            var current = profiles.findFirstByInstrumentIdAndEffectiveToIsNull(instrumentId);
+            if (current.isPresent()) {
+                // Feature 010 FR-001: a profile is revised (effective-dated) only when a share count
+                // arrives for a row that has none, or the count changed. Names alone never revise.
+                EquityProfileEntity existing = current.orElseThrow();
+                boolean sharesArrived = record.sharesOutstanding() != null
+                        && !record.sharesOutstanding().equals(existing.getSharesOutstanding());
+                if (!sharesArrived) {
+                    results.add(new ProfileResult(record.symbol(), ProfileStatus.ALREADY_PRESENT));
+                    continue;
+                }
+                existing.closeAt(record.effectiveFrom());
+                profiles.saveAndFlush(existing);
+                profiles.save(new EquityProfileEntity(UUID.randomUUID(), instrumentId, record.companyNameVi(),
+                        record.companyNameEn(), existing.getSectorReferenceId(), record.sharesOutstanding(),
+                        record.freeFloatRatio(), record.listingStatus(), record.effectiveFrom(), null,
+                        input.upstreamSource(), input.packageSha256(), null));
+                results.add(new ProfileResult(record.symbol(), ProfileStatus.UPDATED));
                 continue;
             }
             profiles.save(new EquityProfileEntity(UUID.randomUUID(), instrumentId, record.companyNameVi(),
-                    record.companyNameEn(), null, null, null, record.listingStatus(), record.effectiveFrom(), null,
-                    input.upstreamSource(), input.packageSha256(), record.qualityReason()));
+                    record.companyNameEn(), null, record.sharesOutstanding(), record.freeFloatRatio(),
+                    record.listingStatus(), record.effectiveFrom(), null,
+                    input.upstreamSource(), input.packageSha256(),
+                    record.sharesOutstanding() != null ? null : record.qualityReason()));
             results.add(new ProfileResult(record.symbol(), ProfileStatus.CREATED));
         }
         return new Summary(results);
@@ -123,10 +141,16 @@ public class EquityProfileImportService {
     }
 
     public record ProfileRecord(String symbol, String companyNameVi, String companyNameEn, String listingStatus,
-            LocalDate effectiveFrom, String qualityReason, String canonicalRecord) {
+            LocalDate effectiveFrom, String qualityReason, String canonicalRecord,
+            Long sharesOutstanding, java.math.BigDecimal freeFloatRatio) {
+        public ProfileRecord(String symbol, String companyNameVi, String companyNameEn, String listingStatus,
+                LocalDate effectiveFrom, String qualityReason, String canonicalRecord) {
+            this(symbol, companyNameVi, companyNameEn, listingStatus, effectiveFrom, qualityReason, canonicalRecord,
+                    null, null);
+        }
     }
 
-    public enum ProfileStatus { CREATED, ALREADY_PRESENT, UNKNOWN_INSTRUMENT }
+    public enum ProfileStatus { CREATED, UPDATED, ALREADY_PRESENT, UNKNOWN_INSTRUMENT }
 
     public record ProfileResult(String symbol, ProfileStatus status) {
     }
