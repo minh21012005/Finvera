@@ -265,9 +265,10 @@ def run_dataset(entry: dict[str, Any], key: str, label: str, action, on_success,
         except Exception as exc:  # noqa: BLE001 -- one bad symbol must not stop the batch
             name = type(exc).__name__
             if name in TRANSIENT_FAILURE_NAMES and attempt == 1:
-                print(f"  {label}: rate-limited, retrying after the window resets")
-                window = quota_status() or {}
-                time.sleep(min(MAX_QUOTA_WAIT_SECONDS, float(window.get("reset_in_seconds", 60)) + 0.5))
+                # The provider enforces the limit server-side; the local counter can lag it, so
+                # wait a full window (not just the remainder of this one) before the retry.
+                print(f"  {label}: rate-limited, retrying in {MAX_QUOTA_WAIT_SECONDS:.0f}s")
+                time.sleep(MAX_QUOTA_WAIT_SECONDS)
                 continue
             entry[key] = f"failed:{name}"
             on_failure()
@@ -399,6 +400,24 @@ def main() -> int:
         process_symbol(symbol, args, checkpoint, checkpoint_path)
         if index < len(remaining):
             time.sleep(interval_seconds)
+
+    # Q-39: one more pass over symbols whose only problem was the rate limit, so a run
+    # normally finishes clean instead of leaving them for the next run.
+    transient = [s for s in remaining if any(is_transient_failure(checkpoint["symbols"].get(s, {}).get(k))
+                                             for k in ("daily_bars", "fundamentals", "fundamentals_annual"))]
+    if transient:
+        print()
+        print(f"Retrying {len(transient)} rate-limited symbols after a full window...")
+        time.sleep(MAX_QUOTA_WAIT_SECONDS)
+        for index, symbol in enumerate(transient, start=1):
+            entry = checkpoint["symbols"][symbol]
+            for key in ("daily_bars", "fundamentals", "fundamentals_annual"):
+                if is_transient_failure(entry.get(key)):
+                    del entry[key]
+            print(f"[retry {index}/{len(transient)}] {symbol}")
+            process_symbol(symbol, args, checkpoint, checkpoint_path)
+            if index < len(transient):
+                time.sleep(interval_seconds)
 
     done_count = sum(1 for s, e in checkpoint["symbols"].items() if is_finished(s, e, args))
     failed_count = sum(
