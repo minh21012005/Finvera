@@ -279,6 +279,25 @@ public final class ScreenerV1 {
         if (outcome != null) {
             return outcome;
         }
+        RatioFilters r = f.ratios();
+        if (r != null) {
+            Object[][] ratioFilters = {
+                    {"PS", r.psMin(), r.psMax(), "ps"},
+                    {"BETA", r.betaMin(), r.betaMax(), "beta"},
+                    {"GROSS_MARGIN", r.grossMarginMin(), r.grossMarginMax(), "grossMargin"},
+                    {"NET_MARGIN", r.netMarginMin(), r.netMarginMax(), "netMargin"},
+                    {"CURRENT_RATIO", r.currentRatioMin(), r.currentRatioMax(), "currentRatio"},
+                    {"INTEREST_COVERAGE", r.interestCoverageMin(), r.interestCoverageMax(), "interestCoverage"},
+                    {"DEBT_TO_ASSETS", r.debtToAssetsMin(), r.debtToAssetsMax(), "debtToAssets"},
+            };
+            for (Object[] rf : ratioFilters) {
+                outcome = evaluateSummaryMetric(c, (String) rf[0], (BigDecimal) rf[1], (BigDecimal) rf[2],
+                        (String) rf[3], values);
+                if (outcome != null) {
+                    return outcome;
+                }
+            }
+        }
         return matched("FUNDAMENTAL");
     }
 
@@ -497,7 +516,31 @@ public final class ScreenerV1 {
             BigDecimal roaMin, BigDecimal roaMax,
             BigDecimal peMin, BigDecimal peMax,
             BigDecimal pbMin, BigDecimal pbMax,
-            BigDecimal debtToEquityMin, BigDecimal debtToEquityMax) {
+            BigDecimal debtToEquityMin, BigDecimal debtToEquityMax,
+            RatioFilters ratios) {
+        /** Pre-Feature-009 shape: no provider-ratio filters selected. */
+        public FundamentalFilter(
+                BigDecimal revenueGrowthPercentMin, BigDecimal revenueGrowthPercentMax,
+                BigDecimal earningsGrowthPercentMin, BigDecimal earningsGrowthPercentMax,
+                BigDecimal roeMin, BigDecimal roeMax,
+                BigDecimal roaMin, BigDecimal roaMax,
+                BigDecimal peMin, BigDecimal peMax,
+                BigDecimal pbMin, BigDecimal pbMax,
+                BigDecimal debtToEquityMin, BigDecimal debtToEquityMax) {
+            this(revenueGrowthPercentMin, revenueGrowthPercentMax, earningsGrowthPercentMin, earningsGrowthPercentMax,
+                    roeMin, roeMax, roaMin, roaMax, peMin, peMax, pbMin, pbMax, debtToEquityMin, debtToEquityMax, null);
+        }
+    }
+
+    /** Feature 009 (contract provider-ratio-facts-v1 U-4): provider-reported ratio filters. */
+    public record RatioFilters(
+            BigDecimal psMin, BigDecimal psMax,
+            BigDecimal betaMin, BigDecimal betaMax,
+            BigDecimal grossMarginMin, BigDecimal grossMarginMax,
+            BigDecimal netMarginMin, BigDecimal netMarginMax,
+            BigDecimal currentRatioMin, BigDecimal currentRatioMax,
+            BigDecimal interestCoverageMin, BigDecimal interestCoverageMax,
+            BigDecimal debtToAssetsMin, BigDecimal debtToAssetsMax) {
     }
 
     public record ScreenCriteria(MarketFilter market, PriceFilter price, TechnicalFilter technical,

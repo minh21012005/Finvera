@@ -268,4 +268,21 @@ class FundamentalReportTests {
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("Metric not found: " + metricCode));
     }
+
+    @Test
+    void providerReportedRatiosAreAllowedAndNeverInheritStatementUnitScale() {
+        var acceptance = new FundamentalReportAcceptance();
+        var input = new FundamentalReportAcceptance.ReportInput("QUARTER", 2026, 2,
+                java.time.LocalDate.of(2026, 4, 1), java.time.LocalDate.of(2026, 6, 30), "UNKNOWN", "UNKNOWN", "VND",
+                1000, FundamentalReportAcceptance.CATALOG_VERSION_V1, java.util.List.of(
+                        new FundamentalReportAcceptance.MetricInput("GROSS_MARGIN", new java.math.BigDecimal("41.8"), "DEFINED", "PROVIDER_REPORTED"),
+                        new FundamentalReportAcceptance.MetricInput("BETA", new java.math.BigDecimal("0.52"), "DEFINED", "PROVIDER_REPORTED"),
+                        new FundamentalReportAcceptance.MetricInput("NIM", new java.math.BigDecimal("1.0"), "DEFINED", "PROVIDER_REPORTED")));
+        var result = acceptance.accept(input);
+        assertThat(result.accepted()).isTrue();
+        assertThat(result.metrics()).extracting(FundamentalReportAcceptance.AcceptedMetric::value)
+                .containsExactly(new java.math.BigDecimal("41.8"), new java.math.BigDecimal("0.52"), new java.math.BigDecimal("1.0"));
+        assertThat(result.metrics()).extracting(FundamentalReportAcceptance.AcceptedMetric::qualityReason)
+                .containsOnly("PROVIDER_REPORTED");
+    }
 }

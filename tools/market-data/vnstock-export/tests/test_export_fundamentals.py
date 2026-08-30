@@ -90,8 +90,8 @@ def test_kbs_ratio_bvps_and_trailing_eps_are_mapped_unscaled():
     by_code = {r["metricCode"]: r["value"] for r in records}
     assert by_code["BVPS"] == "18160.0"
     assert by_code["TRAILING_EPS"] == "4159.65"
-    assert by_code["DIVIDEND_YIELD"] == "0.04"
-    assert by_code["EV_EBITDA"] == "26.02"
+    assert by_code["DIVIDEND_YIELD"] == "4.000000"  # KBS fraction -> percent (Feature 009 R-004.1)
+    assert "EV_EBITDA" not in by_code  # provider valuation ratios are never imported (Feature 009 R-003)
 
 
 def test_kbs_income_statement_revenue_and_operating_profit_are_mapped():
@@ -169,3 +169,28 @@ def test_bank_without_capex_row_yields_no_fcf():
     ])
     records = export_fundamentals.build_metric_records("MBB", FakeFrame([]), FakeFrame([]), cash_flow)
     assert not [r for r in records if r["metricCode"] == "FREE_CASH_FLOW"]
+
+
+def test_provider_ratios_are_mapped_and_growth_rows_resolved_by_label():
+    ratio = FakeFrame([
+        {"item_id": "gross_margin", "item": "Tỷ suất lợi nhuận gộp biên", "2026-Q2": "41.8"},
+        {"item_id": "beta", "item": "Beta", "2026-Q2": "0.52"},
+        {"item_id": "total_assets", "item": "Tăng trưởng tổng tài sản", "2026-Q2": "-3.47"},
+        {"item_id": "ev_ebitda", "item": "EV/EBITDA", "2026-Q2": "26.02"},
+        {"item_id": "cash_return_on_equity", "item": "Dòng tiền từ HĐKD trên VCSH", "2026-Q2": "0.0"},
+    ])
+    records = export_fundamentals.pivot_wide_table(ratio, export_fundamentals.RATIO_MAP, "RATIO")
+    by_code = {r["metricCode"]: r["value"] for r in records}
+    assert by_code["GROSS_MARGIN"] == "41.8"
+    assert by_code["BETA"] == "0.52"
+    assert by_code["TOTAL_ASSETS_GROWTH_PERCENT"] == "-3.47"
+    assert "EV_EBITDA" not in by_code          # provider valuation ratios are never imported
+    assert "CASH_RETURN_ON_EQUITY" not in by_code  # zero-only cash-flow family is not mapped
+
+
+def test_dividend_yield_fraction_becomes_percent_with_derivation():
+    ratio = FakeFrame([{"item_id": "dividend_yield", "item": "Tỷ suất cổ tức", "2026-Q2": "0.04"}])
+    records = export_fundamentals.pivot_wide_table(ratio, export_fundamentals.RATIO_MAP, "RATIO")
+    assert records[0]["metricCode"] == "DIVIDEND_YIELD"
+    assert records[0]["value"] == "4.000000"
+    assert records[0]["derivation"] == "kbs-dividend-yield-fraction-to-percent"

@@ -55,7 +55,8 @@ class StockMigrationTests {
                 result.next();
                 // V003 seeds 15 metric codes; V014 adds BVPS, TRAILING_EPS, and
                 // DIVIDEND_YIELD under the same catalog version.
-                assertThat(result.getInt(1)).isEqualTo(18);
+                // V015 (Feature 009) adds 22 provider-reported ratio codes.
+                assertThat(result.getInt(1)).isEqualTo(40);
             }
         }
     }

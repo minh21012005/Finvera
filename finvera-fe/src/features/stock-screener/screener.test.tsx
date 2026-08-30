@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { ScreenerFilters } from "./components/screener-filters";
-import { buildScreenRequest } from "./components/screener-filters-model";
+import { buildScreenRequest, EMPTY_FORM } from "./components/screener-filters-model";
 import { ScreenerResults } from "./components/screener-results";
 import type { ScreenResponse } from "./api/stock-screener";
 
@@ -66,6 +66,7 @@ describe("ScreenerFilters", () => {
 describe("buildScreenRequest", () => {
   it("normalizes the exchange field to uppercase", () => {
     const request = buildScreenRequest({
+      ...EMPTY_FORM,
       exchange: "hose",
       marketCapMin: "",
       marketCapMax: "",

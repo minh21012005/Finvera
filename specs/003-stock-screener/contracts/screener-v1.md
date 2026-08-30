@@ -157,7 +157,14 @@ recalculated (research R-004).
 | `roaMin`/`roaMax` | `fundamental_summary_metric` code `ROA` | inclusive range |
 | `peMin`/`peMax` | `valuation_metric` code `PE` on the current `valuation_assessment` | inclusive range |
 | `pbMin`/`pbMax` | `valuation_metric` code `PB` on the current `valuation_assessment` | inclusive range |
-| `debtToEquityMin`/`Max` | `fundamental_summary_metric` code `DEBT_TO_EQUITY` | inclusive range |
+| `debtToEquityMin`/`Max` | `fundamental_summary_metric` code `DEBT_TO_EQUITY` (percent points — Feature 009 R-004.2) | inclusive range |
+| `psMin`/`psMax` | `fundamental_summary_metric` code `PS` (Feature 009, provider-reported) | inclusive range |
+| `betaMin`/`betaMax` | `fundamental_summary_metric` code `BETA` (Feature 009) | inclusive range |
+| `grossMarginMin`/`Max` | `fundamental_summary_metric` code `GROSS_MARGIN` (Feature 009, percent) | inclusive range |
+| `netMarginMin`/`Max` | `fundamental_summary_metric` code `NET_MARGIN` (Feature 009, percent) | inclusive range |
+| `currentRatioMin`/`Max` | `fundamental_summary_metric` code `CURRENT_RATIO` (Feature 009) | inclusive range |
+| `interestCoverageMin`/`Max` | `fundamental_summary_metric` code `INTEREST_COVERAGE` (Feature 009) | inclusive range |
+| `debtToAssetsMin`/`Max` | `fundamental_summary_metric` code `DEBT_TO_ASSETS` (Feature 009, percent) | inclusive range |
 
 A `PE`/`PB` filter excludes a stock whose current `valuation_assessment` is
 withheld entirely (`classification is null`), not only a stock whose `PE`/

@@ -199,6 +199,21 @@ components:
         pbMax: { $ref: "#/components/schemas/Decimal" }
         debtToEquityMin: { $ref: "#/components/schemas/Decimal" }
         debtToEquityMax: { $ref: "#/components/schemas/Decimal" }
+        # Feature 009 provider-reported ratio filters (contract provider-ratio-facts-v1 U-4)
+        psMin: { $ref: "#/components/schemas/Decimal" }
+        psMax: { $ref: "#/components/schemas/Decimal" }
+        betaMin: { $ref: "#/components/schemas/Decimal" }
+        betaMax: { $ref: "#/components/schemas/Decimal" }
+        grossMarginMin: { $ref: "#/components/schemas/Decimal" }
+        grossMarginMax: { $ref: "#/components/schemas/Decimal" }
+        netMarginMin: { $ref: "#/components/schemas/Decimal" }
+        netMarginMax: { $ref: "#/components/schemas/Decimal" }
+        currentRatioMin: { $ref: "#/components/schemas/Decimal" }
+        currentRatioMax: { $ref: "#/components/schemas/Decimal" }
+        interestCoverageMin: { $ref: "#/components/schemas/Decimal" }
+        interestCoverageMax: { $ref: "#/components/schemas/Decimal" }
+        debtToAssetsMin: { $ref: "#/components/schemas/Decimal" }
+        debtToAssetsMax: { $ref: "#/components/schemas/Decimal" }
 
     SortField:
       type: string

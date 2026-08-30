@@ -72,7 +72,10 @@ public class FundamentalReportImportService {
             List<MetricValue> metrics = metricRecords.stream()
                     .filter(r -> FundamentalReportAcceptance.ALLOWED_METRIC_CODES.contains(r.metricCode()))
                     // A derived record's rule id (Feature 008 R-005) rides as the DEFINED row's quality reason.
-                    .map(r -> new MetricValue(r.metricCode(), r.value(), MetricApplicability.DEFINED.name(), r.derivation()))
+                    .map(r -> new MetricValue(r.metricCode(), r.value(), MetricApplicability.DEFINED.name(),
+                            r.derivation() != null ? r.derivation()
+                                    : FundamentalReportAcceptance.PROVIDER_RATIO_CODES.contains(r.metricCode())
+                                            ? "PROVIDER_REPORTED" : null))
                     .toList();
             LocalDate periodStart = metricRecords.get(0).periodStart();
             LocalDate periodEnd = metricRecords.get(0).periodEnd();

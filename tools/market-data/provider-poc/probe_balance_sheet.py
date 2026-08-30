@@ -25,8 +25,7 @@ WANTED = {
         "revenue", "operating_profit", "profit_before_tax", "of_which_interest_expense",
         "finance_expenses", "net_profit", "gross_profit",
     },
-    "ratio": {"ebitda_net_revenue", "ebit_margin", "ev_ebitda", "ev_ebit", "debt_to_equity",
-              "debt_to_assets", "liabilities_to_assets"},
+    "ratio": None,  # Feature 009: every ratio row with sample values, to fix units per field
 }
 
 

@@ -452,4 +452,34 @@ class ScreenerV1Tests {
                     java.util.Map.copyOf(valuationMetrics));
         }
     }
+
+    @org.junit.jupiter.api.Test
+    void providerRatioFiltersMatchDefinedValuesAndExcludeMissingOnesWithAReason() {
+        var candidate = ratioCandidate(java.util.Map.of(
+                "NET_MARGIN", new MetricPoint(MetricApplicability.DEFINED, new BigDecimal("14.81"), null),
+                "BETA", new MetricPoint(MetricApplicability.DEFINED, new BigDecimal("0.52"), null)));
+        var ratios = new ScreenerV1.RatioFilters(null, null, null, new BigDecimal("1.0"), null, null,
+                new BigDecimal("10"), null, null, null, null, null, null, null);
+        var criteria = new ScreenCriteria(null, null, null, new FundamentalFilter(
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null, ratios));
+
+        var matched = ScreenerV1.evaluate(candidate, criteria);
+        org.assertj.core.api.Assertions.assertThat(matched.matched()).isTrue();
+        org.assertj.core.api.Assertions.assertThat(matched.matchedValues()).containsEntry("netMargin", "14.81").containsEntry("beta", "0.52");
+
+        var withCurrentRatio = new ScreenerV1.RatioFilters(null, null, null, null, null, null, null, null,
+                new BigDecimal("1.5"), null, null, null, null, null);
+        var excluded = ScreenerV1.evaluate(candidate, new ScreenCriteria(null, null, null, new FundamentalFilter(
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null, withCurrentRatio)));
+        org.assertj.core.api.Assertions.assertThat(excluded.matched()).isFalse();
+        org.assertj.core.api.Assertions.assertThat(excluded.categoryOutcomes().get(0).status()).isEqualTo(CategoryStatus.UNAVAILABLE);
+        org.assertj.core.api.Assertions.assertThat(excluded.categoryOutcomes().get(0).reasonCode()).isEqualTo("MISSING");
+    }
+
+    private static CandidateFacts ratioCandidate(java.util.Map<String, MetricPoint> fundamentals) {
+        return new CandidateFacts(java.util.UUID.randomUUID(), "VNM", "Vinamilk", "HOSE", null, null, 1L,
+                java.time.LocalDate.of(2026, 8, 29), com.minhnb.finvera_be.market.domain.model.MarketTypes.DataStatus.CURRENT,
+                new BigDecimal("60000"), new BigDecimal("59000"), 1000L, java.util.List.of(), java.util.Map.of(),
+                fundamentals, false, java.util.Map.of());
+    }
 }

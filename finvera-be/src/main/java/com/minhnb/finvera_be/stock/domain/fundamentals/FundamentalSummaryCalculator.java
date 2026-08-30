@@ -125,6 +125,29 @@ public final class FundamentalSummaryCalculator {
         addLatestMetric(summaryMetrics, "TRAILING_EPS", newest);
         addLatestMetric(summaryMetrics, "DIVIDEND_YIELD", newest);
         addLatestMetric(summaryMetrics, "EV_EBITDA", newest);
+        // Feature 009: provider-reported ratios, newest accepted period, stored as observed.
+        addLatestMetric(summaryMetrics, "GROSS_MARGIN", newest);
+        addLatestMetric(summaryMetrics, "NET_MARGIN", newest);
+        addLatestMetric(summaryMetrics, "ROE_TTM", newest);
+        addLatestMetric(summaryMetrics, "ROA_TTM", newest);
+        addLatestMetric(summaryMetrics, "ROCE", newest);
+        addLatestMetric(summaryMetrics, "CURRENT_RATIO", newest);
+        addLatestMetric(summaryMetrics, "QUICK_RATIO", newest);
+        addLatestMetric(summaryMetrics, "CASH_RATIO", newest);
+        addLatestMetric(summaryMetrics, "INTEREST_COVERAGE", newest);
+        addLatestMetric(summaryMetrics, "TOTAL_ASSET_TURNOVER", newest);
+        addLatestMetric(summaryMetrics, "INVENTORY_TURNOVER", newest);
+        addLatestMetric(summaryMetrics, "RECEIVABLES_TURNOVER", newest);
+        addLatestMetric(summaryMetrics, "DEBT_TO_ASSETS", newest);
+        addLatestMetric(summaryMetrics, "LIABILITIES_TO_EQUITY", newest);
+        addLatestMetric(summaryMetrics, "EQUITY_TO_ASSETS", newest);
+        addLatestMetric(summaryMetrics, "BETA", newest);
+        addLatestMetric(summaryMetrics, "PS", newest);
+        addLatestMetric(summaryMetrics, "TOTAL_ASSETS_GROWTH_PERCENT", newest);
+        addLatestMetric(summaryMetrics, "EQUITY_GROWTH_PERCENT", newest);
+        addLatestMetric(summaryMetrics, "NIM", newest);
+        addLatestMetric(summaryMetrics, "COST_INCOME_RATIO", newest);
+        addLatestMetric(summaryMetrics, "LOAN_TO_DEPOSIT", newest);
 
         return new SummaryResult(
                 RULE_VERSION,

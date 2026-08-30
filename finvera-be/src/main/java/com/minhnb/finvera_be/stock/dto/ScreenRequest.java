@@ -116,7 +116,14 @@ public record ScreenRequest(
             String pbMin,
             String pbMax,
             String debtToEquityMin,
-            String debtToEquityMax) {
+            String debtToEquityMax,
+            String psMin, String psMax,
+            String betaMin, String betaMax,
+            String grossMarginMin, String grossMarginMax,
+            String netMarginMin, String netMarginMax,
+            String currentRatioMin, String currentRatioMax,
+            String interestCoverageMin, String interestCoverageMax,
+            String debtToAssetsMin, String debtToAssetsMax) {
         ScreenerV1.FundamentalFilter toDomain() {
             return new ScreenerV1.FundamentalFilter(
                     decimal(revenueGrowthPercentMin), decimal(revenueGrowthPercentMax),
@@ -125,7 +132,13 @@ public record ScreenRequest(
                     decimal(roaMin), decimal(roaMax),
                     decimal(peMin), decimal(peMax),
                     decimal(pbMin), decimal(pbMax),
-                    decimal(debtToEquityMin), decimal(debtToEquityMax));
+                    decimal(debtToEquityMin), decimal(debtToEquityMax),
+                    new ScreenerV1.RatioFilters(
+                            decimal(psMin), decimal(psMax), decimal(betaMin), decimal(betaMax),
+                            decimal(grossMarginMin), decimal(grossMarginMax), decimal(netMarginMin), decimal(netMarginMax),
+                            decimal(currentRatioMin), decimal(currentRatioMax),
+                            decimal(interestCoverageMin), decimal(interestCoverageMax),
+                            decimal(debtToAssetsMin), decimal(debtToAssetsMax)));
         }
     }
 

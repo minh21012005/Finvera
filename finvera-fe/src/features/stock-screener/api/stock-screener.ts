@@ -59,6 +59,20 @@ export interface FundamentalFilter {
   pbMax?: string;
   debtToEquityMin?: string;
   debtToEquityMax?: string;
+  psMin?: string;
+  psMax?: string;
+  betaMin?: string;
+  betaMax?: string;
+  grossMarginMin?: string;
+  grossMarginMax?: string;
+  netMarginMin?: string;
+  netMarginMax?: string;
+  currentRatioMin?: string;
+  currentRatioMax?: string;
+  interestCoverageMin?: string;
+  interestCoverageMax?: string;
+  debtToAssetsMin?: string;
+  debtToAssetsMax?: string;
 }
 
 export interface ScreenRequest {

@@ -16,12 +16,38 @@ import java.util.Set;
 public final class FundamentalReportAcceptance {
 
     public static final String CATALOG_VERSION_V1 = "fundamental-metric-catalog-v1";
-    private static final Set<String> UNSCALED_METRIC_CODES = Set.of(
-            "EPS", "DIVIDEND_PER_SHARE", "BVPS", "TRAILING_EPS",
-            "ROE", "ROA", "DEBT_TO_EQUITY", "OPERATING_MARGIN", "DIVIDEND_YIELD"
+    /** Feature 009 provider-reported ratios (contract provider-ratio-facts-v1 U-2). */
+    public static final Set<String> PROVIDER_RATIO_CODES = Set.of(
+            "GROSS_MARGIN",
+            "NET_MARGIN",
+            "ROE_TTM",
+            "ROA_TTM",
+            "ROCE",
+            "CURRENT_RATIO",
+            "QUICK_RATIO",
+            "CASH_RATIO",
+            "INTEREST_COVERAGE",
+            "TOTAL_ASSET_TURNOVER",
+            "INVENTORY_TURNOVER",
+            "RECEIVABLES_TURNOVER",
+            "DEBT_TO_ASSETS",
+            "LIABILITIES_TO_EQUITY",
+            "EQUITY_TO_ASSETS",
+            "BETA",
+            "PS",
+            "TOTAL_ASSETS_GROWTH_PERCENT",
+            "EQUITY_GROWTH_PERCENT",
+            "NIM",
+            "COST_INCOME_RATIO",
+            "LOAN_TO_DEPOSIT"
     );
 
-    public static final Set<String> ALLOWED_METRIC_CODES = Set.of(
+    private static final Set<String> UNSCALED_METRIC_CODES = union(Set.of(
+            "EPS", "DIVIDEND_PER_SHARE", "BVPS", "TRAILING_EPS",
+            "ROE", "ROA", "DEBT_TO_EQUITY", "OPERATING_MARGIN", "DIVIDEND_YIELD"
+    ), PROVIDER_RATIO_CODES);
+
+    public static final Set<String> ALLOWED_METRIC_CODES = union(Set.of(
             "REVENUE",
             "GROSS_PROFIT",
             "OPERATING_PROFIT",
@@ -40,7 +66,13 @@ public final class FundamentalReportAcceptance {
             "BVPS",
             "TRAILING_EPS",
             "DIVIDEND_YIELD"
-    );
+    ), PROVIDER_RATIO_CODES);
+
+    private static Set<String> union(Set<String> left, Set<String> right) {
+        java.util.HashSet<String> all = new java.util.HashSet<>(left);
+        all.addAll(right);
+        return Set.copyOf(all);
+    }
 
     public AcceptanceResult accept(ReportInput input) {
         Objects.requireNonNull(input, "input");

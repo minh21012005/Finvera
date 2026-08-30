@@ -50,6 +50,20 @@ export interface FormState {
   pbMax: string;
   debtToEquityMin: string;
   debtToEquityMax: string;
+  psMin: string;
+  psMax: string;
+  betaMin: string;
+  betaMax: string;
+  grossMarginMin: string;
+  grossMarginMax: string;
+  netMarginMin: string;
+  netMarginMax: string;
+  currentRatioMin: string;
+  currentRatioMax: string;
+  interestCoverageMin: string;
+  interestCoverageMax: string;
+  debtToAssetsMin: string;
+  debtToAssetsMax: string;
 }
 
 export const EMPTY_FORM: FormState = {
@@ -84,6 +98,20 @@ export const EMPTY_FORM: FormState = {
   pbMax: "",
   debtToEquityMin: "",
   debtToEquityMax: "",
+  psMin: "",
+  psMax: "",
+  betaMin: "",
+  betaMax: "",
+  grossMarginMin: "",
+  grossMarginMax: "",
+  netMarginMin: "",
+  netMarginMax: "",
+  currentRatioMin: "",
+  currentRatioMax: "",
+  interestCoverageMin: "",
+  interestCoverageMax: "",
+  debtToAssetsMin: "",
+  debtToAssetsMax: "",
 };
 
 function opt(value: string): string | undefined {
@@ -137,6 +165,20 @@ export function buildScreenRequest(form: FormState): ScreenRequest {
     pbMax: opt(form.pbMax),
     debtToEquityMin: opt(form.debtToEquityMin),
     debtToEquityMax: opt(form.debtToEquityMax),
+    psMin: opt(form.psMin),
+    psMax: opt(form.psMax),
+    betaMin: opt(form.betaMin),
+    betaMax: opt(form.betaMax),
+    grossMarginMin: opt(form.grossMarginMin),
+    grossMarginMax: opt(form.grossMarginMax),
+    netMarginMin: opt(form.netMarginMin),
+    netMarginMax: opt(form.netMarginMax),
+    currentRatioMin: opt(form.currentRatioMin),
+    currentRatioMax: opt(form.currentRatioMax),
+    interestCoverageMin: opt(form.interestCoverageMin),
+    interestCoverageMax: opt(form.interestCoverageMax),
+    debtToAssetsMin: opt(form.debtToAssetsMin),
+    debtToAssetsMax: opt(form.debtToAssetsMax),
   };
 
   const hasAny = (o: object) => Object.values(o).some((v) => v !== undefined);

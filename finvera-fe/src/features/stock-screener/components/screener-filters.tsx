@@ -149,6 +149,62 @@ export function ScreenerFilters({ onSubmit, submitting }: { onSubmit: (request: 
           <input type="text" inputMode="decimal" {...field("roeMax")} />
         </label>
         <label>
+          P/S tối thiểu
+          <input type="text" inputMode="decimal" {...field("psMin")} />
+        </label>
+        <label>
+          P/S tối đa
+          <input type="text" inputMode="decimal" {...field("psMax")} />
+        </label>
+        <label>
+          Beta tối thiểu
+          <input type="text" inputMode="decimal" {...field("betaMin")} />
+        </label>
+        <label>
+          Beta tối đa
+          <input type="text" inputMode="decimal" {...field("betaMax")} />
+        </label>
+        <label>
+          Biên LN gộp % tối thiểu
+          <input type="text" inputMode="decimal" {...field("grossMarginMin")} />
+        </label>
+        <label>
+          Biên LN gộp % tối đa
+          <input type="text" inputMode="decimal" {...field("grossMarginMax")} />
+        </label>
+        <label>
+          Biên LN ròng % tối thiểu
+          <input type="text" inputMode="decimal" {...field("netMarginMin")} />
+        </label>
+        <label>
+          Biên LN ròng % tối đa
+          <input type="text" inputMode="decimal" {...field("netMarginMax")} />
+        </label>
+        <label>
+          Thanh toán hiện hành tối thiểu
+          <input type="text" inputMode="decimal" {...field("currentRatioMin")} />
+        </label>
+        <label>
+          Thanh toán hiện hành tối đa
+          <input type="text" inputMode="decimal" {...field("currentRatioMax")} />
+        </label>
+        <label>
+          Khả năng trả lãi tối thiểu
+          <input type="text" inputMode="decimal" {...field("interestCoverageMin")} />
+        </label>
+        <label>
+          Khả năng trả lãi tối đa
+          <input type="text" inputMode="decimal" {...field("interestCoverageMax")} />
+        </label>
+        <label>
+          Nợ vay/Tổng TS % tối thiểu
+          <input type="text" inputMode="decimal" {...field("debtToAssetsMin")} />
+        </label>
+        <label>
+          Nợ vay/Tổng TS % tối đa
+          <input type="text" inputMode="decimal" {...field("debtToAssetsMax")} />
+        </label>
+        <label>
           ROA tối thiểu
           <input type="text" inputMode="decimal" {...field("roaMin")} />
         </label>

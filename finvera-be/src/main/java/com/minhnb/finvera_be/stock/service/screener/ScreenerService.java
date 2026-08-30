@@ -438,6 +438,16 @@ public class ScreenerService {
             ScreenerV1.validateRange(f.pbMin(), f.pbMax());
             ScreenerV1.validateRange(f.debtToEquityMin(), f.debtToEquityMax());
         }
+        if (criteria.fundamental() != null && criteria.fundamental().ratios() != null) {
+            var r = criteria.fundamental().ratios();
+            ScreenerV1.validateRange(r.psMin(), r.psMax());
+            ScreenerV1.validateRange(r.betaMin(), r.betaMax());
+            ScreenerV1.validateRange(r.grossMarginMin(), r.grossMarginMax());
+            ScreenerV1.validateRange(r.netMarginMin(), r.netMarginMax());
+            ScreenerV1.validateRange(r.currentRatioMin(), r.currentRatioMax());
+            ScreenerV1.validateRange(r.interestCoverageMin(), r.interestCoverageMax());
+            ScreenerV1.validateRange(r.debtToAssetsMin(), r.debtToAssetsMax());
+        }
     }
 
     // ── Result types ──────────────────────────────────────────────────────────

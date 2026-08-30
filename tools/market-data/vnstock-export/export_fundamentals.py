@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Any
 
 CONTRACT_VERSION = "vnstock-fundamentals-v1"
-TOOL_VERSION = "0.4.0"
+TOOL_VERSION = "0.5.0"
 SOURCE = "VNSTOCK_KBS"
 
 # item_id -> Finvera metric_code
@@ -43,8 +43,36 @@ RATIO_MAP = {
     "trailing_eps": "TRAILING_EPS",
     "dividend_yield": "DIVIDEND_YIELD",
     "ebit_margin": "OPERATING_MARGIN",
-    "ev_ebitda": "EV_EBITDA",
+    # Feature 009 (contract provider-ratio-facts-v1 U-2). ev_ebitda / pe_ratio / pb_ratio are
+    # deliberately NOT mapped: Finvera computes those under valuation-v1 at its own price.
+    "gross_margin": "GROSS_MARGIN",
+    "net_margin": "NET_MARGIN",
+    "roe_trailling": "ROE_TTM",
+    "roa_trailling": "ROA_TTM",
+    "return_on_capital_employed_roce": "ROCE",
+    "short_term_ratio": "CURRENT_RATIO",
+    "quick_ratio": "QUICK_RATIO",
+    "cash_ratio": "CASH_RATIO",
+    "interest_coverage": "INTEREST_COVERAGE",
+    "total_asset_turnover": "TOTAL_ASSET_TURNOVER",
+    "inventory_turnover": "INVENTORY_TURNOVER",
+    "receivables_turnover": "RECEIVABLES_TURNOVER",
+    "debt_to_assets": "DEBT_TO_ASSETS",
+    "liabilities_to_equity": "LIABILITIES_TO_EQUITY",
+    "equity_to_assets": "EQUITY_TO_ASSETS",
+    "beta": "BETA",
+    "ps_ratio": "PS",
+    "net_interest_margin_nim": "NIM",
+    "cost_income_ratio_cir": "COST_INCOME_RATIO",
+    "outstanding_loans_customer_deposits": "LOAN_TO_DEPOSIT",
 }
+# The KBS ratio dataset reuses statement item_ids for its growth rows; they are mapped only when
+# the row label reads "Tăng trưởng ..." (see pivot_wide_table).
+RATIO_GROWTH_MAP = {
+    "total_assets": "TOTAL_ASSETS_GROWTH_PERCENT",
+    "owners_equity": "EQUITY_GROWTH_PERCENT",
+}
+DIVIDEND_YIELD_DERIVATION = "kbs-dividend-yield-fraction-to-percent"
 CASH_FLOW_MAP: dict[str, str] = {}  # no confirmed unambiguous item_id yet; nothing mapped
 KBS_PER_SHARE_DIVISOR = Decimal("1000")
 KBS_PER_SHARE_METRIC_CODES = {"EPS"}
@@ -116,6 +144,8 @@ def pivot_wide_table(frame, item_id_map: dict[str, str], source_report: str) -> 
     for _, row in frame.iterrows():
         item_id = str(row["item_id"])
         metric_code = item_id_map.get(item_id)
+        if source_report == "RATIO" and item_id in RATIO_GROWTH_MAP and "tăng trưởng" in str(cell(row, "item") or "").lower():
+            metric_code = RATIO_GROWTH_MAP[item_id]
         if metric_code is None:
             continue
         if item_id == "revenue" and has_net_revenue_row(frame) and not is_net_revenue_row(row):
@@ -131,11 +161,16 @@ def pivot_wide_table(frame, item_id_map: dict[str, str], source_report: str) -> 
             except ValueError:
                 continue
             period_start, period_end = period_bounds(period_type, year, quarter)
-            records.append({
+            record = {
                 "metricCode": metric_code, "periodType": period_type, "fiscalYear": year,
                 "fiscalQuarter": quarter, "periodStart": period_start, "periodEnd": period_end,
                 "value": normalize_metric_value(metric_code, value), "sourceReport": source_report,
-            })
+            }
+            if metric_code == "DIVIDEND_YIELD":
+                # KBS reports a fraction (0.04 = 4 %); the catalog unit is PERCENT (research R-004.1).
+                record["value"] = format((Decimal(str(value)) * Decimal("100")).quantize(Decimal("0.000001")), "f")
+                record["derivation"] = DIVIDEND_YIELD_DERIVATION
+            records.append(record)
     return records
 
 

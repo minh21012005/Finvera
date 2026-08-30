@@ -437,7 +437,7 @@ Foreign room is a standard Vietnamese decision input.
   ceiling/floor to the overview response; treat the order book as out of scope
   unless a user story needs it.
 
-### Q-17 · Unused KBS ratio family — `DEFERRED` (2026-08-30: recorded as available in specs/008 research; no user story needs it — Constitution VIII)
+### Q-17 · Unused KBS ratio family — `DONE` (2026-08-30 via Feature 009: 22 provider-reported ratio codes, 7 screener filters; two unit defects fixed — `DIVIDEND_YIELD` fraction, `DEBT_TO_EQUITY` unit; provider valuation ratios and the zero-only cash-flow family stay excluded by contract)
 
 - **Severity**: Low · **Confidence**: `CONFIRMED`
 
@@ -633,6 +633,8 @@ BUILD SUCCESS
 
 After Groups E/F and Feature 008 (2026-08-30): backend 654/654 (+2 limits tests), exporter 18/18, AI 85/85, FE 127/127.
 
+After Feature 009 and Q-25/Q-28/Q-30 (2026-08-30): backend 659/659, exporter 23/23, AI 85/85, FE 129/129. Plan: 29 done, 0 deferred, 0 open.
+
 `finvera-fe`: `npx vitest run` 126/126, `npm run lint` clean, `npm run build`
 clean. `finvera-ai`: `uv run pytest` 81/81.
 
@@ -643,6 +645,7 @@ clean. `finvera-ai`: `uv run pytest` 81/81.
 | Date | Change |
 |---|---|
 | 2026-08-30 | Opened from the full-system review. Q-01 completed (R-016, T080). |
+| 2026-08-30 | Feature 009 implemented (spec → research → plan → contract → tasks → code): extended fundamentals + screener filters; Q-17 done. |
 | 2026-08-30 | Q-25, Q-28, Q-30 done (reconciliation v2, N+1/double-replay removal, fiscal-period staleness). Remaining: Q-17 deferred by design. |
 | 2026-08-30 | Feature 008 implemented (US1 EBITDA facts, US2 free cash flow, US3 price limits/room); balance sheet confirmed unavailable so EV_EBITDA remains honestly withheld. Q-13..Q-16 done, Q-17 deferred. |
 | 2026-08-30 | Group F: Q-24, Q-26, Q-27, Q-29 done; Q-25 deferred (needs reconciliation-v2 decision); Q-28 (performance) remains. |
