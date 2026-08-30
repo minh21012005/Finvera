@@ -124,7 +124,7 @@ class StockFundamentalsControllerTests {
 
         mvc.perform(get("/api/v1/stocks/FPT/valuation").session(ownerSession()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.ruleVersion").value("valuation-v1"))
+                .andExpect(jsonPath("$.ruleVersion").value(com.minhnb.finvera_be.stock.domain.valuation.ValuationV1.RULE_VERSION))
                 .andExpect(jsonPath("$.disclaimerCode").value("QUANTITATIVE_DECISION_SUPPORT"))
                 .andExpect(jsonPath("$.published").value(true))
                 .andExpect(jsonPath("$.classification").value("FAIR_VALUED"))
@@ -224,7 +224,7 @@ class StockFundamentalsControllerTests {
                 Instant.parse("2026-08-14T10:00:00Z"), "coh-valuation-withheld");
     }
 
-    private static final String RULE_VERSION = "valuation-v1";
+    private static final String RULE_VERSION = com.minhnb.finvera_be.stock.domain.valuation.ValuationV1.RULE_VERSION;
 
     private MockHttpSession ownerSession() throws Exception {
         var login = mvc.perform(post("/api/v1/auth/session")

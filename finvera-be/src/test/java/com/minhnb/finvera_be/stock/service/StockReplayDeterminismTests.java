@@ -90,8 +90,8 @@ class StockReplayDeterminismTests {
         AssessmentResult firstRun = engine.classify(inputs);
         AssessmentResult secondRun = engine.classify(inputs);
 
-        assertThat(firstRun.ruleVersion()).isEqualTo("valuation-v1");
-        assertThat(secondRun.ruleVersion()).isEqualTo("valuation-v1");
+        assertThat(firstRun.ruleVersion()).isEqualTo(com.minhnb.finvera_be.stock.domain.valuation.ValuationV1.RULE_VERSION);
+        assertThat(secondRun.ruleVersion()).isEqualTo(com.minhnb.finvera_be.stock.domain.valuation.ValuationV1.RULE_VERSION);
         assertThat(firstRun.published()).isTrue();
         assertThat(firstRun.score()).isEqualByComparingTo(secondRun.score());
         assertThat(firstRun.displayedScore()).isEqualTo(secondRun.displayedScore());

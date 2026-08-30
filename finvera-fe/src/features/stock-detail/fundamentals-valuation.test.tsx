@@ -67,7 +67,7 @@ function mockValuation(overrides: Partial<StockValuationData> = {}): StockValuat
       sources: ["FINVERA_ACCEPTED"],
       reasonCodes: [],
     },
-    ruleVersion: "valuation-v1",
+    ruleVersion: "valuation-v2",
     published: true,
     classification: "FAIR_VALUED",
     score: "48.25",

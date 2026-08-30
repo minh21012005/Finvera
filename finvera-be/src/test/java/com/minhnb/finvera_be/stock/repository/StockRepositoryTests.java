@@ -157,13 +157,13 @@ class StockRepositoryTests {
 
         UUID instrumentId2 = saveInstrument("RTARRAY");
         valuationAssessments.save(new ValuationAssessmentEntity(UUID.randomUUID(), instrumentId2,
-                LocalDate.of(2026, 8, 14), Instant.parse("2026-08-14T08:20:00Z"), "valuation-v1", null, null,
+                LocalDate.of(2026, 8, 14), Instant.parse("2026-08-14T08:20:00Z"), com.minhnb.finvera_be.stock.domain.valuation.ValuationV1.RULE_VERSION, null, null,
                 null, null, false, false, null, null, null, "PARTIAL",
                 List.of("NO_COMPARISON_BASIS", "HISTORY_BASIS_INSUFFICIENT"),
                 Instant.parse("2026-08-14T08:20:01Z"), true, null));
         var withheld = valuationAssessments
                 .findFirstByInstrumentIdAndRuleVersionAndAsOfTradingDateAndCurrentTrue(
-                        instrumentId2, "valuation-v1", LocalDate.of(2026, 8, 14))
+                        instrumentId2, com.minhnb.finvera_be.stock.domain.valuation.ValuationV1.RULE_VERSION, LocalDate.of(2026, 8, 14))
                 .orElseThrow();
         assertThat(withheld.getReasonCodes()).containsExactly("NO_COMPARISON_BASIS", "HISTORY_BASIS_INSUFFICIENT");
         assertThat(withheld.getClassification()).isNull();

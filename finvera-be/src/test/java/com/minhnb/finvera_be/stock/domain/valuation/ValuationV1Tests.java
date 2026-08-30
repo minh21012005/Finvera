@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
  */
 class ValuationV1Tests {
 
-    private static final String RULE_VERSION = "valuation-v1";
+    private static final String RULE_VERSION = ValuationV1.RULE_VERSION;
 
     // ─────────────────────────────────────────────────────────────────────────────
     // Contract test vector: Band boundaries
@@ -625,5 +625,56 @@ class ValuationV1Tests {
                 .filter(m -> m.metricCode().equals(code))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("Metric not found: " + code));
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // valuation-v2 (specs/012 contracts/valuation-v2.md): NOT_APPLICABLE and the
+    // structurally unobtainable EV/EBITDA leave the coverage denominator; MISSING stays.
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    @Test
+    void v2LossMakerPublishesOnPriceToBookWithReducedMetricSet() {
+        var engine = new ValuationV1();
+        var inputs = ValuationV1.Inputs.builder()
+                .price(new BigDecimal("25000.000000"))
+                .sharesOutstanding(1_000_000_000L)
+                .epsTtm(new BigDecimal("-500.000000"))       // PE NOT_APPLICABLE, hence PEG NOT_APPLICABLE
+                .epsGrowthPercent(new BigDecimal("12.000000"))
+                .equityAttributableToParent(new BigDecimal("30000000000000.000000"))
+                .ebitdaTtm(null)                              // EV_EBITDA MISSING_EBITDA (structural)
+                .totalDebt(null).cashAndEquivalents(null)
+                .ownHistorySeries(buildMinimalHistory(600))
+                .sectorSeries(List.of())
+                .build();
+        var result = engine.classify(inputs);
+        assertThat(result.ruleVersion()).isEqualTo("valuation-v2");
+        assertThat(result.published()).isTrue();
+        assertThat(result.reasonCodes()).contains(ValuationV1.REDUCED_METRIC_SET)
+                .doesNotContain("INSUFFICIENT_METRIC_COVERAGE");
+        assertThat(findMetric(result, "PB").effectiveWeight()).isEqualByComparingTo("1.000000000000");
+        assertThat(findMetric(result, "PE").applicability()).isEqualTo(MetricApplicability.NOT_APPLICABLE);
+        // confidence keeps the ABSOLUTE metric coverage (0.30): 100*(0.45*0.30 + 0.35*0.5 + 0.20*min(600/750,1))
+        // = 100*(0.135 + 0.175 + 0.16) = 47
+        assertThat(result.confidence()).isEqualTo(47);
+    }
+
+    @Test
+    void v2RealDataGapStillWithholdsWithInsufficientMetricCoverage() {
+        var engine = new ValuationV1();
+        var inputs = ValuationV1.Inputs.builder()
+                .price(new BigDecimal("25000.000000"))
+                .sharesOutstanding(1_000_000_000L)
+                .epsTtm(null)                                 // PE MISSING_EPS -> a gap, stays in the denominator
+                .epsGrowthPercent(new BigDecimal("12.000000"))
+                .equityAttributableToParent(new BigDecimal("30000000000000.000000"))
+                .ebitdaTtm(null)
+                .totalDebt(null).cashAndEquivalents(null)
+                .ownHistorySeries(buildMinimalHistory(600))
+                .sectorSeries(List.of())
+                .build();
+        var result = engine.classify(inputs);
+        // obtainable = PE 0.40 + PB 0.30 (PEG is NOT_APPLICABLE via PE_NOT_DEFINED, EV structural) -> 0.30/0.70 < 0.50
+        assertThat(result.published()).isFalse();
+        assertThat(result.reasonCodes()).contains("INSUFFICIENT_METRIC_COVERAGE");
     }
 }

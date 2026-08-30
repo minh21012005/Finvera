@@ -9,16 +9,24 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Objects;
 
 /**
- * Normative implementation of contracts/valuation-v1.md.
+ * Normative implementation of specs/012 contracts/valuation-v2.md (which amends
+ * specs/002 contracts/valuation-v1.md). Class name is historical; {@link #RULE_VERSION}
+ * is the authority.
  * Pure domain engine calculating relative expensiveness classification, score,
  * metric percentiles, and confidence.
  */
 public final class ValuationV1 {
 
-    public static final String RULE_VERSION = "valuation-v1";
+    public static final String RULE_VERSION = "valuation-v2";
+    /** v2: a scored metric that is NOT_APPLICABLE was excluded from the coverage denominator. */
+    public static final String REDUCED_METRIC_SET = "REDUCED_METRIC_SET";
+    private static final BigDecimal COVERAGE_FLOOR = new BigDecimal("0.50");
+    /** EV/EBITDA cannot be formed without balance-sheet inputs the provider never supplies (research 012 R-003). */
+    private static final Set<String> STRUCTURAL_EV_EBITDA_GAPS = Set.of("MISSING_EBITDA", "MISSING_EV_INPUTS");
     public static final String DISCLAIMER_CODE = "QUANTITATIVE_DECISION_SUPPORT";
 
     private static final BigDecimal HUNDRED = new BigDecimal("100");
@@ -124,17 +132,37 @@ public final class ValuationV1 {
             }
         }
 
-        // Calculate qualifying metric weight for publishability gate
+        // valuation-v2 publishability gate (contract valuation-v2.md): coverage is the qualifying
+        // weight over the OBTAINABLE weight. A metric that is NOT_APPLICABLE for this company
+        // (negative earnings/growth) or structurally unobtainable (EV/EBITDA without balance-sheet
+        // inputs) is not a data gap and leaves the denominator; a MISSING metric stays in it.
         BigDecimal qualifyingWeight = BigDecimal.ZERO;
+        BigDecimal obtainableWeight = BigDecimal.ZERO;
+        boolean reducedMetricSet = false;
         for (MetricValue mv : computed.allScored()) {
+            BigDecimal weight = BASE_WEIGHTS.get(mv.metricCode());
+            if (mv.applicability() == MetricApplicability.NOT_APPLICABLE) {
+                reducedMetricSet = true;
+                continue;
+            }
+            if ("EV_EBITDA".equals(mv.metricCode()) && mv.applicability() == MetricApplicability.MISSING
+                    && mv.qualityReason() != null && STRUCTURAL_EV_EBITDA_GAPS.contains(mv.qualityReason())) {
+                continue;
+            }
+            obtainableWeight = obtainableWeight.add(weight);
             if (mv.applicability() == MetricApplicability.DEFINED &&
                     (ownPercentiles.containsKey(mv.metricCode()) || sectorPercentiles.containsKey(mv.metricCode()))) {
-                qualifyingWeight = qualifyingWeight.add(BASE_WEIGHTS.get(mv.metricCode()));
+                qualifyingWeight = qualifyingWeight.add(weight);
             }
         }
-
-        if (qualifyingWeight.compareTo(new BigDecimal("0.50")) < 0) {
+        BigDecimal coverage = obtainableWeight.signum() > 0
+                ? DecimalMath.divide12(qualifyingWeight, obtainableWeight)
+                : BigDecimal.ZERO;
+        if (coverage.compareTo(COVERAGE_FLOOR) < 0) {
             reasonCodes.add("INSUFFICIENT_METRIC_COVERAGE");
+        }
+        if (reducedMetricSet) {
+            reasonCodes.add(REDUCED_METRIC_SET);
         }
 
         // Blocking reasons per contracts/valuation-v1.md publishability table:

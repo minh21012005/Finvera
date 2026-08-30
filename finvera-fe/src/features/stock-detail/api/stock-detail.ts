@@ -171,7 +171,7 @@ export interface ValuationBasis {
 
 export interface StockValuation {
   meta: SectionMeta;
-  ruleVersion: "valuation-v1";
+  ruleVersion: "valuation-v2";
   published: boolean;
   classification: ValuationLabel | null;
   score: string | null;
@@ -437,10 +437,10 @@ function parseFundamentalMetric(value: unknown): FundamentalMetricValue {
 
 export function parseStockValuation(value: unknown): StockValuation {
   const v = record(value, "stock valuation");
-  if (v.ruleVersion !== "valuation-v1") throw new Error("Unsupported valuation ruleVersion");
+  if (v.ruleVersion !== "valuation-v2") throw new Error("Unsupported valuation ruleVersion");
   return {
     meta: parseMeta(v.meta),
-    ruleVersion: "valuation-v1",
+    ruleVersion: "valuation-v2",
     published: typeof v.published === "boolean" ? v.published : false,
     classification: v.classification ? (text(v.classification, "valuation classification") as ValuationLabel) : null,
     score: decimal(v.score, "valuation score"),

@@ -92,7 +92,9 @@ def share_fields(overview: dict[str, Any] | None) -> tuple[int | None, str | Non
         par = float(overview.get("par_value"))
         if charter > 0 and par > 0:
             implied = charter * 1e9 / par
-            if abs(implied - shares) / shares > 0.01:
+            # Outstanding can legitimately be BELOW charter/par (treasury shares: AAM 10.45M vs
+            # 12.3M charter), never materially above it.
+            if shares > implied * 1.01:
                 return shares, UNVERIFIED_REASON
     except (TypeError, ValueError):
         pass

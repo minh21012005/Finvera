@@ -46,9 +46,10 @@ def test_non_positive_shares_are_treated_as_unavailable():
 
 
 def test_share_count_inconsistent_with_charter_capital_is_flagged_not_dropped():
-    shares, reason = mod.share_fields({"outstanding_shares": 1_000_000, "charter_capital": 20900, "par_value": 10000})
-    assert shares == 1_000_000
-    assert reason == "SHARES_OUTSTANDING_UNVERIFIED"
+    shares, reason = mod.share_fields({"outstanding_shares": 3_000_000_000, "charter_capital": 20900, "par_value": 10000})
+    assert shares == 3_000_000_000
+    assert reason == "SHARES_OUTSTANDING_UNVERIFIED"                   # more shares than charter capital allows
+    assert mod.share_fields({"outstanding_shares": 10451182, "charter_capital": 123, "par_value": 10000}) == (10451182, None)  # AAM: treasury shares
     assert mod.share_fields({"outstanding_shares": 2089955445, "charter_capital": 20900, "par_value": 10000}) == (2089955445, None)
 
 

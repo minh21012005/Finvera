@@ -175,7 +175,7 @@ paths:
       operationId: getStockValuation
       summary: Get the deterministic valuation metrics and classification
       description: >-
-        FR-008, FR-009, FR-010. Computed under valuation-v1. classification,
+        FR-008, FR-009, FR-010. Computed under valuation-v2 (specs/012 contracts/valuation-v2.md). classification,
         score, and confidence are present together or absent together; a
         withheld assessment carries reasonCodes and never a guessed label.
       tags: [Stock]
@@ -552,7 +552,7 @@ components:
       required: [meta, ruleVersion, published, metrics, basis]
       properties:
         meta: { $ref: "#/components/schemas/SectionMeta" }
-        ruleVersion: { type: string, const: "valuation-v1" }
+        ruleVersion: { type: string, const: "valuation-v2" }
         published:
           type: boolean
           description: >-
