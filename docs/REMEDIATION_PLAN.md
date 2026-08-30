@@ -565,6 +565,25 @@ server-side ownership checks, but the input should be typed properly.
 
 ---
 
+## Phase 2 — remaining options (planned 2026-08-31, nothing started)
+
+Everything below is optional: no open item is a known defect. Each entry is a
+self-contained SDD feature (spec → research → plan → contracts → tasks) so it
+can be picked up independently. Order is my recommendation; effort is
+wall-clock for one person, excluding owner-run refreshes.
+
+| ID | Feature dir | Scope | Method (evidence first, code second) | Acceptance | Effort | Depends on |
+|---|---|---|---|---|---|---|
+| **P2-01** | `013-tcbs-live-field-audit` | Re-audit the TCBS live path (`market/provider/tcbs`, `stock/provider/tcbs`, contracts `tcbs-thesis-live-overlay.md`, `tcbs-iflash-adapter.md`, `stock-data-provider.md`) with the same field-by-field method used for KBS in Feature 011: WS frames `s\|4` (ceil/floor/ref), `s\|6` (trades), `s\|8` (index), REST `tickerCommons`. | Owner-operated read-only capture of 1 session (~5 min of frames) for VNM/MBB/ACV + VN-Index; dump every field per frame type; compare against `TcbsThesisFrameMapper` / `TcbsLiveEquityQuoteService` mappings: unit (VND vs ×1000), reference price semantics, volume (shares vs lots), timestamp zone, session-state codes, index level/reference. Pin a frame fixture (`tests/…/tcbs-frame-fixture.json`) like `provider_schema_fixture.json`. | Every consumed field has a documented unit and a fixture test; any mismatch fixed with a rule id; live overview vs EOD close reconciled for 3 symbols within contract tolerance. | 1 day (+ one owner capture during a session) | none |
+| **P2-02** | `014-reason-code-presentation` | FE renders reason codes as raw strings in several places (`market-overview/*`, `portfolio/holdings-table.tsx`, stock detail). New codes from Features 010–012 (`ANNUAL_BASIS`, `REDUCED_METRIC_SET`, `SHARES_OUTSTANDING_UNVERIFIED`, `kbs-*` rule ids, `TTM`-basis ROE) need human wording. | Inventory every reason/quality code the API can emit (grep contracts + Java constants); one label map per feature (`format/*-format.ts`) with Vietnamese wording + a fallback that shows the raw code; snapshot tests for the map's completeness against the OpenAPI enum lists. | No raw `SNAKE_CASE` code visible in the UI for any code in the contracts; unknown code still visible (never hidden). | 0.5 day | none |
+| **P2-03** | `015-analyst-e2e-on-real-data` | The AI/Analyst path (`finvera-ai/app/features/{analysis,orchestration,rag,chat}`, backend `/internal/v1/tools`) was hardened in Group E but never exercised end-to-end on the post-refresh database (ROE now TTM, growth `ANNUAL_BASIS`, valuation v2 codes). | Owner runs 10 scripted questions (screen by ROE, explain VNM valuation, compare MBB/VCB, a loss-maker, an UPCoM name with no sector, a bank without revenue); capture tool calls + answers; check each number against the DB and that every `ANNUAL_BASIS`/`REDUCED_METRIC_SET` fact is attributed (`explain.py` honest attribution); add these as golden tests in `finvera-ai` with recorded tool responses. | 10/10 answers numerically faithful and basis-disclosed; golden tests green. | 1 day | P2-02 optional |
+| **P2-04** | `016-import-warmup-incrementality` (Q-41) | Stage 6 re-reads every bar package in full; valuation warmup recomputes every instrument. | (a) `StockIngestionService` daily-bar import: skip records older than `lastAcceptedDate − lookback` per instrument (one indexed query) — keeps the 90-day correction window; (b) `ValuationWarmupService`: skip when latest bar id, latest summary id and profile revision match the stored assessment's `valuation_assessment_input` links. Measure stage 6/7 durations before/after from the backend log. | Stage 6 ≤ 5 min and stage 7 ≤ 15 min on a no-change day; identical assessment rows (replay determinism test) | 1 day | do only if stage 6/7 > 40 min in practice |
+| **P2-05** | `017-history-basis-consistency` | Own-history PE/PB mixes current quarter-TTM inputs with annual-basis historical points (research 012 R-002 caveat). | Research only first: measure for 20 symbols how much the annual-basis PE differs from a quarter-TTM PE on the same date where both exist (2025-Q4 vs FY2025); decide whether to (a) label history points with basis and exclude mixed comparisons, or (b) accept with a disclosure code. No code until measured. | Decision recorded with numbers; if (a), contract `valuation-v3` | 0.5 day research | none |
+| **P2-06** | G-11 (question) | KBS "Tăng trưởng doanh thu thuần" ≠ statement arithmetic (VNM +3.02 % vs −0.7 %). | Owner supplies VNM's audited FY2025 revenue (or one other independent source); compare with the `2025-Năm` column to learn what KBS's annual column really is. Not blocking: Finvera uses statement arithmetic, not KBS growth. | Column semantics documented in 011 research | 1 h | owner input |
+| **P2-07** | Provider tier decision | Community tier: 60 req/min, 4 fiscal periods, no balance sheet, no UPCoM sectors. | Owner decision, not engineering: a Sponsor tier (180–600 req/min) cuts a full re-export from ~8 h to ~1–2 h and may expose more periods; a second provider would be an ADR (`docs/adr`) with a new field-by-field audit (Feature 011 method) before any mapping. | ADR written if pursued | — | owner |
+
+Recommended order: P2-02 (cheap, user-visible) → P2-01 (last unaudited ingestion path) → P2-03 → P2-05 → P2-04 only if measured slow → P2-06/P2-07 when the owner has input.
+
 ## Evidence
 
 ### E-1 · Price units by source
@@ -683,6 +702,7 @@ clean. `finvera-ai`: `uv run pytest` 81/81.
 | Date | Change |
 |---|---|
 | 2026-08-30 | Opened from the full-system review. Q-01 completed (R-016, T080). |
+| 2026-08-31 | Phase 2 plan written (P2-01..P2-07): TCBS live audit, reason-code presentation, analyst e2e, import/warmup incrementality, history-basis consistency, G-11, provider tier. |
 | 2026-08-31 | v2 measured: 46.0 % published (SC-001 not met — basis/price limits, not gates); `REDUCED_METRIC_SET` narrowed to core metrics; backend 666/666. |
 | 2026-08-31 | Feature 012 `valuation-v2` implemented (spec → research → contract → plan → tasks → code); Q-42 done. |
 | 2026-08-31 | Post-refresh measurement recorded (Evidence); Q-42 opened; UNVERIFIED share rule relaxed for treasury shares (AAM 10.45M vs 12.3M charter). |
