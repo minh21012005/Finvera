@@ -50,3 +50,28 @@ def test_share_count_inconsistent_with_charter_capital_is_flagged_not_dropped():
     assert shares == 1_000_000
     assert reason == "SHARES_OUTSTANDING_UNVERIFIED"
     assert mod.share_fields({"outstanding_shares": 2089955445, "charter_capital": 20900, "par_value": 10000}) == (2089955445, None)
+
+
+def test_recent_package_is_reused_and_only_new_symbols_are_fetched(tmp_path):
+    import json
+    from datetime import UTC, datetime
+    existing = mod.build_package([{"symbol": "VNM", "sharesOutstanding": 2089955445, "qualityReason": None,
+                                   "canonicalRecord": "", "companyNameVi": "x", "companyNameEn": None,
+                                   "effectiveFrom": "2026-08-01", "listingStatus": "LISTED"}], mod.TOOL_VERSION)
+    (tmp_path / "equity-profile.json").write_text(json.dumps(existing), encoding="utf-8")
+    reusable = mod.reusable_share_facts(tmp_path, 30, full_refresh=False)
+    assert reusable == {"VNM": (2089955445, None)}
+    assert mod.reusable_share_facts(tmp_path, 30, full_refresh=True) == {}
+    calls = []
+
+    def lookup(symbol):
+        calls.append(symbol)
+        return {"outstanding_shares": 8054999909, "charter_capital": 80550, "par_value": 10000}
+
+    records = {r["symbol"]: r for r in mod.build_records(universe(), "2026-08-30", lookup, share_lookup=reusable.get)}
+    assert calls == ["MBB"]                                   # VNM served from the package, MBB fetched
+    assert records["VNM"]["sharesOutstanding"] == 2089955445
+    assert records["MBB"]["sharesOutstanding"] == 8054999909
+    stale = dict(existing, generatedAt=datetime(2026, 1, 1, tzinfo=UTC).isoformat().replace("+00:00", "Z"))
+    (tmp_path / "equity-profile.json").write_text(json.dumps(stale), encoding="utf-8")
+    assert mod.reusable_share_facts(tmp_path, 30, full_refresh=False) == {}   # older than max age -> refetch

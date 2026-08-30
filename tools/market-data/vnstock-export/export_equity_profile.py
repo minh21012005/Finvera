@@ -27,7 +27,7 @@ import argparse
 import hashlib
 import json
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -95,7 +95,37 @@ def share_fields(overview: dict[str, Any] | None) -> tuple[int | None, str | Non
     return shares, None
 
 
-def build_records(frame, effective_from: str, overview_lookup=fetch_overview) -> list[dict[str, Any]]:
+TOOL_VERSION = "0.2.0"  # 0.2.0: outstanding shares (Feature 010); free float never emitted (Feature 011)
+DEFAULT_MAX_AGE_DAYS = 30
+
+
+def reusable_share_facts(output: Path, max_age_days: int, full_refresh: bool) -> dict[str, tuple[int | None, str | None]]:
+    """{symbol: (shares, reason)} from the package already on disk when it was produced by this tool
+    version within `max_age_days`. Share counts change only on corporate actions, so re-calling the
+    provider ~1,500 times per refresh is waste; new listings are still fetched because they are absent."""
+    if full_refresh:
+        return {}
+    path = output / "equity-profile.json"
+    if not path.exists():
+        return {}
+    try:
+        package = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+    if package.get("toolVersion") != TOOL_VERSION:
+        return {}
+    try:
+        generated = datetime.fromisoformat(str(package.get("generatedAt", "")).replace("Z", "+00:00"))
+    except ValueError:
+        return {}
+    if datetime.now(UTC) - generated > timedelta(days=max_age_days):
+        return {}
+    return {r["symbol"]: (r.get("sharesOutstanding"), r.get("qualityReason")) for r in package.get("records", [])}
+
+
+def build_records(frame, effective_from: str, overview_lookup=fetch_overview, share_lookup=None) -> list[dict[str, Any]]:
+    """`share_lookup(symbol) -> (shares, reason) | None` short-circuits the provider call when the
+    fact is already known (reuse); None means "fetch it"."""
     records = []
     seen_symbols = set()
     for _, row in frame.iterrows():
@@ -108,7 +138,8 @@ def build_records(frame, effective_from: str, overview_lookup=fetch_overview) ->
             continue  # company_name_vi is not-null in the schema; skip rather than fabricate a name
         name_en_raw = row.get("en_organ_name")
         name_en = str(name_en_raw).strip() if name_en_raw not in (None, "") else None
-        shares, reason = share_fields(overview_lookup(symbol))
+        known = share_lookup(symbol) if share_lookup is not None else None
+        shares, reason = known if known is not None else share_fields(overview_lookup(symbol))
         record = {
             "canonicalRecord": "",
             "companyNameEn": name_en,
@@ -144,7 +175,12 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=Path("output"))
     parser.add_argument("--requests-per-minute", type=float, default=30.0,
                         help="Pacing for the per-symbol overview calls (Community tier ~60/min).")
+    parser.add_argument("--full-refresh", action="store_true",
+                        help="Re-fetch every symbol's overview even when a recent package exists.")
+    parser.add_argument("--max-age-days", type=int, default=DEFAULT_MAX_AGE_DAYS,
+                        help="Reuse share counts from an existing package younger than this (default 30).")
     args = parser.parse_args()
+    reusable = reusable_share_facts(args.output, args.max_age_days, args.full_refresh)
     effective_from = datetime.now().date().isoformat()
     interval_seconds = 60.0 / max(1, args.requests_per_minute)
     progress = {"n": 0}
@@ -153,17 +189,25 @@ def main() -> None:
         if progress["n"]:
             time.sleep(interval_seconds)
         progress["n"] += 1
-        print(f"[{progress['n']}/{progress['total']}] {symbol}", flush=True)
-        return fetch_overview(symbol)
+        overview = fetch_overview(symbol)
+        shares, reason = share_fields(overview)
+        outcome = f"shares={shares:,}" if shares is not None else "no shares"
+        if reason:
+            outcome += f" ({reason})"
+        print(f"[{progress['n']}/{progress['total']}] {symbol}: {outcome}", flush=True)
+        return overview
 
     universe = fetch_universe()
-    progress["total"] = sum(1 for _, r in universe.iterrows() if str(r.get("type", "")).lower() == "stock")
-    print(f"Universe: {progress['total']} stocks; one overview call each at {args.requests_per_minute:g}/min "
-          f"(~{progress['total'] / max(1.0, args.requests_per_minute):.0f} min).", flush=True)
-    records = build_records(universe, effective_from, paced_overview)
+    symbols = [str(r["symbol"]).upper() for _, r in universe.iterrows()]
+    to_fetch = [s for s in symbols if s not in reusable]
+    progress["total"] = len(to_fetch)
+    print(f"Universe: {len(symbols)} stocks; {len(symbols) - len(to_fetch)} reused from the existing package, "
+          f"{len(to_fetch)} overview calls at {args.requests_per_minute:g}/min "
+          f"(~{len(to_fetch) / max(1.0, args.requests_per_minute):.0f} min).", flush=True)
+    records = build_records(universe, effective_from, paced_overview, share_lookup=reusable.get)
     with_shares = sum(1 for r in records if r["sharesOutstanding"] is not None)
     print(f"Outstanding shares present for {with_shares}/{len(records)} symbols")
-    package = build_package(records, "0.2.0")  # 0.2.0: outstanding shares / free float (Feature 010)
+    package = build_package(records, TOOL_VERSION)
     args.output.mkdir(parents=True, exist_ok=True)
     path = args.output / "equity-profile.json"
     path.write_text(json.dumps(package, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

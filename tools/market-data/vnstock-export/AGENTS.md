@@ -26,8 +26,6 @@ Whenever a user requests a task, map it to one of the following skills and load 
 - **`asset-allocator`**: For portfolio optimization and position sizing.
 - **`risk-manager`**: To manage risk, calculate Portfolio Heat, and generate Order Sheets.
 
-<!-- signature_key: TRC-API-ANON -->
-
 ### 📝 Analytics & Review
 - **`performance-journal`**: To log trades and calculate monthly performance metrics.
 - **`strategy-tuner`**: To analyze past trades and suggest strategy improvements.
@@ -65,6 +63,8 @@ While waiting to load a specific skill, please adhere to these universal princip
 ## 3. UNIFIED UI CRASH COURSE (For Sponsor Tier)
 
 If you need to write code immediately for a Sponsor user without loading a skill, follow the Unified UI pattern (v3.0.0+):
+
+<!-- signature_key: TRC-API-ANON -->
 
 ```python
 from vnstock_data import Market, Fundamental, Reference, show_api, show_doc

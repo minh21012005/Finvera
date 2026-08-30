@@ -220,7 +220,9 @@ if (-not $SkipCrawl) {
     try {
         uv run --project ../provider-poc python export_instrument_reference.py
         Assert-NativeSuccess "Instrument-reference export"
-        uv run --project ../provider-poc python export_equity_profile.py
+        $profileArgs = @("run", "--project", "../provider-poc", "python", "export_equity_profile.py")
+        if ($FullRefresh) { $profileArgs += "--full-refresh" }
+        & uv @profileArgs
         Assert-NativeSuccess "Equity-profile export"
         $marketOverviewArgs = @(
             "run", "--project", "../provider-poc", "python", "export_history.py",
