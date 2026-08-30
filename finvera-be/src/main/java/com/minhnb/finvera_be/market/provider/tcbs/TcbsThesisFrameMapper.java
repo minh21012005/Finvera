@@ -85,7 +85,11 @@ public final class TcbsThesisFrameMapper {
         if (reference.signum() <= 0) {
             throw new IllegalArgumentException("refPrice must be positive");
         }
-        return new EquityReferenceUpdate(symbol, reference, receivedAt);
+        BigDecimal ceiling = decimal(node, "ceilPrice", false);
+        BigDecimal floor = decimal(node, "floorPrice", false);
+        validateNonNegative(ceiling, "ceilPrice");
+        validateNonNegative(floor, "floorPrice");
+        return new EquityReferenceUpdate(symbol, reference, ceiling, floor, receivedAt);
     }
 
     private static EquityTradeUpdate trade(JsonNode node, Instant receivedAt) {
@@ -189,7 +193,11 @@ public final class TcbsThesisFrameMapper {
             BigDecimal matchedValueVnd, BreadthCounts breadth, String rawProviderSession,
             Instant receivedAt) implements Event { }
     public record EquityReferenceUpdate(String symbol, BigDecimal referencePrice,
-            Instant receivedAt) implements Event { }
+            BigDecimal ceilingPrice, BigDecimal floorPrice, Instant receivedAt) implements Event {
+        public EquityReferenceUpdate(String symbol, BigDecimal referencePrice, Instant receivedAt) {
+            this(symbol, referencePrice, null, null, receivedAt);
+        }
+    }
     public record EquityTradeUpdate(String symbol, BigDecimal matchPrice, BigDecimal absoluteChange,
             BigDecimal percentageChange, Long totalVolume, BigDecimal totalValueVnd,
             Instant receivedAt) implements Event { }

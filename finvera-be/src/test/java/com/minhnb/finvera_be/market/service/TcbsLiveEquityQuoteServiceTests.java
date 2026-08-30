@@ -144,4 +144,17 @@ class TcbsLiveEquityQuoteServiceTests {
 
         verify(prices, never()).save(any());
     }
+
+    @Test
+    void exposesSessionPriceLimitsFromTheReferenceFrameOnTheLiveQuote() {
+        service.accept(new TcbsThesisFrameMapper.EquityReferenceUpdate("TCB", new BigDecimal("34500"),
+                new BigDecimal("36900"), new BigDecimal("32100"), receivedAt));
+        service.accept(new TcbsThesisFrameMapper.EquityTradeUpdate("TCB", new BigDecimal("35200"),
+                new BigDecimal("700"), new BigDecimal("2.03"), 1_250_000L, new BigDecimal("44000000000"), receivedAt));
+
+        var quote = service.findLatest("TCB").orElseThrow();
+        assertThat(quote.ceilingPrice()).isEqualByComparingTo("36900");
+        assertThat(quote.floorPrice()).isEqualByComparingTo("32100");
+        assertThat(quote.foreignRoom()).isNull(); // only the REST snapshot carries room
+    }
 }

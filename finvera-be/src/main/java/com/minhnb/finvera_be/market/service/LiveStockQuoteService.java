@@ -12,13 +12,22 @@ public interface LiveStockQuoteService {
     record LiveQuote(String symbol, BigDecimal lastPrice, BigDecimal referencePrice,
             BigDecimal openPrice, BigDecimal highPrice, BigDecimal lowPrice,
             Long sessionVolume, BigDecimal sessionValueVnd, LocalDate tradingDate,
-            Instant observedAt, String source) {
+            Instant observedAt, String source,
+            BigDecimal ceilingPrice, BigDecimal floorPrice, Long foreignRoom) {
+
+        public LiveQuote(String symbol, BigDecimal lastPrice, BigDecimal referencePrice,
+                BigDecimal openPrice, BigDecimal highPrice, BigDecimal lowPrice,
+                Long sessionVolume, BigDecimal sessionValueVnd, LocalDate tradingDate,
+                Instant observedAt, String source) {
+            this(symbol, lastPrice, referencePrice, openPrice, highPrice, lowPrice,
+                    sessionVolume, sessionValueVnd, tradingDate, observedAt, source, null, null, null);
+        }
 
         public LiveQuote(String symbol, BigDecimal lastPrice, BigDecimal referencePrice,
                 Long sessionVolume, BigDecimal sessionValueVnd, LocalDate tradingDate,
                 Instant observedAt, String source) {
             this(symbol, lastPrice, referencePrice, null, null, null,
-                    sessionVolume, sessionValueVnd, tradingDate, observedAt, source);
+                    sessionVolume, sessionValueVnd, tradingDate, observedAt, source, null, null, null);
         }
     }
 }

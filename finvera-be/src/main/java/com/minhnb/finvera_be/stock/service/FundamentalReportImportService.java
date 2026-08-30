@@ -71,7 +71,8 @@ public class FundamentalReportImportService {
             List<MetricPeriodRecord> metricRecords = entry.getValue();
             List<MetricValue> metrics = metricRecords.stream()
                     .filter(r -> FundamentalReportAcceptance.ALLOWED_METRIC_CODES.contains(r.metricCode()))
-                    .map(r -> new MetricValue(r.metricCode(), r.value(), MetricApplicability.DEFINED.name(), null))
+                    // A derived record's rule id (Feature 008 R-005) rides as the DEFINED row's quality reason.
+                    .map(r -> new MetricValue(r.metricCode(), r.value(), MetricApplicability.DEFINED.name(), r.derivation()))
                     .toList();
             LocalDate periodStart = metricRecords.get(0).periodStart();
             LocalDate periodEnd = metricRecords.get(0).periodEnd();
@@ -156,7 +157,12 @@ public class FundamentalReportImportService {
 
     public record MetricPeriodRecord(
             String metricCode, String periodType, int fiscalYear, Integer fiscalQuarter, LocalDate periodStart,
+            LocalDate periodEnd, java.math.BigDecimal value, String canonicalRecord, String derivation) {
+        public MetricPeriodRecord(
+            String metricCode, String periodType, int fiscalYear, Integer fiscalQuarter, LocalDate periodStart,
             LocalDate periodEnd, java.math.BigDecimal value, String canonicalRecord) {
+            this(metricCode, periodType, fiscalYear, fiscalQuarter, periodStart, periodEnd, value, canonicalRecord, null);
+        }
     }
 
     public record Summary(String symbol, List<IngestionResult> results) {

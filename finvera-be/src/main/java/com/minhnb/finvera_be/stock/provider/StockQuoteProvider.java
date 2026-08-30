@@ -23,8 +23,24 @@ public interface StockQuoteProvider {
             Long sessionVolume,
             BigDecimal sessionValueVnd,
             Instant observedAt,
-            String sessionIndication) {
-
+            String sessionIndication,
+            BigDecimal ceilingPrice,
+            BigDecimal floorPrice,
+            Long foreignRoom) {
+        public QuoteObservation(
+                String symbol,
+                BigDecimal lastPrice,
+                BigDecimal officialReferencePrice,
+                BigDecimal openPrice,
+                BigDecimal highPrice,
+                BigDecimal lowPrice,
+                Long sessionVolume,
+                BigDecimal sessionValueVnd,
+                Instant observedAt,
+                String sessionIndication) {
+            this(symbol, lastPrice, officialReferencePrice, openPrice, highPrice, lowPrice,
+                    sessionVolume, sessionValueVnd, observedAt, sessionIndication, null, null, null);
+        }
         public QuoteObservation(
                 String symbol,
                 BigDecimal lastPrice,
@@ -34,7 +50,7 @@ public interface StockQuoteProvider {
                 Instant observedAt,
                 String sessionIndication) {
             this(symbol, lastPrice, officialReferencePrice, null, null, null,
-                    sessionVolume, sessionValueVnd, observedAt, sessionIndication);
+                    sessionVolume, sessionValueVnd, observedAt, sessionIndication, null, null, null);
         }
     }
 

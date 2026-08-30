@@ -398,6 +398,22 @@ components:
             volume: { type: [integer, "null"], minimum: 0 }
             valueVnd: { $ref: "#/components/schemas/NullableDecimal" }
             marketCapVnd: { $ref: "#/components/schemas/NullableDecimal" }
+            ceilingPrice:
+              allOf: [{ $ref: "#/components/schemas/Decimal" }]
+              nullable: true
+              description: Session ceiling price from the live overlay (Feature 008 US3); null with PRICE_LIMITS_UNAVAILABLE when no live frame.
+            floorPrice:
+              allOf: [{ $ref: "#/components/schemas/Decimal" }]
+              nullable: true
+            foreignRoom:
+              type: integer
+              format: int64
+              nullable: true
+              description: Remaining foreign-ownership room in shares.
+            limitState:
+              type: string
+              nullable: true
+              enum: [AT_CEILING, AT_FLOOR]
             applicability: { $ref: "#/components/schemas/Applicability" }
             changeBasisReason:
               type: [string, "null"]

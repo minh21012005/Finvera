@@ -118,3 +118,54 @@ def test_kbs_income_statement_revenue_and_operating_profit_are_mapped():
     assert by_code["REVENUE"] == "16953231538000.0"
     assert by_code["OPERATING_PROFIT"] == "3157752824000.0"
 
+
+def _by(records, code):
+    return {(r["periodType"], r["fiscalYear"], r["fiscalQuarter"]): r for r in records if r["metricCode"] == code}
+
+
+def test_only_net_revenue_row_is_mapped_to_revenue():
+    income = FakeFrame([
+        {"item_id": "revenue", "item": "1. Doanh thu bán hàng và cung cấp dịch vụ", "2026-Q2": "16953231538000.0"},
+        {"item_id": "revenue", "item": "3. Doanh thu thuần về bán hàng và cung cấp dịch vụ", "2026-Q2": "16968084098000.0"},
+    ])
+    records = export_fundamentals.build_metric_records("VNM", income, FakeFrame([]), FakeFrame([]))
+    revenue = [r for r in records if r["metricCode"] == "REVENUE"]
+    assert len(revenue) == 1
+    assert revenue[0]["value"] == "16968084098000.0"
+
+
+def test_ebitda_is_derived_from_margin_times_net_revenue_only_where_both_exist():
+    income = FakeFrame([
+        {"item_id": "revenue", "item": "3. Doanh thu thuần", "2026-Q2": "16968084098000.0", "2026-Q1": "17045421379000.0"},
+    ])
+    ratio = FakeFrame([
+        {"item_id": "ebitda_net_revenue", "item": "Tỷ lệ lãi EBITDA", "2026-Q2": "21.73", "2025-Q4": "19.62"},
+    ])
+    records = export_fundamentals.build_metric_records("VNM", income, ratio, FakeFrame([]))
+    ebitda = _by(records, "EBITDA")
+    assert list(ebitda) == [("QUARTER", 2026, 2)]  # 2026-Q1 has no margin, 2025-Q4 has no revenue
+    rec = ebitda[("QUARTER", 2026, 2)]
+    assert rec["value"] == "3687164674495.400000"  # 21.73/100 * 16,968,084,098,000
+    assert rec["derivation"] == "kbs-ebitda-margin-x-net-revenue-v1"
+    assert "kbs-ebitda" in rec["canonicalRecord"]
+
+
+def test_free_cash_flow_is_ocf_plus_signed_capex_and_accepts_annual_nam_columns():
+    cash_flow = FakeFrame([
+        {"item_id": "operating_cash_flow", "item": "Lưu chuyển tiền thuần từ HĐKD", "2025-Năm": "8827273177000.0", "2024-Năm": "7887423562000.0"},
+        {"item_id": "payment_for_fixed_assets_constructions_and_other_long_term_assets", "item": "1. Tiền chi...", "2025-Năm": "-1456914053000.0"},
+    ])
+    records = export_fundamentals.build_metric_records("VNM", FakeFrame([]), FakeFrame([]), cash_flow)
+    fcf = _by(records, "FREE_CASH_FLOW")
+    assert list(fcf) == [("ANNUAL", 2025, None)]  # 2024 has no capex row value -> not derived
+    assert fcf[("ANNUAL", 2025, None)]["value"] == "7370359124000.000000"
+    assert fcf[("ANNUAL", 2025, None)]["derivation"] == "kbs-fcf-ocf-plus-capex-v1"
+    assert fcf[("ANNUAL", 2025, None)]["periodEnd"] == "2025-12-31"
+
+
+def test_bank_without_capex_row_yields_no_fcf():
+    cash_flow = FakeFrame([
+        {"item_id": "operating_cash_flow", "item": "x", "2025-Năm": "1876329000000.0"},
+    ])
+    records = export_fundamentals.build_metric_records("MBB", FakeFrame([]), FakeFrame([]), cash_flow)
+    assert not [r for r in records if r["metricCode"] == "FREE_CASH_FLOW"]

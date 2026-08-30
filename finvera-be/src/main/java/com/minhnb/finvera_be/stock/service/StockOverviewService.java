@@ -136,6 +136,14 @@ public class StockOverviewService {
         if (price.changeBasisReason() != null) {
             reasonCodes.add(price.changeBasisReason());
         }
+        // Feature 008 US3: session limits and foreign room are live-overlay session context.
+        SessionLimits limits = liveQuote
+                .map(q -> new SessionLimits(q.ceilingPrice(), q.floorPrice(), q.foreignRoom(),
+                        limitState(q.lastPrice(), q.ceilingPrice(), q.floorPrice())))
+                .orElse(SessionLimits.UNAVAILABLE);
+        if (limits.ceilingPrice() == null && limits.floorPrice() == null) {
+            reasonCodes.add("PRICE_LIMITS_UNAVAILABLE");
+        }
 
         String coherenceKey = CoherenceKeys.of(List.of(
                 profile.map(p -> p.getId().toString()).orElse(""),
@@ -156,7 +164,25 @@ public class StockOverviewService {
                 price, session.state(),
                 liveQuote.isPresent() ? session.tradingDate()
                         : latestBar.map(EquityDailyBarEntity::getTradingDate).orElse(session.tradingDate()),
-                asOf, dataStatus, List.copyOf(reasonCodes), coherenceKey));
+                asOf, dataStatus, List.copyOf(reasonCodes), coherenceKey, limits));
+    }
+
+    /** Textual at-limit cue (never colour-only): last price equal to the ceiling or floor. */
+    static String limitState(BigDecimal last, BigDecimal ceiling, BigDecimal floor) {
+        if (last == null) {
+            return null;
+        }
+        if (ceiling != null && last.compareTo(ceiling) == 0) {
+            return "AT_CEILING";
+        }
+        if (floor != null && last.compareTo(floor) == 0) {
+            return "AT_FLOOR";
+        }
+        return null;
+    }
+
+    public record SessionLimits(BigDecimal ceilingPrice, BigDecimal floorPrice, Long foreignRoom, String limitState) {
+        public static final SessionLimits UNAVAILABLE = new SessionLimits(null, null, null, null);
     }
 
     private DataStatus evaluateOverviewFreshness(Optional<EquityDailyBarEntity> latestBar, LocalDate asOfTradingDate) {
@@ -200,6 +226,16 @@ public class StockOverviewService {
             Instant asOf,
             DataStatus dataStatus,
             List<String> reasonCodes,
-            String coherenceKey) {
+            String coherenceKey,
+            SessionLimits limits) {
+        /** Compatibility for callers/tests that predate Feature 008's session limits. */
+        public StockOverview(String symbol, String venue, String companyNameVi, String companyNameEn,
+                String listingStatus, String sector, String sectorScheme, Long sharesOutstanding,
+                StockOverviewResult price, SessionState sessionState, LocalDate tradingDate, Instant asOf,
+                DataStatus dataStatus, List<String> reasonCodes, String coherenceKey) {
+            this(symbol, venue, companyNameVi, companyNameEn, listingStatus, sector, sectorScheme,
+                    sharesOutstanding, price, sessionState, tradingDate, asOf, dataStatus, reasonCodes,
+                    coherenceKey, SessionLimits.UNAVAILABLE);
+        }
     }
 }

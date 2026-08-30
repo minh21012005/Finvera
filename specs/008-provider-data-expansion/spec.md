@@ -2,7 +2,7 @@
 
 **Feature Directory**: `008-provider-data-expansion`
 **Created**: 2026-08-30
-**Status**: Draft
+**Status**: Clarified 2026-08-30 (research R-001/R-006 closed both open questions; FR-001 narrowed — see research "Spec amendments")
 **SRS References**: Section 9.1 (fundamental metrics), Section 10 (valuation
 metrics — EV/EBITDA is listed but never publishable today), Section 6.1
 (per-stock overview), the price-limit/suspension line of the data-quality
@@ -43,9 +43,8 @@ session's ceiling/floor and foreign room next to the price.
 
 ### In Scope
 
-- Probing and recording the Vnstock/KBS `balance_sheet` dataset (never probed).
-- Mapping the balance-sheet inputs valuation-v1 needs: equity attributable to
-  parent, total interest-bearing debt, cash and equivalents.
+- Probing and recording the Vnstock/KBS `balance_sheet` dataset (never probed)
+  — probed 2026-08-30: unavailable (research R-001); no balance-sheet mapping.
 - Deriving `EBITDA` for the `EBITDA_TTM` → `EV_EBITDA` chain from confirmed
   provider fields, under a recorded, versioned derivation rule.
 - Mapping `FREE_CASH_FLOW` from confirmed cash-flow items under a recorded rule.
@@ -89,10 +88,10 @@ sessions exist, and an `effectiveWeight`; the disclosure list no longer shows
 
 **Acceptance Scenarios**:
 
-1. **Given** a symbol with accepted `EBITDA`, `TOTAL_DEBT`, `CASH_AND_EQUIVALENTS`
-   and shares outstanding, **When** valuation is computed, **Then** `EV_EBITDA`
-   is `DEFINED`, equals `ev / ebitdaTtm` at scale 12, and enters the score with
-   base weight 0.20.
+1. **Given** a symbol with four consecutive quarterly `EBITDA` facts, **When**
+   the fundamentals summary is computed, **Then** `EBITDA_TTM` is `DEFINED`
+   and equals their sum; **and** valuation still discloses `EV_EBITDA` as
+   `MISSING` / `MISSING_EV_INPUTS` (no balance sheet), never a fabricated EV.
 2. **Given** a symbol whose EBITDA-derivation inputs are absent or whose derived
    EBITDA ≤ 0, **When** valuation is computed, **Then** `EV_EBITDA` is `MISSING`
    or `NOT_APPLICABLE` with the existing reason codes and the remaining metrics
@@ -182,9 +181,12 @@ reason, never `0`.
 
 ### Functional Requirements
 
-- **FR-001**: The system MUST publish `EV_EBITDA` inside `valuation-v1` for
-  any symbol whose accepted facts satisfy the contract's existing definition,
-  with no change to the rule version or its weights.
+- **FR-001**: The system MUST publish `EBITDA` (per period) and `EBITDA_TTM`
+  as accepted, provenance-carrying facts for any symbol whose provider reports
+  an EBITDA margin and net revenue for the same period, and MUST keep
+  `EV_EBITDA` withheld with `MISSING_EV_INPUTS` — never an approximated
+  enterprise value — until a balance-sheet source is accepted under its own
+  gate (research R-001: the accepted provider returns no balance sheet).
 - **FR-002**: The system MUST publish `FREE_CASH_FLOW` in the fundamentals
   summary for any accepted period where both derivation inputs are `DEFINED`.
 - **FR-003**: The stock overview MUST show ceiling price, floor price and
@@ -271,25 +273,23 @@ reason, never `0`.
 - Q-23 (`docs/REMEDIATION_PLAN.md`) is already closed: `EV_EBITDA` can no
   longer be misread into `ebitdaTtm` when it enters the allowlist.
 
-### Open Questions
+### Resolved clarifications (2026-08-30)
 
-- [NEEDS CLARIFICATION: Does the KBS `balance_sheet` probe expose interest-bearing
-  debt separately from total liabilities? valuation-v1 defines `totalDebt` as
-  short-term plus long-term *interest-bearing* debt; if only total liabilities
-  is available, `EV` cannot be built to contract and FR-001 narrows to symbols
-  with a confirmed debt breakdown.]
-- [NEEDS CLARIFICATION: Should session price limits be persisted on the
-  accepted `equity_price_observation` row (auditable, reproducible) or kept
-  in-memory like today's session OHLC facts? Persisting is the constitution's
-  default for any fact shown to the user.]
+- KBS `balance_sheet` returns no rows in the pinned version for every probed
+  symbol and period; VCI fails at construction. No balance-sheet field is
+  mapped; FR-001 narrowed accordingly (research R-001).
+- Session price limits and foreign room are session context, not accepted
+  price facts: kept in the live session cache with the Q-24 trading-date
+  reset, disclosed `PRICE_LIMITS_UNAVAILABLE` when absent (research R-006).
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
 - **SC-001**: After a full-universe fundamentals refresh, the share of listed
-  symbols whose valuation has `EV_EBITDA = DEFINED` is reported, and it is
-  non-zero (today: exactly zero).
+  symbols whose fundamentals summary has `EBITDA_TTM = DEFINED` is reported,
+  and it is non-zero (today: exactly zero); `EV_EBITDA` stays disclosed as
+  withheld for 100% of symbols with the reason `MISSING_EV_INPUTS`.
 - **SC-002**: For every symbol where `EV_EBITDA` publishes, the value equals an
   independent recomputation from the stored inputs at scale 12 (golden-vector
   test), and the valuation score changes only through the contract's existing

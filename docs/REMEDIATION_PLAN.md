@@ -378,7 +378,7 @@ close those markers.
 We currently map **13 of 133+** available provider fields
 ([Evidence E-3](#e-3--provider-field-coverage)).
 
-### Q-13 · `balance_sheet` was never probed — `TODO`
+### Q-13 · `balance_sheet` was never probed — `DONE` (2026-08-30: probed; unavailable — specs/008 R-001)
 
 - **Severity**: High · **Confidence**: `CONFIRMED` (no `balance_sheet` section in `poc-output/item-labels.txt`)
 
@@ -391,7 +391,7 @@ so `ev` is always `null`.
 - **Fix**: extend `poc_vnstock_fundamentals.py` to probe `balance_sheet`, record
   the confirmed `item_id` set in the new feature's `research.md`, then map.
 
-### Q-14 · `EBITDA` has no mapping, so `EV_EBITDA` never publishes — `TODO`
+### Q-14 · `EBITDA` has no mapping, so `EV_EBITDA` never publishes — `DONE` for EBITDA/EBITDA_TTM; `EV_EBITDA` stays withheld by evidence (2026-08-30, specs/008 R-001/R-003, T004–T007)
 
 - **Severity**: High · **Confidence**: `CONFIRMED`
 
@@ -405,7 +405,7 @@ score. Nothing maps to `EBITDA`, so the metric is permanently `MISSING` and
   `revenue`, or map a direct balance/income item if Q-13's probe finds one.
   Record the derivation as a versioned rule; do not guess.
 
-### Q-15 · `CASH_FLOW_MAP` is empty, so `FREE_CASH_FLOW` never publishes — `TODO`
+### Q-15 · `CASH_FLOW_MAP` is empty, so `FREE_CASH_FLOW` never publishes — `DONE` (2026-08-30, specs/008 R-002, T004–T007; annual-only)
 
 - **Severity**: Medium · **Confidence**: `CONFIRMED`
 - **Where**: `tools/market-data/vnstock-export/export_fundamentals.py:47`
@@ -418,7 +418,7 @@ including `operating_cash_flow` and
 - **Fix**: map both and define FCF = operating cash flow − capital expenditure as
   a versioned rule in the feature contract.
 
-### Q-16 · Unused TCBS fields: price limits, foreign room, order book — `TODO`
+### Q-16 · Unused TCBS fields: price limits, foreign room, order book — `DONE` for ceiling/floor/room (2026-08-30, specs/008 R-006, T008–T009); order book stays out of scope
 
 - **Severity**: Medium · **Confidence**: `CONFIRMED` (schema in `poc-output/tcbs-capability-summary.json`)
 
@@ -437,7 +437,7 @@ Foreign room is a standard Vietnamese decision input.
   ceiling/floor to the overview response; treat the order book as out of scope
   unless a user story needs it.
 
-### Q-17 · Unused KBS ratio family — `TODO`
+### Q-17 · Unused KBS ratio family — `DEFERRED` (2026-08-30: recorded as available in specs/008 research; no user story needs it — Constitution VIII)
 
 - **Severity**: Low · **Confidence**: `CONFIRMED`
 
@@ -630,6 +630,8 @@ BUILD SUCCESS
 
 `finvera-fe` after Groups A and C: `npx vitest run` 127/127, lint clean, build clean.
 
+After Groups E/F and Feature 008 (2026-08-30): backend 654/654 (+2 limits tests), exporter 18/18, AI 85/85, FE 127/127.
+
 `finvera-fe`: `npx vitest run` 126/126, `npm run lint` clean, `npm run build`
 clean. `finvera-ai`: `uv run pytest` 81/81.
 
@@ -640,6 +642,7 @@ clean. `finvera-ai`: `uv run pytest` 81/81.
 | Date | Change |
 |---|---|
 | 2026-08-30 | Opened from the full-system review. Q-01 completed (R-016, T080). |
+| 2026-08-30 | Feature 008 implemented (US1 EBITDA facts, US2 free cash flow, US3 price limits/room); balance sheet confirmed unavailable so EV_EBITDA remains honestly withheld. Q-13..Q-16 done, Q-17 deferred. |
 | 2026-08-30 | Group F: Q-24, Q-26, Q-27, Q-29 done; Q-25 deferred (needs reconciliation-v2 decision); Q-28 (performance) remains. |
 | 2026-08-30 | Feature 008 `spec.md` drafted (Group D entry point); Q-25 deferred with rationale; Q-29 docs/git hygiene done. |
 | 2026-08-30 | Group E complete: Q-20..Q-22 — RAG answer rebuilt from verified claims, faithfulness numeric guard + honest attribution, symbol charset (specs/006 T052, specs/007 T047); `uv run pytest` 85/85. |

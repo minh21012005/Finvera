@@ -84,6 +84,21 @@ public class TcbsLiveEquityQuoteService implements LiveStockQuoteService,
             LocalDate tradingDate = instrument == null ? null
                     : referenceData.resolveSession(instrument.venue(), reference.receivedAt()).tradingDate();
             referencePrices.put(reference.symbol(), new DatedReference(reference.referencePrice(), tradingDate));
+            // Feature 008 R-006: session price limits are session context tied to this trading date.
+            if (reference.ceilingPrice() != null || reference.floorPrice() != null) {
+                final LocalDate limitDate = tradingDate;
+                sessionFacts.compute(reference.symbol(), (sym, prev) -> {
+                    boolean sameSession = prev != null && (prev.tradingDate() == null || limitDate == null
+                            || prev.tradingDate().equals(limitDate));
+                    SessionFacts base = sameSession ? prev : null;
+                    return new SessionFacts(base == null ? null : base.matchPrice(), reference.referencePrice(),
+                            base == null ? null : base.openPrice(), base == null ? null : base.highPrice(),
+                            base == null ? null : base.lowPrice(), base == null ? null : base.volume(),
+                            base == null ? null : base.valueVnd(), limitDate,
+                            base != null && base.hasOfficialSnapshot(),
+                            reference.ceilingPrice(), reference.floorPrice(), base == null ? null : base.foreignRoom());
+                });
+            }
             return;
         }
         if (!(event instanceof TcbsThesisFrameMapper.EquityTradeUpdate trade)) return;
@@ -123,7 +138,9 @@ public class TcbsLiveEquityQuoteService implements LiveStockQuoteService,
             BigDecimal high = hasOfficial ? prev.highPrice().max(match) : match;
             BigDecimal low = hasOfficial ? prev.lowPrice().min(match) : match;
             return new SessionFacts(match, finalReference, open, high, low,
-                    trade.totalVolume(), trade.totalValueVnd(), session.tradingDate(), hasOfficial);
+                    trade.totalVolume(), trade.totalValueVnd(), session.tradingDate(), hasOfficial,
+                    prev == null ? null : prev.ceilingPrice(), prev == null ? null : prev.floorPrice(),
+                    prev == null ? null : prev.foreignRoom());
         });
     }
 
@@ -165,7 +182,9 @@ public class TcbsLiveEquityQuoteService implements LiveStockQuoteService,
             return Optional.of(new LiveQuote(sym, matchPrice, refPrice,
                     openPrice, highPrice, lowPrice,
                     volume, valueVnd, row.getTradingDate(),
-                    row.getObservedAt(), SOURCE));
+                    row.getObservedAt(), SOURCE,
+                    facts != null ? facts.ceilingPrice() : null, facts != null ? facts.floorPrice() : null,
+                    facts != null ? facts.foreignRoom() : null));
         }
 
         if (facts != null && facts.matchPrice() != null && facts.matchPrice().signum() > 0) {
@@ -179,7 +198,7 @@ public class TcbsLiveEquityQuoteService implements LiveStockQuoteService,
             return Optional.of(new LiveQuote(sym, matchPrice, refPrice,
                     openPrice, highPrice, lowPrice,
                     facts.volume(), facts.valueVnd(), tradeDate,
-                    clock.instant(), SOURCE));
+                    clock.instant(), SOURCE, facts.ceilingPrice(), facts.floorPrice(), facts.foreignRoom()));
         }
 
         return Optional.empty();
@@ -229,7 +248,13 @@ public class TcbsLiveEquityQuoteService implements LiveStockQuoteService,
                             Long vol = item.totalVol() != null ? item.totalVol() : (existing != null ? existing.volume() : null);
                             BigDecimal val = item.totalVal() != null ? item.totalVal() : (existing != null ? existing.valueVnd() : null);
                             LocalDate date = finalTradingDate != null ? finalTradingDate : (existing != null ? existing.tradingDate() : null);
-                            return new SessionFacts(match, ref, open, high, low, vol, val, date, true);
+                            BigDecimal ceiling = item.ceilPrice() != null && item.ceilPrice().signum() > 0
+                                    ? item.ceilPrice() : (existing != null ? existing.ceilingPrice() : null);
+                            BigDecimal floor = item.floorPrice() != null && item.floorPrice().signum() > 0
+                                    ? item.floorPrice() : (existing != null ? existing.floorPrice() : null);
+                            Long room = item.room() != null && item.room() >= 0
+                                    ? item.room() : (existing != null ? existing.foreignRoom() : null);
+                            return new SessionFacts(match, ref, open, high, low, vol, val, date, true, ceiling, floor, room);
                         });
                         log.info("Successfully fetched tickerCommons snapshot for {}: open={}, high={}, low={}, match={}",
                                 symbol, item.open(), item.high(), item.low(), item.matchPrice());
@@ -277,7 +302,10 @@ public class TcbsLiveEquityQuoteService implements LiveStockQuoteService,
             Long volume,
             BigDecimal valueVnd,
             LocalDate tradingDate,
-            boolean hasOfficialSnapshot) { }
+            boolean hasOfficialSnapshot,
+            BigDecimal ceilingPrice,
+            BigDecimal floorPrice,
+            Long foreignRoom) { }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record TickerCommonsResponse(
@@ -293,5 +321,8 @@ public class TcbsLiveEquityQuoteService implements LiveStockQuoteService,
             @JsonProperty("matchPrice") BigDecimal matchPrice,
             @JsonProperty("refPrice") BigDecimal refPrice,
             @JsonProperty("totalVol") Long totalVol,
-            @JsonProperty("totalVal") BigDecimal totalVal) { }
+            @JsonProperty("totalVal") BigDecimal totalVal,
+            @JsonProperty("ceilPrice") BigDecimal ceilPrice,
+            @JsonProperty("floorPrice") BigDecimal floorPrice,
+            @JsonProperty("room") Long room) { }
 }

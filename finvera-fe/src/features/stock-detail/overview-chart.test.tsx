@@ -78,6 +78,32 @@ describe("stock overview formatting", () => {
 });
 
 describe("stock overview card", () => {
+  it("shows session price limits, foreign room, and a textual at-limit cue (Feature 008 US3)", () => {
+    render(
+      <StockOverview
+        overview={overview({
+          last: "36900.000000",
+          ceilingPrice: "36900.000000",
+          floorPrice: "32100.000000",
+          foreignRoom: 12345,
+          limitState: "AT_CEILING",
+        })}
+      />,
+    );
+    expect(screen.getByText(/Trần \/ Sàn/)).toBeVisible();
+    expect(screen.getByText(/36\.900.*\/.*32\.100/)).toBeVisible();
+    expect(screen.getByRole("status", { name: "" })).toBeDefined();
+    expect(screen.getByText(/đang ở giá trần/)).toBeVisible();
+    expect(screen.getByText("12.345")).toBeVisible();
+  });
+
+  it("renders limits as unavailable text rather than zero when no live frame exists", () => {
+    render(<StockOverview overview={overview()} />);
+    const cells = screen.getAllByText("Không có dữ liệu");
+    expect(cells.length).toBeGreaterThanOrEqual(2); // Trần/Sàn and Room
+    expect(screen.queryByText(/đang ở giá/)).not.toBeInTheDocument();
+  });
+
   it("renders price, change, and a non-color direction indicator", () => {
     render(<StockOverview overview={overview()} />);
     expect(screen.getByText(/CTCP FPT/)).toBeVisible();

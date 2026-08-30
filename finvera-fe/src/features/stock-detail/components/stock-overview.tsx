@@ -57,6 +57,23 @@ export function StockOverview({ overview }: { overview: StockOverviewData }) {
           <dd>{formatVnd(price.marketCapVnd)}</dd>
         </div>
         <div>
+          <dt>Trần / Sàn</dt>
+          <dd>
+            {price.ceilingPrice || price.floorPrice
+              ? `${formatDecimal(price.ceilingPrice ?? null)} / ${formatDecimal(price.floorPrice ?? null)}`
+              : "Không có dữ liệu"}
+            {price.limitState && (
+              <span role="status" style={{ marginLeft: 6 }}>
+                ({price.limitState === "AT_CEILING" ? "▲ đang ở giá trần" : "▼ đang ở giá sàn"})
+              </span>
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt>Room nước ngoài</dt>
+          <dd>{price.foreignRoom != null ? formatVolume(price.foreignRoom) : "Không có dữ liệu"}</dd>
+        </div>
+        <div>
           <dt>Trạng thái phiên</dt>
           <dd>{sessionStateLabel(session.state)}</dd>
         </div>

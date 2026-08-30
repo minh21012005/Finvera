@@ -156,6 +156,23 @@ def daily_bars_current(symbol: str, entry: dict[str, Any], args: argparse.Namesp
             and package.get("toolVersion") == export_daily_bars.TOOL_VERSION)
 
 
+ANNUAL_PERIOD = "year"
+
+
+def fundamentals_annual_current(symbol: str, entry: dict[str, Any], args: argparse.Namespace) -> bool:
+    """Cash-flow facts (FREE_CASH_FLOW) exist only in the annual dataset (Feature 008 R-002/R-004),
+    so every symbol also gets an annual package alongside the requested period."""
+    path = args.output / export_fundamentals.output_filename(symbol, ANNUAL_PERIOD)
+    if not path.exists():
+        return False
+    try:
+        package = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return False
+    return (entry.get("fundamentals_annual") == DONE
+            and package.get("toolVersion") == export_fundamentals.TOOL_VERSION)
+
+
 def fundamentals_current(symbol: str, entry: dict[str, Any], args: argparse.Namespace) -> bool:
     path = args.output / export_fundamentals.output_filename(symbol, args.period)
     if not path.exists():
@@ -199,6 +216,16 @@ def process_symbol(
             print(f"  fundamentals: FAILED ({type(exc).__name__})")
         save_checkpoint(checkpoint_path, checkpoint)
 
+    if args.period != ANNUAL_PERIOD and not fundamentals_annual_current(symbol, entry, args):
+        try:
+            export_fundamentals_for(symbol, ANNUAL_PERIOD, args.unit_scale, args.output)
+            entry["fundamentals_annual"] = DONE
+            print(f"  fundamentals(annual): OK")
+        except Exception as exc:  # noqa: BLE001
+            entry["fundamentals_annual"] = f"failed:{type(exc).__name__}"
+            print(f"  fundamentals(annual): FAILED ({type(exc).__name__})")
+        save_checkpoint(checkpoint_path, checkpoint)
+
 
 def is_finished(symbol: str, entry: dict[str, Any], args: argparse.Namespace) -> bool:
     """A symbol counts as finished once each dataset is current for this run's parameters, or has
@@ -209,7 +236,10 @@ def is_finished(symbol: str, entry: dict[str, Any], args: argparse.Namespace) ->
                            or str(entry.get("daily_bars", "")).startswith("failed"))
     fundamentals_settled = (fundamentals_current(symbol, entry, args)
                              or str(entry.get("fundamentals", "")).startswith("failed"))
-    return daily_bars_settled and fundamentals_settled
+    annual_settled = (args.period == ANNUAL_PERIOD
+                      or fundamentals_annual_current(symbol, entry, args)
+                      or str(entry.get("fundamentals_annual", "")).startswith("failed"))
+    return daily_bars_settled and fundamentals_settled and annual_settled
 
 
 def main() -> int:

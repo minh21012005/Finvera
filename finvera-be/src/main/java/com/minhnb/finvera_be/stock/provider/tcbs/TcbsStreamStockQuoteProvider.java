@@ -13,7 +13,8 @@ public final class TcbsStreamStockQuoteProvider implements StockQuoteProvider {
         var quote = quotes.findLatest(symbol).orElseThrow(() -> new QuoteUnavailableException(symbol));
         return new QuoteObservation(quote.symbol(), quote.lastPrice(), quote.referencePrice(),
                 quote.openPrice(), quote.highPrice(), quote.lowPrice(),
-                quote.sessionVolume(), quote.sessionValueVnd(), quote.observedAt(), "TCBS_THESIS_STREAM");
+                quote.sessionVolume(), quote.sessionValueVnd(), quote.observedAt(), "TCBS_THESIS_STREAM",
+                quote.ceilingPrice(), quote.floorPrice(), quote.foreignRoom());
     }
     public static final class QuoteUnavailableException extends RuntimeException {
         public QuoteUnavailableException(String symbol) { super("Live quote unavailable for " + symbol); }

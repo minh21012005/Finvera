@@ -31,7 +31,7 @@ public class FundamentalReportImportPackageParser {
                         text(value, "metricCode"), text(value, "periodType"), value.path("fiscalYear").intValue(),
                         fiscalQuarter, LocalDate.parse(text(value, "periodStart")),
                         LocalDate.parse(text(value, "periodEnd")), new BigDecimal(text(value, "value")),
-                        text(value, "canonicalRecord")));
+                        text(value, "canonicalRecord"), optionalText(value, "derivation")));
             }
             return new FundamentalReportImportService.PackageInput(text(root, "contractVersion"),
                     text(root, "toolName"), text(root, "toolVersion"), text(root, "upstreamSource"),
@@ -41,6 +41,11 @@ public class FundamentalReportImportPackageParser {
         } catch (RuntimeException exception) {
             throw new IllegalArgumentException("INVALID_IMPORT_PACKAGE", exception);
         }
+    }
+
+    private static String optionalText(JsonNode node, String field) {
+        JsonNode value = node.path(field);
+        return value.isTextual() && !value.stringValue().isBlank() ? value.stringValue() : null;
     }
 
     private static String text(JsonNode node, String field) {

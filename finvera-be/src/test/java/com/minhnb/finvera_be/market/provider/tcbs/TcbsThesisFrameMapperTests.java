@@ -59,6 +59,8 @@ class TcbsThesisFrameMapperTests {
                 "s|4|{\"symbol\":\"VPD\",\"ceilPrice\":25000,\"floorPrice\":24100,\"refPrice\":24300}",
                 receivedAt);
         assertThat(reference.referencePrice()).isEqualByComparingTo("24300");
+        assertThat(reference.ceilingPrice()).isEqualByComparingTo("25000");
+        assertThat(reference.floorPrice()).isEqualByComparingTo("24100");
         assertThat(mapper.map("d|33|15", receivedAt)).isInstanceOf(TcbsThesisFrameMapper.ControlFrame.class);
     }
 

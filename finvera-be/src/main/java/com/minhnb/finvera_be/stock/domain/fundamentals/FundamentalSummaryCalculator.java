@@ -113,7 +113,9 @@ public final class FundamentalSummaryCalculator {
         addLatestMetric(summaryMetrics, "ROA", newest);
         addLatestMetric(summaryMetrics, "DEBT_TO_EQUITY", newest);
         addLatestMetric(summaryMetrics, "OPERATING_MARGIN", newest);
-        addLatestMetric(summaryMetrics, "FREE_CASH_FLOW", newest);
+        // Cash-flow facts are annual-only from the accepted provider (Feature 008 R-002):
+        // read the newest period first, else the latest accepted annual report.
+        addLatestMetricWithAnnualFallback(summaryMetrics, "FREE_CASH_FLOW", newest, sorted);
         addLatestMetric(summaryMetrics, "EQUITY_ATTRIBUTABLE_TO_PARENT", newest);
         addLatestMetric(summaryMetrics, "TOTAL_DEBT", newest);
         addLatestMetric(summaryMetrics, "CASH_AND_EQUIVALENTS", newest);
@@ -239,6 +241,38 @@ public final class FundamentalSummaryCalculator {
             }
         }
         return definedCount == periods.size() ? sum : null;
+    }
+
+    private void addLatestMetricWithAnnualFallback(List<SummaryMetric> target, String metricCode,
+            ReportPeriod newest, List<ReportPeriod> sortedDesc) {
+        ReportMetric fromNewest = find(newest, metricCode);
+        if (fromNewest != null && fromNewest.applicability() == MetricApplicability.DEFINED) {
+            target.add(new SummaryMetric(metricCode, fromNewest.value(), fromNewest.applicability(), fromNewest.qualityReason()));
+            return;
+        }
+        for (ReportPeriod period : sortedDesc) {
+            if (!"ANNUAL".equals(period.periodType())) {
+                continue;
+            }
+            ReportMetric annual = find(period, metricCode);
+            if (annual != null && annual.applicability() == MetricApplicability.DEFINED) {
+                target.add(new SummaryMetric(metricCode, annual.value(), annual.applicability(), annual.qualityReason()));
+                return;
+            }
+        }
+        addLatestMetric(target, metricCode, newest);
+    }
+
+    private static ReportMetric find(ReportPeriod period, String metricCode) {
+        if (period == null || period.metrics() == null) {
+            return null;
+        }
+        for (ReportMetric m : period.metrics()) {
+            if (metricCode.equals(m.metricCode())) {
+                return m;
+            }
+        }
+        return null;
     }
 
     private void addLatestMetric(List<SummaryMetric> target, String metricCode, ReportPeriod newest) {

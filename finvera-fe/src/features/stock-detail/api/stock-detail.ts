@@ -44,6 +44,11 @@ export interface StockPrice {
   marketCapVnd: string | null;
   applicability: Applicability;
   changeBasisReason: string | null;
+  /** Feature 008 US3: live-overlay session context; null with PRICE_LIMITS_UNAVAILABLE. */
+  ceilingPrice?: string | null;
+  floorPrice?: string | null;
+  foreignRoom?: number | null;
+  limitState?: "AT_CEILING" | "AT_FLOOR" | null;
 }
 
 export interface StockSession {
@@ -310,6 +315,10 @@ function parsePrice(value: unknown): StockPrice {
     marketCapVnd: decimal(price.marketCapVnd, "price marketCapVnd"),
     applicability: applicability(price.applicability, "price applicability"),
     changeBasisReason: nullableText(price.changeBasisReason, "price changeBasisReason"),
+    ceilingPrice: decimal(price.ceilingPrice, "price ceilingPrice"),
+    floorPrice: decimal(price.floorPrice, "price floorPrice"),
+    foreignRoom: nullableInteger(price.foreignRoom, "price foreignRoom"),
+    limitState: price.limitState === "AT_CEILING" || price.limitState === "AT_FLOOR" ? price.limitState : null,
   };
 }
 

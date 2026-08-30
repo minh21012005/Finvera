@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Any
 
 CONTRACT_VERSION = "vnstock-fundamentals-v1"
-TOOL_VERSION = "0.3.0"
+TOOL_VERSION = "0.4.0"
 SOURCE = "VNSTOCK_KBS"
 
 # item_id -> Finvera metric_code
@@ -50,7 +50,13 @@ KBS_PER_SHARE_DIVISOR = Decimal("1000")
 KBS_PER_SHARE_METRIC_CODES = {"EPS"}
 
 QUARTER_COLUMN = re.compile(r"^(\d{4})-Q([1-4])$")
-YEAR_COLUMN = re.compile(r"^(\d{4})$")
+# KBS labels annual columns "YYYY-Năm" (Feature 008 research R-004); bare "YYYY" kept for fixtures.
+YEAR_COLUMN = re.compile(r"^(\d{4})(?:-Năm)?$")
+
+# Feature 008 research R-003/R-002: versioned derivation rule ids carried on each derived record.
+EBITDA_DERIVATION = "kbs-ebitda-margin-x-net-revenue-v1"
+FCF_DERIVATION = "kbs-fcf-ocf-plus-capex-v1"
+NET_REVENUE_LABEL_TOKEN = "thuần"
 
 
 def decimal_string(value: Any) -> str:
@@ -112,6 +118,10 @@ def pivot_wide_table(frame, item_id_map: dict[str, str], source_report: str) -> 
         metric_code = item_id_map.get(item_id)
         if metric_code is None:
             continue
+        if item_id == "revenue" and has_net_revenue_row(frame) and not is_net_revenue_row(row):
+            # Two rows share item_id "revenue" (gross "1. Doanh thu bán hàng" and net
+            # "3. Doanh thu thuần"); when both exist only net revenue is REVENUE (research R-003).
+            continue
         for column in period_columns:
             value = row[column]
             if value is None or (isinstance(value, float) and value != value):  # NaN
@@ -129,12 +139,90 @@ def pivot_wide_table(frame, item_id_map: dict[str, str], source_report: str) -> 
     return records
 
 
+def cell(row: Any, column: str) -> Any:
+    try:
+        return row[column]
+    except (KeyError, IndexError):
+        return None
+
+
+def is_net_revenue_row(row: Any) -> bool:
+    return NET_REVENUE_LABEL_TOKEN in str(cell(row, "item") or "").lower()
+
+
+def has_net_revenue_row(frame: Any) -> bool:
+    return any(str(r["item_id"]) == "revenue" and is_net_revenue_row(r) for _, r in frame.iterrows())
+
+
+def revenue_basis_predicate(frame: Any):
+    """Net revenue when the frame distinguishes it; otherwise the sole revenue row."""
+    strict = has_net_revenue_row(frame)
+    return (lambda row: is_net_revenue_row(row)) if strict else (lambda row: True)
+
+
+def period_values(frame, item_id: str, label_predicate=None) -> dict[str, Decimal]:
+    """{period column: Decimal} for one item_id (optionally filtered by label), skipping NaN/None."""
+    values: dict[str, Decimal] = {}
+    if frame is None or "item_id" not in getattr(frame, "columns", []):
+        return values
+    period_columns = [c for c in frame.columns if c not in ("item_id", "item")]
+    for _, row in frame.iterrows():
+        if str(row["item_id"]) != item_id:
+            continue
+        if label_predicate is not None and not label_predicate(row):
+            continue
+        for column in period_columns:
+            value = cell(row, column)
+            if value is None or (isinstance(value, float) and value != value):
+                continue
+            try:
+                parse_period_column(str(column))
+            except ValueError:
+                continue
+            values[str(column)] = Decimal(str(value))
+    return values
+
+
+def derived_record(metric_code: str, column: str, value: Decimal, derivation: str, source_report: str) -> dict[str, Any]:
+    period_type, year, quarter = parse_period_column(column)
+    period_start, period_end = period_bounds(period_type, year, quarter)
+    return {
+        "metricCode": metric_code, "periodType": period_type, "fiscalYear": year,
+        "fiscalQuarter": quarter, "periodStart": period_start, "periodEnd": period_end,
+        "value": format(value.quantize(Decimal("0.000001")), "f"), "sourceReport": source_report,
+        "derivation": derivation,
+    }
+
+
+def derive_ebitda(income_statement, ratio) -> list[dict[str, Any]]:
+    """EBITDA(period) = ebitda_net_revenue% / 100 x net revenue(period) -- research R-003.
+    Emitted only where both inputs exist for the same period column; never interpolated."""
+    margins = period_values(ratio, "ebitda_net_revenue")
+    revenue = period_values(income_statement, "revenue", revenue_basis_predicate(income_statement))
+    out = []
+    for column, margin in margins.items():
+        if column in revenue:
+            out.append(derived_record("EBITDA", column, margin / Decimal("100") * revenue[column],
+                                      EBITDA_DERIVATION, "RATIO+INCOME_STATEMENT"))
+    return out
+
+
+def derive_free_cash_flow(cash_flow) -> list[dict[str, Any]]:
+    """FCF = operating cash flow + capex (provider signs capex negative) -- research R-002."""
+    ocf = period_values(cash_flow, "operating_cash_flow")
+    capex = period_values(cash_flow, "payment_for_fixed_assets_constructions_and_other_long_term_assets")
+    return [derived_record("FREE_CASH_FLOW", column, ocf[column] + capex[column], FCF_DERIVATION, "CASH_FLOW")
+            for column in ocf if column in capex]
+
+
 def build_metric_records(symbol: str, income_statement, ratio, cash_flow) -> list[dict[str, Any]]:
     records = []
     records += pivot_wide_table(income_statement, INCOME_STATEMENT_MAP, "INCOME_STATEMENT")
     records += pivot_wide_table(ratio, RATIO_MAP, "RATIO")
     if CASH_FLOW_MAP:
         records += pivot_wide_table(cash_flow, CASH_FLOW_MAP, "CASH_FLOW")
+    records += derive_ebitda(income_statement, ratio)
+    records += derive_free_cash_flow(cash_flow)
     for record in records:
         record["symbol"] = symbol.upper()
         record["canonicalRecord"] = ""

@@ -480,4 +480,26 @@ class FundamentalSummaryTests {
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("Summary metric not found: " + metricCode));
     }
+
+    @Test
+    void freeCashFlowFallsBackToTheLatestAnnualReportWhenTheNewestQuarterLacksIt() {
+        var calculator = new FundamentalSummaryCalculator();
+        var q2 = new FundamentalSummaryCalculator.ReportPeriod(java.util.UUID.randomUUID(), "QUARTER", 2026, 2,
+                java.time.LocalDate.of(2026, 4, 1), java.time.LocalDate.of(2026, 6, 30), "UNKNOWN",
+                java.util.List.of(new FundamentalSummaryCalculator.ReportMetric("REVENUE",
+                        new java.math.BigDecimal("16968084098000"), MetricApplicability.DEFINED, null)));
+        var fy2025 = new FundamentalSummaryCalculator.ReportPeriod(java.util.UUID.randomUUID(), "ANNUAL", 2025, null,
+                java.time.LocalDate.of(2025, 1, 1), java.time.LocalDate.of(2025, 12, 31), "UNKNOWN",
+                java.util.List.of(new FundamentalSummaryCalculator.ReportMetric("FREE_CASH_FLOW",
+                        new java.math.BigDecimal("7370359124000"), MetricApplicability.DEFINED, "kbs-fcf-ocf-plus-capex-v1")));
+
+        var result = calculator.calculate(java.util.List.of(q2, fy2025), java.time.LocalDate.of(2026, 8, 30));
+
+        var fcf = result.metrics().stream().filter(m -> m.metricCode().equals("FREE_CASH_FLOW")).findFirst().orElseThrow();
+        assertThat(fcf.applicability()).isEqualTo(MetricApplicability.DEFINED);
+        assertThat(fcf.value()).isEqualByComparingTo("7370359124000");
+        assertThat(fcf.qualityReason()).isEqualTo("kbs-fcf-ocf-plus-capex-v1");
+        // The newest period is still the quarter; the annual fallback does not move the basis.
+        assertThat(result.basisPeriodLabel()).isEqualTo("2026-Q2");
+    }
 }
