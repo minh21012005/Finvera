@@ -209,6 +209,18 @@ public class ValuationService {
                 .build();
 
         AssessmentResult result = engine.classify(inputs);
+        // Known simplification (see buildOwnHistorySeries): every own-history point
+        // is priced with today's sharesOutstanding. Disclose it rather than leave it
+        // buried in a Javadoc (Constitution I: assumptions are exposed, not hidden).
+        List<String> disclosedReasons = result.reasonCodes();
+        if (!historyPoints.isEmpty() && !disclosedReasons.contains("HISTORY_SHARES_OUTSTANDING_HELD_CURRENT")) {
+            disclosedReasons = new ArrayList<>(disclosedReasons);
+            disclosedReasons.add("HISTORY_SHARES_OUTSTANDING_HELD_CURRENT");
+        }
+        result = new AssessmentResult(result.ruleVersion(), result.published(), result.classification(),
+                result.score(), result.displayedScore(), result.confidence(), result.usedOwnHistory(),
+                result.usedSector(), result.historyPointCount(), result.sectorConstituentCount(),
+                result.metrics(), disclosedReasons, result.disclaimerCode(), result.usedBases());
 
         UUID summaryId = fundamentalsOpt.map(FundamentalReportService.StockFundamentals::summaryId).orElse(null);
         UUID assessmentId = persistAssessment(
@@ -395,7 +407,11 @@ public class ValuationService {
                     case "EPS_GROWTH_PERCENT" -> epsGrowth = m.value();
                     case "EQUITY_ATTRIBUTABLE_TO_PARENT" -> equityParent = m.value();
                     case "BVPS" -> bvps = m.value();
-                    case "EBITDA_TTM", "EV_EBITDA" -> ebitdaTtm = m.value();
+                    // EBITDA_TTM is an absolute VND figure. EV_EBITDA is a *ratio* the
+                    // engine derives (ev / ebitdaTtm) and must never be read back as an
+                    // input: feeding a ratio of ~10-30 into ebitdaTtm would make the
+                    // derived EV_EBITDA ~10^11 and poison the 0.20-weight percentile.
+                    case "EBITDA_TTM" -> ebitdaTtm = m.value();
                     case "TOTAL_DEBT" -> totalDebt = m.value();
                     case "CASH_AND_EQUIVALENTS" -> cash = m.value();
                     case "DIVIDEND_PER_SHARE_TTM" -> dividendTtm = m.value();
@@ -499,7 +515,7 @@ public class ValuationService {
                     case "EPS_GROWTH_PERCENT" -> histEpsGrowth = m.value();
                     case "EQUITY_ATTRIBUTABLE_TO_PARENT" -> histEquityParent = m.value();
                     case "BVPS" -> histBvps = m.value();
-                    case "EBITDA_TTM", "EV_EBITDA" -> histEbitdaTtm = m.value();
+                    case "EBITDA_TTM" -> histEbitdaTtm = m.value(); // never EV_EBITDA (a ratio)
                     case "TOTAL_DEBT" -> histTotalDebt = m.value();
                     case "CASH_AND_EQUIVALENTS" -> histCash = m.value();
                     case "DIVIDEND_YIELD" -> histDividendYield = m.value();

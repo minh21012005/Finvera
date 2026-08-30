@@ -1,7 +1,7 @@
 # Finvera Architecture
 
 **Status**: Living document
-**Last updated**: 2026-08-24
+**Last updated**: 2026-08-30
 **Applies to**: `finvera-fe`, `finvera-be`, `finvera-ai`, and the shared data
 stores
 
@@ -67,11 +67,18 @@ These are invariants, not preferences. A change to any of them needs an ADR.
 
 ```text
 finvera-be/src/main/java/com/minhnb/finvera_be/
-├── shared/       cross-cutting web concerns (correlation id, problem details)
+├── shared/       cross-cutting web concerns (correlation id, problem details, retention cleanup)
 ├── auth/         owner session, CSRF, security configuration
 ├── market/       feature 001 — indices, calendar, instruments, breadth, regime
-└── stock/        feature 002 — equity reference, bars, fundamentals, analysis
+├── stock/        features 002-004 — equity reference, bars, fundamentals, analysis, screener, strategy signals
+├── portfolio/    feature 005 — portfolios, transactions, positions, analytics, watchlists
+├── research/     feature 006 — documents, news, chunks, retrieval/ask boundary to finvera-ai
+└── analyst/      feature 007 — AI analyst queries, tool delegates, internal tool endpoints
 ```
+
+Cross-module reads go through each module's published application interface
+(`MarketReferenceDataService`, `MarketImportBatchService`,
+`StockReferenceDataService`); `*ModuleArchitectureTests` enforce it.
 
 Each domain module uses the ADR-0007 layering:
 

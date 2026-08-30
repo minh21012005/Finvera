@@ -141,3 +141,20 @@ async def test_synthesize_endpoint_sse_stream():
         last_event = json.loads(data_lines[-1][len("data: "):])
         assert last_event["type"] == "final"
         assert "ruleVersion" in last_event["final"]
+
+
+def test_uncited_prose_is_removed_from_the_delivered_answer():
+    """rag-v1 step 3 (Q-20): only claims that survived citation verification are delivered."""
+    c1_id = uuid.uuid4()
+    raw = "Doanh thu 2025 đạt 60.000 tỷ [Block 1]. Ban lãnh đạo chắc chắn sẽ tăng gấp đôi vào năm sau."
+    raw_claims = extract_claims_and_citations(raw)
+    res = verify_citation_claims(
+        raw_answer=raw,
+        raw_claims=raw_claims,
+        total_blocks_k=1,
+        block_to_chunk_id_map={1: c1_id},
+    )
+    assert res.refused is False
+    assert "60.000 tỷ" in res.answer
+    assert "tăng gấp đôi" not in res.answer
+    assert [c.chunk_id for c in res.citations] == [c1_id]

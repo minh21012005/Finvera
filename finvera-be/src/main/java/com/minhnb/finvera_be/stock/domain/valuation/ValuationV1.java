@@ -205,6 +205,10 @@ public final class ValuationV1 {
                 for (String code : BASE_WEIGHTS.keySet()) {
                     if (sectorPercentiles.containsKey(code)) {
                         BigDecimal effW = DecimalMath.divide12(BASE_WEIGHTS.get(code), sumWeightsB);
+                        // Constitution I: every contributing factor is disclosed. When only the
+                        // sector basis qualifies a metric, its effective weight is the sector
+                        // one; basis A's weight (if any) keeps precedence for the same code.
+                        effectiveWeights.putIfAbsent(code, effW);
                         scoreSum = scoreSum.add(effW.multiply(sectorPercentiles.get(code)));
                     }
                 }

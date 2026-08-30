@@ -126,6 +126,25 @@ Allocation(symbol, asOf) = (Position.quantity(asOf) * closePrice(symbol, asOf)) 
 
 `Allocation` is `UNAVAILABLE` (not `0`) when `TotalValue(asOf) <= 0`.
 
+**Missing and stale prices (U-8, added 2026-08-30).** A position whose
+instrument has no accepted daily bar is *unpriced*: its `marketValue`,
+`unrealizedPL`, and `allocation` are unavailable and it contributes **nothing**
+to `TotalPositionsValue` — it is never valued at zero, at cost, or at a guessed
+price. Any response that reports `TotalValue` MUST then carry
+`dataStatus = PARTIAL` with `POSITION_PRICE_UNAVAILABLE`, because the total is a
+lower bound, not the portfolio's worth. Every priced position additionally
+carries the freshness of its price, evaluated exactly as Feature 002's
+`StockFreshnessPolicy.evaluateDailyBarSeries` does (0 completed sessions behind
+= `CURRENT`, 1 = `DELAYED`, more = `STALE`); the portfolio-level `dataStatus`
+is the most actionable of its open positions' price statuses, with
+`POSITION_PRICE_DELAYED` / `POSITION_PRICE_STALE` as reason codes. A watchlist
+item's `dataStatus` follows the same freshness rule for its `currentPrice`.
+
+**Daily change basis (U-9, added 2026-08-30).** `dailyChangePercent` for a
+watchlist item uses the same basis as the stock-detail overview: the accepted
+`referencePrice` when the daily bar carries one, else the **prior accepted
+close**. It is never computed against the session's own open price.
+
 ## Return (research R-005)
 
 ```text
@@ -215,6 +234,10 @@ T1]` the portfolio's `ReturnOverPeriod` used. `BenchmarkReturn` is a simple
 price return (no contribution adjustment, since an index has none),
 labeled distinctly from the portfolio's own contribution-adjusted return
 so the two are never implied to be computed identically.
+
+If no accepted VN-Index close exists on or before `T0` or `T1`,
+`BenchmarkReturn` and `alpha` are `null` with `reasonCode =
+BENCHMARK_UNAVAILABLE` — never `0` (added 2026-08-30).
 
 ## Required test-vector table
 

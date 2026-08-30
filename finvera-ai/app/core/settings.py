@@ -16,8 +16,9 @@ class Settings(BaseSettings):
     app_name: str = "finvera-ai"
     environment: str = "development"
 
-    # Security (X-Internal-Api-Key)
-    internal_api_key: str = "dev-internal-key-change-in-prod"
+    # Security (X-Internal-Api-Key). No default: a missing shared secret fails
+    # startup (Constitution "Configuration"); the former dev placeholder is refused.
+    internal_api_key: str
 
     # Gemini LLM & Embedding (ADR-0002, ADR-0008, research R-005)
     gemini_api_key: Optional[str] = None
@@ -39,6 +40,15 @@ class Settings(BaseSettings):
     analyst_max_tool_calls: int = 10
     analyst_tool_call_timeout_seconds: float = 10.0
     analyst_ask_timeout_seconds: float = 30.0
+
+    @field_validator("internal_api_key")
+    @classmethod
+    def _reject_missing_or_placeholder_key(cls, value: str) -> str:
+        if not value or not value.strip() or value == "dev-internal-key-change-in-prod":
+            raise ValueError(
+                "INTERNAL_API_KEY must be set to a real shared secret; blank and the dev placeholder are refused"
+            )
+        return value
 
     @field_validator("gemini_api_key", mode="before")
     @classmethod

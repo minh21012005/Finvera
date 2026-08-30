@@ -204,6 +204,12 @@ export function PortfolioList() {
                     <div>
                       <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "block" }}>Tổng tài sản</span>
                       <strong style={{ fontSize: "1.1rem" }}>{Number(portfolio.totalValue).toLocaleString("vi-VN")} đ</strong>
+                      {portfolio.dataStatus && portfolio.dataStatus !== "CURRENT" && (
+                        <span role="status" style={{ display: "block", fontSize: "0.75rem", color: "var(--text-secondary)" }}>
+                          ⚠ {portfolio.dataStatus}
+                          {portfolio.reasonCodes?.includes("POSITION_PRICE_UNAVAILABLE") ? " — thiếu giá một số mã, chưa tính vào tổng" : ""}
+                        </span>
+                      )}
                     </div>
                     <div>
                       <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "block" }}>Tiền mặt</span>

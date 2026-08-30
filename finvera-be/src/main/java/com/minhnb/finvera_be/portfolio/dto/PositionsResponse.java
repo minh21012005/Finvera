@@ -7,6 +7,8 @@ public record PositionsResponse(
         List<PositionResponse> positions,
         String cashBalance,
         String totalValue,
+        String dataStatus,
+        List<String> reasonCodes,
         String coherenceKey,
         Instant asOf) {
 }

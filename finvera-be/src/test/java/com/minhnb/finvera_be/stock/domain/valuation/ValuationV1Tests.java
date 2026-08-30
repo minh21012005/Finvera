@@ -518,6 +518,29 @@ class ValuationV1Tests {
     // Helpers
     // ─────────────────────────────────────────────────────────────────────────────
 
+    @Test
+    void sectorOnlyBasisStillDisclosesEffectiveWeightsPerMetric() {
+        var engine = new ValuationV1();
+        var inputs = ValuationV1.Inputs.builder()
+                .price(new BigDecimal("69200.000000"))
+                .sharesOutstanding(1_462_000_000L)
+                .epsTtm(new BigDecimal("4580.000000"))
+                .equityAttributableToParent(new BigDecimal("42000000000000.000000"))
+                .ownHistorySeries(List.of())            // Basis A unavailable
+                .sectorSeries(buildSectorSeries(12))    // Basis B qualifies (>= 8)
+                .build();
+
+        var result = engine.classify(inputs);
+
+        assertThat(result.published()).isTrue();
+        assertThat(result.usedBases()).containsExactly("SECTOR");
+        var pe = result.metrics().stream().filter(m -> m.metricCode().equals("PE")).findFirst().orElseThrow();
+        var pb = result.metrics().stream().filter(m -> m.metricCode().equals("PB")).findFirst().orElseThrow();
+        // PE 0.40 and PB 0.30 renormalize over 0.70 -> 0.571428571429 / 0.428571428571 at scale 12.
+        assertThat(pe.effectiveWeight()).isEqualByComparingTo("0.571428571429");
+        assertThat(pb.effectiveWeight()).isEqualByComparingTo("0.428571428571");
+    }
+
     private static List<ValuationV1.HistoryPoint> buildMinimalHistory(int size) {
         // Build a history series with PE and PB so qualifying metric coverage >= 0.50 (0.40 + 0.30 = 0.70)
         var list = new java.util.ArrayList<ValuationV1.HistoryPoint>();

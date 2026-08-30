@@ -43,7 +43,9 @@ public final class BreadthCalculator {
         if (input.matchedOrClosePrice() == null) {
             return Classification.MISSING_PRICE;
         }
-        if (input.officialReferencePrice() == null || input.officialReferencePrice().signum() < 0) {
+        // A zero reference is as unusable as a missing one: it would classify every
+        // positive price as ADVANCING (ARCHITECTURE.md section 4, invariant #4).
+        if (input.officialReferencePrice() == null || input.officialReferencePrice().signum() <= 0) {
             return Classification.MISSING_REFERENCE_PRICE;
         }
         int comparison = input.matchedOrClosePrice().compareTo(input.officialReferencePrice());

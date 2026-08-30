@@ -262,7 +262,7 @@ Q-06 unfixed this publishes as `CURRENT`.
   test proves it cannot re-anchor the session (4/4). SDD: specs/001 R-012 pt 3,
   T089.
 
-### Q-09 · Portfolio totals silently exclude unpriced positions — `TODO`
+### Q-09 · Portfolio totals silently exclude unpriced positions — `DONE` (2026-08-30)
 
 - **Severity**: High · **Confidence**: `CODE-READ`
 - **Where**: `finvera-be/.../portfolio/domain/analytics/PortfolioAnalyticsV1.java:485-500`;
@@ -281,8 +281,14 @@ price is missing — a genuine spec gap, so amend the contract before the code.
 - **Fix**: add a portfolio-level `dataStatus` + `reasonCodes` to both responses;
   return `PARTIAL` when any open position is unpriced; never let a missing price
   read as zero value.
+- **Verification (2026-08-30)**: contract U-8 added to `portfolio-analytics-v1.md`
+  and `PortfolioDataStatus`/`dataStatus`/`reasonCodes`/`priceDataStatus`/
+  `priceTradingDate` to the OpenAPI schema first; `PositionService` emits
+  `PARTIAL` + `POSITION_PRICE_UNAVAILABLE` (new unit test proves cash-only total
+  with the unpriced holding disclosed, never zero-valued); FE holdings table and
+  portfolio list render a text cue. SDD: specs/005 R-012, T041.
 
-### Q-10 · Portfolio has no freshness evaluation at all — `TODO`
+### Q-10 · Portfolio has no freshness evaluation at all — `DONE` (2026-08-30)
 
 - **Severity**: High · **Confidence**: `CONFIRMED` (`StockFreshnessPolicy` has zero references under `portfolio/`)
 - **Where**: `portfolio/service/PositionService.java`, `portfolio/service/WatchlistService.java:176`
@@ -297,8 +303,13 @@ price, marked current, and added to net worth. Every other module
 
 - **Fix**: evaluate each position's and watchlist item's price through
   `StockFreshnessPolicy.evaluateDailyBarSeries` and surface `DELAYED`/`STALE`.
+- **Verification (2026-08-30)**: both services now resolve the venue session via
+  `MarketReferenceDataService.resolveSession` and apply the shared policy
+  (`POSITION_PRICE_DELAYED/STALE`, `PRICE_DELAYED/STALE`); new tests cover a
+  two-month-old close reported STALE and a previous-session close reported
+  DELAYED. SDD: specs/005 R-012, T041.
 
-### Q-11 · Watchlist and stock detail disagree on "daily change %" — `TODO`
+### Q-11 · Watchlist and stock detail disagree on "daily change %" — `DONE` (2026-08-30)
 
 - **Severity**: Medium · **Confidence**: `CODE-READ`
 - **Where**: `portfolio/service/WatchlistService.java:180-186` vs
@@ -318,8 +329,13 @@ basis is the **prior accepted close** — exactly what EOD breadth already uses.
 
 - **Fix**: use `referencePrice` when present, else prior accepted close; never
   today's open. Reuse the existing calculator rather than a second formula.
+- **Verification (2026-08-30)**: contract U-9; `WatchlistService` fetches two bars
+  per instrument in one bulk call and uses reference price, else prior close.
+  `WatchlistServiceTests` proves +0.99% (prior-close basis) where the open basis
+  would have shown +2.00%, and `null` rather than `0` with no basis. SDD:
+  specs/005 R-012, T041.
 
-### Q-12 · `benchmarkReturn` reports `"0"` when VN-Index data is missing — `TODO`
+### Q-12 · `benchmarkReturn` reports `"0"` when VN-Index data is missing — `DONE` (2026-08-30)
 
 - **Severity**: Medium · **Confidence**: `CODE-READ`
 - **Where**: `portfolio/service/PortfolioAnalyticsService.java:268`; contract
@@ -337,6 +353,10 @@ The OpenAPI schema forces this by declaring `benchmarkReturn` non-nullable, so
 
 - **Fix**: make `benchmarkReturn` nullable in the contract, return `null` plus a
   reason code, and have the client render an explicit unavailable state.
+- **Verification (2026-08-30)**: OpenAPI `benchmarkReturn` nullable + `reasonCode`;
+  both service paths emit `null` + `BENCHMARK_UNAVAILABLE`; the analytics view
+  shows "Không có dữ liệu VN-Index cho kỳ này" instead of 0.00%. SDD: specs/005
+  R-012, T041.
 
 ---
 
@@ -345,6 +365,15 @@ The OpenAPI schema forces this by declaring `benchmarkReturn` non-nullable, so
 **SDD home**: new feature `specs/008-provider-data-expansion/` (owner decision,
 2026-08-30). Full `spec → clarify → plan/research/contracts → tasks → implement`
 cycle, because this adds capability rather than restoring conformance.
+
+**2026-08-30 status**: `spec.md` drafted (US1 EV/EBITDA, US2 free cash flow,
+US3 price limits + foreign room; order-book depth and the wider ratio family
+explicitly out of scope). Two `[NEEDS CLARIFICATION]` markers block
+implementation until the owner runs the `balance_sheet` probe: (1) whether KBS
+exposes interest-bearing debt separately from total liabilities (valuation-v1's
+`totalDebt` definition), (2) whether session price limits are persisted on the
+accepted price observation. Q-13..Q-17 stay `TODO` until `plan.md`/`research.md`
+close those markers.
 
 We currently map **13 of 133+** available provider fields
 ([Evidence E-3](#e-3--provider-field-coverage)).
@@ -425,7 +454,7 @@ and solvency filters they currently lack.
 
 ## Group E — Security and AI grounding
 
-### Q-18 · Hardcoded default for the internal API key — `TODO`
+### Q-18 · Hardcoded default for the internal API key — `DONE` (2026-08-30)
 
 - **Severity**: Medium · **Confidence**: `CONFIRMED` (startup `WARN` observed in the test run)
 - **Where**: `research/config/ResearchProperties.java:19`, `analyst/config/AnalystProperties.java:19`
@@ -434,8 +463,12 @@ and solvency filters they currently lack.
 Both default to `"dev-internal-key-change-in-prod"` and only log a warning.
 
 - **Fix**: fail startup when the key is unset.
+- **Verification (2026-08-30)**: both Spring property records and the FastAPI
+  `Settings` now throw on blank or the old placeholder; the WARN runner is gone;
+  test profiles supply a test secret. Owner `.env` files already hold real keys.
+  SDD: specs/006 T051, specs/007 T046.
 
-### Q-19 · `/internal/v1/**` is `permitAll()` in Spring Security — `TODO`
+### Q-19 · `/internal/v1/**` is `permitAll()` in Spring Security — `DONE` (2026-08-30)
 
 - **Severity**: Medium · **Confidence**: `CODE-READ`
 - **Where**: `auth/config/OwnerSecurityConfiguration.java:43`; `research/config/InternalApiKeyFilter.java`
@@ -449,8 +482,13 @@ today, so this is defence-in-depth rather than a known hole.
   authorization does not depend on the filter alone; use a constant-time
   comparison for the key. Add a negative authorization test
   (`AGENTS.md` requires one for any auth change).
+- **Verification (2026-08-30)**: `hasRole("INTERNAL_SERVICE")` on `/internal/v1/**`;
+  filter fails closed without properties and uses `MessageDigest.isEqual`
+  (`hmac.compare_digest` on the AI side); existing negative 401 tests still pass
+  (`InternalIngestionCallbackControllerSecurityTests`, `InternalToolControllerTests`).
+  SDD: specs/006 T051.
 
-### Q-20 · RAG keeps uncited claims in the answer text — `TODO`
+### Q-20 · RAG keeps uncited claims in the answer text — `DONE` (2026-08-30)
 
 - **Severity**: Medium · **Confidence**: `CODE-READ`
 - **Where**: `finvera-ai/app/features/rag/citations.py:60`, `.../synthesis.py:142`
@@ -464,8 +502,11 @@ sentence cites validly.
 
 - **Fix**: rebuild the answer from surviving claims, or drop non-conforming
   sentences, so delivered prose and verified citations cannot diverge.
+- **Verification (2026-08-30)**: `answer` rebuilt from surviving claims; new test
+  proves an uncited "will double next year" sentence is dropped while the cited
+  revenue claim survives. SDD: specs/006 T052.
 
-### Q-21 · `verify_faithfulness` is weak and can over-attribute — `TODO`
+### Q-21 · `verify_faithfulness` is weak and can over-attribute — `DONE` (2026-08-30)
 
 - **Severity**: Medium · **Confidence**: `CODE-READ`
 - **Where**: `finvera-ai/app/features/analysis/explain.py:76-80`
@@ -477,8 +518,10 @@ everything.
 
 - **Fix**: return an empty attribution when nothing was referenced, and add a
   numeric-claim check for values not present in the supplied evidence.
+- **Verification (2026-08-30)**: both implemented; "tăng 15% quý tới" now fails,
+  `1,25` vs `1.25` passes; no-reference returns `(False, [])`. SDD: specs/007 T047.
 
-### Q-22 · Tool `symbol` is unvalidated before URL interpolation — `TODO`
+### Q-22 · Tool `symbol` is unvalidated before URL interpolation — `DONE` (2026-08-30)
 
 - **Severity**: Low · **Confidence**: `CODE-READ`
 - **Where**: `finvera-ai/app/features/orchestration/allowlist.py` (`SymbolToolArgs`),
@@ -489,6 +532,9 @@ then goes straight into the request path. Contained by the internal boundary and
 server-side ownership checks, but the input should be typed properly.
 
 - **Fix**: `pattern=r"^[A-Z0-9]{1,20}$"`.
+- **Verification (2026-08-30)**: enforced inside the normalising validator (after
+  upper-casing) on all three symbol-bearing tool schemas; `VNM/../portfolios` is
+  rejected as `INVALID_ARGUMENTS`. SDD: specs/007 T047.
 
 ---
 
@@ -496,13 +542,13 @@ server-side ownership checks, but the input should be typed properly.
 
 | ID | Status | Severity | Confidence | Item |
 |---|---|---|---|---|
-| **Q-23** | `TODO` | High | `LATENT` | `ValuationService.java:398,502` — `case "EBITDA_TTM", "EV_EBITDA" -> ebitdaTtm` assigns the EV/EBITDA **ratio** into the absolute **EBITDA** field. Unreachable today only because `EV_EBITDA` is absent from `ALLOWED_METRIC_CODES`, while `export_fundamentals.py:46` already emits it — adding one allowlist entry (which Q-14 may well do) silently corrupts every valuation. **Fix before Group D.** |
-| **Q-24** | `TODO` | Medium | `CODE-READ` | `TcbsLiveEquityQuoteService.java:110-112` — `sessionFacts`/`referencePrices` are never reset per trading date, so after a day rollover the live open/high/low and reference price are the previous session's. Reference price feeds the displayed change %. |
-| **Q-25** | `TODO` | Low | `CODE-READ` | `StockIngestionService.java:313` — `new Fact(bar.getClosePrice(), bar.getOpenPrice(), status)` passes the **open** price into `SourceReconciliationPolicy.Fact`'s **reference** slot. Undocumented; the entity has `getReferencePrice()`. |
-| **Q-26** | `TODO` | Low | `CODE-READ` | `ValuationV1.java:177-201` — basis-B effective weights are computed but never stored, so `MetricResult.effectiveWeight` is `null` whenever only the sector basis is used. Violates Constitution I's "contributing factors" requirement. |
-| **Q-27** | `TODO` | Low | `CODE-READ` | `ValuationService.buildOwnHistorySeries` applies today's `sharesOutstanding` to every historical point. Documented in the Javadoc but never surfaced to the user as a reason code. |
+| **Q-23** | `DONE` (2026-08-30, specs/002 T082) | High | `LATENT` | `ValuationService.java:398,502` — `case "EBITDA_TTM", "EV_EBITDA" -> ebitdaTtm` assigns the EV/EBITDA **ratio** into the absolute **EBITDA** field. Unreachable today only because `EV_EBITDA` is absent from `ALLOWED_METRIC_CODES`, while `export_fundamentals.py:46` already emits it — adding one allowlist entry (which Q-14 may well do) silently corrupts every valuation. **Fix before Group D.** |
+| **Q-24** | `DONE` (2026-08-30, specs/001 T090) | Medium | `CODE-READ` | `TcbsLiveEquityQuoteService.java:110-112` — `sessionFacts`/`referencePrices` are never reset per trading date, so after a day rollover the live open/high/low and reference price are the previous session's. Reference price feeds the displayed change %. |
+| **Q-25** | `DEFERRED` (2026-08-30) — switching the `reference` slot from open to `referencePrice` is not a drop-in fix: Vnstock/KBS bars carry no reference price (R-015), so `SourceReconciliationPolicy.exact(null, …)` would flag **every** overlapping date as `SOURCE_CONFLICT` and withhold indicators/valuations universe-wide. Needs a `tcbs-vnstock-reconciliation-v2` decision (compare reference only when both sides carry one) in specs/002 research before code. | Low | `CODE-READ` | `StockIngestionService.java:313` — `new Fact(bar.getClosePrice(), bar.getOpenPrice(), status)` passes the **open** price into `SourceReconciliationPolicy.Fact`'s **reference** slot. Undocumented; the entity has `getReferencePrice()`. |
+| **Q-26** | `DONE` (2026-08-30, specs/002 T083) | Low | `CODE-READ` | `ValuationV1.java:177-201` — basis-B effective weights are computed but never stored, so `MetricResult.effectiveWeight` is `null` whenever only the sector basis is used. Violates Constitution I's "contributing factors" requirement. |
+| **Q-27** | `DONE` (2026-08-30, specs/002 T083) | Low | `CODE-READ` | `ValuationService.buildOwnHistorySeries` applies today's `sharesOutstanding` to every historical point. Documented in the Javadoc but never surfaced to the user as a reason code. |
 | **Q-28** | `TODO` | Low | `CODE-READ` | Performance: `ValuationService.findBySymbol` runs up to 750 `FundamentalSummaryCalculator.calculate` passes plus an N+1 metric fetch on every read; `buildSectorSeries` calls `findBySymbol` per peer. `PortfolioAnalyticsV1.calculatePerformanceHistory` replays holdings twice per trading date. |
-| **Q-29** | `TODO` | Low | `CONFIRMED` | `ARCHITECTURE.md` section 3's module map omits `portfolio/`, `research/`, `analyst/`. `finvera-be/local-import.out.log` and `.err.log` are tracked in git despite `*.log` in `.gitignore`. `BreadthCalculator.java:47` accepts a zero reference price, which would classify every instrument `ADVANCING`. |
+| **Q-29** | `DONE` (2026-08-30: ARCHITECTURE §3 module map, logs untracked, zero-reference guard in specs/001 T090) | Low | `CONFIRMED` | `ARCHITECTURE.md` section 3's module map omits `portfolio/`, `research/`, `analyst/`. `finvera-be/local-import.out.log` and `.err.log` are tracked in git despite `*.log` in `.gitignore`. `BreadthCalculator.java:47` accepts a zero reference price, which would classify every instrument `ADVANCING`. |
 
 ---
 
@@ -568,12 +614,21 @@ From `tools/market-data/provider-poc/poc-output/item-labels.txt`:
 
 ### E-4 · Test baseline
 
-`cd finvera-be; .\mvnw.cmd test` on 2026-08-30:
+`cd finvera-be; .\mvnw.cmd test` on 2026-08-30 (review baseline):
 
 ```
 Tests run: 643, Failures: 7, Errors: 3, Skipped: 0
 BUILD FAILURE
 ```
+
+After Groups B and C (2026-08-30):
+
+```
+Tests run: 645, Failures: 0, Errors: 0, Skipped: 0
+BUILD SUCCESS
+```
+
+`finvera-fe` after Groups A and C: `npx vitest run` 127/127, lint clean, build clean.
 
 `finvera-fe`: `npx vitest run` 126/126, `npm run lint` clean, `npm run build`
 clean. `finvera-ai`: `uv run pytest` 81/81.
@@ -585,4 +640,10 @@ clean. `finvera-ai`: `uv run pytest` 81/81.
 | Date | Change |
 |---|---|
 | 2026-08-30 | Opened from the full-system review. Q-01 completed (R-016, T080). |
+| 2026-08-30 | Group F: Q-24, Q-26, Q-27, Q-29 done; Q-25 deferred (needs reconciliation-v2 decision); Q-28 (performance) remains. |
+| 2026-08-30 | Feature 008 `spec.md` drafted (Group D entry point); Q-25 deferred with rationale; Q-29 docs/git hygiene done. |
+| 2026-08-30 | Group E complete: Q-20..Q-22 — RAG answer rebuilt from verified claims, faithfulness numeric guard + honest attribution, symbol charset (specs/006 T052, specs/007 T047); `uv run pytest` 85/85. |
+| 2026-08-30 | Q-18/Q-19 done: internal API key fails fast on both services, `/internal/v1/**` role-gated, constant-time compare (specs/006 T051, specs/007 T046). |
+| 2026-08-30 | Q-23 (latent EV_EBITDA/ebitdaTtm conflation) removed ahead of Group D (specs/002 T082). Full backend suite 645/645 after Group C. |
+| 2026-08-30 | Group C complete: Q-09..Q-12 — portfolio/watchlist missing-price and freshness disclosure, one daily-change basis, null benchmark (contracts amended first; specs/005 R-012, T041). |
 | 2026-08-30 | Group B complete: Q-02..Q-05 — backend suite 643/643 green (was 7F+3E). Q-06..Q-08 complete: honest EOD breadth coverage, regime coverage floor, consensus session date (specs/001 R-012, T087-T089; specs/002 T081; specs/004 T035). |

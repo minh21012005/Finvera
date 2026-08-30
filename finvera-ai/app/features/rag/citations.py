@@ -36,6 +36,12 @@ def verify_citation_claims(
     3. If a claim has 0 surviving valid blockRefs, drop the claim.
     4. If 0 surviving claims remain or model_refused is True, return refusal state.
     5. Resolve surviving blockRefs to chunk IDs.
+
+    The returned ``answer`` is rebuilt from the surviving claims only (rag-v1
+    step 3: a claim with zero valid blockRefs "is removed from the answer").
+    Prose the model produced without any citation never had a claim to survive
+    and is therefore not delivered either -- delivered text and verified
+    citations cannot diverge.
     """
     default_refusal = "No relevant information was found in the provided research documents or news articles."
 
@@ -80,7 +86,7 @@ def verify_citation_claims(
         )
 
     return CitationVerificationResult(
-        answer=raw_answer,
+        answer=" ".join(surviving_claims),
         citations=verified_citations,
         refused=False,
         refusal_reason=None,

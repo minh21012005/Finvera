@@ -27,7 +27,11 @@ import com.minhnb.finvera_be.stock.service.StockReferenceDataService;
 import com.minhnb.finvera_be.stock.service.StockReferenceDataService.DailyBarReference;
 import com.minhnb.finvera_be.stock.service.StockReferenceDataService.EquityProfileReference;
 import com.minhnb.finvera_be.stock.service.StockReferenceDataService.SignalReference;
+import com.minhnb.finvera_be.market.domain.model.MarketTypes.DataStatus;
+import com.minhnb.finvera_be.stock.domain.time.StockFreshnessPolicy;
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Instant;
@@ -53,6 +57,7 @@ public class WatchlistService {
     private final StockReferenceDataService stockReferenceData;
     private final OwnerScopedAccess ownerScopedAccess;
     private final Clock clock;
+    private final StockFreshnessPolicy freshnessPolicy = new StockFreshnessPolicy();
 
     public WatchlistService(
             WatchlistRepository watchlistRepository,
@@ -127,6 +132,8 @@ public class WatchlistService {
         Map<UUID, InstrumentReference> instruments = new HashMap<>();
         Map<UUID, EquityProfileReference> profiles = new HashMap<>();
         Map<UUID, DailyBarReference> latestBars = new HashMap<>();
+        Map<UUID, DailyBarReference> priorBars = new HashMap<>();
+        Map<String, LocalDate> sessionDateByVenue = new HashMap<>();
         Map<UUID, SignalReference> signals = new HashMap<>();
         Map<UUID, Map<IndicatorCode, IndicatorSnapshot>> indicatorsByInstrument = Map.of();
 
@@ -137,8 +144,14 @@ public class WatchlistService {
             for (EquityProfileReference prof : stockReferenceData.findEquityProfiles(instrumentIds)) {
                 profiles.put(prof.instrumentId(), prof);
             }
-            for (DailyBarReference bar : stockReferenceData.findLatestDailyBars(instrumentIds)) {
-                latestBars.put(bar.instrumentId(), bar);
+            // Two bars per instrument: the latest close and, for the daily-change
+            // basis (contract U-9), the prior accepted close when the bar carries no
+            // reference price. Rows arrive ordered by instrument then trading date.
+            for (DailyBarReference bar : stockReferenceData.findLatestDailyBars(instrumentIds, 2)) {
+                DailyBarReference previous = latestBars.put(bar.instrumentId(), bar);
+                if (previous != null) {
+                    priorBars.put(bar.instrumentId(), previous);
+                }
             }
             for (SignalReference sig : stockReferenceData.findCurrentSignalsForInstruments(instrumentIds)) {
                 signals.put(sig.instrumentId(), sig);
@@ -173,14 +186,39 @@ public class WatchlistService {
 
             if (bar != null) {
                 currentPrice = PositionService.formatDecimal(bar.closePrice());
-                dataStatus = "CURRENT";
                 coherenceParts.add(bar.id().toString());
 
-                // If open price is available, compute approximate daily change
-                if (bar.openPrice() != null && bar.openPrice().signum() > 0 && bar.closePrice() != null) {
-                    BigDecimal changePct = bar.closePrice().subtract(bar.openPrice())
-                            .divide(bar.openPrice(), 6, RoundingMode.HALF_UP)
-                            .multiply(BigDecimal.valueOf(100));
+                // Contract U-8: the price is only CURRENT if it belongs to the
+                // venue's current session; otherwise DELAYED/STALE by sessions behind.
+                String venue = inst != null ? inst.venue() : null;
+                DataStatus priceFreshness;
+                if (venue == null || bar.closePrice() == null) {
+                    priceFreshness = DataStatus.UNAVAILABLE;
+                } else {
+                    LocalDate sessionDate = sessionDateByVenue.computeIfAbsent(venue,
+                            v -> marketReferenceData.resolveSession(v, Instant.now(clock)).tradingDate());
+                    priceFreshness = freshnessPolicy.evaluateDailyBarSeries(
+                            countWeekdaysBetween(bar.tradingDate(), sessionDate));
+                }
+                dataStatus = priceFreshness.name();
+                if (priceFreshness == DataStatus.DELAYED) {
+                    reasonCode = "PRICE_DELAYED";
+                } else if (priceFreshness == DataStatus.STALE) {
+                    reasonCode = "PRICE_STALE";
+                }
+
+                // Contract U-9: the same change basis as the stock-detail overview --
+                // accepted reference price, else prior accepted close. Never the
+                // session's own open price.
+                DailyBarReference prior = priorBars.get(instId);
+                BigDecimal basis = bar.referencePrice() != null && bar.referencePrice().signum() > 0
+                        ? bar.referencePrice()
+                        : prior != null && prior.closePrice() != null && prior.closePrice().signum() > 0
+                                ? prior.closePrice() : null;
+                if (basis != null && bar.closePrice() != null) {
+                    BigDecimal changePct = bar.closePrice().subtract(basis)
+                            .multiply(BigDecimal.valueOf(100))
+                            .divide(basis, 6, RoundingMode.HALF_UP);
                     dailyChangePercent = PositionService.formatDecimal(changePct);
                 }
 
@@ -194,7 +232,9 @@ public class WatchlistService {
                 TrendResult trend = ScreenerV1.deriveTrend(trendFacts);
                 if (!trend.unavailable() && trend.direction() != null) {
                     technicalTrend = trend.direction().name();
-                } else {
+                } else if (reasonCode == null) {
+                    // A price-freshness reason (PRICE_DELAYED/STALE) is the more
+                    // actionable disclosure and must not be overwritten here.
                     reasonCode = "INSUFFICIENT_HISTORY";
                 }
 
@@ -215,10 +255,10 @@ public class WatchlistService {
                     reasonCode = "INSUFFICIENT_HISTORY";
                 }
 
-                // Price is current, but trend/volume are not fully available —
-                // PARTIAL, not CURRENT, so the item doesn't overstate completeness.
+                // Price present but trend/volume incomplete: PARTIAL, unless the
+                // price itself is already worse than PARTIAL (STALE/UNAVAILABLE).
                 if (reasonCode != null) {
-                    dataStatus = "PARTIAL";
+                    dataStatus = DataStatus.mostActionable(priceFreshness, DataStatus.PARTIAL).name();
                 }
             } else {
                 reasonCode = "NO_BARS_AVAILABLE";
@@ -330,5 +370,18 @@ public class WatchlistService {
             WatchlistItemId itemId = new WatchlistItemId(watchlistId, inst.get().instrumentId());
             watchlistItemRepository.deleteById(itemId);
         }
+    }
+
+    /** Same weekday-count approximation as {@code StockOverviewService}; see its Javadoc for the caveat. */
+    private static int countWeekdaysBetween(LocalDate lastAccepted, LocalDate asOfTradingDate) {
+        int count = 0;
+        LocalDate cursor = lastAccepted;
+        while (cursor.isBefore(asOfTradingDate)) {
+            cursor = cursor.plusDays(1);
+            if (cursor.getDayOfWeek() != DayOfWeek.SATURDAY && cursor.getDayOfWeek() != DayOfWeek.SUNDAY) {
+                count++;
+            }
+        }
+        return count;
     }
 }

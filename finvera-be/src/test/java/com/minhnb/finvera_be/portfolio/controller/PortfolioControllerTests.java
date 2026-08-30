@@ -102,7 +102,8 @@ class PortfolioControllerTests {
     void createPortfolioSuccess() throws Exception {
         UUID pfId = UUID.randomUUID();
         PortfolioSummaryResponse response = new PortfolioSummaryResponse(
-                pfId, "Growth", Instant.parse("2026-08-15T10:00:00Z"), "0", "0", "0", "0", Instant.parse("2026-08-15T10:00:00Z"));
+                pfId, "Growth", Instant.parse("2026-08-15T10:00:00Z"), "0", "0", "0", "0", "CURRENT", List.of(),
+                Instant.parse("2026-08-15T10:00:00Z"));
         given(portfolioService.createPortfolio(any(CreatePortfolioRequest.class))).willReturn(response);
 
         mvc.perform(post("/api/v1/portfolios")
@@ -253,9 +254,11 @@ class PortfolioControllerTests {
     void getPositionsSuccess() throws Exception {
         UUID pfId = UUID.randomUUID();
         PositionResponse pos = new PositionResponse(
-                "FPT", "1000", "50000", "60000", "DEFINED", "10000000", "0", "0.6");
+                "FPT", "1000", "50000", "60000", "DEFINED", "CURRENT", java.time.LocalDate.parse("2026-08-15"),
+                "10000000", "0", "0.6");
         PositionsResponse response = new PositionsResponse(
-                List.of(pos), "40000000", "100000000", "coh-123", Instant.parse("2026-08-15T10:00:00Z"));
+                List.of(pos), "40000000", "100000000", "CURRENT", List.of(), "coh-123",
+                Instant.parse("2026-08-15T10:00:00Z"));
 
         given(positionService.getPositions(pfId)).willReturn(response);
 
@@ -266,6 +269,9 @@ class PortfolioControllerTests {
                 .andExpect(jsonPath("$.cashBalance").value("40000000"))
                 .andExpect(jsonPath("$.positions[0].instrumentSymbol").value("FPT"))
                 .andExpect(jsonPath("$.positions[0].quantity").value("1000"))
+                .andExpect(jsonPath("$.positions[0].priceDataStatus").value("CURRENT"))
+                .andExpect(jsonPath("$.dataStatus").value("CURRENT"))
+                .andExpect(jsonPath("$.reasonCodes").isEmpty())
                 .andExpect(jsonPath("$.coherenceKey").value("coh-123"));
     }
 

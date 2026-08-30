@@ -75,7 +75,10 @@ export function PortfolioAnalyticsView({ portfolioId }: PortfolioAnalyticsViewPr
 
   const retInception = formatPercent(analytics.returnSinceInception);
   const retPeriod = formatPercent(analytics.returnOverPeriod);
-  const benchRet = formatPercent(analytics.benchmark.benchmarkReturn);
+  const benchRet =
+    analytics.benchmark.benchmarkReturn == null
+      ? { text: "Không có dữ liệu VN-Index cho kỳ này", sign: "" }
+      : formatPercent(analytics.benchmark.benchmarkReturn);
   const maxDrawdownNum = analytics.maxDrawdown != null ? Number(analytics.maxDrawdown) : null;
   const maxDd =
     maxDrawdownNum != null && maxDrawdownNum !== 0

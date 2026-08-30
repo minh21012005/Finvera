@@ -15,6 +15,8 @@ describe("HoldingsTable Component", () => {
         averageCostBasis: "50000",
         currentPrice: "60000",
         currentPriceStatus: "DEFINED",
+        priceDataStatus: "CURRENT",
+        priceTradingDate: "2026-08-15",
         unrealizedPL: "10000000",
         realizedPL: "2000000",
         allocation: "0.6",
@@ -25,6 +27,8 @@ describe("HoldingsTable Component", () => {
         averageCostBasis: "70000",
         currentPrice: "65000",
         currentPriceStatus: "DEFINED",
+        priceDataStatus: "CURRENT",
+        priceTradingDate: "2026-08-15",
         unrealizedPL: "-2500000",
         realizedPL: "0",
         allocation: "0.325",
@@ -49,6 +53,35 @@ describe("HoldingsTable Component", () => {
     // Check allocations
     expect(screen.getByText("60.00%")).toBeInTheDocument();
     expect(screen.getByText("32.50%")).toBeInTheDocument();
+  });
+
+  it("discloses a PARTIAL portfolio status with a text cue when a position is unpriced", () => {
+    render(
+      <HoldingsTable
+        positions={[
+          {
+            instrumentSymbol: "ACM",
+            quantity: "1000",
+            averageCostBasis: "500",
+            currentPrice: null,
+            currentPriceStatus: "MISSING",
+            priceDataStatus: "UNAVAILABLE",
+            priceTradingDate: null,
+            unrealizedPL: null,
+            realizedPL: "0",
+            allocation: null,
+          },
+        ]}
+        cashBalance="7500000"
+        totalValue="7500000"
+        dataStatus="PARTIAL"
+        reasonCodes={["POSITION_PRICE_UNAVAILABLE"]}
+      />,
+    );
+    const status = screen.getByTestId("portfolio-data-status");
+    expect(status).toHaveTextContent("PARTIAL");
+    expect(status).toHaveTextContent(/Thiếu giá/);
+    expect(screen.getByText("Chưa có")).toBeInTheDocument();
   });
 
   it("renders empty state when there are no positions", () => {

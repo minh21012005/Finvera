@@ -410,6 +410,12 @@ screener given those same filters directly.
       `npx playwright test`, `uv run python -m compileall .`,
       `uv run pytest`
       Depends: T044
+- [x] T046 [SEC-001] Refuse a blank or placeholder `finvera.analyst.internal-api-key` at startup in `AnalystProperties` (shared fix with Feature 006 T051).
+      Verify: `InternalApiKeyPropertiesTests.analystPropertiesRefuseBlankAndPlaceholder` passes; `AnalystControllerTests` and `InternalToolControllerTests` pass with a real test secret.
+      Evidence (2026-08-30): tracked as Q-18 in `docs/REMEDIATION_PLAN.md`.
+- [x] T047 [AI-001, AI-004, SEC-003] Harden the explanation faithfulness check and tool-argument typing in `finvera-ai`: `verify_faithfulness` fails when the explanation references none of the supplied factors (previously reported as having referenced *all* of them) and when it states any number absent from the supplied evidence; `SymbolToolArgs`/`NewsToolArgs`/`ResearchRagToolArgs` require `[A-Z0-9]{1,20}` after normalisation before the symbol is interpolated into a backend URL path.
+      Verify: new `test_q21_*` and `test_q22_*` tests pass; existing retry/offline/provider-failure explain tests unchanged; `uv run pytest` 85/85.
+      Evidence (2026-08-30): tracked as Q-21 and Q-22 in `docs/REMEDIATION_PLAN.md`. Numeric guard compares digit groups with separators stripped so `1,25`/`1.25` compare alike; an explanation may restate the deterministic engine's figures but never introduce its own (Constitution I).
 
 ## Dependencies and Parallel Execution
 

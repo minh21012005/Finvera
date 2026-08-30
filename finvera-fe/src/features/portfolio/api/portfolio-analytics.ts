@@ -19,8 +19,10 @@ export interface RiskExposure {
 
 export interface BenchmarkComparison {
   portfolioReturn: string | null;
-  benchmarkReturn: string;
+  /** null (never "0") when no accepted VN-Index close covers the period; see reasonCode. */
+  benchmarkReturn: string | null;
   benchmarkSymbol: string;
+  reasonCode: string | null;
 }
 
 export interface PortfolioAnalytics {

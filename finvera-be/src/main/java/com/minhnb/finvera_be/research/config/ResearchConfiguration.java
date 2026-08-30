@@ -37,20 +37,4 @@ public class ResearchConfiguration implements SchedulingConfigurer {
                 properties.ingestionTimeoutCheckInterval());
     }
 
-    /**
-     * Warns loudly at startup if the operator never overrode the internal API key, so both sides
-     * (finvera-be and finvera-ai) silently agreeing on the well-known placeholder doesn't go unnoticed.
-     * Deliberately a log line, not a startup failure — the placeholder is still needed for local
-     * dev/test, so this must not break those setups.
-     */
-    @Bean
-    ApplicationRunner warnIfInternalApiKeyIsDefault() {
-        return arguments -> {
-            if (ResearchProperties.DEFAULT_INTERNAL_API_KEY.equals(properties.internalApiKey())) {
-                log.warn("finvera.research.internal-api-key is using the placeholder default value "
-                        + "('{}'). This MUST be overridden before any non-local deployment.",
-                        ResearchProperties.DEFAULT_INTERNAL_API_KEY);
-            }
-        };
-    }
 }

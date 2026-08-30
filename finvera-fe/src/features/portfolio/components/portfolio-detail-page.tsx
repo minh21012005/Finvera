@@ -5,6 +5,7 @@ import {
   listTransactions,
   type PortfolioSummary,
   type Position,
+  type PositionsResponse,
   type Transaction,
 } from "../api/portfolio";
 import { HoldingsTable } from "./holdings-table";
@@ -22,6 +23,8 @@ export function PortfolioDetailPage({ portfolioId }: PortfolioDetailPageProps) {
   const [positions, setPositions] = useState<Position[]>([]);
   const [cashBalance, setCashBalance] = useState("0");
   const [totalValue, setTotalValue] = useState("0");
+  const [positionsStatus, setPositionsStatus] = useState<PositionsResponse["dataStatus"]>("CURRENT");
+  const [positionsReasons, setPositionsReasons] = useState<string[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +44,8 @@ export function PortfolioDetailPage({ portfolioId }: PortfolioDetailPageProps) {
         setPositions(posData.positions);
         setCashBalance(posData.cashBalance);
         setTotalValue(posData.totalValue);
+        setPositionsStatus(posData.dataStatus);
+        setPositionsReasons(posData.reasonCodes ?? []);
         setTransactions(txPage.items);
         setError(null);
       })
@@ -193,6 +198,8 @@ export function PortfolioDetailPage({ portfolioId }: PortfolioDetailPageProps) {
             positions={positions}
             cashBalance={cashBalance}
             totalValue={totalValue}
+            dataStatus={positionsStatus}
+            reasonCodes={positionsReasons}
           />
 
           {/* Transaction Ledger */}

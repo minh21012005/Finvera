@@ -26,7 +26,15 @@ public class InternalApiKeyFilter extends OncePerRequestFilter {
 
     public InternalApiKeyFilter(
             @org.springframework.beans.factory.annotation.Autowired(required = false) ResearchProperties researchProperties) {
-        this.researchProperties = researchProperties != null ? researchProperties : new ResearchProperties(null, null, null, null, 0);
+        // Absent properties mean no secret is configured: every /internal/v1 request is refused.
+        this.researchProperties = researchProperties;
+    }
+
+    /** Length-independent comparison so a wrong key cannot be timed byte by byte. */
+    private static boolean constantTimeEquals(String presented, String expected) {
+        byte[] a = presented.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] b = expected.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        return java.security.MessageDigest.isEqual(a, b);
     }
 
     @Override
@@ -41,7 +49,7 @@ public class InternalApiKeyFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain) throws ServletException, IOException {
         String key = request.getHeader(INTERNAL_API_KEY_HEADER);
-        if (key == null || !key.equals(researchProperties.internalApiKey())) {
+        if (researchProperties == null || key == null || !constantTimeEquals(key, researchProperties.internalApiKey())) {
             ProblemDetailsAdvice.write(response, request, 401, "UNAUTHORIZED", "Invalid or missing X-Internal-Api-Key");
             return;
         }

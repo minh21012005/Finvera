@@ -66,6 +66,12 @@ class PortfolioTransactionServiceTests {
         marketReferenceData = mock(MarketReferenceDataService.class);
         stockReferenceData = mock(StockReferenceDataService.class);
         ownerScopedAccess = new OwnerScopedAccess(new OwnerProperties(ownerId, "owner", "hash"));
+        // Production resolveSession never returns null; the fixed clock is
+        // 2026-08-15T10:00Z (a Saturday), so the venue's resolved session date is 2026-08-15.
+        when(marketReferenceData.resolveSession(any(), any())).thenReturn(
+                new MarketReferenceDataService.SessionContext(
+                        com.minhnb.finvera_be.market.domain.model.MarketTypes.SessionState.CLOSED,
+                        LocalDate.parse("2026-08-15")));
 
         positionService = new PositionService(
                 portfolioRepository,
@@ -273,5 +279,70 @@ class PortfolioTransactionServiceTests {
         assertThat(pos.unrealizedPL()).isEqualTo("10000000");
         // Allocation: 60M / 110M = 0.545454545455
         assertThat(pos.allocation()).startsWith("0.5454");
+        // Contract U-8: 2026-08-15 is a Saturday, so the Friday 2026-08-14 close is
+        // zero completed sessions behind the resolved session -- CURRENT.
+        assertThat(pos.priceDataStatus()).isEqualTo("CURRENT");
+        assertThat(pos.priceTradingDate()).isEqualTo(LocalDate.parse("2026-08-14"));
+        assertThat(positionsRes.dataStatus()).isEqualTo("CURRENT");
+        assertThat(positionsRes.reasonCodes()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Contract U-8: an unpriced open position makes the portfolio PARTIAL and never counts as zero worth")
+    void unpricedPositionIsDisclosedAsPartialRatherThanValuedAtZero() {
+        UUID pfId = UUID.randomUUID();
+        when(portfolioRepository.findByIdAndOwnerIdAndDeletedAtIsNull(pfId, ownerId))
+                .thenReturn(Optional.of(new PortfolioEntity(pfId, ownerId, "PF", Instant.now(clock), null)));
+        PortfolioTransactionEntity dep = new PortfolioTransactionEntity(
+                UUID.randomUUID(), pfId, "dep-1", "DEPOSIT", null, null, null, BigDecimal.ZERO,
+                new BigDecimal("100000000"), "VND", Instant.parse("2026-08-01T10:00:00Z"), Instant.now(clock), null, null);
+        PortfolioTransactionEntity buy = new PortfolioTransactionEntity(
+                UUID.randomUUID(), pfId, "buy-1", "BUY", fptId, new BigDecimal("1000"),
+                new BigDecimal("50000"), BigDecimal.ZERO, null, "VND", Instant.parse("2026-08-02T10:00:00Z"), Instant.now(clock), null, null);
+        when(transactionRepository.findByPortfolioIdOrderByExecutedAtAscSequenceNoAsc(pfId)).thenReturn(List.of(dep, buy));
+        when(marketReferenceData.findInstrumentsByIds(any())).thenReturn(List.of(
+                new InstrumentReference(fptId, "HOSE", "FPT", "EQUITY", "ACTIVE")));
+        when(stockReferenceData.findLatestDailyBars(any())).thenReturn(List.of()); // no accepted bar at all
+
+        PositionsResponse positionsRes = positionService.getPositions(pfId);
+
+        // Cash only: the unpriced FPT position contributes nothing, and the response says so.
+        assertThat(positionsRes.totalValue()).isEqualTo("50000000");
+        assertThat(positionsRes.dataStatus()).isEqualTo("PARTIAL");
+        assertThat(positionsRes.reasonCodes()).containsExactly("POSITION_PRICE_UNAVAILABLE");
+        var pos = positionsRes.positions().get(0);
+        assertThat(pos.currentPriceStatus()).isEqualTo("MISSING");
+        assertThat(pos.priceDataStatus()).isEqualTo("UNAVAILABLE");
+        assertThat(pos.currentPrice()).isNull();
+        assertThat(pos.unrealizedPL()).isNull();
+    }
+
+    @Test
+    @DisplayName("Contract U-8: a price several sessions old is disclosed STALE, not silently CURRENT")
+    void stalePriceIsDisclosedOnThePositionAndThePortfolio() {
+        UUID pfId = UUID.randomUUID();
+        when(portfolioRepository.findByIdAndOwnerIdAndDeletedAtIsNull(pfId, ownerId))
+                .thenReturn(Optional.of(new PortfolioEntity(pfId, ownerId, "PF", Instant.now(clock), null)));
+        PortfolioTransactionEntity dep = new PortfolioTransactionEntity(
+                UUID.randomUUID(), pfId, "dep-1", "DEPOSIT", null, null, null, BigDecimal.ZERO,
+                new BigDecimal("100000000"), "VND", Instant.parse("2026-08-01T10:00:00Z"), Instant.now(clock), null, null);
+        PortfolioTransactionEntity buy = new PortfolioTransactionEntity(
+                UUID.randomUUID(), pfId, "buy-1", "BUY", fptId, new BigDecimal("1000"),
+                new BigDecimal("50000"), BigDecimal.ZERO, null, "VND", Instant.parse("2026-08-02T10:00:00Z"), Instant.now(clock), null, null);
+        when(transactionRepository.findByPortfolioIdOrderByExecutedAtAscSequenceNoAsc(pfId)).thenReturn(List.of(dep, buy));
+        when(marketReferenceData.findInstrumentsByIds(any())).thenReturn(List.of(
+                new InstrumentReference(fptId, "HOSE", "FPT", "EQUITY", "ACTIVE")));
+        DailyBarReference oldBar = new DailyBarReference(
+                UUID.randomUUID(), fptId, LocalDate.parse("2026-06-19"), new BigDecimal("59000"),
+                new BigDecimal("61000"), new BigDecimal("59000"), new BigDecimal("60000"),
+                1000000L, new BigDecimal("60000000000"), "VNSTOCK_KBS", Instant.now(clock));
+        when(stockReferenceData.findLatestDailyBars(any())).thenReturn(List.of(oldBar));
+
+        PositionsResponse positionsRes = positionService.getPositions(pfId);
+
+        assertThat(positionsRes.totalValue()).isEqualTo("110000000");
+        assertThat(positionsRes.dataStatus()).isEqualTo("STALE");
+        assertThat(positionsRes.reasonCodes()).containsExactly("POSITION_PRICE_STALE");
+        assertThat(positionsRes.positions().get(0).priceDataStatus()).isEqualTo("STALE");
     }
 }

@@ -39,7 +39,7 @@ class ResearchAskControllerTests {
         registry.add("finvera.security.owner.id", () -> "00000000-0000-0000-0000-000000000001");
         registry.add("finvera.security.owner.username", () -> "owner-test");
         registry.add("finvera.security.owner.password-hash", () -> "$2a$04$test");
-        registry.add("finvera.research.internal-api-key", () -> "dev-internal-key-change-in-prod");
+        registry.add("finvera.research.internal-api-key", () -> "test-internal-api-key");
     }
 
     @Autowired

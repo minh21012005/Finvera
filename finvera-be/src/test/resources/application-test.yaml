@@ -22,3 +22,7 @@ finvera:
       quote-contracted-delay: PT0S
     chart:
       max-window: 2Y
+  research:
+    internal-api-key: test-internal-api-key
+  analyst:
+    internal-api-key: test-internal-api-key

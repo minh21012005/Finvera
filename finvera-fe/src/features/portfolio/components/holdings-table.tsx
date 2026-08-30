@@ -1,12 +1,46 @@
-import type { Position } from "../api/portfolio";
+import type { PortfolioDataStatus, Position } from "../api/portfolio";
 
 interface HoldingsTableProps {
   positions: Position[];
   cashBalance: string;
   totalValue: string;
+  dataStatus?: PortfolioDataStatus;
+  reasonCodes?: string[];
 }
 
-export function HoldingsTable({ positions, cashBalance, totalValue }: HoldingsTableProps) {
+/** Text cue for a non-CURRENT status; colour is never the only carrier (AGENTS.md). */
+function describePortfolioStatus(status: PortfolioDataStatus | undefined, reasonCodes: string[] = []): string | null {
+  switch (status) {
+    case "PARTIAL":
+      return reasonCodes.includes("POSITION_PRICE_UNAVAILABLE")
+        ? "Thiếu giá: ít nhất một mã chưa có giá được chấp nhận — tổng dưới đây chưa bao gồm mã đó"
+        : "Dữ liệu chưa đầy đủ";
+    case "DELAYED":
+      return "Giá trễ 1 phiên";
+    case "STALE":
+      return "Giá cũ nhiều phiên — tổng có thể không còn phản ánh thị trường";
+    case "UNAVAILABLE":
+      return "Không có giá";
+    default:
+      return null;
+  }
+}
+
+function describePriceFreshness(status: PortfolioDataStatus): string | null {
+  switch (status) {
+    case "DELAYED":
+      return "trễ 1 phiên";
+    case "STALE":
+      return "cũ";
+    case "UNAVAILABLE":
+      return "không có";
+    default:
+      return null;
+  }
+}
+
+export function HoldingsTable({ positions, cashBalance, totalValue, dataStatus, reasonCodes = [] }: HoldingsTableProps) {
+  const statusNote = describePortfolioStatus(dataStatus, reasonCodes);
   return (
     <div className="holdings-section" style={{ marginBottom: "32px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
@@ -21,6 +55,11 @@ export function HoldingsTable({ positions, cashBalance, totalValue }: HoldingsTa
         <div style={{ padding: "16px", background: "var(--bg-card)", border: "1px solid var(--border-color)", borderRadius: "8px" }}>
           <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "block" }}>Tổng giá trị danh mục</span>
           <strong style={{ fontSize: "1.25rem" }}>{Number(totalValue).toLocaleString("vi-VN")} đ</strong>
+          {statusNote && (
+            <span role="status" data-testid="portfolio-data-status" style={{ display: "block", fontSize: "0.78rem", color: "var(--text-secondary)", marginTop: "4px" }}>
+              ⚠ {dataStatus}: {statusNote}
+            </span>
+          )}
         </div>
         <div style={{ padding: "16px", background: "var(--bg-card)", border: "1px solid var(--border-color)", borderRadius: "8px" }}>
           <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "block" }}>Tiền mặt khả dụng</span>
@@ -81,6 +120,11 @@ export function HoldingsTable({ positions, cashBalance, totalValue }: HoldingsTa
                     </td>
                     <td style={{ padding: "12px 16px", textAlign: "right" }}>
                       {pos.currentPrice ? `${Number(pos.currentPrice).toLocaleString("vi-VN")} đ` : "Chưa có"}
+                      {pos.currentPrice && describePriceFreshness(pos.priceDataStatus) && (
+                        <span style={{ display: "block", fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                          ({describePriceFreshness(pos.priceDataStatus)}{pos.priceTradingDate ? ` · ${pos.priceTradingDate}` : ""})
+                        </span>
+                      )}
                     </td>
                     <td style={{ padding: "12px 16px", textAlign: "right" }}>
                       {unpl !== null ? (

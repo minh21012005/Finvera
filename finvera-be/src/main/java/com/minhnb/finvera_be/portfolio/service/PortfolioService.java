@@ -64,6 +64,8 @@ public class PortfolioService {
                 "0",
                 "0",
                 "0",
+                "CURRENT",
+                java.util.List.of(),
                 now);
     }
 

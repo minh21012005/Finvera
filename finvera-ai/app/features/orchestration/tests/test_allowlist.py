@@ -52,3 +52,12 @@ def test_validate_owner_mismatch_rejection():
     assert ok is False
     assert tool_name == ToolName.STOCK
     assert "OWNER_MISMATCH" in err
+
+
+def test_q22_symbol_with_path_characters_is_rejected():
+    import uuid as _uuid
+    from app.features.orchestration.allowlist import validate_tool_call
+    owner = _uuid.uuid4()
+    ok, _, _, reason = validate_tool_call("STOCK", {"symbol": "VNM/../portfolios"}, owner)
+    assert ok is False
+    assert reason is not None and "INVALID_ARGUMENTS" in reason

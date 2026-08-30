@@ -124,4 +124,24 @@ class TcbsLiveEquityQuoteServiceTests {
         assertThat(quote.sessionValueVnd()).isEqualByComparingTo("44000000000");
         assertThat(quote.source()).isEqualTo("TCBS_IFLASH_THESIS");
     }
+
+    @Test
+    void referencePriceAndSessionFactsDoNotSurviveATradingDateRollover() {
+        // Day 1 (2026-08-24): reference 34,500 and a trade at 35,200 build session facts.
+        service.accept(new TcbsThesisFrameMapper.EquityReferenceUpdate("TCB", new BigDecimal("34500"), receivedAt));
+        service.accept(new TcbsThesisFrameMapper.EquityTradeUpdate("TCB", new BigDecimal("35200"),
+                new BigDecimal("700"), new BigDecimal("2.03"), 1_250_000L, new BigDecimal("44000000000"), receivedAt));
+
+        // Day 2 (2026-08-25): the venue session rolls over; no new reference frame yet.
+        Instant nextDay = Instant.parse("2026-08-25T02:15:00Z");
+        lenient().when(referenceData.resolveSession(org.mockito.ArgumentMatchers.eq("HOSE"), org.mockito.ArgumentMatchers.eq(nextDay)))
+                .thenReturn(new MarketReferenceDataService.SessionContext(SessionState.OPEN, LocalDate.of(2026, 8, 25)));
+        org.mockito.Mockito.clearInvocations(prices);
+
+        // A trade with no absoluteChange cannot derive a reference: yesterday's 34,500 must NOT be reused.
+        service.accept(new TcbsThesisFrameMapper.EquityTradeUpdate("TCB", new BigDecimal("36000"),
+                null, null, 10_000L, new BigDecimal("360000000"), nextDay));
+
+        verify(prices, never()).save(any());
+    }
 }

@@ -1,5 +1,12 @@
 import { getCsrf } from "../../auth/api/owner-access";
 
+/**
+ * Portfolio-level freshness/completeness of the priced holdings a total was
+ * built from (contract U-8). PARTIAL means at least one open position could not
+ * be priced and contributes nothing to totalValue — the total is a lower bound.
+ */
+export type PortfolioDataStatus = "CURRENT" | "DELAYED" | "STALE" | "PARTIAL" | "UNAVAILABLE";
+
 export interface PortfolioSummary {
   id: string;
   name: string;
@@ -8,6 +15,8 @@ export interface PortfolioSummary {
   cashBalance: string;
   totalUnrealizedPL: string;
   totalRealizedPL: string;
+  dataStatus: PortfolioDataStatus;
+  reasonCodes: string[];
   asOf: string;
 }
 
@@ -66,6 +75,8 @@ export interface Position {
   averageCostBasis: string;
   currentPrice: string | null;
   currentPriceStatus: "DEFINED" | "NOT_APPLICABLE" | "MISSING";
+  priceDataStatus: PortfolioDataStatus;
+  priceTradingDate: string | null;
   unrealizedPL: string | null;
   realizedPL: string;
   allocation: string | null;
@@ -75,6 +86,8 @@ export interface PositionsResponse {
   positions: Position[];
   cashBalance: string;
   totalValue: string;
+  dataStatus: PortfolioDataStatus;
+  reasonCodes: string[];
   coherenceKey: string;
   asOf: string;
 }

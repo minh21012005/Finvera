@@ -495,6 +495,12 @@ T007/T013/T023/T031 fixture set.
       checks all recorded; every finding resolved or explicitly deferred
       with reason
       Depends: T049
+- [x] T051 [SEC-001, SEC-002] Fail startup on a missing or placeholder internal API key and add defence in depth for `/internal/v1/**`: `ResearchProperties` and `finvera-ai` `Settings` refuse blank/`dev-internal-key-change-in-prod`; `InternalApiKeyFilter` fails closed when no properties exist and compares keys in constant time (`MessageDigest.isEqual`; `hmac.compare_digest` on the AI side); `OwnerSecurityConfiguration` requires `ROLE_INTERNAL_SERVICE` on `/internal/v1/**` instead of `permitAll()`; the placeholder warn-runner is removed; `application-test.yaml` and `finvera-ai/conftest.py` supply a test secret.
+      Verify: `InternalApiKeyPropertiesTests` (4), `InternalIngestionCallbackControllerSecurityTests` (3, negative 401 paths), `InternalToolControllerTests` (8) pass; `uv run pytest` 81/81.
+      Evidence (2026-08-30): tracked as Q-18 and Q-19 in `docs/REMEDIATION_PLAN.md`. Constitution "Configuration": a missing secret must fail startup, never fall back to something weak; both services previously defaulted to the same well-known literal and only logged a WARN. The owner's local `.env` files already carry real keys, so no local activation step is needed.
+- [x] T052 [AI-002, AI-003, FR-009] Make the delivered `rag-v1` answer consist only of claims that survived citation verification: `verify_citation_claims` in `finvera-ai/app/features/rag/citations.py` now rebuilds `answer` from the surviving claim texts, so uncited prose and claims whose every `blockRef` was invalid are removed from the answer (contract step 3), not merely from the citation list.
+      Verify: new `test_uncited_prose_is_removed_from_the_delivered_answer` passes alongside the existing grounded/refusal/redirect tests; `uv run pytest` 85/85.
+      Evidence (2026-08-30): tracked as Q-20 in `docs/REMEDIATION_PLAN.md`. Previously the full model prose was returned with only the citation list filtered, so a sentence with no `[Block N]` at all was never examined and reached the user verbatim as long as one other sentence cited validly.
 
 ## Post-Implementation Analysis (2026-08-20)
 

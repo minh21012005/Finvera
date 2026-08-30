@@ -165,3 +165,22 @@ async def test_t030_provider_failure_surfaces_distinct_error_not_faithfulness_me
     assert "lỗi kết nối tới dịch vụ AI" in res.explanation
     assert "Hiện chưa có sẵn phần giải thích tự động" not in res.explanation
     assert "Không tìm thấy thông tin" not in res.explanation
+
+
+def test_q21_no_referenced_factor_is_not_attributed_to_all_factors():
+    from app.features.analysis.explain import verify_faithfulness
+    factors = [EvidenceFactor(factorCode="BETA", description="Hệ số Beta 1.25")]
+    ok, refs = verify_faithfulness("Cổ phiếu này nhìn chung khá ổn.", factors)
+    assert ok is False
+    assert refs == []
+
+
+def test_q21_fabricated_number_fails_faithfulness():
+    from app.features.analysis.explain import verify_faithfulness
+    factors = [EvidenceFactor(factorCode="BETA", description="Hệ số Beta 1.25")]
+    ok, refs = verify_faithfulness("Hệ số BETA là 1.25 nên giá có thể tăng 15% quý tới.", factors)
+    assert ok is False
+    assert refs == []
+    ok2, refs2 = verify_faithfulness("Hệ số BETA là 1,25 so với thị trường.", factors)
+    assert ok2 is True
+    assert refs2 == ["BETA"]

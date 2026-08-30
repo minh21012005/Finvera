@@ -541,17 +541,37 @@ components:
       type: string
       enum: [BUY, SELL, DEPOSIT, WITHDRAW, VOID]
 
+    PortfolioDataStatus:
+      type: string
+      description: >-
+        Portfolio-level freshness/completeness of the priced holdings this
+        response was valued with (Feature 001 shared vocabulary). PARTIAL means
+        at least one open position could not be priced and therefore
+        contributes nothing to totalValue — the total is a lower bound, never a
+        complete figure. DELAYED/STALE mean every open position is priced but
+        the most actionable price is that many completed sessions behind.
+      enum: [CURRENT, DELAYED, STALE, PARTIAL, UNAVAILABLE]
+
     PortfolioSummary:
       type: object
-      required: [id, name, createdAt, totalValue, cashBalance, totalUnrealizedPL, totalRealizedPL, asOf]
+      required: [id, name, createdAt, totalValue, cashBalance, totalUnrealizedPL, totalRealizedPL, dataStatus, reasonCodes, asOf]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
         createdAt: { $ref: "#/components/schemas/Instant" }
-        totalValue: { $ref: "#/components/schemas/Decimal" }
+        totalValue:
+          allOf: [{ $ref: "#/components/schemas/Decimal" }]
+          description: Cash plus every *priced* open position. Read dataStatus before treating it as net worth.
         cashBalance: { $ref: "#/components/schemas/Decimal" }
         totalUnrealizedPL: { $ref: "#/components/schemas/Decimal" }
         totalRealizedPL: { $ref: "#/components/schemas/Decimal" }
+        dataStatus: { $ref: "#/components/schemas/PortfolioDataStatus" }
+        reasonCodes:
+          type: array
+          items: { type: string }
+          description: >-
+            Stable codes explaining a non-CURRENT dataStatus, e.g.
+            POSITION_PRICE_UNAVAILABLE, POSITION_PRICE_DELAYED, POSITION_PRICE_STALE.
         asOf: { $ref: "#/components/schemas/Instant" }
 
     CreatePortfolioRequest:
@@ -638,6 +658,13 @@ components:
           allOf: [{ $ref: "#/components/schemas/Decimal" }]
           nullable: true
         currentPriceStatus: { $ref: "#/components/schemas/Applicability" }
+        priceDataStatus:
+          allOf: [{ $ref: "#/components/schemas/PortfolioDataStatus" }]
+          description: Freshness of currentPrice measured in completed sessions behind the current market session; UNAVAILABLE when currentPriceStatus is MISSING.
+        priceTradingDate:
+          allOf: [{ $ref: "#/components/schemas/MarketDate" }]
+          nullable: true
+          description: Trading date of the accepted daily bar currentPrice came from.
         unrealizedPL:
           allOf: [{ $ref: "#/components/schemas/Decimal" }]
           nullable: true
@@ -648,13 +675,19 @@ components:
 
     PositionsResponse:
       type: object
-      required: [positions, cashBalance, totalValue, coherenceKey, asOf]
+      required: [positions, cashBalance, totalValue, dataStatus, reasonCodes, coherenceKey, asOf]
       properties:
         positions:
           type: array
           items: { $ref: "#/components/schemas/Position" }
         cashBalance: { $ref: "#/components/schemas/Decimal" }
-        totalValue: { $ref: "#/components/schemas/Decimal" }
+        totalValue:
+          allOf: [{ $ref: "#/components/schemas/Decimal" }]
+          description: Cash plus every *priced* open position; see dataStatus.
+        dataStatus: { $ref: "#/components/schemas/PortfolioDataStatus" }
+        reasonCodes:
+          type: array
+          items: { type: string }
         coherenceKey: { type: string, pattern: "^[0-9a-f]{32}$" }
         asOf: { $ref: "#/components/schemas/Instant" }
 
@@ -696,7 +729,15 @@ components:
         portfolioReturn:
           allOf: [{ $ref: "#/components/schemas/Decimal" }]
           nullable: true
-        benchmarkReturn: { $ref: "#/components/schemas/Decimal" }
+        benchmarkReturn:
+          allOf: [{ $ref: "#/components/schemas/Decimal" }]
+          nullable: true
+          description: >-
+            null — never "0" — when no accepted VN-Index close exists on or
+            before both period bounds (ARCHITECTURE.md section 5: an unavailable
+            fact is null with a reason code, never zero). reasonCode then carries
+            BENCHMARK_UNAVAILABLE.
+        reasonCode: { type: string, nullable: true }
         benchmarkSymbol:
           type: string
           const: VNINDEX

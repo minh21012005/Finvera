@@ -1,3 +1,4 @@
+import re
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
 import uuid
@@ -16,6 +17,19 @@ class ToolName(str, Enum):
     SCREENING = "SCREENING"
 
 
+_SYMBOL_PATTERN = re.compile(r"^[A-Z0-9]{1,20}$")
+
+
+def _normalize_symbol(value: str) -> str:
+    """Upper-case, then require the venue ticker charset before the value reaches a URL path."""
+    s = value.strip().upper()
+    if not s:
+        raise ValueError("symbol must not be blank")
+    if not _SYMBOL_PATTERN.match(s):
+        raise ValueError("symbol must match [A-Z0-9]{1,20}")
+    return s
+
+
 class MarketToolArgs(BaseModel):
     owner_id: uuid.UUID
 
@@ -27,10 +41,7 @@ class SymbolToolArgs(BaseModel):
     @field_validator("symbol")
     @classmethod
     def normalize_symbol(cls, v: str) -> str:
-        s = v.strip().upper()
-        if not s:
-            raise ValueError("symbol must not be blank")
-        return s
+        return _normalize_symbol(v)
 
 
 class TechnicalToolArgs(SymbolToolArgs):
@@ -58,10 +69,9 @@ class NewsToolArgs(BaseModel):
     @field_validator("symbol")
     @classmethod
     def normalize_symbol(cls, v: Optional[str]) -> Optional[str]:
-        if v is None:
+        if v is None or not v.strip():
             return None
-        s = v.strip().upper()
-        return s if s else None
+        return _normalize_symbol(v)
 
 
 class ResearchRagToolArgs(BaseModel):
@@ -77,10 +87,9 @@ class ResearchRagToolArgs(BaseModel):
     @field_validator("symbol")
     @classmethod
     def normalize_symbol(cls, v: Optional[str]) -> Optional[str]:
-        if v is None:
+        if v is None or not v.strip():
             return None
-        s = v.strip().upper()
-        return s if s else None
+        return _normalize_symbol(v)
 
 
 class ScreeningToolArgs(BaseModel):

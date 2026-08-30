@@ -340,3 +340,48 @@ test-vector table must cover both a same-key replay (rejected) and a
 different-key call with otherwise-identical fields (accepted as a genuine
 second transaction), so the boundary between "retry" and "real repeat
 trade" is proven, not assumed.
+
+## R-012: 2026-08-30 missing/stale price disclosure, daily-change basis, unavailable benchmark
+
+**Decision**: Four conformance repairs to the portfolio and watchlist read
+models, tracked as Q-09..Q-12 in `docs/REMEDIATION_PLAN.md`, with contract
+amendments landed first (`contracts/portfolio-analytics-v1.md` U-8/U-9 and
+`contracts/portfolio-watchlist.openapi.yaml`).
+
+1. **Unpriced positions are disclosed, not zeroed (Q-09).** `PositionsResponse`
+   and `PortfolioSummary` gain `dataStatus` + `reasonCodes`. An open position
+   with no accepted daily bar still contributes nothing to `totalValue` (that
+   part was already correct), but the response now says `PARTIAL` /
+   `POSITION_PRICE_UNAVAILABLE` so the total reads as a lower bound rather than
+   net worth. `Position` gains `priceDataStatus` and `priceTradingDate`.
+2. **Portfolio prices are freshness-evaluated (Q-10).** `PositionService` and
+   `WatchlistService` route every latest close through the stock module's
+   `StockFreshnessPolicy.evaluateDailyBarSeries` against the venue's current
+   session (same weekday-count approximation `StockOverviewService` documents),
+   surfacing `DELAYED`/`STALE` with `POSITION_PRICE_DELAYED`/`_STALE` (portfolio)
+   and `PRICE_DELAYED`/`PRICE_STALE` (watchlist). Previously a bar's mere
+   existence was labelled `CURRENT`.
+3. **One daily-change basis (Q-11).** The watchlist's `dailyChangePercent` now
+   uses the accepted `referencePrice`, else the prior accepted close — the
+   overview's basis — instead of the session open. Vnstock/KBS bars carry no
+   historical reference price (Feature 002 R-015), so the prior close is the
+   operative basis; `findLatestDailyBars(ids, 2)` supplies it in one bulk call.
+4. **Unknown benchmark is null, never "0" (Q-12).** `benchmarkReturn` is
+   nullable with `reasonCode = BENCHMARK_UNAVAILABLE`. The OpenAPI schema had
+   forced non-null, which is what pushed the code to emit `"0"` — the contract
+   defect is fixed alongside the code.
+
+**Rationale**: `ARCHITECTURE.md` section 4 invariant #4 (missing ≠ zero) and
+section 5 (an unavailable fact is `null` with a reason code). Every other
+read model already routed through `StockFreshnessPolicy`; portfolio had zero
+references to it. Two different "daily change" numbers for the same symbol on
+two screens is a correctness defect, not a presentation choice.
+
+**Alternatives rejected**:
+
+- Valuing an unpriced position at cost basis: fabricates a market value.
+- Excluding unpriced positions from the response entirely: hides a holding the
+  owner actually has.
+- Keeping open-based change as an "approximate" field: the field is named
+  `dailyChangePercent`; an approximation with a different basis is a second
+  definition, which is exactly what R-009 (reuse, never recompute) forbids.

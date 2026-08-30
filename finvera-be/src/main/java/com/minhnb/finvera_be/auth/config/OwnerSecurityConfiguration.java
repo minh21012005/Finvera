@@ -40,7 +40,9 @@ public class OwnerSecurityConfiguration {
                         .requestMatchers(HttpMethod.GET, "/api/v1/auth/csrf").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/session").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
-                        .requestMatchers("/internal/v1/**").permitAll()
+                        // Q-19: the API-key filter authenticates the internal service; the
+                        // authorization rule no longer depends on that filter alone.
+                        .requestMatchers("/internal/v1/**").hasRole("INTERNAL_SERVICE")
                         .anyRequest().hasRole("OWNER"))
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint((request, response, exception) ->

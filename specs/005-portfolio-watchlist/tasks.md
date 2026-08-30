@@ -439,6 +439,10 @@ T004/T007/T016/T024 fixture set.
       checks all recorded; every finding resolved or explicitly deferred
       with reason
       Depends: T039
+- [x] T041 [FR-006, FR-007, FR-012, FR-015, DATA-003, DATA-004] Disclose missing and stale prices on portfolio and watchlist read models, unify the watchlist daily-change basis with the stock overview, and make an unavailable benchmark null: amend `contracts/portfolio-analytics-v1.md` (U-8, U-9, benchmark note) and `contracts/portfolio-watchlist.openapi.yaml` (`PortfolioDataStatus`, `dataStatus`/`reasonCodes` on `PortfolioSummary` and `PositionsResponse`, `priceDataStatus`/`priceTradingDate` on `Position`, nullable `benchmarkReturn` + `reasonCode`); implement in `PositionService`, `WatchlistService`, `PortfolioAnalyticsService` and the matching DTOs; render the cues in `finvera-fe` holdings table, portfolio list, and analytics view.
+      Verify: `PortfolioTransactionServiceTests` (11, incl. new unpriced->PARTIAL and stale->STALE scenarios), `PortfolioControllerTests`, `PortfolioAnalyticsControllerTests`, `WatchlistControllerTests` pass; `npm run test/lint/build` pass.
+      Depends: T040.
+      Evidence (2026-08-30): tracked as Q-09..Q-12 in `docs/REMEDIATION_PLAN.md`; decision recorded as research R-012. `StockFreshnessPolicy` had no reference under `portfolio/` at all; a bar's existence was labelled CURRENT and an unpriced holding silently contributed zero to a definite-looking total. The OpenAPI schema itself forced `benchmarkReturn` non-null, which is why the code emitted "0" for "VN-Index unknown" — contract and code fixed together.
 
 ## Post-Implementation Analysis (2026-08-20)
 

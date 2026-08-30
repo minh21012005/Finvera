@@ -15,8 +15,13 @@ public record AnalystProperties(
         if (aiServiceUrl == null || aiServiceUrl.isBlank()) {
             aiServiceUrl = "http://127.0.0.1:8000";
         }
-        if (internalApiKey == null || internalApiKey.isBlank()) {
-            internalApiKey = "dev-internal-key-change-in-prod";
+        if (internalApiKey == null || internalApiKey.isBlank()
+                || "dev-internal-key-change-in-prod".equals(internalApiKey)) {
+            // Constitution "Configuration": a missing secret fails startup; it never
+            // falls back to a well-known placeholder.
+            throw new IllegalStateException(
+                    "finvera.analyst.internal-api-key must be set to a real shared secret "
+                    + "(FINVERA_ANALYST_INTERNAL_API_KEY); blank and the dev placeholder are refused");
         }
         if (maxToolCalls <= 0) {
             maxToolCalls = 10;

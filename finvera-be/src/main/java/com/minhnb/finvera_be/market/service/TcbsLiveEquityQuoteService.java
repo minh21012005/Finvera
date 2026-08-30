@@ -42,7 +42,7 @@ public class TcbsLiveEquityQuoteService implements LiveStockQuoteService,
     private final TcbsThesisWebSocketClient client;
     private final Optional<TcbsHttpSessionState> sessionState;
     private final Clock clock;
-    private final Map<String, BigDecimal> referencePrices = new ConcurrentHashMap<>();
+    private final Map<String, DatedReference> referencePrices = new ConcurrentHashMap<>();
     private final Map<String, SessionFacts> sessionFacts = new ConcurrentHashMap<>();
 
     public TcbsLiveEquityQuoteService(MarketReferenceDataService referenceData,
@@ -78,21 +78,29 @@ public class TcbsLiveEquityQuoteService implements LiveStockQuoteService,
     @Transactional
     public void accept(TcbsThesisFrameMapper.Event event) {
         if (event instanceof TcbsThesisFrameMapper.EquityReferenceUpdate reference) {
-            referencePrices.put(reference.symbol(), reference.referencePrice());
+            // Q-24: a reference price belongs to one trading date. Stamp it with the
+            // session it arrived in so yesterday's value never feeds today's change.
+            var instrument = referenceData.findActiveInstrumentBySymbol(reference.symbol()).orElse(null);
+            LocalDate tradingDate = instrument == null ? null
+                    : referenceData.resolveSession(instrument.venue(), reference.receivedAt()).tradingDate();
+            referencePrices.put(reference.symbol(), new DatedReference(reference.referencePrice(), tradingDate));
             return;
         }
         if (!(event instanceof TcbsThesisFrameMapper.EquityTradeUpdate trade)) return;
-        BigDecimal reference = referencePrices.get(trade.symbol());
+        var instrumentForTrade = referenceData.findActiveInstrumentBySymbol(trade.symbol()).orElse(null);
+        if (instrumentForTrade == null) return;
+        var session = referenceData.resolveSession(instrumentForTrade.venue(), trade.receivedAt());
+        DatedReference dated = referencePrices.get(trade.symbol());
+        BigDecimal reference = dated != null && (dated.tradingDate() == null
+                || dated.tradingDate().equals(session.tradingDate())) ? dated.price() : null;
         if (reference == null && trade.absoluteChange() != null) {
             BigDecimal derived = trade.matchPrice().subtract(trade.absoluteChange());
             if (derived.signum() > 0) reference = derived;
         }
         if (reference == null) return;
         if (hasImplausibleValueScale(trade)) return;
-        var instrument = referenceData.findActiveInstrumentBySymbol(trade.symbol()).orElse(null);
-        if (instrument == null) return;
+        var instrument = instrumentForTrade;
         Instant observedAt = bucket(trade.receivedAt());
-        var session = referenceData.resolveSession(instrument.venue(), trade.receivedAt());
         String hash = hash(trade.symbol(), observedAt, trade.matchPrice(), reference,
                 trade.totalVolume(), trade.totalValueVnd());
         if (ingestionRecords.isDuplicate(SOURCE, DATASET, trade.symbol(), session.tradingDate(), observedAt, hash)) return;
@@ -106,6 +114,10 @@ public class TcbsLiveEquityQuoteService implements LiveStockQuoteService,
         final BigDecimal finalReference = reference;
         sessionFacts.compute(trade.symbol(), (sym, prev) -> {
             BigDecimal match = trade.matchPrice();
+            // Q-24: facts from a previous trading date are not "this session's" open/high/low.
+            if (prev != null && prev.tradingDate() != null && !prev.tradingDate().equals(session.tradingDate())) {
+                prev = null;
+            }
             boolean hasOfficial = prev != null && prev.hasOfficialSnapshot();
             BigDecimal open = hasOfficial ? prev.openPrice() : match;
             BigDecimal high = hasOfficial ? prev.highPrice().max(match) : match;
@@ -124,6 +136,9 @@ public class TcbsLiveEquityQuoteService implements LiveStockQuoteService,
 
         var currentSession = referenceData.resolveSession(instrument.orElseThrow().venue(), clock.instant());
         SessionFacts facts = sessionFacts.get(sym);
+        if (facts != null && facts.tradingDate() != null && !facts.tradingDate().equals(currentSession.tradingDate())) {
+            facts = null; // Q-24: stale session facts are never served as today's
+        }
         if (facts == null || !facts.hasOfficialSnapshot()) {
             fetchSnapshotIfMissing(sym);
             facts = sessionFacts.get(sym);
@@ -250,6 +265,8 @@ public class TcbsLiveEquityQuoteService implements LiveStockQuoteService,
             throw new IllegalStateException("SHA-256 unavailable", exception);
         }
     }
+
+    private record DatedReference(BigDecimal price, LocalDate tradingDate) { }
 
     private record SessionFacts(
             BigDecimal matchPrice,

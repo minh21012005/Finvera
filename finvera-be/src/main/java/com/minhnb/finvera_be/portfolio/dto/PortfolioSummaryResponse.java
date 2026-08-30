@@ -1,6 +1,7 @@
 package com.minhnb.finvera_be.portfolio.dto;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 public record PortfolioSummaryResponse(
@@ -11,5 +12,7 @@ public record PortfolioSummaryResponse(
         String cashBalance,
         String totalUnrealizedPL,
         String totalRealizedPL,
+        String dataStatus,
+        List<String> reasonCodes,
         Instant asOf) {
 }

@@ -88,7 +88,7 @@ class PortfolioAnalyticsControllerTests {
                 List.of(new ConcentrationEntryResponse("FPT", "0.6")),
                 List.of(new ConcentrationEntryResponse("Công nghệ", "0.6")),
                 new RiskExposureResponse(25, "LOW", "1", null),
-                new BenchmarkComparisonResponse("0.05", "0.02", "VNINDEX"),
+                new BenchmarkComparisonResponse("0.05", "0.02", "VNINDEX", null),
                 Instant.parse("2026-08-15T10:00:00Z"));
 
         given(analyticsService.getPortfolioAnalytics(eq(pfId), any(), any())).willReturn(response);

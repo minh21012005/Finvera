@@ -12,15 +12,19 @@ public record ResearchProperties(
         long maxUploadSizeBytes) {
 
     /**
-     * The well-known placeholder used when {@code finvera.research.internal-api-key} isn't set. Kept
-     * as a shared constant so the startup warning (see {@link ResearchConfiguration}) can detect it
-     * without duplicating the literal.
+     * The placeholder earlier revisions fell back to. It is now rejected outright:
+     * Constitution "Configuration" -- a missing secret must fail startup, never fall
+     * back to something weak -- and a well-known literal both services would
+     * silently agree on is exactly that.
      */
-    public static final String DEFAULT_INTERNAL_API_KEY = "dev-internal-key-change-in-prod";
+    static final String REJECTED_PLACEHOLDER_KEY = "dev-internal-key-change-in-prod";
 
     public ResearchProperties {
-        if (internalApiKey == null || internalApiKey.isBlank()) {
-            internalApiKey = DEFAULT_INTERNAL_API_KEY;
+        if (internalApiKey == null || internalApiKey.isBlank()
+                || REJECTED_PLACEHOLDER_KEY.equals(internalApiKey)) {
+            throw new IllegalStateException(
+                    "finvera.research.internal-api-key must be set to a real shared secret "
+                    + "(FINVERA_RESEARCH_INTERNAL_API_KEY); blank and the dev placeholder are refused");
         }
         if (aiServiceUrl == null || aiServiceUrl.isBlank()) {
             aiServiceUrl = "http://127.0.0.1:8000/internal/v1";

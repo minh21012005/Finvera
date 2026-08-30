@@ -389,6 +389,10 @@ Phases 1-5 are complete.
       Verify: `StockModuleArchitectureTests` (previously 5 boundary violations), `FinveraBeApplicationTests.contextLoads`, `StockHistoryImportServiceTests`, `StockMigrationTests`, `StockIngestionServiceTests`, `TcbsLiveEquityQuoteServiceTests`, `StockDetailFailureTests`, and `DataRetentionCleanup*Tests` all pass; full `.\mvnw.cmd test` is green.
       Evidence (2026-08-30): tracked as Q-02..Q-05 in `docs/REMEDIATION_PLAN.md`. The boundary fix mirrors the `MarketReferenceDataService` precedent (one published interface, no `market.entity`/`market.repository` import left under `stock/`). The conflict-test fixture previously used `close=80` outside `[low=98, high=101]`, so OHLC validation rejected the bar before the cross-source reconciliation branch ran — meaning DATA-010's SOURCE_CONFLICT path had no passing guard; the repaired fixture (`close=98.5` vs TCBS `100.5`) exercises it genuinely. The telemetry test attaches its appender at default INFO while commit 873c258 deliberately moved ingestion lines to DEBUG; the test now raises the captured logger to DEBUG and restores it, keeping the production quiet-refresh behaviour.
 
+- [x] T082 [FR-008, FR-009, DATA-009] Stop `ValuationService` (`extractCurrentMetrics` and `buildOwnHistorySeries`) from reading the `EV_EBITDA` summary metric into the `ebitdaTtm` input.
+      Verify: `ValuationServiceTests`/`ValuationServiceSectorBasisTests` still pass; only `EBITDA_TTM` feeds `Inputs.ebitdaTtm`.
+      Evidence (2026-08-30): tracked as Q-23 (`LATENT`) in `docs/REMEDIATION_PLAN.md`. `EV_EBITDA` is a ratio (~10-30, `contracts/valuation-v1.md`: `ev / ebitdaTtm`) while `ebitdaTtm` is an absolute VND figure; `case "EBITDA_TTM", "EV_EBITDA" -> ebitdaTtm` would have set `EV_EBITDA = ev / 26` (~10^11) at weight 0.20 the moment `EV_EBITDA` entered `FundamentalReportAcceptance.ALLOWED_METRIC_CODES` — which `export_fundamentals.py` already emits and Feature 008 (provider data expansion) is likely to enable. Removed before that expansion starts.
+
 **Checkpoint**: Provider activation happens only on approved evidence; fixture
 completion is never represented as live-data readiness.
 
@@ -422,6 +426,9 @@ completion is never represented as live-data readiness.
       Verify: `.\mvnw.cmd test`, `npm run lint`, `npm run test`, `npm run build`, and fixture-mode `npm run test:e2e` all pass; gated external-provider checks are reported as open, not passed
       Depends: T071
       Evidence (2026-08-19, review remediation): `cd finvera-be; .\mvnw.cmd test` full suite passes (0 failures/errors) after the T047/T049/T051/T052 fixes and the four new/extended test files (`FundamentalReportServiceTests`, `ValuationServiceTests`, plus additions to `ValuationV1Tests` and `StockIngestionServiceTests`). Frontend `npm run lint`/`npm run test`/`npm run build`/`npm run test:e2e` were not re-run in this pass — no frontend file changed, since the DTO/API contract is unaffected by these backend-only fixes.
+- [x] T083 [FR-009, FR-010, DATA-009] Disclose contributing factors and assumptions the valuation response was hiding: `ValuationV1` now reports `effectiveWeight` for metrics qualified only through the sector basis (previously `null`), and `ValuationService` appends `HISTORY_SHARES_OUTSTANDING_HELD_CURRENT` whenever an own-history series was built with today's shares outstanding applied to every historical point.
+      Verify: `ValuationV1Tests.sectorOnlyBasisStillDisclosesEffectiveWeightsPerMetric` (0.571428571429 / 0.428571428571 at scale 12) and the `ValuationService*` tests pass.
+      Evidence (2026-08-30): tracked as Q-26 and Q-27 in `docs/REMEDIATION_PLAN.md`. Constitution I requires every result to expose its contributing factors and assumptions; both were previously only in Javadoc or absent.
 - [ ] T073 [SC-001] Conduct three consecutive timed owner usability trials for price/direction/session identification and record anonymized evidence in `specs/002-stock-detail-analysis/validation/usability.md`
       Verify: the owner completes every trial within 10 seconds, or findings return to `spec.md`/`plan.md` before release
       Depends: T072

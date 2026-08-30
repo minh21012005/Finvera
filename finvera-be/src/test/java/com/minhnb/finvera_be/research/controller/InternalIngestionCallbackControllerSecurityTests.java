@@ -36,7 +36,7 @@ class InternalIngestionCallbackControllerSecurityTests {
         registry.add("finvera.security.owner.id", () -> "00000000-0000-0000-0000-000000000001");
         registry.add("finvera.security.owner.username", () -> "owner-test");
         registry.add("finvera.security.owner.password-hash", () -> "$2a$04$test");
-        registry.add("finvera.research.internal-api-key", () -> "dev-internal-key-change-in-prod");
+        registry.add("finvera.research.internal-api-key", () -> "test-internal-api-key");
     }
 
     @Autowired
@@ -72,7 +72,7 @@ class InternalIngestionCallbackControllerSecurityTests {
         doNothing().when(callbackService).handleCallback(eq(itemId), any());
 
         mockMvc.perform(patch("/internal/v1/ingestions/{id}/callback", itemId)
-                        .header("X-Internal-Api-Key", "dev-internal-key-change-in-prod")
+                        .header("X-Internal-Api-Key", "test-internal-api-key")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"status\":\"READY\",\"chunks\":[]}"))
                 .andExpect(status().isNoContent());

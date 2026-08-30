@@ -113,7 +113,7 @@ public class PortfolioAnalyticsService {
                     Collections.emptyList(),
                     Collections.emptyList(),
                     new RiskExposureResponse(null, null, "0", "NO_POSITIONS"),
-                    new BenchmarkComparisonResponse(null, "0", "VNINDEX"),
+                    new BenchmarkComparisonResponse(null, null, "VNINDEX", "BENCHMARK_UNAVAILABLE"),
                     Instant.now(clock));
         }
 
@@ -263,10 +263,13 @@ public class PortfolioAnalyticsService {
                 indexT0,
                 indexT1);
 
+        // Contract: an unavailable benchmark is null with a reason code, never "0"
+        // (ARCHITECTURE.md section 5) -- "VN-Index unknown" must not read as "flat".
         BenchmarkComparisonResponse benchmark = new BenchmarkComparisonResponse(
                 benchResult.portfolioReturn() != null ? PositionService.formatDecimal(benchResult.portfolioReturn()) : null,
-                benchResult.benchmarkReturn() != null ? PositionService.formatDecimal(benchResult.benchmarkReturn()) : "0",
-                "VNINDEX");
+                benchResult.benchmarkReturn() != null ? PositionService.formatDecimal(benchResult.benchmarkReturn()) : null,
+                "VNINDEX",
+                benchResult.benchmarkReturn() != null ? null : "BENCHMARK_UNAVAILABLE");
 
         return new PortfolioAnalyticsResponse(
                 periodFrom,

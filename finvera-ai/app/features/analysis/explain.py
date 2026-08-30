@@ -45,13 +45,24 @@ QUY TẮC BẮT BUỘC (FAITHFULNESS CHECK):
 """
 
 
+_NUMBER_TOKEN = re.compile(r"\d+(?:[.,]\d+)*")
+
+
+def _numeric_tokens(text: str) -> set:
+    """Digit groups with separators stripped, so '1,25' / '1.25' / '1.250' compare alike."""
+    return {re.sub(r"[.,]", "", tok) for tok in _NUMBER_TOKEN.findall(text)}
+
+
 def verify_faithfulness(
     generated_text: str,
     allowed_factors: List[EvidenceFactor],
 ) -> Tuple[bool, List[str]]:
     """
-    Checks if the generated text references only allowed factors and extracts which allowed factors were mentioned.
-    If forbidden external factor patterns (e.g. referencing unsupplied technical indicators) are detected, fails.
+    Checks that the generated text (1) references at least one supplied factor,
+    (2) mentions no unsupplied standard indicator, and (3) states no number that
+    does not appear in the supplied evidence -- an explanation may restate the
+    deterministic engine's figures, never introduce its own (Constitution I).
+    Returns the factors actually referenced; never claims "all" when none were.
     """
     allowed_codes = {f.factorCode.upper() for f in allowed_factors}
     for f in allowed_factors:
@@ -77,7 +88,20 @@ def verify_faithfulness(
             logger.warning(f"Faithfulness check failed: unsupplied factor '{fcode}' detected in explanation")
             return False, []
 
-    return True, referenced_codes if referenced_codes else [f.factorCode for f in allowed_factors]
+    if not referenced_codes:
+        logger.warning("Faithfulness check failed: explanation references none of the supplied factors")
+        return False, []
+
+    evidence_numbers = set()
+    for f in allowed_factors:
+        evidence_numbers |= _numeric_tokens(f.factorCode)
+        evidence_numbers |= _numeric_tokens(f.description)
+    fabricated = _numeric_tokens(generated_text) - evidence_numbers
+    if fabricated:
+        logger.warning(f"Faithfulness check failed: numbers not present in evidence: {sorted(fabricated)}")
+        return False, []
+
+    return True, referenced_codes
 
 
 def _builtin_template(request: ExplainRequest) -> str:

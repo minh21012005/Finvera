@@ -85,6 +85,19 @@ class BreadthCalculatorTests {
         assertReconciles(result);
     }
 
+    @Test
+    void treatsAZeroReferencePriceAsMissingRatherThanClassifyingEverythingAdvancing() {
+        var calculator = new BreadthCalculator(new BreadthUniversePolicy());
+        var result = calculator.calculate(List.of(security(
+                com.minhnb.finvera_be.market.domain.model.MarketTypes.Venue.HOSE, "ZRO", "VN000000ZRO0", false,
+                BreadthUniversePolicy.InstrumentType.COMMON_EQUITY, "12000.000000", "0.000000",
+                com.minhnb.finvera_be.market.domain.model.MarketTypes.AdjustmentStatus.RAW)));
+        assertThat(result.advancing()).isZero();
+        assertThat(result.unclassified()).isEqualTo(1);
+        assertThat(result.reasonCodes()).contains("MISSING_REFERENCE_PRICE");
+        assertReconciles(result);
+    }
+
     private static SecurityInput security(
             com.minhnb.finvera_be.market.domain.model.MarketTypes.Venue venue,
             String symbol,
