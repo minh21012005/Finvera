@@ -64,24 +64,35 @@ def fetch_overview(symbol: str) -> dict[str, Any] | None:
         return None
 
 
+UNVERIFIED_REASON = "SHARES_OUTSTANDING_UNVERIFIED"
+
+
 def share_fields(overview: dict[str, Any] | None) -> tuple[int | None, str | None]:
+    """(sharesOutstanding, qualityReason). Feature 011 research R-002: vnstock's
+    `free_float_percentage` is really shares x par value and `free_float` is the par value, so no
+    free-float figure is ever emitted. The share count is cross-checked against
+    charter_capital (bn VND) / par_value; a > 1 % gap keeps the count but flags it."""
     if not overview:
-        return None, None
-    shares_raw = overview.get("outstanding_shares")
+        return None, QUALITY_REASON
     shares = None
     try:
-        if shares_raw is not None and shares_raw == shares_raw and int(shares_raw) > 0:
-            shares = int(shares_raw)
+        raw = overview.get("outstanding_shares")
+        if raw is not None and raw == raw and int(raw) > 0:
+            shares = int(raw)
     except (TypeError, ValueError):
         shares = None
-    free_float = None
-    ff = overview.get("free_float_percentage")
+    if shares is None:
+        return None, QUALITY_REASON
     try:
-        if ff is not None and ff == ff and float(ff) >= 0:
-            free_float = format(round(float(ff), 6), "f")
+        charter = float(overview.get("charter_capital"))
+        par = float(overview.get("par_value"))
+        if charter > 0 and par > 0:
+            implied = charter * 1e9 / par
+            if abs(implied - shares) / shares > 0.01:
+                return shares, UNVERIFIED_REASON
     except (TypeError, ValueError):
-        free_float = None
-    return shares, free_float
+        pass
+    return shares, None
 
 
 def build_records(frame, effective_from: str, overview_lookup=fetch_overview) -> list[dict[str, Any]]:
@@ -97,15 +108,14 @@ def build_records(frame, effective_from: str, overview_lookup=fetch_overview) ->
             continue  # company_name_vi is not-null in the schema; skip rather than fabricate a name
         name_en_raw = row.get("en_organ_name")
         name_en = str(name_en_raw).strip() if name_en_raw not in (None, "") else None
-        shares, free_float = share_fields(overview_lookup(symbol))
+        shares, reason = share_fields(overview_lookup(symbol))
         record = {
             "canonicalRecord": "",
             "companyNameEn": name_en,
             "companyNameVi": name_vi,
             "effectiveFrom": effective_from,
-            "freeFloatRatio": free_float,
             "listingStatus": "LISTED",
-            "qualityReason": None if shares is not None else QUALITY_REASON,
+            "qualityReason": reason,
             "sharesOutstanding": shares,
             "symbol": symbol,
         }

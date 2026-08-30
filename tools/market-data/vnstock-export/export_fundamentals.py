@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Any
 
 CONTRACT_VERSION = "vnstock-fundamentals-v1"
-TOOL_VERSION = "0.5.0"
+TOOL_VERSION = "0.6.0"  # Feature 011: provider-ratio-facts-v2, statement ids per company type, FCF v2
 SOURCE = "VNSTOCK_KBS"
 
 # item_id -> Finvera metric_code
@@ -35,6 +35,11 @@ INCOME_STATEMENT_MAP = {
     "earning_per_share_vnd": "EPS",  # banks (MBB) use the singular id -- Feature 010 R-004
     "operating_profit": "OPERATING_PROFIT",
     "revenue": "REVENUE",
+    # Feature 011 research R-006: insurance and securities statements use their own ids.
+    "profit_after_tax": "NET_PROFIT",                                   # insurance
+    "total_net_revenue_from_insurance_business": "REVENUE",             # insurance
+    "revenue_from_securities_business_01_11": "REVENUE",                # securities
+    "net_profit_from_securities_business_20_50_40_60_61_62": "OPERATING_PROFIT",  # securities
 }
 RATIO_MAP = {
     "roe": "ROE",
@@ -73,7 +78,19 @@ RATIO_GROWTH_MAP = {
     "total_assets": "TOTAL_ASSETS_GROWTH_PERCENT",
     "owners_equity": "EQUITY_GROWTH_PERCENT",
 }
-DIVIDEND_YIELD_DERIVATION = "kbs-dividend-yield-fraction-to-percent"
+# Contract provider-ratio-facts-v2 (Feature 011 research R-003): KBS quarter columns hold
+# single-quarter values for flow-over-stock ratios, and the annual dataset carries 0.0
+# placeholders for the trailing ratios. Each id is emitted only from the columns whose
+# period matches the catalog meaning.
+RATIO_ANNUAL_ONLY_IDS = {
+    "roe", "roa", "return_on_capital_employed_roce", "net_interest_margin_nim",
+    "total_asset_turnover", "inventory_turnover", "receivables_turnover",
+    "dividend_yield", "ps_ratio", "total_assets", "owners_equity",
+}
+RATIO_QUARTER_ONLY_IDS = {"roe_trailling", "roa_trailling"}
+# In quarter packages the trailing ratios are the annualized ROE/ROA (rule id on the row).
+TRAILING_AS_ANNUALIZED = {"roe_trailling": "ROE", "roa_trailling": "ROA"}
+TRAILING_DERIVATION = "kbs-trailing-ratio-as-annualized-v1"
 CASH_FLOW_MAP: dict[str, str] = {}  # no confirmed unambiguous item_id yet; nothing mapped
 KBS_PER_SHARE_DIVISOR = Decimal("1000")
 KBS_PER_SHARE_METRIC_CODES = {"EPS"}
@@ -84,7 +101,12 @@ YEAR_COLUMN = re.compile(r"^(\d{4})(?:-Năm)?$")
 
 # Feature 008 research R-003/R-002: versioned derivation rule ids carried on each derived record.
 EBITDA_DERIVATION = "kbs-ebitda-margin-x-net-revenue-v1"
-FCF_DERIVATION = "kbs-fcf-ocf-plus-capex-v1"
+FCF_DERIVATION = "kbs-fcf-ocf-plus-capex-v2"
+# v2 (Feature 011 R-006): first present id wins; securities firms report OCF under the
+# trading-activities id, insurers prefix the capex id. Banks are deliberately not covered.
+FCF_OCF_IDS = ("operating_cash_flow", "net_cash_flows_from_securities_trading_activities")
+FCF_CAPEX_IDS = ("payment_for_fixed_assets_constructions_and_other_long_term_assets",
+                 "n_1_payment_for_fixed_assets_constructions_and_other_long_term_assets")
 NET_REVENUE_LABEL_TOKEN = "thuần"
 
 
@@ -142,6 +164,7 @@ def pivot_wide_table(frame, item_id_map: dict[str, str], source_report: str) -> 
     if "item_id" not in frame.columns:
         return records
     period_columns = [c for c in frame.columns if c not in ("item_id", "item")]
+    seen: set[tuple[str, str]] = set()  # (metricCode, column): first mapped row wins (R-006)
     for _, row in frame.iterrows():
         item_id = str(row["item_id"])
         metric_code = item_id_map.get(item_id)
@@ -161,17 +184,26 @@ def pivot_wide_table(frame, item_id_map: dict[str, str], source_report: str) -> 
                 period_type, year, quarter = parse_period_column(str(column))
             except ValueError:
                 continue
+            if source_report == "RATIO":
+                if period_type == "QUARTER" and item_id in RATIO_ANNUAL_ONLY_IDS:
+                    continue  # single-quarter value; catalog meaning is annualized (contract v2 U-2)
+                if period_type == "ANNUAL" and item_id in RATIO_QUARTER_ONLY_IDS:
+                    continue  # provider writes 0.0 here, not a fact
+            if (metric_code, str(column)) in seen:
+                continue
+            seen.add((metric_code, str(column)))
             period_start, period_end = period_bounds(period_type, year, quarter)
             record = {
                 "metricCode": metric_code, "periodType": period_type, "fiscalYear": year,
                 "fiscalQuarter": quarter, "periodStart": period_start, "periodEnd": period_end,
                 "value": normalize_metric_value(metric_code, value), "sourceReport": source_report,
             }
-            if metric_code == "DIVIDEND_YIELD":
-                # KBS reports a fraction (0.04 = 4 %); the catalog unit is PERCENT (research R-004.1).
-                record["value"] = format((Decimal(str(value)) * Decimal("100")).quantize(Decimal("0.000001")), "f")
-                record["derivation"] = DIVIDEND_YIELD_DERIVATION
             records.append(record)
+            if source_report == "RATIO" and period_type == "QUARTER" and item_id in TRAILING_AS_ANNUALIZED:
+                annualized = TRAILING_AS_ANNUALIZED[item_id]
+                if (annualized, str(column)) not in seen:
+                    seen.add((annualized, str(column)))
+                    records.append({**record, "metricCode": annualized, "derivation": TRAILING_DERIVATION})
     return records
 
 
@@ -219,6 +251,14 @@ def period_values(frame, item_id: str, label_predicate=None) -> dict[str, Decima
     return values
 
 
+def first_present(frame, item_ids) -> dict[str, Decimal]:
+    for item_id in item_ids:
+        values = period_values(frame, item_id)
+        if values:
+            return values
+    return {}
+
+
 def derived_record(metric_code: str, column: str, value: Decimal, derivation: str, source_report: str) -> dict[str, Any]:
     period_type, year, quarter = parse_period_column(column)
     period_start, period_end = period_bounds(period_type, year, quarter)
@@ -245,8 +285,8 @@ def derive_ebitda(income_statement, ratio) -> list[dict[str, Any]]:
 
 def derive_free_cash_flow(cash_flow) -> list[dict[str, Any]]:
     """FCF = operating cash flow + capex (provider signs capex negative) -- research R-002."""
-    ocf = period_values(cash_flow, "operating_cash_flow")
-    capex = period_values(cash_flow, "payment_for_fixed_assets_constructions_and_other_long_term_assets")
+    ocf = first_present(cash_flow, FCF_OCF_IDS)
+    capex = first_present(cash_flow, FCF_CAPEX_IDS)
     return [derived_record("FREE_CASH_FLOW", column, ocf[column] + capex[column], FCF_DERIVATION, "CASH_FLOW")
             for column in ocf if column in capex]
 

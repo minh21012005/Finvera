@@ -562,4 +562,22 @@ class FundamentalSummaryTests {
         assertThat(growth.qualityReason()).isNull();
         assertThat(findSummaryMetric(result, "EPS_TTM").qualityReason()).isNull();
     }
+
+    @Test
+    void annualOnlyRatiosFallBackToTheLatestAnnualReportWithAnnualBasis() {
+        // Feature 011: DIVIDEND_YIELD / NIM / PS are only reported annually by the provider.
+        var calculator = new FundamentalSummaryCalculator();
+        var reports = List.of(
+                quarterReport(UUID.randomUUID(), 2026, 2, LocalDate.of(2026, 4, 1), LocalDate.of(2026, 6, 30), metric("BVPS", "18160.000000")),
+                annualReport(2025, metric("DIVIDEND_YIELD", "7.920000"), metric("NIM", "3.890000")),
+                annualReport(2024, metric("DIVIDEND_YIELD", "6.070000")));
+        var result = calculator.calculate(reports, LocalDate.of(2026, 8, 30));
+        var dy = findSummaryMetric(result, "DIVIDEND_YIELD");
+        assertThat(dy.applicability()).isEqualTo(MetricApplicability.DEFINED);
+        assertThat(dy.value()).isEqualByComparingTo("7.92");       // latest annual, never 6.07
+        assertThat(dy.qualityReason()).isEqualTo("ANNUAL_BASIS");
+        assertThat(findSummaryMetric(result, "NIM").qualityReason()).isEqualTo("ANNUAL_BASIS");
+        assertThat(findSummaryMetric(result, "PS").applicability()).isEqualTo(MetricApplicability.MISSING);
+        assertThat(findSummaryMetric(result, "BVPS").qualityReason()).isNull(); // newest-period path untouched
+    }
 }

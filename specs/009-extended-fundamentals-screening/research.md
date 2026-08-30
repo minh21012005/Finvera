@@ -72,6 +72,7 @@ being **mis-declared**; see R-004.
    while `fundamental_metric_catalog` declares `DIVIDEND_YIELD` as `PERCENT`
    scale 4 (V014). Stored as 0.04 → displayed "0,04 %". Fix at the exporter
    boundary: multiply by 100 (`kbs-dividend-yield-fraction-to-percent`),
+   **withdrawn 2026-08-30 by Feature 011 R-003** (quarter columns mix units; annual is percent as reported),
    recorded on the record as `derivation`. Existing rows are corrected by the
    forced re-export (tool version bump) and revision chain.
 2. **`debt_to_equity` is percent points** (VNM 21.8, i.e. 21.8 %) but the

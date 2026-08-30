@@ -90,7 +90,7 @@ def test_kbs_ratio_bvps_and_trailing_eps_are_mapped_unscaled():
     by_code = {r["metricCode"]: r["value"] for r in records}
     assert by_code["BVPS"] == "18160.0"
     assert by_code["TRAILING_EPS"] == "4159.65"
-    assert by_code["DIVIDEND_YIELD"] == "4.000000"  # KBS fraction -> percent (Feature 009 R-004.1)
+    assert "DIVIDEND_YIELD" not in by_code  # quarter columns are unit-inconsistent (Feature 011 R-003)
     assert "EV_EBITDA" not in by_code  # provider valuation ratios are never imported (Feature 009 R-003)
 
 
@@ -159,7 +159,7 @@ def test_free_cash_flow_is_ocf_plus_signed_capex_and_accepts_annual_nam_columns(
     fcf = _by(records, "FREE_CASH_FLOW")
     assert list(fcf) == [("ANNUAL", 2025, None)]  # 2024 has no capex row value -> not derived
     assert fcf[("ANNUAL", 2025, None)]["value"] == "7370359124000.000000"
-    assert fcf[("ANNUAL", 2025, None)]["derivation"] == "kbs-fcf-ocf-plus-capex-v1"
+    assert fcf[("ANNUAL", 2025, None)]["derivation"] == "kbs-fcf-ocf-plus-capex-v2"
     assert fcf[("ANNUAL", 2025, None)]["periodEnd"] == "2025-12-31"
 
 
@@ -173,27 +173,92 @@ def test_bank_without_capex_row_yields_no_fcf():
 
 def test_provider_ratios_are_mapped_and_growth_rows_resolved_by_label():
     ratio = FakeFrame([
-        {"item_id": "gross_margin", "item": "Tỷ suất lợi nhuận gộp biên", "2026-Q2": "41.8"},
-        {"item_id": "beta", "item": "Beta", "2026-Q2": "0.52"},
-        {"item_id": "total_assets", "item": "Tăng trưởng tổng tài sản", "2026-Q2": "-3.47"},
-        {"item_id": "ev_ebitda", "item": "EV/EBITDA", "2026-Q2": "26.02"},
-        {"item_id": "cash_return_on_equity", "item": "Dòng tiền từ HĐKD trên VCSH", "2026-Q2": "0.0"},
+        {"item_id": "gross_margin", "item": "Tỷ suất lợi nhuận gộp biên", "2026-Q2": "41.8", "2025-Năm": "41.18"},
+        {"item_id": "beta", "item": "Beta", "2026-Q2": "0.52", "2025-Năm": "0.52"},
+        {"item_id": "total_assets", "item": "Tăng trưởng tổng tài sản", "2026-Q2": "-3.47", "2025-Năm": "-3.15"},
+        {"item_id": "ev_ebitda", "item": "EV/EBITDA", "2026-Q2": "26.02", "2025-Năm": "9.89"},
+        {"item_id": "cash_return_on_equity", "item": "Dòng tiền từ HĐKD trên VCSH", "2026-Q2": "0.0", "2025-Năm": "25.14"},
     ])
     records = export_fundamentals.pivot_wide_table(ratio, export_fundamentals.RATIO_MAP, "RATIO")
-    by_code = {r["metricCode"]: r["value"] for r in records}
-    assert by_code["GROSS_MARGIN"] == "41.8"
-    assert by_code["BETA"] == "0.52"
-    assert by_code["TOTAL_ASSETS_GROWTH_PERCENT"] == "-3.47"
-    assert "EV_EBITDA" not in by_code          # provider valuation ratios are never imported
-    assert "CASH_RETURN_ON_EQUITY" not in by_code  # zero-only cash-flow family is not mapped
+    by_code = {(r["metricCode"], r["periodType"]): r["value"] for r in records}
+    assert by_code[("GROSS_MARGIN", "QUARTER")] == "41.8"
+    assert by_code[("BETA", "QUARTER")] == "0.52"
+    assert ("TOTAL_ASSETS_GROWTH_PERCENT", "QUARTER") not in by_code   # growth rows: annual columns only (v2)
+    assert by_code[("TOTAL_ASSETS_GROWTH_PERCENT", "ANNUAL")] == "-3.15"
+    assert not [k for k in by_code if k[0] == "EV_EBITDA"]              # provider valuation ratios are never imported
+    assert not [k for k in by_code if k[0] == "CASH_RETURN_ON_EQUITY"]  # zero-only cash-flow family is not mapped
 
 
-def test_dividend_yield_fraction_becomes_percent_with_derivation():
-    ratio = FakeFrame([{"item_id": "dividend_yield", "item": "Tỷ suất cổ tức", "2026-Q2": "0.04"}])
+def test_dividend_yield_is_taken_as_reported_from_annual_columns_only():
+    # VNM probe 2026-08-30: quarter 0.04 / annual 7.92 -- quarter columns mix units, annual is percent.
+    ratio = FakeFrame([{"item_id": "dividend_yield", "item": "Tỷ suất cổ tức", "2026-Q2": "0.04", "2025-Năm": "7.92"}])
     records = export_fundamentals.pivot_wide_table(ratio, export_fundamentals.RATIO_MAP, "RATIO")
-    assert records[0]["metricCode"] == "DIVIDEND_YIELD"
-    assert records[0]["value"] == "4.000000"
-    assert records[0]["derivation"] == "kbs-dividend-yield-fraction-to-percent"
+    assert [(r["periodType"], r["value"]) for r in records] == [("ANNUAL", "7.92")]
+    assert "derivation" not in records[0]
+
+
+def test_ratio_period_scope_contract_v2_vectors():
+    quarter = FakeFrame([
+        {"item_id": "roe", "item": "ROEA", "2026-Q2": "6.86"},
+        {"item_id": "roe_trailling", "item": "ROE 4 quý", "2026-Q2": "26.37"},
+        {"item_id": "net_interest_margin_nim", "item": "NIM", "2026-Q2": "1.0"},
+        {"item_id": "ps_ratio", "item": "P/S", "2026-Q2": "7.4"},
+        {"item_id": "gross_margin", "item": "Biên gộp", "2026-Q2": "41.8"},
+    ])
+    q = export_fundamentals.pivot_wide_table(quarter, export_fundamentals.RATIO_MAP, "RATIO")
+    by_code = {r["metricCode"]: r for r in q}
+    assert by_code["ROE"]["value"] == "26.37" and by_code["ROE"]["derivation"] == "kbs-trailing-ratio-as-annualized-v1"
+    assert by_code["ROE_TTM"]["value"] == "26.37" and "derivation" not in by_code["ROE_TTM"]
+    assert "NIM" not in by_code and "PS" not in by_code          # single-quarter values never emitted
+    assert by_code["GROSS_MARGIN"]["value"] == "41.8"
+    annual = FakeFrame([
+        {"item_id": "roe", "item": "ROEA", "2025-Năm": "26.64"},
+        {"item_id": "roe_trailling", "item": "ROE 4 quý", "2025-Năm": "0.0"},
+        {"item_id": "net_interest_margin_nim", "item": "NIM", "2025-Năm": "3.89"},
+    ])
+    a = {r["metricCode"]: r for r in export_fundamentals.pivot_wide_table(annual, export_fundamentals.RATIO_MAP, "RATIO")}
+    assert a["ROE"]["value"] == "26.64" and "derivation" not in a["ROE"]
+    assert "ROE_TTM" not in a                                     # 0.0 placeholder is not a fact
+    assert a["NIM"]["value"] == "3.89"
+
+
+def test_insurance_and_securities_statement_ids_are_mapped_and_deduped():
+    bvh = FakeFrame([
+        {"item_id": "total_net_revenue_from_insurance_business", "item": "5. Doanh thu thuần HĐKD BH", "2026-Q2": "9749591088000.0"},
+        {"item_id": "profit_after_tax", "item": "29. Lợi nhuận sau thuế", "2026-Q2": "797764930000.0"},
+        {"item_id": "revenue", "item": "Doanh thu", "2026-Q2": None},
+    ])
+    b = {r["metricCode"]: r["value"] for r in export_fundamentals.pivot_wide_table(bvh, export_fundamentals.INCOME_STATEMENT_MAP, "INCOME_STATEMENT")}
+    assert b["REVENUE"] == "9749591088000.0" and b["NET_PROFIT"] == "797764930000.0"
+    ssi = FakeFrame([
+        {"item_id": "revenue_from_securities_business_01_11", "item": "Cộng doanh thu hoạt động", "2025-Năm": "6335823058000.0"},
+        {"item_id": "net_profit_from_securities_business_20_50_40_60_61_62", "item": "VII. KẾT QUẢ HOẠT ĐỘNG", "2025-Năm": "2099656023000.0"},
+        {"item_id": "net_profit", "item": "XIII. Lợi nhuận sau thuế", "2025-Năm": "1697693169000.0"},
+        {"item_id": "profit_after_tax", "item": "duplicate concept", "2025-Năm": "1.0"},
+    ])
+    r = {x["metricCode"]: x["value"] for x in export_fundamentals.pivot_wide_table(ssi, export_fundamentals.INCOME_STATEMENT_MAP, "INCOME_STATEMENT")}
+    assert r["REVENUE"] == "6335823058000.0" and r["OPERATING_PROFIT"] == "2099656023000.0"
+    assert r["NET_PROFIT"] == "1697693169000.0"                  # first row wins; never two facts
+
+
+def test_free_cash_flow_v2_covers_securities_and_insurance_ids_but_not_banks():
+    ssi = FakeFrame([
+        {"item_id": "net_cash_flows_from_securities_trading_activities", "item": "LCTT HĐKD CK", "2025-Năm": "-7148593105000.0"},
+        {"item_id": "payment_for_fixed_assets_constructions_and_other_long_term_assets", "item": "capex", "2025-Năm": "-100000000.0"},
+    ])
+    fcf = _by(export_fundamentals.build_metric_records("SSI", FakeFrame([]), FakeFrame([]), ssi), "FREE_CASH_FLOW")
+    assert fcf[("ANNUAL", 2025, None)]["value"] == "-7148693105000.000000"
+    bvh = FakeFrame([
+        {"item_id": "operating_cash_flow", "item": "ocf", "2025-Năm": "1000.0"},
+        {"item_id": "n_1_payment_for_fixed_assets_constructions_and_other_long_term_assets", "item": "capex", "2025-Năm": "-163378387000.0"},
+    ])
+    fcf = _by(export_fundamentals.build_metric_records("BVH", FakeFrame([]), FakeFrame([]), bvh), "FREE_CASH_FLOW")
+    assert fcf[("ANNUAL", 2025, None)]["value"] == "-163378386000.000000"
+    mbb = FakeFrame([
+        {"item_id": "operating_cash_flow", "item": "ocf", "2025-Năm": "1000.0"},
+        {"item_id": "purchase_of_fixed_assets", "item": "bank capex", "2025-Năm": "-1748106000000.0"},
+    ])
+    assert not [r for r in export_fundamentals.build_metric_records("MBB", FakeFrame([]), FakeFrame([]), mbb) if r["metricCode"] == "FREE_CASH_FLOW"]
 
 
 def test_bank_eps_item_id_is_mapped_and_normalized_like_non_bank_eps():

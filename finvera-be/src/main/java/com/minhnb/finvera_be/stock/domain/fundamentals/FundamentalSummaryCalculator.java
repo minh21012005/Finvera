@@ -30,6 +30,14 @@ public final class FundamentalSummaryCalculator {
      */
     public static final String RULE_VERSION = "fundamental-summary-v2";
     public static final String ANNUAL_BASIS = "ANNUAL_BASIS";
+    /**
+     * Feature 011 (contract provider-ratio-facts-v2 U-4): codes the provider only reports on an
+     * annual basis. Read from the newest report when present, else from the latest annual report
+     * and labelled {@code ANNUAL_BASIS}.
+     */
+    public static final Set<String> ANNUAL_ONLY_CODES = Set.of(
+            "ROCE", "NIM", "TOTAL_ASSET_TURNOVER", "INVENTORY_TURNOVER", "RECEIVABLES_TURNOVER",
+            "DIVIDEND_YIELD", "PS", "TOTAL_ASSETS_GROWTH_PERCENT", "EQUITY_GROWTH_PERCENT");
     private static final BigDecimal ONE_HUNDRED = new BigDecimal("100");
 
     public SummaryResult calculate(List<ReportPeriod> reports, LocalDate asOfDate) {
@@ -137,29 +145,29 @@ public final class FundamentalSummaryCalculator {
         addLatestMetric(summaryMetrics, "OPERATING_PROFIT", newest);
         addLatestMetric(summaryMetrics, "BVPS", newest);
         addLatestMetric(summaryMetrics, "TRAILING_EPS", newest);
-        addLatestMetric(summaryMetrics, "DIVIDEND_YIELD", newest);
+        addAnnualScopedMetric(summaryMetrics, "DIVIDEND_YIELD", newest, sorted);
         addLatestMetric(summaryMetrics, "EV_EBITDA", newest);
         // Feature 009: provider-reported ratios, newest accepted period, stored as observed.
         addLatestMetric(summaryMetrics, "GROSS_MARGIN", newest);
         addLatestMetric(summaryMetrics, "NET_MARGIN", newest);
         addLatestMetric(summaryMetrics, "ROE_TTM", newest);
         addLatestMetric(summaryMetrics, "ROA_TTM", newest);
-        addLatestMetric(summaryMetrics, "ROCE", newest);
+        addAnnualScopedMetric(summaryMetrics, "ROCE", newest, sorted);
         addLatestMetric(summaryMetrics, "CURRENT_RATIO", newest);
         addLatestMetric(summaryMetrics, "QUICK_RATIO", newest);
         addLatestMetric(summaryMetrics, "CASH_RATIO", newest);
         addLatestMetric(summaryMetrics, "INTEREST_COVERAGE", newest);
-        addLatestMetric(summaryMetrics, "TOTAL_ASSET_TURNOVER", newest);
-        addLatestMetric(summaryMetrics, "INVENTORY_TURNOVER", newest);
-        addLatestMetric(summaryMetrics, "RECEIVABLES_TURNOVER", newest);
+        addAnnualScopedMetric(summaryMetrics, "TOTAL_ASSET_TURNOVER", newest, sorted);
+        addAnnualScopedMetric(summaryMetrics, "INVENTORY_TURNOVER", newest, sorted);
+        addAnnualScopedMetric(summaryMetrics, "RECEIVABLES_TURNOVER", newest, sorted);
         addLatestMetric(summaryMetrics, "DEBT_TO_ASSETS", newest);
         addLatestMetric(summaryMetrics, "LIABILITIES_TO_EQUITY", newest);
         addLatestMetric(summaryMetrics, "EQUITY_TO_ASSETS", newest);
         addLatestMetric(summaryMetrics, "BETA", newest);
-        addLatestMetric(summaryMetrics, "PS", newest);
-        addLatestMetric(summaryMetrics, "TOTAL_ASSETS_GROWTH_PERCENT", newest);
-        addLatestMetric(summaryMetrics, "EQUITY_GROWTH_PERCENT", newest);
-        addLatestMetric(summaryMetrics, "NIM", newest);
+        addAnnualScopedMetric(summaryMetrics, "PS", newest, sorted);
+        addAnnualScopedMetric(summaryMetrics, "TOTAL_ASSETS_GROWTH_PERCENT", newest, sorted);
+        addAnnualScopedMetric(summaryMetrics, "EQUITY_GROWTH_PERCENT", newest, sorted);
+        addAnnualScopedMetric(summaryMetrics, "NIM", newest, sorted);
         addLatestMetric(summaryMetrics, "COST_INCOME_RATIO", newest);
         addLatestMetric(summaryMetrics, "LOAN_TO_DEPOSIT", newest);
 
@@ -325,6 +333,27 @@ public final class FundamentalSummaryCalculator {
             ReportMetric annual = find(period, metricCode);
             if (annual != null && annual.applicability() == MetricApplicability.DEFINED) {
                 target.add(new SummaryMetric(metricCode, annual.value(), annual.applicability(), annual.qualityReason()));
+                return;
+            }
+        }
+        addLatestMetric(target, metricCode, newest);
+    }
+
+    /** Contract provider-ratio-facts-v2 U-4: newest report first, else latest annual with ANNUAL_BASIS. */
+    private void addAnnualScopedMetric(List<SummaryMetric> target, String metricCode,
+            ReportPeriod newest, List<ReportPeriod> sortedDesc) {
+        ReportMetric fromNewest = find(newest, metricCode);
+        if (fromNewest != null && fromNewest.applicability() == MetricApplicability.DEFINED) {
+            target.add(new SummaryMetric(metricCode, fromNewest.value(), fromNewest.applicability(), fromNewest.qualityReason()));
+            return;
+        }
+        for (ReportPeriod period : sortedDesc) {
+            if (!"ANNUAL".equals(period.periodType())) {
+                continue;
+            }
+            ReportMetric annual = find(period, metricCode);
+            if (annual != null && annual.applicability() == MetricApplicability.DEFINED) {
+                target.add(new SummaryMetric(metricCode, annual.value(), MetricApplicability.DEFINED, ANNUAL_BASIS));
                 return;
             }
         }

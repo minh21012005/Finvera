@@ -13,7 +13,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -23,6 +23,10 @@ SOURCE = "VNSTOCK_KBS"
 TOOL_VERSION = "0.4.0"
 MIN_RECORDS = 20
 KBS_PRICE_MULTIPLIER = Decimal("1000")
+# Feature 011 research R-001: the provider's `end` is not inclusive (end=Fri -> last bar Thu;
+# end=Sat -> Thu; end=Sun -> Fri). Ask for a few days more and cut back to `end` ourselves.
+# Verified 2026-08-30 that KBS never returns a row after the last completed session.
+KBS_END_PADDING_DAYS = 3
 
 
 def decimal_string(value: Any) -> str:
@@ -95,7 +99,8 @@ def build_package(records: list[dict[str, Any]], symbol: str, start: str, end: s
 def fetch_rows(symbol: str, start: str, end: str) -> list[dict[str, Any]]:
     from vnstock import Market
 
-    frame = Market().equity(symbol).ohlcv(start=start, end=end, interval="1D", count=1000, source="kbs")
+    padded_end = (date.fromisoformat(end) + timedelta(days=KBS_END_PADDING_DAYS)).isoformat()
+    frame = Market().equity(symbol).ohlcv(start=start, end=padded_end, interval="1D", count=1000, source="kbs")
     required = {"time", "open", "high", "low", "close"}
     if not required.issubset(frame.columns):
         raise ValueError("Vnstock OHLCV schema does not contain the required OHLC columns")
@@ -105,7 +110,9 @@ def fetch_rows(symbol: str, start: str, end: str) -> list[dict[str, Any]]:
     columns = [c for c in (
         "time", "open", "high", "low", "close", "volume",
     ) if c in frame.columns]
-    return frame.loc[:, columns].to_dict("records")
+    rows = frame.loc[:, columns].to_dict("records")
+    # Padding must never let a bar after the requested end (or a future/partial session) through.
+    return [row for row in rows if str(row["time"]).split(" ", maxsplit=1)[0] <= end]
 
 
 def output_filename(symbol: str) -> str:

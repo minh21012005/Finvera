@@ -37,6 +37,8 @@ from the date Finvera started importing.
 (VNM 2,089,955,445; MBB 8,054,999,909), `listed_volume`, `charter_capital`,
 `free_float_percentage`, `free_float`. The equity-profile exporter only used
 `Listing.symbols_by_exchange()` and recorded `SHARES_OUTSTANDING_UNAVAILABLE`.
+**Correction (Feature 011 R-002)**: `free_float_percentage`/`free_float` are
+mis-mapped by vnstock (shares × par, and par value); no free float is emitted.
 Decision: one overview call per symbol in `export_equity_profile.py`; the
 importer creates a new effective-dated profile revision when the current row
 has no shares or a different value (closing the old row with `effective_to`).

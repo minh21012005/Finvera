@@ -141,11 +141,11 @@ export function ScreenerFilters({ onSubmit, submitting }: { onSubmit: (request: 
           <input type="text" inputMode="decimal" {...field("earningsGrowthPercentMax")} />
         </label>
         <label>
-          ROE tối thiểu
+          ROE 12 tháng tối thiểu
           <input type="text" inputMode="decimal" {...field("roeMin")} />
         </label>
         <label>
-          ROE tối đa
+          ROE 12 tháng tối đa
           <input type="text" inputMode="decimal" {...field("roeMax")} />
         </label>
         <label>

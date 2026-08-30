@@ -66,15 +66,14 @@ public class EquityProfileImportService {
                 profiles.save(new EquityProfileEntity(UUID.randomUUID(), instrumentId, record.companyNameVi(),
                         record.companyNameEn(), existing.getSectorReferenceId(), record.sharesOutstanding(),
                         record.freeFloatRatio(), record.listingStatus(), record.effectiveFrom(), null,
-                        input.upstreamSource(), input.packageSha256(), null));
+                        input.upstreamSource(), input.packageSha256(), record.qualityReason()));
                 results.add(new ProfileResult(record.symbol(), ProfileStatus.UPDATED));
                 continue;
             }
             profiles.save(new EquityProfileEntity(UUID.randomUUID(), instrumentId, record.companyNameVi(),
                     record.companyNameEn(), null, record.sharesOutstanding(), record.freeFloatRatio(),
                     record.listingStatus(), record.effectiveFrom(), null,
-                    input.upstreamSource(), input.packageSha256(),
-                    record.sharesOutstanding() != null ? null : record.qualityReason()));
+                    input.upstreamSource(), input.packageSha256(), record.qualityReason()));
             results.add(new ProfileResult(record.symbol(), ProfileStatus.CREATED));
         }
         return new Summary(results);

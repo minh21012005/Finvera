@@ -70,3 +70,15 @@ new rule id (`…-v2`); existing accepted rows keep their recorded id.
 | FCF VNM 2025 | OCF 8,827,273,177,000; capex −1,456,914,053,000 | `7370359124000.000000` |
 | Bank without capex row | OCF only | no record |
 | Two `revenue` rows | gross + "thuần" | only net → `REVENUE` |
+
+## Amendment 2026-08-30 (Feature 011) — `kbs-fcf-ocf-plus-capex-v2` → `FREE_CASH_FLOW`
+
+Same formula, sign convention and same-period rule as v1; the input ids are
+now ordered lists (first present wins):
+
+- OCF: `operating_cash_flow`, then `net_cash_flows_from_securities_trading_activities` (securities).
+- capex: `payment_for_fixed_assets_constructions_and_other_long_term_assets`, then
+  `n_1_payment_for_fixed_assets_constructions_and_other_long_term_assets` (insurance).
+
+Banks (`purchase_of_fixed_assets`) are deliberately excluded — deposit-driven
+OCF makes the figure meaningless. Rows derived under v1 keep their id.

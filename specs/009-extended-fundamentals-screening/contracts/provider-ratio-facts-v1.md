@@ -72,3 +72,9 @@ contract version.
 Semantics identical to existing summary-metric filters: `MISSING`/
 `NOT_APPLICABLE` → candidate excluded with the metric's own reason; `min > max`
 → `INVALID_FILTER_RANGE`.
+
+> **Superseded 2026-08-30** by
+> `specs/011-provider-ingestion-normalization/contracts/provider-ratio-facts-v2.md`
+> for packages `toolVersion >= 0.6.0`: quarter columns of flow ratios are
+> single-quarter values (research 011 R-003) and the `DIVIDEND_YIELD` ×100
+> derivation was wrong. Rows imported under v1 keep their recorded provenance.

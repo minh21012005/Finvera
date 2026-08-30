@@ -28,7 +28,7 @@ public class EquityProfileImportPackageParser {
                         text(value, "listingStatus"), LocalDate.parse(text(value, "effectiveFrom")),
                         nullableText(value, "qualityReason"), text(value, "canonicalRecord"),
                         value.path("sharesOutstanding").isNumber() ? value.path("sharesOutstanding").longValue() : null,
-                        value.path("freeFloatRatio").isTextual() ? new java.math.BigDecimal(value.path("freeFloatRatio").stringValue()) : null));
+                        null)); // free float: provider exposes none (Feature 011 R-002)
             }
             return new EquityProfileImportService.PackageInput(text(root, "contractVersion"),
                     text(root, "toolName"), text(root, "toolVersion"), text(root, "upstreamSource"),

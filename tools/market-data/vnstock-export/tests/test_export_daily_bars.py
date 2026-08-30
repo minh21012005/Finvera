@@ -157,3 +157,42 @@ def test_full_universe_reexport_drops_records_from_old_daily_bar_tool_version(tm
     assert package["records"][-1]["tradingDate"] == "2026-08-20"
     assert package["records"][0]["close"] == "214500.000000"
     assert "referencePrice" not in package["records"][0]
+
+
+class _FakeOhlcvFrame:
+    def __init__(self, rows):
+        self._rows = rows
+        self.columns = ["time", "open", "high", "low", "close", "volume"]
+
+    @property
+    def loc(self):
+        return self
+
+    def __getitem__(self, _key):
+        return self
+
+    def to_dict(self, _kind):
+        return list(self._rows)
+
+
+def test_fetch_rows_pads_the_provider_end_date_and_cuts_back_to_the_requested_end(monkeypatch):
+    """Feature 011 R-001: KBS treats `end` as exclusive-ish (end=2026-08-29 -> last bar 08-27)."""
+    import types
+    seen = {}
+
+    def bar(day):
+        return {"time": f"{day} 07:00:00", "open": 62.5, "high": 63.0, "low": 62.0, "close": 62.3, "volume": 1000}
+
+    class _Equity:
+        def ohlcv(self, start, end, interval, count, source):
+            seen["end"] = end
+            return _FakeOhlcvFrame([bar("2026-08-27"), bar("2026-08-28"), bar("2026-09-01")])
+
+    class _Market:
+        def equity(self, _symbol):
+            return _Equity()
+
+    monkeypatch.setitem(sys.modules, "vnstock", types.SimpleNamespace(Market=_Market))
+    rows = export_daily_bars.fetch_rows("VNM", "2026-08-24", "2026-08-30")
+    assert seen["end"] == "2026-09-02"                      # 3-day padding
+    assert [r["time"][:10] for r in rows] == ["2026-08-27", "2026-08-28"]  # 09-01 (after end) dropped
