@@ -103,6 +103,11 @@ def export_daily_bars_for(
             existing_package = json.loads(path.read_text(encoding="utf-8"))
             if existing_package.get("toolVersion") == export_daily_bars.TOOL_VERSION:
                 existing_records = existing_package.get("records", [])
+                recorded_start = existing_package.get("rangeStart")
+                if recorded_start and recorded_start > start:
+                    # Q-37: --start moved earlier than the range this file was fetched for; the
+                    # incremental window could never reach the new gap, so re-fetch the whole range once.
+                    existing_records = []
         except (json.JSONDecodeError, OSError):
             existing_records = []
         if existing_records:

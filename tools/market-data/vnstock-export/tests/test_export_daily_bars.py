@@ -196,3 +196,24 @@ def test_fetch_rows_pads_the_provider_end_date_and_cuts_back_to_the_requested_en
     rows = export_daily_bars.fetch_rows("VNM", "2026-08-24", "2026-08-30")
     assert seen["end"] == "2026-09-02"                      # 3-day padding
     assert [r["time"][:10] for r in rows] == ["2026-08-27", "2026-08-28"]  # 09-01 (after end) dropped
+
+
+def test_earlier_start_than_existing_file_triggers_a_full_range_refetch(tmp_path, monkeypatch):
+    """Q-37: moving --start from 2024-01-01 back to 2023-01-01 must not be swallowed by the lookback window."""
+    def bars(prefix, n):
+        return [{"time": f"{prefix}-{d:02d} 00:00:00", "open": "1", "high": "1", "low": "1", "close": "1", "volume": "1"} for d in range(1, n + 1)]
+    existing = export_daily_bars.build_package(export_daily_bars.package_records(bars("2024-01", 25), "VNM"),
+                                               "VNM", "2024-01-01", "2026-08-20", export_daily_bars.TOOL_VERSION)
+    (tmp_path / export_daily_bars.output_filename("VNM")).write_text(json.dumps(existing), encoding="utf-8")
+    seen = {}
+
+    def fake_fetch(symbol, start, end):
+        seen["start"] = start
+        return bars("2023-01", 25)
+
+    monkeypatch.setattr(export_all_symbols.export_daily_bars, "fetch_rows", fake_fetch)
+    export_all_symbols.export_daily_bars_for("VNM", "2023-01-01", "2026-08-30", tmp_path, 90, False)
+    assert seen["start"] == "2023-01-01"                      # whole range, not the lookback window
+    package = json.loads((tmp_path / export_daily_bars.output_filename("VNM")).read_text(encoding="utf-8"))
+    assert package["rangeStart"] == "2023-01-01"
+    assert all(r["tradingDate"].startswith("2023-01") for r in package["records"])  # old 2024 rows not kept blindly

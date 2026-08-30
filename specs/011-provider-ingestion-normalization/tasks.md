@@ -4,7 +4,7 @@ Written before implementation (2026-08-30).
 
 - [x] T001 [FR-001] `export_daily_bars.fetch_rows`: request `end + KBS_END_PADDING_DAYS (3)`, drop rows after `end`.
       Verify: `test_export_daily_bars` — provider stub receives padded end; rows after `end` dropped; 2026-08-28 kept for `end = 2026-08-30`.
-      Evidence: `KBS_END_PADDING_DAYS = 3`, post-filter in `fetch_rows`; `test_fetch_rows_pads_the_provider_end_date_and_cuts_back_to_the_requested_end`.
+      Evidence: `KBS_END_PADDING_DAYS = 3`, post-filter in `fetch_rows`; `test_fetch_rows_pads_the_provider_end_date_and_cuts_back_to_the_requested_end`. Same padding applied to `export_history.py` (equity + index) — `test_index_fetch_pads_the_provider_end_and_cuts_back`.
 - [x] T002 [FR-002] `export_equity_profile`: remove `freeFloatRatio`; `share_fields` → `(shares, reason)` with charter-capital/par consistency check; importer keeps the record reason; parser stops reading `freeFloatRatio`.
       Verify: `test_export_equity_profile` (garbage free float ignored; consistent → reason None; inconsistent → UNVERIFIED); `EquityProfileImportServiceTests`.
       Evidence: `share_fields` → `(shares, reason)`; parser passes `null` free float; importer keeps `record.qualityReason()`; tests 5/5 + 4 exporter profile tests.

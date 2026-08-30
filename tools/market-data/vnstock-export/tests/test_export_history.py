@@ -92,3 +92,36 @@ def test_rejects_insufficient_history_and_invalid_decimal():
         export_history.build_package([], "2025-01-01", "2026-01-01", "0.1.0")
     with pytest.raises(ValueError, match="finite"):
         export_history.decimal_string("-1")
+
+
+def test_index_fetch_pads_the_provider_end_and_cuts_back(monkeypatch):
+    import sys, types
+    seen = {}
+
+    class _Frame:
+        columns = ["time", "close", "volume"]
+
+        @property
+        def loc(self):
+            return self
+
+        def __getitem__(self, _k):
+            return self
+
+        def to_dict(self, _kind):
+            return [{"time": "2026-08-28 07:00:00", "close": 1300.5, "volume": 1},
+                    {"time": "2026-09-01 07:00:00", "close": 1301.0, "volume": 1}]
+
+    class _Index:
+        def ohlcv(self, start, end, interval, count, source):
+            seen["end"] = end
+            return _Frame()
+
+    class _Market:
+        def index(self, _s):
+            return _Index()
+
+    monkeypatch.setitem(sys.modules, "vnstock", types.SimpleNamespace(Market=_Market))
+    rows_ = export_history.fetch_index_rows("VNINDEX", "2026-08-24", "2026-08-30")
+    assert seen["end"] == "2026-09-02"
+    assert [r["time"][:10] for r in rows_] == ["2026-08-28"]

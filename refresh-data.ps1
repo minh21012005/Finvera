@@ -66,7 +66,11 @@ $beDir = Join-Path $root "finvera-be"
 $exportDir = Join-Path $root "tools\market-data\vnstock-export"
 $envFile = Join-Path $beDir ".env"
 $envRefreshFile = Join-Path $beDir ".env.refresh"
-$historyStartDate = "2024-01-01"
+# Q-37 (2026-08-30): 2023-01-01, not 2024-01-01 -- valuation-v1's own-history basis needs 500
+# sessions with a visible report, and the provider's four fiscal years make FY2022 visible from
+# ~Mar 2023, so this is the earliest start that adds usable history. The exporters detect the
+# earlier start (package rangeStart) and re-fetch the whole range once.
+$historyStartDate = "2023-01-01"
 $historyEndDate = (Get-Date).ToString("yyyy-MM-dd")
 
 $ManagedRuntimeFlags = @(

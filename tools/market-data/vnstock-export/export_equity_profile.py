@@ -153,11 +153,14 @@ def main() -> None:
         if progress["n"]:
             time.sleep(interval_seconds)
         progress["n"] += 1
-        if progress["n"] % 100 == 0:
-            print(f"  overview {progress['n']} symbols ...")
+        print(f"[{progress['n']}/{progress['total']}] {symbol}", flush=True)
         return fetch_overview(symbol)
 
-    records = build_records(fetch_universe(), effective_from, paced_overview)
+    universe = fetch_universe()
+    progress["total"] = sum(1 for _, r in universe.iterrows() if str(r.get("type", "")).lower() == "stock")
+    print(f"Universe: {progress['total']} stocks; one overview call each at {args.requests_per_minute:g}/min "
+          f"(~{progress['total'] / max(1.0, args.requests_per_minute):.0f} min).", flush=True)
+    records = build_records(universe, effective_from, paced_overview)
     with_shares = sum(1 for r in records if r["sharesOutstanding"] is not None)
     print(f"Outstanding shares present for {with_shares}/{len(records)} symbols")
     package = build_package(records, "0.2.0")  # 0.2.0: outstanding shares / free float (Feature 010)

@@ -152,6 +152,16 @@ def latest_market_overview_package(output: Path, start: str) -> Path | None:
     return candidates[-1] if candidates else None
 
 
+def existing_index_range_start(output: Path, start: str) -> str | None:
+    path = latest_market_overview_package(output, start)
+    if path is None:
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8")).get("rangeStart")
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
 def load_existing_index_records(output: Path, start: str) -> list[dict[str, Any]]:
     path = latest_market_overview_package(output, start)
     if path is None:
@@ -174,6 +184,8 @@ def incremental_market_index_records(
     if lookback_days < 0:
         raise ValueError("lookback-days must be non-negative")
     existing_records = [] if full_refresh else load_existing_index_records(output, start)
+    if existing_records and (existing_index_range_start(output, start) or start) > start:
+        existing_records = []  # Q-37: --start moved earlier than the stored range; re-fetch once
     fetch_start = start
     if existing_records:
         existing_end = max(str(record["tradingDate"]) for record in existing_records)
@@ -193,22 +205,35 @@ def incremental_market_index_records(
 def fetch_rows(symbol: str, start: str, end: str) -> list[dict[str, Any]]:
     from vnstock import Market
 
-    frame = Market().equity(symbol).ohlcv(start=start, end=end, interval="1D", count=1000, source="kbs")
+    frame = Market().equity(symbol).ohlcv(start=start, end=padded_end(end), interval="1D", count=1000, source="kbs")
     required = {"time", "close"}
     if not required.issubset(frame.columns):
         raise ValueError("Vnstock OHLCV schema does not contain time and close")
-    return frame.loc[:, ["time", "close"]].to_dict("records")
+    return cut_to_end(frame.loc[:, ["time", "close"]].to_dict("records"), end)
 
 
 def fetch_index_rows(symbol: str, start: str, end: str) -> list[dict[str, Any]]:
     from vnstock import Market
 
-    frame = Market().index(symbol).ohlcv(start=start, end=end, interval="1D", count=1000, source="kbs")
+    frame = Market().index(symbol).ohlcv(start=start, end=padded_end(end), interval="1D", count=1000, source="kbs")
     required = {"time", "close"}
     if not required.issubset(frame.columns):
         raise ValueError("Vnstock index OHLCV schema does not contain time and close")
     columns = ["time", "close"] + (["volume"] if "volume" in frame.columns else [])
-    return frame.loc[:, columns].to_dict("records")
+    return cut_to_end(frame.loc[:, columns].to_dict("records"), end)
+
+
+# Feature 011 research R-001: KBS treats `end` as non-inclusive (end=Fri -> last bar Thu). Same
+# padding as export_daily_bars; nothing after the requested end is ever kept.
+KBS_END_PADDING_DAYS = 3
+
+
+def padded_end(end: str) -> str:
+    return (date.fromisoformat(end) + timedelta(days=KBS_END_PADDING_DAYS)).isoformat()
+
+
+def cut_to_end(rows: list[dict[str, Any]], end: str) -> list[dict[str, Any]]:
+    return [row for row in rows if str(row["time"]).split(" ", maxsplit=1)[0] <= end]
 
 
 def main() -> None:
