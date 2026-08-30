@@ -158,6 +158,23 @@ def daily_bars_current(symbol: str, entry: dict[str, Any], args: argparse.Namesp
 
 ANNUAL_PERIOD = "year"
 
+# Q-30: fiscal-period staleness. A quarterly package is stale once the NEXT quarter's
+# disclosure deadline has passed (period end + 3 months, then Circular 96/2020 quarterly
+# lag ~45 days); an annual package once the next fiscal year's audited deadline has passed
+# (period end + 12 months + ~90 days). Mirrors daily bars' date-aware currency rule.
+QUARTER_NEXT_PERIOD_DAYS = 92 + 45
+ANNUAL_NEXT_PERIOD_DAYS = 366 + 90
+
+
+def fundamentals_package_stale(package: dict[str, Any], today: date, period: str) -> bool:
+    """True when a newer fiscal period should exist for this package's symbol by `today`."""
+    ends = [r.get("periodEnd") for r in package.get("records", []) if r.get("periodEnd")]
+    if not ends:
+        return True
+    latest_end = date.fromisoformat(max(ends))
+    horizon = ANNUAL_NEXT_PERIOD_DAYS if period == ANNUAL_PERIOD else QUARTER_NEXT_PERIOD_DAYS
+    return today > latest_end + timedelta(days=horizon)
+
 
 def fundamentals_annual_current(symbol: str, entry: dict[str, Any], args: argparse.Namespace) -> bool:
     """Cash-flow facts (FREE_CASH_FLOW) exist only in the annual dataset (Feature 008 R-002/R-004),
@@ -170,7 +187,9 @@ def fundamentals_annual_current(symbol: str, entry: dict[str, Any], args: argpar
     except (json.JSONDecodeError, OSError):
         return False
     return (entry.get("fundamentals_annual") == DONE
-            and package.get("toolVersion") == export_fundamentals.TOOL_VERSION)
+            and not args.full_refresh
+            and package.get("toolVersion") == export_fundamentals.TOOL_VERSION
+            and not fundamentals_package_stale(package, date.fromisoformat(args.end), ANNUAL_PERIOD))
 
 
 def fundamentals_current(symbol: str, entry: dict[str, Any], args: argparse.Namespace) -> bool:
@@ -183,7 +202,9 @@ def fundamentals_current(symbol: str, entry: dict[str, Any], args: argparse.Name
         return False
     return (entry.get("fundamentals") == DONE
             and entry.get("fundamentals_period") == args.period
-            and package.get("toolVersion") == export_fundamentals.TOOL_VERSION)
+            and not args.full_refresh
+            and package.get("toolVersion") == export_fundamentals.TOOL_VERSION
+            and not fundamentals_package_stale(package, date.fromisoformat(args.end), args.period))
 
 
 def process_symbol(

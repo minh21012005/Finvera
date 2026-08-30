@@ -815,3 +815,26 @@ artifact, and no client-side rule can distinguish the two without guessing.
 belongs in that provider's adapter or exporter plus a
 `hasImplausibleValueScale`-style acceptance guard, never in the client. Charts
 for the 30 sub-1,000 VND instruments above now display their true price.
+
+---
+
+## R-017 — 2026-08-30 `tcbs-vnstock-reconciliation-v2`: reference compared only when both sides carry one
+
+**Decision**: bump `SourceReconciliationPolicy.VERSION` to
+`tcbs-vnstock-reconciliation-v2`. Closes are still compared exactly at scale 6;
+the official reference price is compared only when **both** facts carry one.
+`StockIngestionService.toFact` now passes `equity_daily_bar.reference_price`
+(nullable) into the policy's reference slot instead of the open price.
+
+**Rationale**: R-015 established that Vnstock/KBS completed bars carry no
+historical reference price, so v1's exact-equality test on a `null` reference
+would have flagged every overlapping trading date as `SOURCE_CONFLICT` and
+withheld indicators/valuations universe-wide. The code had worked around it by
+comparing **open** prices in the reference slot — an undocumented second
+definition (Q-25 in `docs/REMEDIATION_PLAN.md`). A versioned policy change is
+the honest fix; audit rows record the version they were decided under.
+
+**Alternatives rejected**: keeping open-price comparison (misnamed, conflates
+two facts); dropping the reference comparison entirely (loses a real signal
+when both sources do report one, e.g. TCBS vs a future reference-bearing
+source).

@@ -477,8 +477,14 @@ public class ValuationService {
         }
 
         record ObservedReport(ReportPeriod period, Instant observedAt) {}
+        // Q-28: one bulk metric fetch for every accepted report instead of one query per report.
+        Map<UUID, List<FundamentalReportMetricEntity>> metricsByReport = reportMetrics
+                .findByReportIdIn(acceptedReports.stream().map(FundamentalReportEntity::getId).toList())
+                .stream()
+                .collect(java.util.stream.Collectors.groupingBy(FundamentalReportMetricEntity::getReportId));
         List<ObservedReport> observedReports = acceptedReports.stream()
-                .map(r -> new ObservedReport(toReportPeriod(r, reportMetrics.findByReportId(r.getId())), r.getObservedAt()))
+                .map(r -> new ObservedReport(toReportPeriod(r, metricsByReport.getOrDefault(r.getId(), List.of())),
+                        r.getObservedAt()))
                 .toList();
 
         List<HistoryPoint> historyPoints = new ArrayList<>();

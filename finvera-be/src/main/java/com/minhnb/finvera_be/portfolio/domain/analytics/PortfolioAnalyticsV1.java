@@ -687,8 +687,16 @@ public final class PortfolioAnalyticsV1 {
                 }
             }
 
-            PortfolioHoldingsState valuedState = replayHoldings(asOfTx, datePrices);
-            BigDecimal dateTotalValue = valuedState.totals().totalValue();
+            // Q-28: value the already-replayed open positions directly instead of replaying
+            // the whole ledger a second time per trading date. Same arithmetic as
+            // replayHoldings' totals (cash + sum of priced open quantities x close).
+            BigDecimal dateTotalValue = intermediateState.cashBalance();
+            for (PositionResult openPos : intermediateState.positions().values()) {
+                BigDecimal close = datePrices.get(openPos.instrumentId());
+                if (openPos.quantity().signum() > 0 && close != null) {
+                    dateTotalValue = dateTotalValue.add(openPos.quantity().multiply(close));
+                }
+            }
 
             if (dateTotalValue.compareTo(peakValue) > 0) {
                 peakValue = dateTotalValue;

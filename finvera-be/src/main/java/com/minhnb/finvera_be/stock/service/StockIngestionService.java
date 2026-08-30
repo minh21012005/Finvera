@@ -310,7 +310,9 @@ public class StockIngestionService {
         AdjustmentStatus status = "RAW".equals(bar.getAdjustmentStatus())
                 ? AdjustmentStatus.RAW
                 : AdjustmentStatus.UNKNOWN;
-        return new Fact(bar.getClosePrice(), bar.getOpenPrice(), status);
+        // Q-25: the policy's reference slot is the official reference price (null for
+        // Vnstock/KBS completed bars, R-015); v2 compares it only when both sides have one.
+        return new Fact(bar.getClosePrice(), bar.getReferencePrice(), status);
     }
 
     private static UUID nilUuid() {

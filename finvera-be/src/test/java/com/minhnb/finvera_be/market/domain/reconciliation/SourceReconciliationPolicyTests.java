@@ -28,4 +28,20 @@ class SourceReconciliationPolicyTests {
         return new SourceReconciliationPolicy.Fact(new BigDecimal(close), new BigDecimal(reference),
                 SourceReconciliationPolicy.AdjustmentStatus.RAW);
     }
+
+    @Test void missingReferenceOnOneSideIsNotAConflictWhenClosesAgree() {
+        var policy = new SourceReconciliationPolicy();
+        var tcbs = new SourceReconciliationPolicy.Fact(new BigDecimal("100.5"), new BigDecimal("100"),
+                SourceReconciliationPolicy.AdjustmentStatus.RAW);
+        var vnstock = new SourceReconciliationPolicy.Fact(new BigDecimal("100.5"), null,
+                SourceReconciliationPolicy.AdjustmentStatus.RAW);
+        org.assertj.core.api.Assertions.assertThat(policy.reconcile(tcbs, vnstock))
+                .isEqualTo(SourceReconciliationPolicy.Decision.TCBS_CANONICAL);
+        var vnstockDivergent = new SourceReconciliationPolicy.Fact(new BigDecimal("98.5"), null,
+                SourceReconciliationPolicy.AdjustmentStatus.RAW);
+        org.assertj.core.api.Assertions.assertThat(policy.reconcile(tcbs, vnstockDivergent))
+                .isEqualTo(SourceReconciliationPolicy.Decision.SOURCE_CONFLICT);
+        org.assertj.core.api.Assertions.assertThat(SourceReconciliationPolicy.VERSION)
+                .isEqualTo("tcbs-vnstock-reconciliation-v2");
+    }
 }

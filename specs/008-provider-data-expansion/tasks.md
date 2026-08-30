@@ -37,6 +37,9 @@ verification evidence is real; the ordering deviation is recorded in
 
 - [x] T010 Run the full gates: exporter pytest, `.\mvnw.cmd test`, FE test/lint/build; record counts in `docs/REMEDIATION_PLAN.md` (Q-13..Q-17 statuses).
       Verify (2026-08-30): exporter `pytest tests` 18/18; `finvera-be` full suite 654/654 + `StockOverviewLimitsTests` 2/2 (BUILD SUCCESS); `finvera-fe` vitest 127/127, lint clean, build clean. Recorded in `docs/REMEDIATION_PLAN.md` (Q-13..Q-16 done, Q-17 deferred).
+- [x] T011 [DATA-001, NFR-002] `export_all_symbols.py`: fiscal-period staleness for fundamentals — a quarter package is re-exported once the next quarter's disclosure deadline has passed (period end + 92 + 45 days), an annual package once the next audited deadline has passed (+366 + 90 days); `--full-refresh` also forces both passes.
+      Verify: `tests/test_export_all_symbols.py` (3) — 21/21 exporter tests pass.
+      Evidence (2026-08-30): Q-30 in `docs/REMEDIATION_PLAN.md` — previously a fundamentals package was "current" forever unless the exporter version changed, so new quarterly reports were never picked up by a routine refresh.
 
 ## Requirement traceability
 

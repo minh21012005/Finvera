@@ -443,6 +443,9 @@ T004/T007/T016/T024 fixture set.
       Verify: `PortfolioTransactionServiceTests` (11, incl. new unpriced->PARTIAL and stale->STALE scenarios), `PortfolioControllerTests`, `PortfolioAnalyticsControllerTests`, `WatchlistControllerTests` pass; `npm run test/lint/build` pass.
       Depends: T040.
       Evidence (2026-08-30): tracked as Q-09..Q-12 in `docs/REMEDIATION_PLAN.md`; decision recorded as research R-012. `StockFreshnessPolicy` had no reference under `portfolio/` at all; a bar's existence was labelled CURRENT and an unpriced holding silently contributed zero to a definite-looking total. The OpenAPI schema itself forced `benchmarkReturn` non-null, which is why the code emitted "0" for "VN-Index unknown" — contract and code fixed together.
+- [x] T042 [NFR-001] `PortfolioAnalyticsV1.calculatePerformanceHistory` values each trading date from the single replayed holdings state (cash + Σ open quantity × that date's close) instead of replaying the whole ledger a second time per date.
+      Verify: `PortfolioAnalyticsV1Tests` 17/17 and `PortfolioAnalyticsServiceTests` 4/4 unchanged (identical totals, drawdown, PARTIAL flags).
+      Evidence (2026-08-30): portfolio half of Q-28 in `docs/REMEDIATION_PLAN.md`; arithmetic is the same as `replayHoldings` totals, only the redundant replay is gone.
 
 ## Post-Implementation Analysis (2026-08-20)
 
