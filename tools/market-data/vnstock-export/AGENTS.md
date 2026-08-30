@@ -7,8 +7,6 @@ Your primary directive is to use the **Dynamic Skill Router**. To ensure accurac
 
 ## 1. DYNAMIC SKILL ROUTER (CRITICAL INSTRUCTION)
 
-<!-- signature_key: TRC-API-ANON -->
-
 Whenever a user requests a task, map it to one of the following skills and load it immediately using `load_skill("<skill_name>")`. Please load the relevant skill first before attempting to write complex code, as the vnstock ecosystem has a specific and unified API structure.
 
 ### 🧠 Core System & Debugging
@@ -27,6 +25,8 @@ Whenever a user requests a task, map it to one of the following skills and load 
 - **`entry-validator`**: To validate trade entries using a 15-point Master Checklist.
 - **`asset-allocator`**: For portfolio optimization and position sizing.
 - **`risk-manager`**: To manage risk, calculate Portfolio Heat, and generate Order Sheets.
+
+<!-- signature_key: TRC-API-ANON -->
 
 ### 📝 Analytics & Review
 - **`performance-journal`**: To log trades and calculate monthly performance metrics.

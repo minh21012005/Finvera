@@ -212,44 +212,96 @@ def fundamentals_current(symbol: str, entry: dict[str, Any], args: argparse.Name
             and not fundamentals_package_stale(package, date.fromisoformat(args.end), args.period))
 
 
+# ── Provider quota pacing (Q-39) ─────────────────────────────────────────────
+# One symbol costs far more than one provider call: vnstock fetches KBS statements one
+# period per page (income statement ~6 pages, cash flow probe + pages, ratio 1), so a
+# quarter+annual fundamentals pass is ~20 calls and the Community tier allows 60/min.
+# A fixed per-symbol sleep therefore cannot keep the run under the limit; vnai's own
+# retry (2 attempts, 1-2 s back-off) cannot either, and an exhausted retry surfaces as a
+# tenacity RetryError that used to be recorded as a permanent failure. We read vnai's
+# usage counters directly and wait for room BEFORE each dataset, and treat a rate-limit
+# failure as transient (retried after the window resets, and again on the next run).
+CALLS_PER_DATASET = {"daily_bars": 2, "fundamentals": 10, "fundamentals_annual": 12}
+TRANSIENT_FAILURE_NAMES = ("RetryError", "RateLimitExceeded")
+MAX_QUOTA_WAIT_SECONDS = 65.0
+
+
+def quota_status() -> dict[str, Any] | None:
+    """vnai's minute window {usage, limit, remaining, reset_in_seconds}, or None when unavailable."""
+    try:
+        from vnai.beam.quota import guardian
+        return guardian.get_limit_status().get("minute_limit")
+    except Exception:  # noqa: BLE001 -- pacing must never break the export
+        return None
+
+
+def wait_for_quota(needed: int, status=quota_status, sleep=time.sleep, log=print) -> float:
+    """Block until the provider minute window has room for `needed` calls. Returns seconds waited."""
+    waited = 0.0
+    while True:
+        window = status()
+        if window is None or window.get("remaining", needed) >= needed:
+            return waited
+        pause = min(MAX_QUOTA_WAIT_SECONDS, max(1.0, float(window.get("reset_in_seconds", 5)) + 0.5))
+        if waited == 0.0:
+            log(f"  quota: {window.get('usage')}/{window.get('limit')} used, need {needed}; waiting {pause:.0f}s")
+        sleep(pause)
+        waited += pause
+
+
+def is_transient_failure(value: Any) -> bool:
+    return any(str(value) == f"failed:{name}" for name in TRANSIENT_FAILURE_NAMES)
+
+
+def run_dataset(entry: dict[str, Any], key: str, label: str, action, on_success, on_failure) -> None:
+    """Run one dataset export with quota pacing; a rate-limit failure is retried once after the window resets."""
+    for attempt in (1, 2):
+        wait_for_quota(CALLS_PER_DATASET[key])
+        try:
+            action()
+            on_success()
+            print(f"  {label}: OK")
+            return
+        except Exception as exc:  # noqa: BLE001 -- one bad symbol must not stop the batch
+            name = type(exc).__name__
+            if name in TRANSIENT_FAILURE_NAMES and attempt == 1:
+                print(f"  {label}: rate-limited, retrying after the window resets")
+                window = quota_status() or {}
+                time.sleep(min(MAX_QUOTA_WAIT_SECONDS, float(window.get("reset_in_seconds", 60)) + 0.5))
+                continue
+            entry[key] = f"failed:{name}"
+            on_failure()
+            print(f"  {label}: FAILED ({name})")
+            return
+
+
 def process_symbol(
     symbol: str, args: argparse.Namespace, checkpoint: dict[str, Any], checkpoint_path: Path
 ) -> None:
     entry = checkpoint["symbols"].setdefault(symbol, {})
 
     if not daily_bars_current(symbol, entry, args):
-        try:
-            export_daily_bars_for(
-                symbol, args.start, args.end, args.output, args.lookback_days, args.full_refresh)
+        def bars_ok():
             entry["daily_bars"] = DONE
             entry["daily_bars_range"] = [args.start, args.end]
-            print(f"  daily_bars: OK")
-        except Exception as exc:  # noqa: BLE001 -- one bad symbol must not stop the batch
-            entry["daily_bars"] = f"failed:{type(exc).__name__}"
-            entry.pop("daily_bars_range", None)
-            print(f"  daily_bars: FAILED ({type(exc).__name__})")
+        run_dataset(entry, "daily_bars", "daily_bars",
+                    lambda: export_daily_bars_for(symbol, args.start, args.end, args.output, args.lookback_days, args.full_refresh),
+                    bars_ok, lambda: entry.pop("daily_bars_range", None))
         save_checkpoint(checkpoint_path, checkpoint)
 
     if not fundamentals_current(symbol, entry, args):
-        try:
-            export_fundamentals_for(symbol, args.period, args.unit_scale, args.output)
+        def fundamentals_ok():
             entry["fundamentals"] = DONE
             entry["fundamentals_period"] = args.period
-            print(f"  fundamentals: OK")
-        except Exception as exc:  # noqa: BLE001
-            entry["fundamentals"] = f"failed:{type(exc).__name__}"
-            entry.pop("fundamentals_period", None)
-            print(f"  fundamentals: FAILED ({type(exc).__name__})")
+        run_dataset(entry, "fundamentals", "fundamentals",
+                    lambda: export_fundamentals_for(symbol, args.period, args.unit_scale, args.output),
+                    fundamentals_ok, lambda: entry.pop("fundamentals_period", None))
         save_checkpoint(checkpoint_path, checkpoint)
 
     if args.period != ANNUAL_PERIOD and not fundamentals_annual_current(symbol, entry, args):
-        try:
-            export_fundamentals_for(symbol, ANNUAL_PERIOD, args.unit_scale, args.output)
-            entry["fundamentals_annual"] = DONE
-            print(f"  fundamentals(annual): OK")
-        except Exception as exc:  # noqa: BLE001
-            entry["fundamentals_annual"] = f"failed:{type(exc).__name__}"
-            print(f"  fundamentals(annual): FAILED ({type(exc).__name__})")
+        run_dataset(entry, "fundamentals_annual", "fundamentals(annual)",
+                    lambda: export_fundamentals_for(symbol, ANNUAL_PERIOD, args.unit_scale, args.output),
+                    lambda: entry.__setitem__("fundamentals_annual", DONE), lambda: None)
         save_checkpoint(checkpoint_path, checkpoint)
 
 
@@ -258,13 +310,16 @@ def is_finished(symbol: str, entry: dict[str, Any], args: argparse.Namespace) ->
     failed -- failures are recorded, not silently retried forever (without --retry-failed), so the
     run still terminates on symbols Vnstock genuinely cannot serve (e.g. some banks' fundamentals
     shape differs, per research.md G-01), rather than retrying them every single run."""
-    daily_bars_settled = (daily_bars_current(symbol, entry, args)
-                           or str(entry.get("daily_bars", "")).startswith("failed"))
-    fundamentals_settled = (fundamentals_current(symbol, entry, args)
-                             or str(entry.get("fundamentals", "")).startswith("failed"))
+    def settled_failure(key: str) -> bool:
+        value = str(entry.get(key, ""))
+        # Q-39: a rate-limit failure is transient and is always retried on the next run.
+        return value.startswith("failed") and not is_transient_failure(value)
+
+    daily_bars_settled = daily_bars_current(symbol, entry, args) or settled_failure("daily_bars")
+    fundamentals_settled = fundamentals_current(symbol, entry, args) or settled_failure("fundamentals")
     annual_settled = (args.period == ANNUAL_PERIOD
                       or fundamentals_annual_current(symbol, entry, args)
-                      or str(entry.get("fundamentals_annual", "")).startswith("failed"))
+                      or settled_failure("fundamentals_annual"))
     return daily_bars_settled and fundamentals_settled and annual_settled
 
 
@@ -319,7 +374,7 @@ def main() -> int:
 
     if args.retry_failed:
         for entry in checkpoint["symbols"].values():
-            for key in ("daily_bars", "fundamentals"):
+            for key in ("daily_bars", "fundamentals", "fundamentals_annual"):
                 if str(entry.get(key, "")).startswith("failed"):
                     del entry[key]
 
