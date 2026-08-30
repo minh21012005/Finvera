@@ -60,7 +60,11 @@ def fetch_overview(symbol: str) -> dict[str, Any] | None:
             return None
         row = frame.iloc[0]
         return {k: row[k] for k in frame.columns}
-    except Exception:  # noqa: BLE001 -- one symbol's overview failure must not stop the batch
+    except (Exception, SystemExit) as exc:  # noqa: BLE001 -- one symbol's overview failure must not stop the batch
+        # vnai ends its rate-limit handling with sys.exit(...); treat it like any other miss.
+        if isinstance(exc, SystemExit) and "rate limit" not in str(exc).lower():
+            raise
+        time.sleep(65)
         return None
 
 

@@ -67,3 +67,19 @@ def test_run_dataset_retries_once_after_a_rate_limit_then_records_success(monkey
     entry = {}
     mod.run_dataset(entry, "daily_bars", "daily_bars", action, lambda: entry.__setitem__("daily_bars", "done"), lambda: None)
     assert calls["n"] == 2 and entry["daily_bars"] == "done"
+
+
+def test_vnai_rate_limit_system_exit_does_not_terminate_the_export(monkeypatch):
+    monkeypatch.setattr(mod, "wait_for_quota", lambda *_a, **_k: 0.0)
+    monkeypatch.setattr(mod.time, "sleep", lambda *_: None)
+    calls = {"n": 0}
+
+    def action():
+        calls["n"] += 1
+        raise SystemExit("Rate limit exceeded. ... Process terminated.")
+
+    entry = {}
+    mod.run_dataset(entry, "fundamentals", "fundamentals", action, lambda: None, lambda: None)
+    assert calls["n"] == 2                                   # retried once after a full window
+    assert entry["fundamentals"] == "failed:RateLimitExceeded"  # transient -> retried at end of run / next run
+    assert mod.is_transient_failure(entry["fundamentals"])

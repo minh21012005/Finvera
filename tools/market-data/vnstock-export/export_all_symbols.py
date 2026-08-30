@@ -262,8 +262,14 @@ def run_dataset(entry: dict[str, Any], key: str, label: str, action, on_success,
             on_success()
             print(f"  {label}: OK")
             return
-        except Exception as exc:  # noqa: BLE001 -- one bad symbol must not stop the batch
+        except (Exception, SystemExit) as exc:  # noqa: BLE001 -- one bad symbol must not stop the batch
+            # vnai ends its rate-limit handling with sys.exit("Rate limit exceeded ..."), which is a
+            # SystemExit (not an Exception) and would otherwise terminate the whole export.
             name = type(exc).__name__
+            if isinstance(exc, SystemExit):
+                if "rate limit" not in str(exc).lower():
+                    raise
+                name = "RateLimitExceeded"
             if name in TRANSIENT_FAILURE_NAMES and attempt == 1:
                 # The provider enforces the limit server-side; the local counter can lag it, so
                 # wait a full window (not just the remainder of this one) before the retry.
