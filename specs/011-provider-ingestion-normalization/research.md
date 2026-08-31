@@ -152,6 +152,24 @@ row KBS uses for its growth figures.
 HOSE 723, HNX 394, UPCOM 818, XHNF 14. The exporters already filter
 `type == "stock"`; the 14 `XHNF` rows are futures. No change.
 
+## R-009 — Yearly statement frames are mirrored at the provider (Q-57, 2026-08-31)
+
+Found while measuring Feature 017 (history-basis consistency): DBC's "FY2025"
+net profit read 5.2 bn against a Q4-2025 alone of 508 bn. Cross-checking the
+2026-08-30 owner probe (`probe_mapping_audit.json`) against audited figures:
+KBS's yearly **income statement** and **cash flow** columns are labelled in the
+mirror image of their contents (`2025-Năm` = FY2022 … `2022-Năm` = FY2025), for
+non-financials, banks, insurers and brokers alike; the yearly **ratio** frame is
+correct. vnstock 4.0.6 (`explorer/kbs/financial.py`) pairs `Value{i}` with the
+`Head` list sorted by `ID`, and for yearly statements that order is reversed
+relative to the values. Consequences: every `ANNUAL_BASIS` metric, annual FCF
+and ~99 % of own-history valuation points were built on the wrong years; the
+earlier "provider vs DB 74/74" check trusted the labels and could not see it;
+G-11 (KBS revenue growth +3.02 % vs our −0.7 % for VNM) is explained — KBS's
+growth row was right, our arithmetic used mirrored years. Contract
+`kbs-yearly-statement-orientation-v1`; exporter 0.7.0 mirrors the labels and
+tags the records; universe re-export required (T008).
+
 ## Constitution check
 
 I ✔ mapping rules are versioned (`provider-ratio-facts-v2`,

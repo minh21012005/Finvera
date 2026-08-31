@@ -14,6 +14,11 @@ class FakeFrame:
         self._rows = rows
         self.columns = list(rows[0].keys()) if rows else []
 
+    def rename(self, columns=None):
+        # mirrors pandas.DataFrame.rename(columns=mapping) for the Q-57 relabelling
+        mapping = columns or {}
+        return FakeFrame([{mapping.get(k, k): v for k, v in row.items()} for row in self._rows])
+
     def iterrows(self):
         for index, row in enumerate(self._rows):
             yield index, row
@@ -266,3 +271,34 @@ def test_bank_eps_item_id_is_mapped_and_normalized_like_non_bank_eps():
     records = export_fundamentals.pivot_wide_table(frame, export_fundamentals.INCOME_STATEMENT_MAP, "INCOME_STATEMENT")
     assert records[0]["metricCode"] == "EPS"
     assert records[0]["value"] == "4050.73"
+
+
+def test_yearly_statement_labels_are_mirrored_and_ratio_left_alone():
+    # Q-57: KBS yearly statements come back with "2025-Năm" holding FY2022 (VNM net revenue
+    # 59,956 bn is the audited FY2022 figure). Mirroring the label sequence restores the years.
+    income = FakeFrame([
+        {"item_id": "revenue", "item": "3. Doanh thu thuần", "2025-Năm": "59956247197000", "2024-Năm": "60368915512000",
+         "2023-Năm": "61782609528000", "2022-Năm": "63645886756000"},
+    ])
+    ratio = FakeFrame([
+        {"item_id": "pe_ratio", "item": "P/E", "2025-Năm": "13.59", "2024-Năm": "14.11", "2023-Năm": "15.92", "2022-Năm": "18.68"},
+    ])
+    income2, cash2 = export_fundamentals.orient_statement_frames(income, FakeFrame([]), "year")
+    assert export_fundamentals.yearly_columns(income2) == ["2022-Năm", "2023-Năm", "2024-Năm", "2025-Năm"]
+    records = export_fundamentals.build_metric_records("VNM", income2, ratio, cash2)
+    revenue = _by(records, "REVENUE")
+    assert revenue[("ANNUAL", 2022, None)]["value"] == "59956247197000"
+    assert revenue[("ANNUAL", 2025, None)]["value"] == "63645886756000"
+    assert revenue[("ANNUAL", 2025, None)]["derivation"] == "kbs-yearly-statement-labels-mirrored-v1"
+    pe = _by(records, "PE") if any(r["metricCode"] == "PE" for r in records) else {}
+    if pe:
+        assert pe[("ANNUAL", 2024, None)]["value"].startswith("14.11")   # ratio labels untouched
+
+
+def test_quarterly_frames_and_single_year_frames_are_never_relabelled():
+    quarterly = FakeFrame([{"item_id": "revenue", "item": "3. Doanh thu thuần", "2026-Q2": "1", "2026-Q1": "2"}])
+    q2, _ = export_fundamentals.orient_statement_frames(quarterly, FakeFrame([]), "quarter")
+    assert q2 is quarterly
+    one_year = FakeFrame([{"item_id": "revenue", "item": "3. Doanh thu thuần", "2025-Năm": "1"}])
+    y2, _ = export_fundamentals.orient_statement_frames(one_year, FakeFrame([]), "year")
+    assert export_fundamentals.yearly_columns(y2) == ["2025-Năm"]

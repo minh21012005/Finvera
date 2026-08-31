@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Any
 
 CONTRACT_VERSION = "vnstock-fundamentals-v1"
-TOOL_VERSION = "0.6.0"  # Feature 011: provider-ratio-facts-v2, statement ids per company type, FCF v2
+TOOL_VERSION = "0.7.0"  # Feature 011: provider-ratio-facts-v2, statement ids per company type, FCF v2
 SOURCE = "VNSTOCK_KBS"
 
 # item_id -> Finvera metric_code
@@ -99,6 +99,18 @@ QUARTER_COLUMN = re.compile(r"^(\d{4})-Q([1-4])$")
 # KBS labels annual columns "YYYY-Năm" (Feature 008 research R-004); bare "YYYY" kept for fixtures.
 YEAR_COLUMN = re.compile(r"^(\d{4})(?:-Năm)?$")
 
+# Q-57 (Feature 011 research R-009, contract kbs-yearly-statement-orientation-v1): for the KBS
+# *statement* endpoints (income statement, cash flow) with period="year", vnstock 4.0.6 pairs
+# Value1..Value4 with the Head entries sorted by ID, and for yearly statements that order is the
+# mirror image of the labels: the column labelled "2025-Năm" holds FY2022, "2022-Năm" holds
+# FY2025 (VNM net revenue 59,956 bn under "2025-Năm" is the audited FY2022 figure; HPG parent
+# profit 12,021 bn under "2023-Năm" is FY2024; MBB EPS 3,856 under "2025-Năm" is FY2022; the
+# database-wide signature: 737 of 838 instruments had "FY2022" >= Q3+Q4 of 2025). The yearly
+# RATIO endpoint is correctly labelled (FPT P/E 26.7 under "2024-Năm" is the 2024 peak) and is
+# left alone, as are all quarterly frames. The relabelled records carry the rule id so the
+# provenance of every annual statement fact is visible.
+YEARLY_STATEMENT_ORIENTATION = "kbs-yearly-statement-labels-mirrored-v1"
+
 # Feature 008 research R-003/R-002: versioned derivation rule ids carried on each derived record.
 EBITDA_DERIVATION = "kbs-ebitda-margin-x-net-revenue-v1"
 FCF_DERIVATION = "kbs-fcf-ocf-plus-capex-v2"
@@ -158,6 +170,40 @@ def parse_period_column(column: str) -> tuple[str, int, int | None]:
     raise ValueError(f"unrecognized period column: {column!r}")
 
 
+def yearly_columns(frame) -> list[str]:
+    """Annual period columns of a wide frame, in the provider's order."""
+    if frame is None or "item_id" not in getattr(frame, "columns", []):
+        return []
+    out = []
+    for column in frame.columns:
+        if column in ("item_id", "item"):
+            continue
+        if YEAR_COLUMN.match(str(column)):
+            out.append(str(column))
+    return out
+
+
+def mirror_yearly_statement_labels(frame):
+    """Q-57: relabel a KBS yearly *statement* frame so the column named for year Y really holds
+    FY Y. The provider's labels are the mirror image of its values (see
+    YEARLY_STATEMENT_ORIENTATION); mirroring the label sequence restores the truth without
+    touching a single value. Frames with no or one annual column are returned unchanged."""
+    columns = yearly_columns(frame)
+    if len(columns) < 2:
+        return frame
+    years = [int(YEAR_COLUMN.match(c).group(1)) for c in columns]
+    mirrored = {old: old.replace(str(year), str(new_year), 1)
+                for old, year, new_year in zip(columns, years, reversed(years))}
+    return frame.rename(columns=mirrored)
+
+
+def orient_statement_frames(income_statement, cash_flow, period: str):
+    """Apply the Q-57 relabelling to the two statement frames when they were fetched yearly."""
+    if period != "year":
+        return income_statement, cash_flow
+    return mirror_yearly_statement_labels(income_statement), mirror_yearly_statement_labels(cash_flow)
+
+
 def pivot_wide_table(frame, item_id_map: dict[str, str], source_report: str) -> list[dict[str, Any]]:
     """One row per item_id, one column per period (confirmed shape, research.md R-012 G-01 point 4)."""
     records: list[dict[str, Any]] = []
@@ -198,6 +244,8 @@ def pivot_wide_table(frame, item_id_map: dict[str, str], source_report: str) -> 
                 "fiscalQuarter": quarter, "periodStart": period_start, "periodEnd": period_end,
                 "value": normalize_metric_value(metric_code, value), "sourceReport": source_report,
             }
+            if period_type == "ANNUAL" and source_report in ("INCOME_STATEMENT", "CASH_FLOW"):
+                record["derivation"] = YEARLY_STATEMENT_ORIENTATION  # Q-57 provenance
             records.append(record)
             if source_report == "RATIO" and period_type == "QUARTER" and item_id in TRAILING_AS_ANNUALIZED:
                 annualized = TRAILING_AS_ANNUALIZED[item_id]
@@ -336,6 +384,7 @@ def fetch_tables(symbol: str, period: str):
     income_statement = finance.income_statement(period=period)
     ratio = finance.ratio(period=period)
     cash_flow = finance.cash_flow(period=period)
+    income_statement, cash_flow = orient_statement_frames(income_statement, cash_flow, period)
     return income_statement, ratio, cash_flow
 
 

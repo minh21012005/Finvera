@@ -82,6 +82,7 @@ APIs emit to the frontend. Implemented by
 | kbs-ebitda-margin-x-net-revenue-v1 | EBITDA suy ra = biên EBITDA × doanh thu thuần (quy tắc kbs-ebitda-margin-x-net-revenue-v1) |
 | kbs-fcf-ocf-plus-capex-v1 | Dòng tiền tự do = dòng tiền HĐKD + chi đầu tư (quy tắc kbs-fcf-ocf-plus-capex-v1) |
 | kbs-fcf-ocf-plus-capex-v2 | Dòng tiền tự do = dòng tiền HĐKD + chi đầu tư (quy tắc kbs-fcf-ocf-plus-capex-v2) |
+| kbs-yearly-statement-labels-mirrored-v1 | Số liệu báo cáo năm đã được gán lại đúng năm tài chính — nhãn năm của nhà cung cấp bị đảo (quy tắc kbs-yearly-statement-labels-mirrored-v1) |
 | HISTORY_BASIS_INSUFFICIENT | Lịch sử riêng chưa đủ 500 phiên nên không dùng |
 | SECTOR_BASIS_INSUFFICIENT | Cơ sở ngành không đủ 8 mã nên không dùng |
 | NO_COMPARISON_BASIS | Chưa đủ cơ sở so sánh (lịch sử riêng lẫn ngành) |
