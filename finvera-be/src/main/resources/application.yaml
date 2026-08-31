@@ -98,6 +98,9 @@ finvera:
     valuation:
       warmup:
         enabled: ${FINVERA_STOCK_VALUATION_WARMUP_ENABLED:false}
+        # Recompute every instrument even when assessed today with unchanged inputs
+        # (owner roll-out of a calculator fix within the same rule version).
+        force: ${FINVERA_STOCK_VALUATION_WARMUP_FORCE:false}
 
 management:
   endpoints:

@@ -36,8 +36,12 @@ class ValuationWarmupServiceTests {
     private final MarketReferenceDataService referenceData = mock(MarketReferenceDataService.class);
     private final ValuationAssessmentRepository assessments = mock(ValuationAssessmentRepository.class);
     private final ValuationService valuations = mock(ValuationService.class);
+    private final com.minhnb.finvera_be.stock.repository.EquityDailyBarRepository dailyBars =
+            mock(com.minhnb.finvera_be.stock.repository.EquityDailyBarRepository.class);
+    private final com.minhnb.finvera_be.stock.repository.FundamentalReportRepository reports =
+            mock(com.minhnb.finvera_be.stock.repository.FundamentalReportRepository.class);
     private final ValuationWarmupService warmup =
-            new ValuationWarmupService(equityProfiles, referenceData, assessments, valuations, FIXED_CLOCK);
+            new ValuationWarmupService(equityProfiles, referenceData, assessments, valuations, dailyBars, reports, false, FIXED_CLOCK);
 
     @Test
     void warmsEveryListedSymbolThroughTheCanonicalValuationService() {
@@ -81,6 +85,60 @@ class ValuationWarmupServiceTests {
         verify(valuations, never()).findBySymbol(any());
         assertThat(summary.skipped()).isEqualTo(1);
         assertThat(summary.succeeded()).isZero();
+    }
+
+    @Test
+    void recomputesWhenABarOrReportWasAcceptedAfterTodaysAssessment() {
+        // Q-48: assessed this morning, then a report (or corrected bar) was imported.
+        UUID fptId = UUID.randomUUID();
+        when(equityProfiles.findByEffectiveToIsNullAndListingStatus("LISTED")).thenReturn(List.of(profile(fptId)));
+        when(referenceData.findInstrumentsByIds(anyCollection())).thenReturn(List.of(
+                new InstrumentReference(fptId, "HOSE", "FPT", "COMMON_STOCK", "ACTIVE")));
+        ValuationAssessmentEntity existing = mock(ValuationAssessmentEntity.class);
+        when(existing.getInstrumentId()).thenReturn(fptId);
+        when(existing.getAsOfTradingDate()).thenReturn(TODAY);
+        when(existing.getCalculatedAt()).thenReturn(java.time.Instant.parse("2026-08-26T01:00:00Z"));
+        when(assessments.findLatestCurrentByInstrumentIdInAndRuleVersion(anyCollection(), eq(ValuationV1.RULE_VERSION)))
+                .thenReturn(List.of(existing));
+        when(reports.findLatestAcceptedAtByInstrumentIdIn(anyCollection()))
+                .thenReturn(List.<Object[]>of(new Object[] {fptId, java.time.Instant.parse("2026-08-26T03:00:00Z")}));
+        when(valuations.findBySymbol("FPT")).thenReturn(Optional.of(mock(ValuationService.StockValuation.class)));
+
+        var summary = warmup.warmUp();
+
+        verify(valuations).findBySymbol("FPT");
+        assertThat(summary.succeeded()).isEqualTo(1);
+        assertThat(summary.skipped()).isZero();
+    }
+
+    @Test
+    void forceRecomputesEvenWhenAssessedTodayWithUnchangedInputs() {
+        UUID fptId = UUID.randomUUID();
+        var forced = new ValuationWarmupService(equityProfiles, referenceData, assessments, valuations, dailyBars, reports, true, FIXED_CLOCK);
+        when(equityProfiles.findByEffectiveToIsNullAndListingStatus("LISTED")).thenReturn(List.of(profile(fptId)));
+        when(referenceData.findInstrumentsByIds(anyCollection())).thenReturn(List.of(
+                new InstrumentReference(fptId, "HOSE", "FPT", "COMMON_STOCK", "ACTIVE")));
+        ValuationAssessmentEntity existing = mock(ValuationAssessmentEntity.class);
+        when(existing.getInstrumentId()).thenReturn(fptId);
+        when(existing.getAsOfTradingDate()).thenReturn(TODAY);
+        when(existing.getCalculatedAt()).thenReturn(java.time.Instant.parse("2026-08-26T01:00:00Z"));
+        when(assessments.findLatestCurrentByInstrumentIdInAndRuleVersion(anyCollection(), eq(ValuationV1.RULE_VERSION)))
+                .thenReturn(List.of(existing));
+        when(valuations.findBySymbol("FPT")).thenReturn(Optional.of(mock(ValuationService.StockValuation.class)));
+
+        var summary = forced.warmUp();
+
+        verify(valuations).findBySymbol("FPT");
+        assertThat(summary.succeeded()).isEqualTo(1);
+    }
+
+    @Test
+    void inputsRevisedSinceIsFalseWithoutNewerAcceptances() {
+        var calc = java.time.Instant.parse("2026-08-26T01:00:00Z");
+        assertThat(ValuationWarmupService.inputsRevisedSince(calc, calc.minusSeconds(60), null)).isFalse();
+        assertThat(ValuationWarmupService.inputsRevisedSince(calc, null, calc.minusSeconds(1))).isFalse();
+        assertThat(ValuationWarmupService.inputsRevisedSince(null, calc, calc)).isFalse();
+        assertThat(ValuationWarmupService.inputsRevisedSince(calc, calc.plusSeconds(1), null)).isTrue();
     }
 
     private static EquityProfileEntity profile(UUID instrumentId) {

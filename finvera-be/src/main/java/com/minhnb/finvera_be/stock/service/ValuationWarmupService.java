@@ -5,9 +5,12 @@ import com.minhnb.finvera_be.market.service.MarketReferenceDataService.Instrumen
 import com.minhnb.finvera_be.stock.domain.valuation.ValuationV1;
 import com.minhnb.finvera_be.stock.entity.EquityProfileEntity;
 import com.minhnb.finvera_be.stock.entity.ValuationAssessmentEntity;
+import com.minhnb.finvera_be.stock.repository.EquityDailyBarRepository;
 import com.minhnb.finvera_be.stock.repository.EquityProfileRepository;
+import com.minhnb.finvera_be.stock.repository.FundamentalReportRepository;
 import com.minhnb.finvera_be.stock.repository.ValuationAssessmentRepository;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -16,6 +19,7 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
@@ -36,6 +40,9 @@ public class ValuationWarmupService {
     private final MarketReferenceDataService referenceData;
     private final ValuationAssessmentRepository assessments;
     private final ValuationService valuations;
+    private final EquityDailyBarRepository dailyBars;
+    private final FundamentalReportRepository reports;
+    private final boolean force;
     private final Clock clock;
 
     public ValuationWarmupService(
@@ -43,11 +50,17 @@ public class ValuationWarmupService {
             MarketReferenceDataService referenceData,
             ValuationAssessmentRepository assessments,
             ValuationService valuations,
+            EquityDailyBarRepository dailyBars,
+            FundamentalReportRepository reports,
+            @Value("${finvera.stock.valuation.warmup.force:false}") boolean force,
             Clock clock) {
         this.equityProfiles = equityProfiles;
         this.referenceData = referenceData;
         this.assessments = assessments;
         this.valuations = valuations;
+        this.dailyBars = dailyBars;
+        this.reports = reports;
+        this.force = force;
         this.clock = clock;
     }
 
@@ -62,10 +75,26 @@ public class ValuationWarmupService {
         // This single query replaces ~1600 individual findBySymbol calls on routine re-runs
         // where no new data has arrived since the last warmup.
         LocalDate today = LocalDate.now(clock);
-        Map<UUID, LocalDate> lastAssessedByInstrument = assessments
-                .findLatestCurrentByInstrumentIdInAndRuleVersion(instrumentIds, ValuationV1.RULE_VERSION).stream()
+        List<ValuationAssessmentEntity> latestAssessments = assessments
+                .findLatestCurrentByInstrumentIdInAndRuleVersion(instrumentIds, ValuationV1.RULE_VERSION);
+        Map<UUID, LocalDate> lastAssessedByInstrument = latestAssessments.stream()
                 .collect(Collectors.toMap(ValuationAssessmentEntity::getInstrumentId,
                         ValuationAssessmentEntity::getAsOfTradingDate, (a, b) -> a.isAfter(b) ? a : b));
+        // Q-48 (same defect class as Q-45): "assessed today" is not "inputs unchanged". A bar
+        // correction, a history backfill or a report imported after this morning's assessment
+        // must trigger a recompute; so must an explicit owner force (calculator fix roll-out
+        // within the same rule version, e.g. Q-46/Q-47).
+        Map<UUID, Instant> lastCalculatedByInstrument = latestAssessments.stream()
+                .filter(a -> a.getCalculatedAt() != null)
+                .collect(Collectors.toMap(ValuationAssessmentEntity::getInstrumentId,
+                        ValuationAssessmentEntity::getCalculatedAt, (a, b) -> a.isAfter(b) ? a : b));
+        Map<UUID, Instant> barsAcceptedByInstrument = latestInstantByInstrument(
+                dailyBars.findLatestAcceptedAtByInstrumentIdIn(instrumentIds));
+        Map<UUID, Instant> reportsAcceptedByInstrument = latestInstantByInstrument(
+                reports.findLatestAcceptedAtByInstrumentIdIn(instrumentIds));
+        if (force) {
+            log.info("valuation_warmup force=true: every instrument is recomputed");
+        }
 
         int succeeded = 0;
         int skipped = 0;
@@ -85,10 +114,17 @@ public class ValuationWarmupService {
             // refresh session already imported them, so recomputing would produce the
             // exact same result.
             LocalDate lastAssessed = lastAssessedByInstrument.get(instrumentId);
-            if (lastAssessed != null && !lastAssessed.isBefore(today)) {
+            boolean assessedToday = lastAssessed != null && !lastAssessed.isBefore(today);
+            boolean inputsRevised = inputsRevisedSince(lastCalculatedByInstrument.get(instrumentId),
+                    barsAcceptedByInstrument.get(instrumentId), reportsAcceptedByInstrument.get(instrumentId));
+            if (assessedToday && !inputsRevised && !force) {
                 skipped++;
                 logProgress(processed, instrumentIds.size(), succeeded, skipped, unavailable, failed);
                 continue;
+            }
+            if (assessedToday && inputsRevised) {
+                log.info("valuation_warmup symbol={} inputs accepted after the last assessment; recomputing",
+                        reference.symbol());
             }
             try {
                 if (valuations.findBySymbol(reference.symbol()).isPresent()) {
@@ -107,6 +143,28 @@ public class ValuationWarmupService {
         log.info("valuation_warmup total={} succeeded={} skipped={} unavailable={} failed={}",
                 summary.total(), summary.succeeded(), summary.skipped(), summary.unavailable(), summary.failed());
         return summary;
+    }
+
+    /** True when a bar or a report was accepted after the assessment was calculated. */
+    static boolean inputsRevisedSince(Instant calculatedAt, Instant latestBarAcceptedAt, Instant latestReportAcceptedAt) {
+        if (calculatedAt == null) {
+            return false;
+        }
+        return (latestBarAcceptedAt != null && latestBarAcceptedAt.isAfter(calculatedAt))
+                || (latestReportAcceptedAt != null && latestReportAcceptedAt.isAfter(calculatedAt));
+    }
+
+    private static Map<UUID, Instant> latestInstantByInstrument(List<Object[]> rows) {
+        Map<UUID, Instant> out = new java.util.HashMap<>();
+        if (rows == null) {
+            return out;
+        }
+        for (Object[] row : rows) {
+            if (row != null && row.length == 2 && row[0] instanceof UUID id && row[1] instanceof Instant at) {
+                out.put(id, at);
+            }
+        }
+        return out;
     }
 
     private static void logProgress(int processed, int total, int succeeded, int skipped, int unavailable, int failed) {

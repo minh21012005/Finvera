@@ -49,6 +49,11 @@
 .PARAMETER CleanupOnly
     Run only the conservative retention cleanup stage, without crawl/import/warmup.
 
+.PARAMETER ForceWarmup
+    Valuation warmup recomputes every instrument, even those already assessed today with
+    unchanged inputs. Use once after a calculator/rule fix that kept its rule version
+    (the warmup otherwise skips them). Combine with -WarmupOnly.
+
 .PARAMETER WarmupOnly
     Run only step 7 (breadth/regime reconciliation + technical + valuation warmup) on the
     data already in the database -- e.g. after a rule-version change (valuation-v2) when
@@ -63,6 +68,7 @@ param(
     [switch]$Cleanup,
     [switch]$CleanupOnly,
     [switch]$WarmupOnly,
+    [switch]$ForceWarmup,
     [int]$LookbackDays = 90
 )
 
@@ -89,6 +95,7 @@ $ManagedRuntimeFlags = @(
     "FINVERA_STOCK_IMPORT_SECTOR_REFERENCE_ENABLED",
     "FINVERA_STOCK_TECHNICAL_WARMUP_ENABLED",
     "FINVERA_STOCK_VALUATION_WARMUP_ENABLED",
+    "FINVERA_STOCK_VALUATION_WARMUP_FORCE",
     "FINVERA_STOCK_SECTOR_BASIS_ENABLED",
     "FINVERA_DATA_RETENTION_CLEANUP_ENABLED",
     "FINVERA_TCBS_LIVE_ENABLED",
@@ -107,6 +114,9 @@ function Import-EnvFile([string]$path) {
         [Environment]::SetEnvironmentVariable($key, $value, "Process")
     }
 }
+
+$WarmupStageFlags = @("FINVERA_MARKET_EOD_RECONCILIATION_ENABLED", "FINVERA_STOCK_TECHNICAL_WARMUP_ENABLED", "FINVERA_STOCK_VALUATION_WARMUP_ENABLED")
+if ($ForceWarmup) { $WarmupStageFlags += "FINVERA_STOCK_VALUATION_WARMUP_FORCE" }
 
 function Set-StageFlags([string[]]$enabledKeys) {
     foreach ($key in $ManagedRuntimeFlags) {
@@ -210,7 +220,7 @@ if ($listener) {
 if ($WarmupOnly) {
     Import-EnvFile $envFile
     Import-EnvFile $envRefreshFile
-    Set-StageFlags @("FINVERA_MARKET_EOD_RECONCILIATION_ENABLED", "FINVERA_STOCK_TECHNICAL_WARMUP_ENABLED", "FINVERA_STOCK_VALUATION_WARMUP_ENABLED")
+    Set-StageFlags $WarmupStageFlags
     Invoke-BackendStage -Name "Warmup-only: Tinh breadth/regime + bu chi bao ky thuat + dinh gia" `
         -WaitPatterns @("market_eod_reconciliation status=", "technical_indicator_warmup total=", "valuation_warmup total=") `
         -TimeoutSec 7200
@@ -309,7 +319,7 @@ Invoke-BackendStage -Name "Buoc 6/7: Nap gia + bao cao tai chinh moi" `
     -WaitPatterns @("stock_import dataset=daily-bar total=", "stock_import dataset=fundamentals total=") `
     -TimeoutSec 7200
 
-Set-StageFlags @("FINVERA_MARKET_EOD_RECONCILIATION_ENABLED", "FINVERA_STOCK_TECHNICAL_WARMUP_ENABLED", "FINVERA_STOCK_VALUATION_WARMUP_ENABLED")
+Set-StageFlags $WarmupStageFlags
 # Sector-basis valuation is disabled during bulk warmup (ManagedRuntimeFlags sets it to false)
 # so ~1600 symbols don't each re-query ~83 peers. Sector percentiles are evaluated on-demand on page view.
 Invoke-BackendStage -Name "Buoc 7/7: Tinh breadth/regime + bu chi bao ky thuat + dinh gia" `
