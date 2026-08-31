@@ -227,6 +227,55 @@ def breadth_check(trading_date):
     ok = all(int(s[k]) == int(rows[v]) for k, v in (("advancing","adv"),("declining","dec"),("unchanged","unch"),("unclassified","uncl"),("eligible","eligible")))
     note("breadth", ok, f"{trading_date}: mine adv/dec/unch/uncl/elig = {rows['adv']}/{rows['dec']}/{rows['unch']}/{rows['uncl']}/{rows['eligible']}; stored {s['advancing']}/{s['declining']}/{s['unchanged']}/{s['unclassified']}/{s['eligible']}")
 
+# ---------------- fundamentals anchors (audited figures, Feature 018 / Q-57) ----------------
+# Labels are never trusted: a stored statement fact must equal an audited figure or satisfy an
+# arithmetic identity of the data itself. Values in VND as filed (VCI keeps the VND; banks are
+# reported to the thousand).
+AUDITED = {
+    # symbol: {(metric, fiscal_year): value}
+    "VNM": {("REVENUE", 2022): 59956247197418, ("REVENUE", 2023): 60368915512000, ("REVENUE", 2024): 61782609528445,
+            ("REVENUE", 2025): 63645886756227, ("NET_PROFIT", 2025): 9413589732469, ("EPS", 2022): 3632, ("EPS", 2025): 4028},
+    "MBB": {("EPS", 2022): 3856, ("REVENUE", 2025): 67693015000000, ("NET_PROFIT", 2025): 27382978000000},
+    "BVH": {("REVENUE", 2025): 40948251401814, ("EPS", 2025): 3821},
+    "SSI": {("NET_PROFIT", 2025): 4106880733899},
+}
+ANCHOR_TOLERANCE = 0.0005  # 0.05 %: rounding to thousands in bank statements
+
+
+def anchors_check():
+    for sym, facts in AUDITED.items():
+        rows = q(f"""select r.fiscal_year, m.metric_code, m.value, r.source from fundamental_report r
+                     join fundamental_report_metric m on m.report_id=r.id join market_instrument i on i.id=r.instrument_id
+                     where i.symbol='{sym}' and r.is_current and r.period_type='ANNUAL' and m.applicability='DEFINED'
+                       and m.metric_code in ('REVENUE','NET_PROFIT','EPS')""")
+        stored = {(r["metric_code"], int(r["fiscal_year"])): (f(r["value"]), r["source"]) for r in rows}
+        for (metric, year), expected in facts.items():
+            got = stored.get((metric, year))
+            if got is None:
+                note("anchors", False, f"{sym} {metric} FY{year}: not stored (expected {expected:,})"); continue
+            value, source = got
+            ok = abs(value - expected) <= max(1.0, ANCHOR_TOLERANCE * abs(expected))
+            note("anchors", ok, f"{sym} {metric} FY{year}: stored={value:,.0f} ({source}) audited={expected:,}")
+    # identity: FY2025 = sum of its four quarters, universe-wide (REVENUE and NET_PROFIT)
+    rows = q("""with y as (select r.instrument_id, m.metric_code, m.value fy from fundamental_report r join fundamental_report_metric m on m.report_id=r.id
+                          where r.is_current and r.period_type='ANNUAL' and r.fiscal_year=2025 and m.applicability='DEFINED' and m.metric_code in ('REVENUE','NET_PROFIT')),
+                     qs as (select r.instrument_id, m.metric_code, sum(m.value) s, count(*) n from fundamental_report r join fundamental_report_metric m on m.report_id=r.id
+                            where r.is_current and r.period_type='QUARTER' and r.fiscal_year=2025 and m.applicability='DEFINED' and m.metric_code in ('REVENUE','NET_PROFIT')
+                            group by 1,2 having count(*)=4)
+                select y.metric_code, count(*) n, sum(case when abs(y.fy - qs.s) <= greatest(1000, 0.0005*abs(y.fy)) then 1 else 0 end) matching
+                from y join qs using(instrument_id, metric_code) group by 1""")
+    for r in rows:
+        n, matching = int(r["n"]), int(r["matching"])
+        note("anchors", n > 0 and matching / n >= 0.99, f"FY2025 = sum of 4 quarters for {r['metric_code']}: {matching}/{n} instruments")
+    # source retirement: no current statement facts may still come from the mislabelled KBS pages
+    rows = q("select source, count(*) n from fundamental_report where is_current group by 1")
+    for r in rows:
+        if r["source"] == "VNSTOCK_KBS":
+            note("anchors", False, f"{r['n']} current fundamental_report rows still sourced from VNSTOCK_KBS (Q-57: mislabelled periods)")
+        else:
+            note("anchors", True, f"{r['n']} current fundamental_report rows from {r['source']}")
+
+
 # ---------------- run ----------------
 for sym in symbols:
     bars = [{"d": r["trading_date"], "c": f(r["close_price"]), "h": f(r["high_price"]), "l": f(r["low_price"]), "v": f(r["volume"]) or 0.0}
@@ -249,6 +298,8 @@ for sym in symbols:
 
 breadth_check("2026-08-28")
 
+diffs = [r for r in REPORT if not r[1]]
+anchors_check()
 diffs = [r for r in REPORT if not r[1]]
 print(f"\nTOTAL checks={len(REPORT)} diffs={len(diffs)}")
 for d in diffs: print("  DIFF", d[0], d[2])

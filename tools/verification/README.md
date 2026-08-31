@@ -26,3 +26,6 @@ mirrored (FY2022 under "2025-Năm"). Label-trusting checks prove transport, not
 truth: anchor at least one figure per dataset to an audited number (VNM FY2022 net
 revenue 59,956,247,197,000 VND) — see contract `kbs-yearly-statement-orientation-v1`.
 `history_basis_study.py` (Feature 017) is the read-only tool that exposed it.
+`verify_calcs.py` now ends with an `anchors` section (audited FY figures, FY2025 = Σ quarters,
+no current `VNSTOCK_KBS` rows) — run it after every fundamentals re-crawl; it must be 0 diffs.
+`analyst_e2e.py` (Feature 015) exercises the AI Analyst on the live stack.

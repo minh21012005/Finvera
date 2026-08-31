@@ -15,6 +15,10 @@ public interface FundamentalReportRepository extends JpaRepository<FundamentalRe
             UUID instrumentId, String periodType, short fiscalYear, Short fiscalQuarter, String reportKind,
             String source);
 
+    /** Feature 018 (contract vci-fundamentals-v1 I-1): the current row for a period whatever its source. */
+    Optional<FundamentalReportEntity> findFirstByInstrumentIdAndPeriodTypeAndFiscalYearAndFiscalQuarterAndReportKindAndCurrentTrue(
+            UUID instrumentId, String periodType, short fiscalYear, Short fiscalQuarter, String reportKind);
+
     Optional<FundamentalReportEntity> findFirstByInstrumentIdAndCurrentTrueOrderByPeriodEndDesc(UUID instrumentId);
 
     java.util.List<FundamentalReportEntity> findAllByInstrumentIdAndCurrentTrueOrderByPeriodEndDesc(UUID instrumentId);

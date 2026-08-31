@@ -7,6 +7,8 @@
 .DESCRIPTION
     Runs the exact sequence documented in docs/runbooks/go-live-setup.md 3.7/6.3, automated:
       1. Crawl (export_all_symbols.py + the instrument-reference/equity-profile exporters).
+         Fundamentals come from VCI statements (Feature 018 / ADR-0011); the first pass after the
+         switch re-exports every symbol (~6 h at ~2.3 s per call, 6 calls per symbol).
       2. Restart the backend with instrument-reference import ON, wait for it to finish, stop it.
       3. Restart with equity-profile import ON, wait, stop. This is deliberately separate because
          ApplicationRunner ordering is not an implicit dependency guarantee.

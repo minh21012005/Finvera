@@ -39,6 +39,10 @@ const INVENTORY = [
   "NO_DATA", "NOT_REPORTED", "NEGATIVE_OR_ZERO_PRIOR_EPS", "NEGATIVE_OR_ZERO_PRIOR_REVENUE", "PROVIDER_REPORTED",
   "kbs-trailing-ratio-as-annualized-v1", "kbs-ebitda-margin-x-net-revenue-v1", "kbs-fcf-ocf-plus-capex-v1",
   "kbs-fcf-ocf-plus-capex-v2", "kbs-yearly-statement-labels-mirrored-v1",
+  "vci-trailing-eps-parent-profit-over-shares-v1", "vci-bvps-parent-equity-over-shares-v1",
+  "vci-roe-parent-profit-over-average-equity-v1", "vci-roe-parent-profit-over-average-equity-v1-end",
+  "vci-roa-net-profit-over-average-assets-v1", "vci-roa-net-profit-over-average-assets-v1-end", "vci-margin-v1",
+  "vci-debt-to-equity-v1", "vci-fcf-ocf-plus-capex-v1", "vci-ebitda-operating-profit-plus-da-v1", "SOURCE_SUPERSEDED",
   // valuation
   "HISTORY_BASIS_INSUFFICIENT", "SECTOR_BASIS_INSUFFICIENT", "NO_COMPARISON_BASIS", "CORE_METRIC_UNAVAILABLE",
   "INSUFFICIENT_METRIC_COVERAGE", "REDUCED_METRIC_SET", "HISTORY_SHARES_OUTSTANDING_HELD_CURRENT", "MISSING_EPS",

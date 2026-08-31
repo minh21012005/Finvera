@@ -82,6 +82,17 @@ APIs emit to the frontend. Implemented by
 | kbs-ebitda-margin-x-net-revenue-v1 | EBITDA suy ra = biên EBITDA × doanh thu thuần (quy tắc kbs-ebitda-margin-x-net-revenue-v1) |
 | kbs-fcf-ocf-plus-capex-v1 | Dòng tiền tự do = dòng tiền HĐKD + chi đầu tư (quy tắc kbs-fcf-ocf-plus-capex-v1) |
 | kbs-fcf-ocf-plus-capex-v2 | Dòng tiền tự do = dòng tiền HĐKD + chi đầu tư (quy tắc kbs-fcf-ocf-plus-capex-v2) |
+| vci-trailing-eps-parent-profit-over-shares-v1 | EPS 12 tháng = tổng LN cổ đông công ty mẹ 4 quý gần nhất ÷ số CP lưu hành kỳ đó (quy tắc vci-trailing-eps-parent-profit-over-shares-v1) |
+| vci-bvps-parent-equity-over-shares-v1 | Giá trị sổ sách/CP = vốn chủ sở hữu của công ty mẹ ÷ số CP lưu hành kỳ đó (quy tắc vci-bvps-parent-equity-over-shares-v1) |
+| vci-roe-parent-profit-over-average-equity-v1 | ROE = LN cổ đông công ty mẹ ÷ vốn chủ sở hữu bình quân (quy tắc vci-roe-parent-profit-over-average-equity-v1) |
+| vci-roe-parent-profit-over-average-equity-v1-end | ROE = LN cổ đông công ty mẹ ÷ vốn chủ sở hữu cuối kỳ — chưa đủ số dư đầu kỳ để lấy bình quân |
+| vci-roa-net-profit-over-average-assets-v1 | ROA = LN sau thuế ÷ tổng tài sản bình quân (quy tắc vci-roa-net-profit-over-average-assets-v1) |
+| vci-roa-net-profit-over-average-assets-v1-end | ROA = LN sau thuế ÷ tổng tài sản cuối kỳ — chưa đủ số dư đầu kỳ để lấy bình quân |
+| vci-margin-v1 | Biên lợi nhuận = lợi nhuận ÷ doanh thu thuần × 100 (quy tắc vci-margin-v1) |
+| vci-debt-to-equity-v1 | Nợ vay/Vốn chủ = (vay ngắn hạn + vay dài hạn) ÷ vốn chủ sở hữu công ty mẹ (quy tắc vci-debt-to-equity-v1) |
+| vci-fcf-ocf-plus-capex-v1 | Dòng tiền tự do = dòng tiền HĐKD + chi đầu tư TSCĐ (quy tắc vci-fcf-ocf-plus-capex-v1) |
+| vci-ebitda-operating-profit-plus-da-v1 | EBITDA = lợi nhuận hoạt động + khấu hao (quy tắc vci-ebitda-operating-profit-plus-da-v1) |
+| SOURCE_SUPERSEDED | Bản ghi từ nguồn cũ đã được thay bằng nguồn mới có nhãn kỳ đã kiểm chứng |
 | kbs-yearly-statement-labels-mirrored-v1 | Số liệu báo cáo năm đã được gán lại đúng năm tài chính — nhãn năm của nhà cung cấp bị đảo (quy tắc kbs-yearly-statement-labels-mirrored-v1) |
 | HISTORY_BASIS_INSUFFICIENT | Lịch sử riêng chưa đủ 500 phiên nên không dùng |
 | SECTOR_BASIS_INSUFFICIENT | Cơ sở ngành không đủ 8 mã nên không dùng |

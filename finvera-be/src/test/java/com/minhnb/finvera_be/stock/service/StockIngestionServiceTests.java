@@ -258,4 +258,38 @@ class StockIngestionServiceTests {
                 List.of(new MetricValue("REVENUE", new BigDecimal("1000000000.000000"), "DEFINED", null)),
                 isRestatement, restatementReason);
     }
+
+    @Test
+    void aNewerSourceSupersedesTheOlderSourcesCurrentReportForTheSamePeriod() {
+        // Feature 018 (contract vci-fundamentals-v1 I-1): VCI rows retire the KBS rows period by period.
+        saveInstrument("STK18");
+        var kbs = ingestion.ingestFundamentalReport(new IncomingFundamentalReport("VNSTOCK_KBS", "STK18", "QUARTER", 2026, 1,
+                LocalDate.of(2026, 1, 1), LocalDate.of(2026, 3, 31), "UNKNOWN", "UNKNOWN", "VND", 1, "fundamental-metric-catalog-v1",
+                Instant.parse("2026-05-15T00:00:00Z"),
+                List.of(new MetricValue("REVENUE", new BigDecimal("1000000000.000000"), "DEFINED", null)), false, null));
+        assertThat(kbs.status()).isEqualTo(IngestionStatus.ACCEPTED);
+
+        // Older observedAt than the KBS row (the importer's period-end + lag convention) must NOT be OUT_OF_ORDER across sources.
+        var vci = ingestion.ingestFundamentalReport(new IncomingFundamentalReport("VNSTOCK_VCI", "STK18", "QUARTER", 2026, 1,
+                LocalDate.of(2026, 1, 1), LocalDate.of(2026, 3, 31), "UNKNOWN", "UNKNOWN", "VND", 1, "fundamental-metric-catalog-v1",
+                Instant.parse("2026-05-15T00:00:00Z"),
+                List.of(new MetricValue("REVENUE", new BigDecimal("1200000000.000000"), "DEFINED", null)), false, null));
+        assertThat(vci.status()).isEqualTo(IngestionStatus.CORRECTED);
+        assertThat(vci.revision()).isEqualTo(2);
+
+        var previous = reports.findById(kbs.barId()).orElseThrow();
+        assertThat(previous.isCurrent()).isFalse();
+        var current = reports.findById(vci.barId()).orElseThrow();
+        assertThat(current.isCurrent()).isTrue();
+        assertThat(current.getSource()).isEqualTo("VNSTOCK_VCI");
+        assertThat(current.getRestatementReason()).isEqualTo(StockIngestionService.SOURCE_SUPERSEDED);
+
+        // Same source, older observation: still rejected as out of order.
+        var stale = ingestion.ingestFundamentalReport(new IncomingFundamentalReport("VNSTOCK_VCI", "STK18", "QUARTER", 2026, 1,
+                LocalDate.of(2026, 1, 1), LocalDate.of(2026, 3, 31), "UNKNOWN", "UNKNOWN", "VND", 1, "fundamental-metric-catalog-v1",
+                Instant.parse("2026-05-01T00:00:00Z"),
+                List.of(new MetricValue("REVENUE", new BigDecimal("1100000000.000000"), "DEFINED", null)), false, null));
+        assertThat(stale.status()).isEqualTo(IngestionStatus.REJECTED);
+        assertThat(stale.reasonCode()).isEqualTo("OUT_OF_ORDER");
+    }
 }

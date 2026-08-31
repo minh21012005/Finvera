@@ -1,5 +1,5 @@
 """Owner-run, resumable full-universe exporter: loops export_daily_bars.py and
-export_fundamentals.py over every KBS-listed symbol, checkpointed so an
+export_fundamentals_vci.py (statements from VCI, Feature 018) over every KBS-listed symbol, checkpointed so an
 interrupted run (Ctrl+C, network blip) resumes exactly where it left off, and
 stops automatically once every symbol has been attempted.
 
@@ -42,6 +42,7 @@ from typing import Any
 
 import export_daily_bars
 import export_fundamentals
+import export_fundamentals_vci
 
 CHECKPOINT_FILE = "full-universe-checkpoint.json"
 DONE = "done"
@@ -126,11 +127,13 @@ def export_daily_bars_for(
 
 
 def export_fundamentals_for(symbol: str, period: str, unit_scale: int, output: Path) -> None:
-    income_statement, ratio, cash_flow = export_fundamentals.fetch_tables(symbol, period)
-    records = export_fundamentals.build_metric_records(symbol, income_statement, ratio, cash_flow)
-    package = export_fundamentals.build_package(records, symbol, export_fundamentals.TOOL_VERSION, unit_scale)
-    path = output / export_fundamentals.output_filename(symbol, period)
-    path.write_text(json.dumps(package, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    """Feature 018 (ADR-0011, Q-57): fundamentals come from VCI statements; the KBS statement
+    pages carry another period's content and are no longer crawled. Same file names, same
+    package contract, so the import stage is unchanged."""
+    export_fundamentals_vci.export_symbol(symbol, period, output, unit_scale)
+
+
+FUNDAMENTALS_TOOL_VERSION = export_fundamentals_vci.TOOL_VERSION
 
 
 def daily_bars_current(symbol: str, entry: dict[str, Any], args: argparse.Namespace) -> bool:
@@ -193,7 +196,7 @@ def fundamentals_annual_current(symbol: str, entry: dict[str, Any], args: argpar
         return False
     return (entry.get("fundamentals_annual") == DONE
             and not args.full_refresh
-            and package.get("toolVersion") == export_fundamentals.TOOL_VERSION
+            and package.get("toolVersion") == FUNDAMENTALS_TOOL_VERSION
             and not fundamentals_package_stale(package, date.fromisoformat(args.end), ANNUAL_PERIOD))
 
 
@@ -208,20 +211,20 @@ def fundamentals_current(symbol: str, entry: dict[str, Any], args: argparse.Name
     return (entry.get("fundamentals") == DONE
             and entry.get("fundamentals_period") == args.period
             and not args.full_refresh
-            and package.get("toolVersion") == export_fundamentals.TOOL_VERSION
+            and package.get("toolVersion") == FUNDAMENTALS_TOOL_VERSION
             and not fundamentals_package_stale(package, date.fromisoformat(args.end), args.period))
 
 
 # ── Provider quota pacing (Q-39) ─────────────────────────────────────────────
-# One symbol costs far more than one provider call: vnstock fetches KBS statements one
-# period per page (income statement ~6 pages, cash flow probe + pages, ratio 1), so a
-# quarter+annual fundamentals pass is ~20 calls and the Community tier allows 60/min.
+# One symbol costs several provider calls. VCI statements (Feature 018) are three calls per
+# period (income statement, balance sheet, cash flow; 2-3 s each, no per-minute cap observed
+# on 2026-08-31), the KBS daily-bar pass is paced by vnai's 60/min window.
 # A fixed per-symbol sleep therefore cannot keep the run under the limit; vnai's own
 # retry (2 attempts, 1-2 s back-off) cannot either, and an exhausted retry surfaces as a
 # tenacity RetryError that used to be recorded as a permanent failure. We read vnai's
 # usage counters directly and wait for room BEFORE each dataset, and treat a rate-limit
 # failure as transient (retried after the window resets, and again on the next run).
-CALLS_PER_DATASET = {"daily_bars": 2, "fundamentals": 10, "fundamentals_annual": 12}
+CALLS_PER_DATASET = {"daily_bars": 2, "fundamentals": 3, "fundamentals_annual": 3}
 TRANSIENT_FAILURE_NAMES = ("RetryError", "RateLimitExceeded")
 MAX_QUOTA_WAIT_SECONDS = 65.0
 

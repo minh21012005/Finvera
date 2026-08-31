@@ -170,6 +170,22 @@ growth row was right, our arithmetic used mirrored years. Contract
 `kbs-yearly-statement-orientation-v1`; exporter 0.7.0 mirrors the labels and
 tags the records; universe re-export required (T008).
 
+### R-009 addendum — quarterly pages are permuted, not mirrored (same evening)
+
+Raw KBS pages for VNM (page_size=1, exactly as vnstock fetches): head says
+`2026-Q2 / ReportDate 2026-07-30` but the content is 2025-Q3 (VCI: net sales
+16,953.2 bn, EPS 1,084); `2026-Q1` holds 2025-Q4; `2025-Q4` holds **2025-Q1**
+(12,934.5 bn / 1,587 bn / EPS 674); `2025-Q3` (page 6) holds 2026-Q2. Cross-check
+of the database against VCI for 20 symbols (VNM, HPG, MBB, FPT, VCB, SSI, MWG, GAS,
+ACV, PVS, DBC, DHC, VIC, BVH, CTG, VHM, TCB, MSN, VRE, POW): the same permutation
+every time, **0/4 quarter labels correct**. The quarterly ratio frame is shifted as
+well (yearly-2025 BVPS and trailing EPS appear under `2026-Q1`). vnstock 4.0.7 does
+not change this (the KBS API itself pairs `Head` and `Content` inconsistently).
+Consequence: no label-based rule can repair KBS quarterly statements; the mirror
+rule of contract `kbs-yearly-statement-orientation-v1` stands for the yearly frames
+only. VCI (working in vnstock 4.0.7) returns correctly labelled income statement,
+balance sheet, cash flow and ratios, 8 periods deep, in raw VND — see the ADR.
+
 ## Constitution check
 
 I ✔ mapping rules are versioned (`provider-ratio-facts-v2`,

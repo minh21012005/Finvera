@@ -228,18 +228,25 @@ public class StockIngestionService {
         }
 
         UUID instrumentId = instrument.orElseThrow().instrumentId();
+        // Feature 018 / contract vci-fundamentals-v1 I-1: one current report per period, whatever the
+        // source. A newer accepted source (VCI) supersedes the older source's row (KBS, whose period
+        // labels were wrong — Q-57) as a SOURCE_SUPERSEDED restatement; the out-of-order guard only
+        // compares observations from the same source.
         Optional<FundamentalReportEntity> currentReport = fundamentalReports
-                .findFirstByInstrumentIdAndPeriodTypeAndFiscalYearAndFiscalQuarterAndReportKindAndSourceAndCurrentTrue(
+                .findFirstByInstrumentIdAndPeriodTypeAndFiscalYearAndFiscalQuarterAndReportKindAndCurrentTrue(
                         instrumentId, incoming.periodType(), (short) incoming.fiscalYear(),
                         incoming.fiscalQuarter() == null ? null : incoming.fiscalQuarter().shortValue(),
-                        incoming.reportKind(), incoming.source());
+                        incoming.reportKind());
+        boolean sourceChanged = currentReport.isPresent()
+                && !currentReport.orElseThrow().getSource().equals(incoming.source());
 
-        if (!incoming.isRestatement() && currentReport.isPresent()
+        if (!incoming.isRestatement() && !sourceChanged && currentReport.isPresent()
                 && currentReport.orElseThrow().getObservedAt().isAfter(incoming.observedAt())) {
             return new IngestionResult(IngestionStatus.REJECTED, "OUT_OF_ORDER", null, null);
         }
 
         boolean isRestatement = currentReport.isPresent();
+        String restatementReason = sourceChanged ? SOURCE_SUPERSEDED : incoming.restatementReason();
         int revision = currentReport.map(report -> report.getRevision() + 1).orElse(1);
         UUID ingestionRecordId = ingestionRecords.recordAccepted(incoming.source(), FUNDAMENTAL_REPORT_DATASET,
                 subjectKey, incoming.periodEnd(), incoming.observedAt(), ingestedAt, payloadHash, null);
@@ -260,7 +267,7 @@ public class StockIngestionService {
                 ingestedAt, incoming.source(), revision, true,
                 currentReport.map(FundamentalReportEntity::getId).orElse(null),
                 isRestatement
-                        ? (incoming.restatementReason() != null ? incoming.restatementReason() : "DATA_REFRESH")
+                        ? (restatementReason != null ? restatementReason : "DATA_REFRESH")
                         : null));
 
         for (AcceptedMetric metric : metricAcceptanceResult.metrics()) {
@@ -388,6 +395,9 @@ public class StockIngestionService {
                     adjustmentStatus, null, isCorrection);
         }
     }
+
+    /** Contract vci-fundamentals-v1 I-1: restatement reason when a newer source replaces an older one. */
+    public static final String SOURCE_SUPERSEDED = "SOURCE_SUPERSEDED";
 
     public record IncomingFundamentalReport(
             String source,
