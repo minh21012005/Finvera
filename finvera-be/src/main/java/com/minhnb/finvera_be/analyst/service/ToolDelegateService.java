@@ -15,6 +15,7 @@ import com.minhnb.finvera_be.research.dto.NewsArticlePageResponse;
 import com.minhnb.finvera_be.research.service.NewsArticleService;
 import com.minhnb.finvera_be.stock.dto.ScreenRequest;
 import com.minhnb.finvera_be.stock.dto.ScreenResponse;
+import com.minhnb.finvera_be.stock.domain.model.StockTypes.MetricApplicability;
 import com.minhnb.finvera_be.stock.service.FundamentalReportService;
 import com.minhnb.finvera_be.stock.service.StockOverviewService;
 import com.minhnb.finvera_be.stock.service.TechnicalIndicatorService;
@@ -119,18 +120,26 @@ public class ToolDelegateService {
         String cleanSymbol = normalizeSymbol(symbol);
         var overviewOpt = stockOverviewService.findBySymbol(cleanSymbol);
         if (overviewOpt.isEmpty()) {
-            return new StockSummaryToolResponse(cleanSymbol, cleanSymbol, "0", "0", 0L, Instant.now(), Collections.emptyMap());
+            return new StockSummaryToolResponse(cleanSymbol, cleanSymbol, null, null, null, Instant.now(),
+                    Collections.emptyMap(), "UNAVAILABLE", List.of("UNKNOWN_SYMBOL"));
         }
         var overview = overviewOpt.get();
         Map<String, Object> raw = new HashMap<>();
         raw.put("venue", overview.venue());
         raw.put("sector", overview.sector());
+        raw.put("tradingDate", overview.tradingDate() != null ? overview.tradingDate().toString() : null);
 
-        String priceStr = overview.price() != null && overview.price().lastPrice() != null
-                ? overview.price().lastPrice().toPlainString() : "0";
-        String changeStr = overview.price() != null && overview.price().percentageChange() != null
-                ? overview.price().percentageChange().toPlainString() : "0";
-        Long vol = overview.price() != null ? overview.price().volume() : null;
+        var price = overview.price();
+        // T049: a price that is not DEFINED is reported as null with its reason, never as "0".
+        boolean priceDefined = price != null && price.priceApplicability() == MetricApplicability.DEFINED
+                && price.lastPrice() != null;
+        String priceStr = priceDefined ? price.lastPrice().toPlainString() : null;
+        String changeStr = priceDefined && price.percentageChange() != null ? price.percentageChange().toPlainString() : null;
+        Long vol = priceDefined ? price.volume() : null;
+        if (priceDefined) {
+            raw.put("referencePrice", price.referencePrice() != null ? price.referencePrice().toPlainString() : null);
+            raw.put("marketCapVnd", price.marketCapVnd() != null ? price.marketCapVnd().toPlainString() : null);
+        }
 
         return new StockSummaryToolResponse(
                 overview.symbol(),
@@ -139,7 +148,9 @@ public class ToolDelegateService {
                 changeStr,
                 vol,
                 overview.asOf(),
-                raw);
+                raw,
+                overview.dataStatus() != null ? overview.dataStatus().name() : "UNAVAILABLE",
+                overview.reasonCodes() != null ? overview.reasonCodes() : List.of());
     }
 
     public TechnicalToolResponse getTechnical(String symbol) {
@@ -150,37 +161,52 @@ public class ToolDelegateService {
         Instant asOf = technicalOpt.map(TechnicalIndicatorService.StockTechnical::asOf)
                 .orElseGet(Instant::now);
 
-        TechnicalSignalDto signalDto = null;
-        List<EvidenceFactorDto> riskFactors = Collections.emptyList();
-
+        // T049: every triggered strategy is reported with its own levels and risk; the legacy
+        // single `signal` slot carries the strongest one (highest strength, then lowest risk score).
+        List<TechnicalSignalDto> signals = new java.util.ArrayList<>();
         if (signalsOpt.isPresent() && signalsOpt.get().evaluations() != null) {
-            var evaluations = signalsOpt.get().evaluations();
-            var firstSignal = evaluations.stream()
-                    .filter(e -> e.signal() != null)
-                    .findFirst()
-                    .map(StrategySignalService.StrategyEvaluationResult::signal)
-                    .orElse(null);
-
-            if (firstSignal != null) {
-                List<EvidenceFactorDto> evidence = firstSignal.supportingEvidence() != null
-                        ? firstSignal.supportingEvidence().entrySet().stream()
+            for (var evaluation : signalsOpt.get().evaluations()) {
+                var sig = evaluation.signal();
+                if (sig == null) {
+                    continue;
+                }
+                List<EvidenceFactorDto> evidence = sig.supportingEvidence() != null
+                        ? sig.supportingEvidence().entrySet().stream()
                                 .map(entry -> new EvidenceFactorDto(entry.getKey(), entry.getValue()))
                                 .toList()
                         : Collections.emptyList();
-
-                signalDto = new TechnicalSignalDto(
-                        firstSignal.direction() != null ? firstSignal.direction().name() : "NEUTRAL",
-                        evidence);
-
-                if (firstSignal.riskFactors() != null) {
-                    riskFactors = firstSignal.riskFactors().stream()
-                            .map(rf -> new EvidenceFactorDto(
-                                    rf.factorCode() != null ? rf.factorCode().name() : "RISK",
-                                    rf.reasonCode() != null ? rf.reasonCode() : ""))
-                            .toList();
-                }
+                List<EvidenceFactorDto> riskFactors = sig.riskFactors() != null
+                        ? sig.riskFactors().stream()
+                                .map(rf -> new EvidenceFactorDto(
+                                        rf.factorCode() != null ? rf.factorCode().name() : "RISK",
+                                        rf.applicability() == MetricApplicability.DEFINED
+                                                ? "value=" + (rf.inputValue() != null ? rf.inputValue().toPlainString() : "n/a")
+                                                        + " score=" + rf.factorScore() + "/100"
+                                                : "UNAVAILABLE" + (rf.reasonCode() != null ? " (" + rf.reasonCode() + ")" : "")))
+                                .toList()
+                        : Collections.emptyList();
+                var levels = sig.levels();
+                signals.add(new TechnicalSignalDto(
+                        sig.direction() != null ? sig.direction().name() : "NEUTRAL",
+                        evidence,
+                        sig.strategyCode() != null ? sig.strategyCode().name() : null,
+                        levels != null && levels.entryLow() != null ? levels.entryLow().toPlainString() : null,
+                        levels != null && levels.entryHigh() != null ? levels.entryHigh().toPlainString() : null,
+                        levels != null && levels.stopLoss() != null ? levels.stopLoss().toPlainString() : null,
+                        levels != null && levels.target1() != null ? levels.target1().toPlainString() : null,
+                        levels != null && levels.target2() != null ? levels.target2().toPlainString() : null,
+                        levels != null && levels.riskReward() != null ? levels.riskReward().toPlainString() : null,
+                        sig.riskScore(),
+                        sig.riskLevel() != null ? sig.riskLevel().name() : null,
+                        sig.signalStrength() != null ? sig.signalStrength().name() : null,
+                        riskFactors));
             }
         }
+        TechnicalSignalDto strongest = signals.stream()
+                .sorted(java.util.Comparator
+                        .comparingInt((TechnicalSignalDto d) -> strengthRank(d.signalStrength())).reversed()
+                        .thenComparingInt(d -> d.riskScore() != null ? d.riskScore() : Integer.MAX_VALUE))
+                .findFirst().orElse(null);
 
         Map<String, Object> indicators = new HashMap<>();
         if (technicalOpt.isPresent() && technicalOpt.get().indicators() != null) {
@@ -194,33 +220,61 @@ public class ToolDelegateService {
         return new TechnicalToolResponse(
                 cleanSymbol,
                 indicators,
-                signalDto,
-                riskFactors,
-                asOf);
+                strongest,
+                strongest != null ? strongest.riskFactors() : Collections.emptyList(),
+                asOf,
+                signals,
+                technicalOpt.map(t -> t.dataStatus() != null ? t.dataStatus().name() : "UNAVAILABLE").orElse("UNAVAILABLE"));
+    }
+
+    private static int strengthRank(String strength) {
+        if (strength == null) return 0;
+        return switch (strength) {
+            case "STRONG" -> 3;
+            case "MODERATE" -> 2;
+            case "WEAK" -> 1;
+            default -> 0;
+        };
     }
 
     public FundamentalsToolResponse getFundamentals(String symbol) {
         String cleanSymbol = normalizeSymbol(symbol);
         var reportOpt = fundamentalReportService.findBySymbol(cleanSymbol);
         if (reportOpt.isEmpty()) {
-            return new FundamentalsToolResponse(cleanSymbol, null, null, null, "N/A", Instant.now(), Collections.emptyMap());
+            return new FundamentalsToolResponse(cleanSymbol, null, null, null, "N/A", Instant.now(), Collections.emptyMap(),
+                    null, null, List.of(), "UNAVAILABLE", List.of("NO_FUNDAMENTAL_REPORT"));
         }
         var report = reportOpt.get();
         Map<String, Object> raw = new HashMap<>();
+        List<MetricFactDto> facts = new java.util.ArrayList<>();
 
         String eps = null;
         String roe = null;
         String revGrowth = null;
+        String epsTtm = null;
+        String epsGrowth = null;
 
         if (report.metrics() != null) {
             for (var m : report.metrics()) {
-                raw.put(m.metricCode(), m.value());
-                if ("EPS".equalsIgnoreCase(m.metricCode()) && m.value() != null) {
-                    eps = m.value().toPlainString();
-                } else if ("ROE".equalsIgnoreCase(m.metricCode()) && m.value() != null) {
-                    roe = m.value().toPlainString();
-                } else if ("REVENUE_GROWTH".equalsIgnoreCase(m.metricCode()) && m.value() != null) {
-                    revGrowth = m.value().toPlainString();
+                boolean defined = m.applicability() == MetricApplicability.DEFINED && m.value() != null;
+                String value = defined ? m.value().toPlainString() : null;
+                if (defined) {
+                    raw.put(m.metricCode(), value);
+                }
+                facts.add(new MetricFactDto(m.metricCode(), value,
+                        m.applicability() != null ? m.applicability().name() : "MISSING",
+                        m.reasonCode(), null, null, null));
+                if (!defined) {
+                    continue;
+                }
+                // T049: metric codes are the catalog's, not guessed aliases.
+                switch (m.metricCode()) {
+                    case "EPS" -> eps = value;
+                    case "ROE" -> roe = value;
+                    case "REVENUE_GROWTH_PERCENT" -> revGrowth = value;
+                    case "EPS_TTM" -> epsTtm = value;
+                    case "EPS_GROWTH_PERCENT" -> epsGrowth = value;
+                    default -> { }
                 }
             }
         }
@@ -234,34 +288,54 @@ public class ToolDelegateService {
                 revGrowth,
                 period,
                 report.asOf(),
-                raw);
+                raw,
+                epsTtm,
+                epsGrowth,
+                facts,
+                report.dataStatus() != null ? report.dataStatus().name() : "UNAVAILABLE",
+                report.reasonCodes() != null ? report.reasonCodes() : List.of());
     }
 
     public ValuationToolResponse getValuation(String symbol) {
         String cleanSymbol = normalizeSymbol(symbol);
         var valuationOpt = valuationService.findBySymbol(cleanSymbol);
         if (valuationOpt.isEmpty()) {
-            return new ValuationToolResponse(cleanSymbol, null, null, "UNCLASSIFIED", "NONE", Instant.now(), Collections.emptyMap());
+            return new ValuationToolResponse(cleanSymbol, null, null, null, "NONE", Instant.now(), Collections.emptyMap(),
+                    false, null, null, null, null, null, null, List.of(), List.of("NO_VALUATION"), "UNAVAILABLE");
         }
         var valuation = valuationOpt.get();
         Map<String, Object> raw = new HashMap<>();
+        List<MetricFactDto> facts = new java.util.ArrayList<>();
 
         String pe = null;
         String pb = null;
 
         if (valuation.metrics() != null) {
             for (var m : valuation.metrics()) {
-                raw.put(m.metricCode(), m.value());
-                if ("PE_RATIO".equalsIgnoreCase(m.metricCode()) && m.value() != null) {
-                    pe = m.value().toPlainString();
-                } else if ("PB_RATIO".equalsIgnoreCase(m.metricCode()) && m.value() != null) {
-                    pb = m.value().toPlainString();
+                boolean defined = m.applicability() == MetricApplicability.DEFINED && m.value() != null;
+                String value = defined ? m.value().toPlainString() : null;
+                if (defined) {
+                    raw.put(m.metricCode(), value);
+                }
+                facts.add(new MetricFactDto(m.metricCode(), value,
+                        m.applicability() != null ? m.applicability().name() : "MISSING", m.reasonCode(),
+                        m.ownHistoryPercentile() != null ? m.ownHistoryPercentile().toPlainString() : null,
+                        m.sectorPercentile() != null ? m.sectorPercentile().toPlainString() : null,
+                        m.effectiveWeight() != null ? m.effectiveWeight().toPlainString() : null));
+                if (defined && "PE".equals(m.metricCode())) {
+                    pe = value;
+                } else if (defined && "PB".equals(m.metricCode())) {
+                    pb = value;
                 }
             }
         }
 
-        String classification = valuation.classification() != null ? valuation.classification().name() : "FAIR_VALUE";
-        String basis = valuation.usedSector() ? "SECTOR" : (valuation.usedOwnHistory() ? "HISTORY" : "NONE");
+        // T049: a withheld assessment has NO classification; the reason codes say why.
+        String classification = valuation.published() && valuation.classification() != null
+                ? valuation.classification().name() : null;
+        String basis = valuation.usedOwnHistory() && valuation.usedSector() ? "OWN_HISTORY+SECTOR"
+                : valuation.usedSector() ? "SECTOR"
+                : valuation.usedOwnHistory() ? "OWN_HISTORY" : "NONE";
 
         return new ValuationToolResponse(
                 valuation.symbol(),
@@ -270,7 +344,17 @@ public class ToolDelegateService {
                 classification,
                 basis,
                 valuation.asOf(),
-                raw);
+                raw,
+                valuation.published(),
+                valuation.ruleVersion(),
+                valuation.score() != null ? valuation.score().toPlainString() : null,
+                valuation.displayedScore(),
+                valuation.confidence(),
+                valuation.historyPointCount(),
+                valuation.sectorConstituentCount(),
+                facts,
+                valuation.reasonCodes() != null ? valuation.reasonCodes() : List.of(),
+                valuation.dataStatus() != null ? valuation.dataStatus().name() : "UNAVAILABLE");
     }
 
     public PortfolioPositionsToolResponse getPortfolioPositions(UUID ownerId) {

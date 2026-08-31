@@ -212,3 +212,32 @@ async def test_t019_streaming_events_order():
     assert event_types[0] == "tool_call"
     assert "delta" in event_types
     assert event_types[-1] == "final"
+
+
+@pytest.mark.asyncio
+async def test_t049_tools_dispatch_concurrently_but_events_keep_proposal_order():
+    """Four independent tools each taking 0.2s must finish well under 0.8s, in order."""
+    import asyncio, time
+    from unittest.mock import AsyncMock, MagicMock
+    from app.features.chat.service import ChatOrchestrationService, OrchestrateAskRequest
+    from app.features.orchestration.dispatch import DispatchedToolCall
+    from app.features.orchestration.allowlist import ToolName
+
+    async def slow_dispatch(sequence_no, tool_name_raw, arguments_raw, session_owner_id):
+        await asyncio.sleep(0.2)
+        return DispatchedToolCall(sequence_no=sequence_no, tool_name=ToolName(tool_name_raw), arguments=arguments_raw,
+                                  status="SUCCEEDED", response_data={"symbol": "HPG", "price": "28500", "asOf": "2026-08-20T10:00:00Z"})
+
+    dispatcher = MagicMock()
+    dispatcher.dispatch_single_tool = AsyncMock(side_effect=slow_dispatch)
+    adapter = MagicMock(); adapter.is_online = False
+    service = ChatOrchestrationService(dispatcher=dispatcher, llm_adapter=adapter)
+    service.plan_tools = lambda q, s: [{"tool_name": "STOCK", "arguments": {"symbol": "HPG"}}] * 4
+
+    started = time.perf_counter()
+    events = [e async for e in service.orchestrate_stream(OrchestrateAskRequest(ownerId=uuid.uuid4(), question="giá HPG"))]
+    elapsed = time.perf_counter() - started
+
+    tool_events = [e for e in events if e["type"] == "tool_call"]
+    assert [e["toolCall"]["sequenceNo"] for e in tool_events] == [1, 2, 3, 4]
+    assert elapsed < 0.7, f"dispatch was not concurrent: {elapsed:.2f}s"

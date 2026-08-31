@@ -537,10 +537,12 @@ components:
       properties:
         symbol: { type: string }
         companyName: { type: string }
-        price: { type: string }
-        changePercent: { type: string }
+        price: { type: string, nullable: true, description: "null (never \"0\") when the price is not DEFINED — see dataStatus/reasonCodes (T049)" }
+        changePercent: { type: string, nullable: true }
         volume: { type: integer, nullable: true }
         asOf: { type: string, format: date-time }
+        dataStatus: { type: string }
+        reasonCodes: { type: array, items: { type: string } }
 
     TechnicalTool:
       type: object
@@ -565,6 +567,23 @@ components:
           type: array
           items: { $ref: "#/components/schemas/EvidenceFactor" }
         asOf: { type: string, format: date-time }
+        signals:
+          type: array
+          description: "T049: every triggered strategy with strategyCode, levels, riskScore/riskLevel/signalStrength and valued risk factors; `signal` is the strongest of them."
+          items: { type: object, additionalProperties: true }
+        dataStatus: { type: string }
+
+    MetricFact:
+      type: object
+      required: [metricCode, applicability]
+      properties:
+        metricCode: { type: string }
+        value: { type: string, nullable: true }
+        applicability: { type: string, enum: [DEFINED, NOT_APPLICABLE, MISSING] }
+        qualityReason: { type: string, nullable: true, description: "engine basis/reason, e.g. ANNUAL_BASIS, PROVIDER_REPORTED, NEGATIVE_OR_ZERO_EPS" }
+        ownHistoryPercentile: { type: string, nullable: true }
+        sectorPercentile: { type: string, nullable: true }
+        effectiveWeight: { type: string, nullable: true }
 
     FundamentalsTool:
       type: object
@@ -574,21 +593,36 @@ components:
         symbol: { type: string }
         eps: { type: string, nullable: true }
         roe: { type: string, nullable: true }
-        revenueGrowthPercent: { type: string, nullable: true }
+        revenueGrowthPercent: { type: string, nullable: true, description: "catalog code REVENUE_GROWTH_PERCENT (T049)" }
         period: { type: string }
         asOf: { type: string, format: date-time }
+        epsTtm: { type: string, nullable: true }
+        epsGrowthPercent: { type: string, nullable: true }
+        metrics: { type: array, items: { $ref: "#/components/schemas/MetricFact" } }
+        dataStatus: { type: string }
+        reasonCodes: { type: array, items: { type: string } }
 
     ValuationTool:
       type: object
       additionalProperties: true
-      required: [symbol, classification, comparisonBasis, asOf]
+      required: [symbol, published, comparisonBasis, asOf]
       properties:
         symbol: { type: string }
-        peRatio: { type: string, nullable: true }
-        pbRatio: { type: string, nullable: true }
-        classification: { type: string }
-        comparisonBasis: { type: string }
+        peRatio: { type: string, nullable: true, description: "catalog code PE (T049)" }
+        pbRatio: { type: string, nullable: true, description: "catalog code PB (T049)" }
+        classification: { type: string, nullable: true, description: "null whenever published=false — a withheld assessment is never defaulted to a label (T049)" }
+        comparisonBasis: { type: string, enum: [OWN_HISTORY+SECTOR, OWN_HISTORY, SECTOR, NONE] }
         asOf: { type: string, format: date-time }
+        published: { type: boolean }
+        ruleVersion: { type: string, nullable: true }
+        score: { type: string, nullable: true }
+        displayedScore: { type: integer, nullable: true }
+        confidence: { type: integer, nullable: true }
+        historyPointCount: { type: integer, nullable: true }
+        sectorConstituentCount: { type: integer, nullable: true }
+        metrics: { type: array, items: { $ref: "#/components/schemas/MetricFact" } }
+        reasonCodes: { type: array, items: { type: string } }
+        dataStatus: { type: string }
 
     PortfolioPositionsTool:
       type: object

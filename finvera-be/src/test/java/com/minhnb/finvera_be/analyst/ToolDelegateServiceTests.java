@@ -236,4 +236,100 @@ class ToolDelegateServiceTests {
         assertThat(response.matches()).hasSize(1);
         assertThat(response.matches().getFirst().get("symbol")).isEqualTo("HPG");
     }
+
+    // ── T049: tool payloads carry the engine's real result, never a defaulted one ──
+
+    @Test
+    void getValuation_withheldAssessment_hasNoClassificationAndCarriesReasons() {
+        var withheld = new com.minhnb.finvera_be.stock.service.ValuationService.StockValuation(
+                "ABC", "valuation-v2", false, null, null, null, null, false, false, null, null, null, null, 120,
+                List.of(new com.minhnb.finvera_be.stock.service.ValuationService.ValuationMetric(
+                        "PE", new BigDecimal("5.200000"), MetricApplicability.DEFINED, null, null, null, null)),
+                DataStatus.CURRENT, List.of("NO_COMPARISON_BASIS", "HISTORY_BASIS_INSUFFICIENT"),
+                LocalDate.of(2026, 8, 28), Instant.parse("2026-08-31T00:00:00Z"), "coh");
+        when(valuationService.findBySymbol("ABC")).thenReturn(Optional.of(withheld));
+
+        var response = toolDelegateService.getValuation("abc");
+
+        assertThat(response.published()).isFalse();
+        assertThat(response.classification()).isNull();                 // never "FAIR_VALUE"
+        assertThat(response.reasonCodes()).contains("NO_COMPARISON_BASIS");
+        assertThat(response.peRatio()).isEqualTo("5.200000");            // catalog code PE, not PE_RATIO
+        assertThat(response.comparisonBasis()).isEqualTo("NONE");
+    }
+
+    @Test
+    void getValuation_published_carriesScoreConfidencePercentilesAndWeights() {
+        var published = new com.minhnb.finvera_be.stock.service.ValuationService.StockValuation(
+                "MBB", "valuation-v2", true, com.minhnb.finvera_be.stock.domain.model.StockTypes.ValuationLabel.OVER_VALUED,
+                new BigDecimal("69.12"), 69, 87, true, true, "Ngân hàng", "KBS", "1", 24, 750,
+                List.of(new com.minhnb.finvera_be.stock.service.ValuationService.ValuationMetric(
+                        "PB", new BigDecimal("1.270000"), MetricApplicability.DEFINED,
+                        new BigDecimal("99.05"), new BigDecimal("66.67"), new BigDecimal("0.428571428571"), null),
+                    new com.minhnb.finvera_be.stock.service.ValuationService.ValuationMetric(
+                        "PEG", null, MetricApplicability.NOT_APPLICABLE, null, null, null, "NEGATIVE_OR_ZERO_GROWTH")),
+                DataStatus.CURRENT, List.of("HISTORY_SHARES_OUTSTANDING_HELD_CURRENT"),
+                LocalDate.of(2026, 8, 28), Instant.parse("2026-08-31T00:00:00Z"), "coh");
+        when(valuationService.findBySymbol("MBB")).thenReturn(Optional.of(published));
+
+        var response = toolDelegateService.getValuation("MBB");
+
+        assertThat(response.classification()).isEqualTo("OVER_VALUED");
+        assertThat(response.displayedScore()).isEqualTo(69);
+        assertThat(response.confidence()).isEqualTo(87);
+        assertThat(response.comparisonBasis()).isEqualTo("OWN_HISTORY+SECTOR");
+        assertThat(response.pbRatio()).isEqualTo("1.270000");
+        var pb = response.metrics().stream().filter(m -> m.metricCode().equals("PB")).findFirst().orElseThrow();
+        assertThat(pb.ownHistoryPercentile()).isEqualTo("99.05");
+        assertThat(pb.effectiveWeight()).isEqualTo("0.428571428571");
+        var peg = response.metrics().stream().filter(m -> m.metricCode().equals("PEG")).findFirst().orElseThrow();
+        assertThat(peg.applicability()).isEqualTo("NOT_APPLICABLE");
+        assertThat(peg.qualityReason()).isEqualTo("NEGATIVE_OR_ZERO_GROWTH");
+        assertThat(response.raw()).doesNotContainKey("PEG");             // missing/N-A never masquerade as values
+    }
+
+    @Test
+    void getFundamentals_usesCatalogCodesAndKeepsApplicabilityAndBasisReason() {
+        var fundamentals = new com.minhnb.finvera_be.stock.service.FundamentalReportService.StockFundamentals(
+                "VNM", "QUARTER", 2026, 2, LocalDate.of(2026, 4, 1), LocalDate.of(2026, 6, 30), "CONSOLIDATED",
+                "UNKNOWN", "VND", false, "2026-Q2",
+                List.of(new com.minhnb.finvera_be.stock.service.FundamentalReportService.FundamentalMetric(
+                                "EPS_TTM", new BigDecimal("4350.000000"), "VND", 2, MetricApplicability.DEFINED, null),
+                        new com.minhnb.finvera_be.stock.service.FundamentalReportService.FundamentalMetric(
+                                "EPS_GROWTH_PERCENT", new BigDecimal("9.464474"), "PERCENT", 2, MetricApplicability.DEFINED, "ANNUAL_BASIS"),
+                        new com.minhnb.finvera_be.stock.service.FundamentalReportService.FundamentalMetric(
+                                "REVENUE_GROWTH_PERCENT", new BigDecimal("3.333333"), "PERCENT", 2, MetricApplicability.DEFINED, "ANNUAL_BASIS"),
+                        new com.minhnb.finvera_be.stock.service.FundamentalReportService.FundamentalMetric(
+                                "FREE_CASH_FLOW", null, "VND", 0, MetricApplicability.MISSING, "NOT_REPORTED")),
+                DataStatus.CURRENT, List.of(), LocalDate.of(2026, 8, 28), Instant.parse("2026-08-31T00:00:00Z"), "coh", null);
+        when(fundamentalReportService.findBySymbol("VNM")).thenReturn(Optional.of(fundamentals));
+
+        var response = toolDelegateService.getFundamentals("VNM");
+
+        assertThat(response.revenueGrowthPercent()).isEqualTo("3.333333");   // was always null (REVENUE_GROWTH)
+        assertThat(response.epsTtm()).isEqualTo("4350.000000");
+        assertThat(response.epsGrowthPercent()).isEqualTo("9.464474");
+        var growth = response.metrics().stream().filter(m -> m.metricCode().equals("EPS_GROWTH_PERCENT")).findFirst().orElseThrow();
+        assertThat(growth.qualityReason()).isEqualTo("ANNUAL_BASIS");         // basis disclosure survives
+        var fcf = response.metrics().stream().filter(m -> m.metricCode().equals("FREE_CASH_FLOW")).findFirst().orElseThrow();
+        assertThat(fcf.applicability()).isEqualTo("MISSING");
+        assertThat(response.raw()).doesNotContainKey("FREE_CASH_FLOW");
+    }
+
+    @Test
+    void getStockSummary_unavailablePrice_isNullNotZero() {
+        StockOverviewResult noPrice = new StockOverviewResult(MetricApplicability.MISSING, null, null, null, null,
+                null, null, null, null, null, null, null, "PRICE_UNAVAILABLE");
+        StockOverview overview = new StockOverview("XYZ", "UPCOM", "XYZ JSC", null, "LISTED", null, null, null,
+                noPrice, SessionState.CLOSED, LocalDate.of(2026, 8, 28), Instant.parse("2026-08-31T00:00:00Z"),
+                DataStatus.UNAVAILABLE, List.of("PRICE_UNAVAILABLE"), "coh");
+        when(stockOverviewService.findBySymbol("XYZ")).thenReturn(Optional.of(overview));
+
+        var response = toolDelegateService.getStockSummary("XYZ");
+
+        assertThat(response.price()).isNull();
+        assertThat(response.changePercent()).isNull();
+        assertThat(response.dataStatus()).isEqualTo("UNAVAILABLE");
+        assertThat(response.reasonCodes()).contains("PRICE_UNAVAILABLE");
+    }
 }

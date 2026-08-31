@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import json
 import logging
 import re
 from typing import Any, AsyncIterator, Dict, List, Optional, Tuple
@@ -27,6 +28,9 @@ from app.features.rag.synthesis import extract_claims_and_citations
 from app.infrastructure.llm.generation import GeminiGenerationAdapter
 
 logger = logging.getLogger(__name__)
+
+# T049: upper bound on concurrent backend tool calls per question.
+DISPATCH_CONCURRENCY = 5
 
 
 class PriorTurn(BaseModel):
@@ -364,11 +368,14 @@ class ChatOrchestrationService:
 
             elif call.tool_name == ToolName.STOCK:
                 sym = data.get("symbol", "")
-                price = str(data.get("price", "0"))
-                chg = str(data.get("changePercent", "0"))
-                answer_parts.append(f"Cổ phiếu {sym} hiện giao dịch ở mức giá {price} ({chg}%).")
-                raw_claims.append(RawStructuredClaim(claimText=f"Giá {price}", sequenceNo=seq, fieldPath="price", claimedValue=price))
-                raw_claims.append(RawStructuredClaim(claimText=f"Thay đổi {chg}%", sequenceNo=seq, fieldPath="changePercent", claimedValue=chg))
+                if data.get("price") is None:
+                    answer_parts.append(f"Giá của {sym} hiện không khả dụng ({data.get('dataStatus', 'UNAVAILABLE')}).")
+                else:
+                    price = str(data.get("price"))
+                    chg = str(data.get("changePercent", "0"))
+                    answer_parts.append(f"Cổ phiếu {sym} hiện giao dịch ở mức giá {price} ({chg}%).")
+                    raw_claims.append(RawStructuredClaim(claimText=f"Giá {price}", sequenceNo=seq, fieldPath="price", claimedValue=price))
+                    raw_claims.append(RawStructuredClaim(claimText=f"Thay đổi {chg}%", sequenceNo=seq, fieldPath="changePercent", claimedValue=chg))
 
             elif call.tool_name == ToolName.TECHNICAL:
                 sym = data.get("symbol", "")
@@ -393,13 +400,17 @@ class ChatOrchestrationService:
 
             elif call.tool_name == ToolName.VALUATION:
                 sym = data.get("symbol", "")
-                cls = data.get("classification", "FAIR_VALUE")
+                cls = data.get("classification")
                 pe = data.get("peRatio")
-                part = f"Định giá {sym} được phân loại ở mức {cls}"
+                if cls:
+                    part = f"Định giá {sym} được phân loại ở mức {cls}"
+                    raw_claims.append(RawStructuredClaim(claimText=f"Phân loại {cls}", sequenceNo=seq, fieldPath="classification", claimedValue=str(cls)))
+                else:
+                    reasons = ", ".join(str(r) for r in (data.get("reasonCodes") or [])) or "chưa đủ dữ liệu"
+                    part = f"Định giá {sym} hiện chưa được công bố ({reasons})"
                 if pe:
-                    part += f" với P/E là {pe}"
+                    part += f"; P/E là {pe}"
                     raw_claims.append(RawStructuredClaim(claimText=f"P/E {pe}", sequenceNo=seq, fieldPath="peRatio", claimedValue=str(pe)))
-                raw_claims.append(RawStructuredClaim(claimText=f"Phân loại {cls}", sequenceNo=seq, fieldPath="classification", claimedValue=cls))
                 answer_parts.append(part + ".")
 
             elif call.tool_name == ToolName.PORTFOLIO:
@@ -453,7 +464,8 @@ class ChatOrchestrationService:
         lines: List[str] = [f"Câu hỏi của chủ sở hữu: {question}", ""]
         for call in succeeded_calls:
             lines.append(f"[Tool {call.sequence_no}: {call.tool_name.value if hasattr(call.tool_name, 'value') else call.tool_name}]")
-            lines.append(str(call.response_data or {}))
+            # JSON, not Python repr: field names/values must read exactly as the model must cite them.
+            lines.append(json.dumps(call.response_data or {}, ensure_ascii=False, default=str))
             lines.append("")
         for i, p in enumerate(rag_passages):
             excerpt = str(p.get("excerpt", "")).strip()
@@ -557,19 +569,17 @@ class ChatOrchestrationService:
             }
             return
 
-        # Step 2: Dispatch tools
-        dispatched_calls: List[DispatchedToolCall] = []
+        # Step 2: Dispatch tools. Independent read-only calls run concurrently (bounded);
+        # sequence numbers and the emitted tool_call events keep the proposal order so the
+        # [T<n>:...] citation tags and the audit trail stay deterministic (T049).
         limit = settings.analyst_max_tool_calls
-        bound_reached = False
+        bound_reached = len(proposed_calls) > limit
+        to_dispatch = proposed_calls[:limit]
+        semaphore = asyncio.Semaphore(DISPATCH_CONCURRENCY)
 
-        for i, call_req in enumerate(proposed_calls, start=1):
-            if len(dispatched_calls) >= limit:
-                bound_reached = True
-                break
-
+        async def _prepare_and_dispatch(i: int, call_req: Dict[str, Any]) -> DispatchedToolCall:
             tool_name = call_req["tool_name"]
             arguments = dict(call_req["arguments"])
-
             # If SCREENING tool, run natural language conversion first (FR-007, FR-009)
             if tool_name == "SCREENING" and "filters" not in arguments:
                 conv_result = await convert_natural_language_to_filters(
@@ -579,16 +589,20 @@ class ChatOrchestrationService:
                 arguments["filters"] = conv_result.filters
                 if conv_result.ambiguityNote:
                     arguments["ambiguityNote"] = conv_result.ambiguityNote
+            async with semaphore:
+                return await self.dispatcher.dispatch_single_tool(
+                    sequence_no=i,
+                    tool_name_raw=tool_name,
+                    arguments_raw=arguments,
+                    session_owner_id=request.ownerId,
+                )
 
-            dispatched = await self.dispatcher.dispatch_single_tool(
-                sequence_no=i,
-                tool_name_raw=tool_name,
-                arguments_raw=arguments,
-                session_owner_id=request.ownerId,
-            )
-            dispatched_calls.append(dispatched)
+        dispatched_calls: List[DispatchedToolCall] = list(await asyncio.gather(
+            *[_prepare_and_dispatch(i, call_req) for i, call_req in enumerate(to_dispatch, start=1)]
+        ))
 
-            # Stream tool_call progress event
+        for dispatched in dispatched_calls:
+            # Stream tool_call progress events in proposal order
             yield {
                 "type": "tool_call",
                 "toolCall": {
