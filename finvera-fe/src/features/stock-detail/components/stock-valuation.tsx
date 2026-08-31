@@ -1,5 +1,6 @@
 import type { StockValuation as StockValuationData } from "../api/stock-detail";
 import { dataStatusLabel, formatDecimal, valuationLabel, valuationMetricLabel } from "../format/stock-format";
+import { buildValuationEvidence } from "../format/explain-evidence";
 import { ExplainButton } from "../../analyst/components/ExplainButton";
 
 const DISCLAIMER_COPY: Record<string, string> = {
@@ -9,14 +10,9 @@ const DISCLAIMER_COPY: Record<string, string> = {
 
 export function StockValuation({ valuation, symbol }: { valuation: StockValuationData; symbol: string }) {
   const published = valuation.published && valuation.classification !== null;
-  // FR-006/US3: only the metrics this deterministic engine actually resolved a value
-  // for — never NOT_APPLICABLE/MISSING ones, never re-fetched or editable.
-  const evidenceFactors = valuation.metrics
-    .filter((m) => m.applicability === "DEFINED")
-    .map((m) => ({
-      factorCode: m.metricCode,
-      description: `${valuationMetricLabel(m.metricCode)}: ${formatDecimal(m.value)}`,
-    }));
+  // FR-006/US3 (+ Q-43): the result itself, its basis, per-metric percentiles/weights and
+  // the engine's disclosure codes — everything the AI is allowed to restate, nothing else.
+  const evidenceFactors = buildValuationEvidence(valuation);
 
   return (
     <section aria-labelledby="stock-valuation-heading" className="stock-valuation-card">

@@ -9,6 +9,7 @@ import {
   strategyLabel,
 } from "../format/signal-format";
 import { ExplainButton } from "../../analyst/components/ExplainButton";
+import { buildSignalEvidence } from "../format/explain-evidence";
 import { CheckCircle2, ShieldAlert, Zap, Layers } from "lucide-react";
 
 const DISCLAIMER_COPY: Record<string, string> = {
@@ -137,15 +138,7 @@ export function StockSignals({ signals, symbol }: { signals: StockSignalsData; s
       <ul className="signal-grid">
         {signals.evaluations.map((evaluation) => {
           const isSignal = evaluation.status === "SIGNAL" && evaluation.signal;
-          const evidenceFactors = isSignal
-            ? evaluation.signal!.riskFactors
-              .filter((factor) => factor.applicability === "DEFINED")
-              .map((factor) => ({
-                factorCode: factor.factorCode,
-                description: `${riskFactorLabel(factor.factorCode)}: ${factor.inputValue !== null ? formatDecimal(factor.inputValue) : "—"
-                  } (điểm ${factor.factorScore}/100)`,
-              }))
-            : [];
+          const evidenceFactors = isSignal ? buildSignalEvidence(evaluation.signal!) : [];
 
           return (
             <li

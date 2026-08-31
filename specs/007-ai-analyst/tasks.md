@@ -416,6 +416,10 @@ screener given those same filters directly.
 - [x] T047 [AI-001, AI-004, SEC-003] Harden the explanation faithfulness check and tool-argument typing in `finvera-ai`: `verify_faithfulness` fails when the explanation references none of the supplied factors (previously reported as having referenced *all* of them) and when it states any number absent from the supplied evidence; `SymbolToolArgs`/`NewsToolArgs`/`ResearchRagToolArgs` require `[A-Z0-9]{1,20}` after normalisation before the symbol is interpolated into a backend URL path.
       Verify: new `test_q21_*` and `test_q22_*` tests pass; existing retry/offline/provider-failure explain tests unchanged; `uv run pytest` 85/85.
       Evidence (2026-08-30): tracked as Q-21 and Q-22 in `docs/REMEDIATION_PLAN.md`. Numeric guard compares digit groups with separators stripped so `1,25`/`1.25` compare alike; an explanation may restate the deterministic engine's figures but never introduce its own (Constitution I).
+- [x] T048 [AI-001, FR-006] Q-43 (2026-08-31): the explain evidence for `VALUATION_CLASSIFICATION` carried only the DEFINED metric values, so the model — correctly — replied that it had not been given the classification to explain. New pure builders `stock-detail/format/explain-evidence.ts` (`buildValuationEvidence`, `buildSignalEvidence`) lead with the result (label, score, confidence, rule version), then comparison basis, per-metric percentile/weight, not-applicable core metrics, and the engine's disclosure codes (`REDUCED_METRIC_SET`, `HISTORY_SHARES_OUTSTANDING_HELD_CURRENT`); signals lead with the signal levels/risk and entry conditions. `explain.py` prompt names the result factor. Missing data is never sent as evidence.
+      Verify: `explain-evidence.test.ts` (4), `test_q43_prompt_names_the_result_factor_to_explain`; FE 133/133, AI 86/86.
+      Addendum: `verify_faithfulness` numeric guard now tolerates rounding of evidence figures (`fabricated_numbers`, `test_q43_rounded_restatements_pass_but_new_figures_still_fail`); AI 87/87.
+
 
 ## Dependencies and Parallel Execution
 

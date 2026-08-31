@@ -37,6 +37,11 @@ Nhiệm vụ của bạn là giải thích kết quả tính toán tài chính t
 DANH SÁCH YẾU TỐ BẰNG CHỨNG ĐÃ ĐƯỢC XÁC THỰC:
 {factors_text}
 
+Yếu tố có mã [{request.outputType}] (nếu có) chính là KẾT QUẢ cần giải thích (nhãn, điểm, độ tin cậy);
+các yếu tố còn lại là bằng chứng và ghi chú của bộ tính tất định. Hãy giải thích vì sao các bằng chứng
+dẫn tới kết quả đó; nếu có yếu tố ghi rằng bộ chỉ số bị thu hẹp hoặc một chỉ số không áp dụng, hãy nêu rõ
+giới hạn ấy. Nếu không có yếu tố kết quả, hãy nói rõ là chỉ mô tả bằng chứng.
+
 QUY TẮC BẮT BUỘC (FAITHFULNESS CHECK):
 1. Bạn CHỈ ĐƯỢC PHÉP giải thích dựa trên các yếu tố bằng chứng được liệt kê ở trên.
 2. TUYỆT ĐỐI KHÔNG tự bịa đặt, suy diễn hoặc đưa thêm bất kỳ chỉ báo, tin tức hay số liệu bên ngoài nào không có trong danh sách.
@@ -51,6 +56,47 @@ _NUMBER_TOKEN = re.compile(r"\d+(?:[.,]\d+)*")
 def _numeric_tokens(text: str) -> set:
     """Digit groups with separators stripped, so '1,25' / '1.25' / '1.250' compare alike."""
     return {re.sub(r"[.,]", "", tok) for tok in _NUMBER_TOKEN.findall(text)}
+
+
+def _candidate_values(token: str) -> List[Tuple[float, int]]:
+    """Readings of a numeric token as (value, decimals): the last separator as the decimal mark
+    (vi '1,27' / en '1.27'), and every separator as a thousands mark ('21.050' -> 21050)."""
+    out: List[Tuple[float, int]] = []
+    digits_only = re.sub(r"[.,]", "", token)
+    if digits_only:
+        out.append((float(digits_only), 0))
+    m = re.match(r"^(\d+(?:[.,]\d+)*)[.,](\d+)$", token)
+    if m:
+        whole = re.sub(r"[.,]", "", m.group(1))
+        frac = m.group(2)
+        out.append((float(f"{whole}.{frac}"), len(frac)))
+    return out
+
+
+SMALL_COUNT_LIMIT = 10  # "7 yếu tố", "2 cơ sở": counting words are not financial figures
+
+
+def fabricated_numbers(generated_text: str, evidence_text: str) -> List[str]:
+    """Numbers in the explanation that no evidence figure supports. Q-43: a restated figure may be
+    ROUNDED (78,47 % -> 78,5 %, 0,571428571429 -> 0,57) -- the model is allowed to round what the
+    engine gave it, never to introduce a value the engine did not. A generated reading g with d
+    decimals is supported when some evidence reading e satisfies |g - e| <= 0.5 * 10^-d."""
+    evidence_values = [v for tok in _NUMBER_TOKEN.findall(evidence_text) for v, _ in _candidate_values(tok)]
+    fabricated: List[str] = []
+    for tok in _NUMBER_TOKEN.findall(generated_text):
+        readings = _candidate_values(tok)
+        supported = False
+        for g, d in readings:
+            if d == 0 and g <= SMALL_COUNT_LIMIT:
+                supported = True
+                break
+            tolerance = 0.5 * (10 ** -d)
+            if any(abs(g - e) <= tolerance + 1e-12 for e in evidence_values):
+                supported = True
+                break
+        if not supported:
+            fabricated.append(tok)
+    return fabricated
 
 
 def verify_faithfulness(
@@ -92,11 +138,8 @@ def verify_faithfulness(
         logger.warning("Faithfulness check failed: explanation references none of the supplied factors")
         return False, []
 
-    evidence_numbers = set()
-    for f in allowed_factors:
-        evidence_numbers |= _numeric_tokens(f.factorCode)
-        evidence_numbers |= _numeric_tokens(f.description)
-    fabricated = _numeric_tokens(generated_text) - evidence_numbers
+    evidence_text = " ".join(f"{f.factorCode} {f.description}" for f in allowed_factors)
+    fabricated = fabricated_numbers(generated_text, evidence_text)
     if fabricated:
         logger.warning(f"Faithfulness check failed: numbers not present in evidence: {sorted(fabricated)}")
         return False, []

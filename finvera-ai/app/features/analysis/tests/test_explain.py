@@ -184,3 +184,34 @@ def test_q21_fabricated_number_fails_faithfulness():
     ok2, refs2 = verify_faithfulness("Hệ số BETA là 1,25 so với thị trường.", factors)
     assert ok2 is True
     assert refs2 == ["BETA"]
+
+
+def test_q43_prompt_names_the_result_factor_to_explain():
+    from app.features.analysis.explain import build_explain_prompt
+    req = ExplainRequest(
+        ownerId=uuid.uuid4(), outputType="VALUATION_CLASSIFICATION", symbol="MBB",
+        evidenceFactors=[
+            EvidenceFactor(factorCode="VALUATION_CLASSIFICATION", description="Kết luận: Định giá thấp — điểm 12/100"),
+            EvidenceFactor(factorCode="PB", description="P/B: 1,27 — phân vị lịch sử 12,4%"),
+        ],
+    )
+    prompt = build_explain_prompt(req)
+    assert "[VALUATION_CLASSIFICATION]" in prompt
+    assert "KẾT QUẢ cần giải thích" in prompt
+
+
+def test_q43_rounded_restatements_pass_but_new_figures_still_fail():
+    from app.features.analysis.explain import verify_faithfulness
+    factors = [
+        EvidenceFactor(factorCode="VALUATION_CLASSIFICATION", description="Kết luận: Định giá cao — điểm đắt/rẻ 69/100, độ hoàn thiện dữ liệu 87%"),
+        EvidenceFactor(factorCode="PE", description="P/E: 5,2 — phân vị lịch sử 78,47% — phân vị ngành 21,74% — trọng số 0,571428571429"),
+        EvidenceFactor(factorCode="PB", description="P/B: 1,27 — phân vị lịch sử 99,05% — trọng số 0,428571428571"),
+    ]
+    ok, refs = verify_faithfulness(
+        "Kết luận Định giá cao (69/100) đến từ 2 yếu tố: PE ở phân vị lịch sử 78,5% với trọng số 0,57 và PB ở phân vị 99% với trọng số 0,43.",
+        factors)
+    assert ok is True and set(refs) >= {"PE", "PB"}
+    ok2, _ = verify_faithfulness("PE 5,2 cho thấy cổ phiếu có thể tăng 15% trong quý tới.", factors)
+    assert ok2 is False                       # 15 is nobody's rounding
+    ok3, _ = verify_faithfulness("PE 5,2 và giá mục tiêu 27.500 đồng.", factors)
+    assert ok3 is False                       # a new price level is fabricated
