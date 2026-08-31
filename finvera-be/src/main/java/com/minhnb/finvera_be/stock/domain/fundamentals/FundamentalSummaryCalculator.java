@@ -30,6 +30,11 @@ public final class FundamentalSummaryCalculator {
      */
     public static final String RULE_VERSION = "fundamental-summary-v2";
     public static final String ANNUAL_BASIS = "ANNUAL_BASIS";
+    /** Newest report first: period end desc, then QUARTER before ANNUAL, then report id (total order). */
+    static final Comparator<ReportPeriod> NEWEST_FIRST = Comparator
+            .comparing(ReportPeriod::periodEnd, Comparator.reverseOrder())
+            .thenComparing(r -> "QUARTER".equals(r.periodType()) ? 0 : 1)
+            .thenComparing(r -> r.reportId() == null ? "" : r.reportId().toString());
     /** EPS_TTM taken from the provider's own trailing EPS because quarterly EPS is not reported (banks, securities). */
     public static final String PROVIDER_TRAILING_EPS = "PROVIDER_TRAILING_EPS";
     /**
@@ -58,9 +63,13 @@ public final class FundamentalSummaryCalculator {
             );
         }
 
-        // Sort reports descending by periodEnd
+        // Sort reports descending by periodEnd. Tie-break (2026-08-31, Q-47): an annual report and
+        // its Q4 share the same period end; the quarter wins so that "newest" is the same report
+        // whatever order the repository returned (Constitution I determinism), and stays on the
+        // quarterly basis that the TTM path and the period-scoped ratio rules already use. A last
+        // tie-break on report id keeps the order total.
         List<ReportPeriod> sorted = reports.stream()
-                .sorted(Comparator.comparing(ReportPeriod::periodEnd).reversed())
+                .sorted(NEWEST_FIRST)
                 .toList();
 
         ReportPeriod newest = sorted.get(0);
@@ -297,7 +306,9 @@ public final class FundamentalSummaryCalculator {
     private static void labelAnnualBasis(List<SummaryMetric> metrics, int fromIndex) {
         for (int i = fromIndex; i < metrics.size(); i++) {
             SummaryMetric m = metrics.get(i);
-            if (m.applicability() == MetricApplicability.DEFINED) {
+            // A metric that already discloses its own source (PROVIDER_TRAILING_EPS) keeps that
+            // label: it is the provider's trailing figure, not an annual-basis sum.
+            if (m.applicability() == MetricApplicability.DEFINED && m.qualityReason() == null) {
                 metrics.set(i, new SummaryMetric(m.metricCode(), m.value(), m.applicability(), ANNUAL_BASIS));
             }
         }

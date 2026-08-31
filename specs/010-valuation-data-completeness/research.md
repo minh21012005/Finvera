@@ -74,6 +74,18 @@ annual reports as visible periods for historical sessions.
 unexplainable); estimating shares from `NET_PROFIT / EPS` (EPS uses weighted
 average shares; a derived count would silently disagree with the provider's).
 
+### R-005 amendment 2026-08-31 (b) — "newest report" tie-break
+
+Independent recomputation (BVH) showed that an annual report and its Q4 share the
+same `period_end`, and the calculator picked "newest" by repository row order —
+non-deterministic, and material where the two carry different provider figures
+(BVH FY2025 `TRAILING_EPS` 3,821.27 vs 2025-Q4 2,924.74; own-history PE percentile
+43.08 vs 43.81 depending on the pick). Rule, same rule version (no value semantics
+change, only the tie resolved): **period end desc, then QUARTER before ANNUAL, then
+report id**. The quarter wins because the TTM path and the period-scoped ratio rules
+(`provider-ratio-facts-v2`) are already on the quarterly basis, and annual ratio
+rows carry placeholders for trailing fields. Tracked as Q-47.
+
 ## Constitution check
 
 I ✔ versioned rule; II ✔ basis disclosed per metric; III ✔; VI ✔ v2 tests with

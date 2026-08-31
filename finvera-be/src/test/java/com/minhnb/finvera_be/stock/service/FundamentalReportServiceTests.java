@@ -61,6 +61,7 @@ class FundamentalReportServiceTests {
     @Autowired FundamentalReportService fundamentals;
     @Autowired FundamentalSummaryRepository summaries;
     @Autowired FundamentalSummaryInputRepository summaryInputs;
+    @Autowired com.minhnb.finvera_be.stock.repository.FundamentalSummaryMetricRepository summaryMetrics;
 
     @Test
     void unknownSymbolIsAbsentNotFabricated() {
@@ -100,6 +101,35 @@ class FundamentalReportServiceTests {
                         instrumentId, com.minhnb.finvera_be.stock.domain.fundamentals.FundamentalSummaryCalculator.RULE_VERSION)
                 .orElseThrow();
         assertThat(stillCurrent.getId()).isEqualTo(persisted.getId());
+    }
+
+    @Test
+    void aChangedCalculatorOutputRePersistsEvenWhenTheContributingReportsAreUnchanged() {
+        // Q-46 follow-up: the persisted metric rows must track the calculator, not only the input set.
+        UUID instrumentId = saveInstrument("STF05");
+        ingestFourQuarters("STF05", 2025, new BigDecimal("500.000000"));
+        fundamentals.findBySymbol("STF05").orElseThrow();
+        var persisted = summaries
+                .findFirstByInstrumentIdAndRuleVersionOrderByAsOfTradingDateDescCalculatedAtDesc(
+                        instrumentId, com.minhnb.finvera_be.stock.domain.fundamentals.FundamentalSummaryCalculator.RULE_VERSION)
+                .orElseThrow();
+        var epsRow = summaryMetrics.findBySummaryId(persisted.getId()).stream()
+                .filter(m -> "EPS_TTM".equals(m.getMetricCode())).findFirst().orElseThrow();
+
+        // Simulate a row written by an older calculator (different quality reason, same inputs).
+        summaryMetrics.save(new com.minhnb.finvera_be.stock.entity.FundamentalSummaryMetricEntity(
+                persisted.getId(), "EPS_TTM", epsRow.getValue(), epsRow.getApplicability(), "LEGACY_LABEL"));
+
+        fundamentals.findBySymbol("STF05").orElseThrow();
+
+        var current = summaries
+                .findFirstByInstrumentIdAndRuleVersionOrderByAsOfTradingDateDescCalculatedAtDesc(
+                        instrumentId, com.minhnb.finvera_be.stock.domain.fundamentals.FundamentalSummaryCalculator.RULE_VERSION)
+                .orElseThrow();
+        assertThat(current.getId()).isNotEqualTo(persisted.getId());
+        assertThat(current.getSupersedesId()).isEqualTo(persisted.getId());
+        assertThat(summaryMetrics.findBySummaryId(current.getId()).stream()
+                .filter(m -> "EPS_TTM".equals(m.getMetricCode())).findFirst().orElseThrow().getQualityReason()).isNull();
     }
 
     @Test

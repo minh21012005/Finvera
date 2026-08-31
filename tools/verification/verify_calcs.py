@@ -106,6 +106,13 @@ def summary_v2(reports, as_of):
         return (None, None)
     for code, tgt in (("EPS", "EPS_TTM"), ("NET_PROFIT", "NET_PROFIT_TTM"), ("REVENUE", "REVENUE_TTM")):
         out[tgt] = ttm(code)
+    if out["EPS_TTM"][0] is None:
+        # fundamental-summary-v2: quarterly EPS absent (banks, securities, some industrials) ->
+        # the provider's own trailing EPS from the newest report, disclosed as PROVIDER_TRAILING_EPS.
+        # newest = period_end desc, QUARTER before ANNUAL on a tie (fundamental-summary-v2, Q-47)
+        newest = sorted(visible, key=lambda r: (r["period_end"], 1 if r["period_type"] == "QUARTER" else 0), reverse=True)
+        if newest and newest[0]["metrics"].get("TRAILING_EPS") is not None:
+            out["EPS_TTM"] = (newest[0]["metrics"]["TRAILING_EPS"], "PROVIDER_TRAILING_EPS")
     def growth(code):
         if len(quarters) >= 8:
             cur = [r["metrics"].get(code) for r in quarters[:4]]; prior = [r["metrics"].get(code) for r in quarters[4:8]]
@@ -207,7 +214,7 @@ def valuation_checks(sym, bars, reports, shares):
 def breadth_check(trading_date):
     rows = q(f"""with cur as (select instrument_id, close_price from equity_daily_bar where is_current and trading_date='{trading_date}'),
                  prev as (select distinct on (instrument_id) instrument_id, close_price from equity_daily_bar where is_current and trading_date<'{trading_date}' order by instrument_id, trading_date desc),
-                 uni as (select p.instrument_id from equity_profile p join market_instrument i on i.id=p.instrument_id where p.effective_to is null and i.status='ACTIVE')
+                 uni as (select p.instrument_id from equity_profile p join market_instrument i on i.id=p.instrument_id where p.effective_to is null and i.status in ('ACTIVE','UNKNOWN'))
                  select count(*) eligible,
                         count(*) filter (where c.close_price > pv.close_price) adv,
                         count(*) filter (where c.close_price < pv.close_price) dec,

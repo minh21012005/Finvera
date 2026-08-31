@@ -206,6 +206,12 @@ public class FundamentalReportService {
      * contributing report ids to the existing current summary's linked inputs
      * is a sound "did anything actually change" check without needing a
      * separate hash column.
+     *
+     * <p>Since 2026-08-31 the persisted metric rows are compared too: a calculator
+     * change within the same rule version (e.g. the {@code PROVIDER_TRAILING_EPS}
+     * disclosure, Q-46 remediation) must reach {@code fundamental_summary_metric}
+     * — which the screener and the independent verifier read — without waiting
+     * for the next report to move the input set.
      */
     private UUID persistSummary(UUID instrumentId, LocalDate asOfDate, Instant calculatedAt, SummaryResult summaryResult) {
         if (summaryResult.contributingReportIds().isEmpty()) {
@@ -215,7 +221,8 @@ public class FundamentalReportService {
                 .findFirstByInstrumentIdAndRuleVersionOrderByAsOfTradingDateDescCalculatedAtDesc(
                         instrumentId, FundamentalSummaryCalculator.RULE_VERSION);
         if (existing.isPresent()
-                && contributingReportsUnchanged(existing.get().getId(), summaryResult.contributingReportIds())) {
+                && contributingReportsUnchanged(existing.get().getId(), summaryResult.contributingReportIds())
+                && metricsUnchanged(existing.get().getId(), summaryResult.metrics())) {
             return existing.get().getId();
         }
 
@@ -237,6 +244,21 @@ public class FundamentalReportService {
                     summaryId, "CONTRIBUTING_REPORT_" + roleIndex++, reportId));
         }
         return summaryId;
+    }
+
+    private boolean metricsUnchanged(UUID existingSummaryId, List<SummaryMetric> computed) {
+        Set<String> existingRows = summaryMetrics.findBySummaryId(existingSummaryId).stream()
+                .map(m -> metricRowKey(m.getMetricCode(), m.getValue(), m.getApplicability(), m.getQualityReason()))
+                .collect(Collectors.toSet());
+        Set<String> computedRows = computed.stream()
+                .map(m -> metricRowKey(m.metricCode(), m.value(), m.applicability().name(), m.qualityReason()))
+                .collect(Collectors.toSet());
+        return existingRows.equals(computedRows);
+    }
+
+    private static String metricRowKey(String code, java.math.BigDecimal value, String applicability, String reason) {
+        String v = value == null ? "" : value.stripTrailingZeros().toPlainString();
+        return code + "|" + v + "|" + applicability + "|" + (reason == null ? "" : reason);
     }
 
     private boolean contributingReportsUnchanged(UUID existingSummaryId, Set<UUID> newContributingReportIds) {

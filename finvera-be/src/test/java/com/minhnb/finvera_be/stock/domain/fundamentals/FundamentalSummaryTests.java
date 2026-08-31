@@ -504,6 +504,25 @@ class FundamentalSummaryTests {
         assertThat(result.basisPeriodLabel()).isEqualTo("2026-Q2");
     }
 
+    @Test
+    void annualAndQ4WithTheSamePeriodEndResolveToTheQuarterWhateverTheInputOrder() {
+        // Q-47 (BVH 2025-12-31): FY2025 and 2025-Q4 share the period end but carry different
+        // provider TRAILING_EPS (3,821.27 vs 2,924.74). "Newest" must not depend on row order.
+        var calculator = new FundamentalSummaryCalculator();
+        var q4 = quarterReport(UUID.randomUUID(), 2025, 4, LocalDate.of(2025, 10, 1), LocalDate.of(2025, 12, 31),
+                metric("TRAILING_EPS", "2924.740000"), metric("NET_PROFIT", "1000"));
+        var fy = annualReport(2025, metric("TRAILING_EPS", "3821.270000"), metric("NET_PROFIT", "4000"));
+
+        var a = calculator.calculate(List.of(fy, q4), LocalDate.of(2026, 2, 20));
+        var b = calculator.calculate(List.of(q4, fy), LocalDate.of(2026, 2, 20));
+
+        assertThat(a.basisPeriodLabel()).isEqualTo("2025-Q4");
+        assertThat(b.basisPeriodLabel()).isEqualTo("2025-Q4");
+        assertThat(findSummaryMetric(a, "EPS_TTM").value()).isEqualByComparingTo("2924.740000");
+        assertThat(findSummaryMetric(b, "EPS_TTM").value()).isEqualByComparingTo("2924.740000");
+        assertThat(findSummaryMetric(a, "EPS_TTM").qualityReason()).isEqualTo(FundamentalSummaryCalculator.PROVIDER_TRAILING_EPS);
+    }
+
     private static FundamentalSummaryCalculator.ReportPeriod annualReport(int fiscalYear,
             FundamentalSummaryCalculator.ReportMetric... metrics) {
         return new FundamentalSummaryCalculator.ReportPeriod(UUID.randomUUID(), "ANNUAL", fiscalYear, null,
