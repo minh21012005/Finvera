@@ -6,6 +6,8 @@ import {
   ToolCallEvent,
 } from '../api/analyst';
 import { groupClaimsBySentence } from '../format/claim-grouping';
+import { LiteMarkdown } from '../format/lite-markdown';
+import { stripCitationTags } from '../format/citation-tags';
 
 export const AskAnalyst: React.FC = () => {
   const [question, setQuestion] = useState('');
@@ -217,8 +219,8 @@ export const AskAnalyst: React.FC = () => {
         {/* Streaming / Final Answer Area */}
         {(streamedText || finalResult) && (
           <div className="space-y-4 pt-2">
-            <div className="prose prose-invert max-w-none text-slate-200 text-sm leading-relaxed whitespace-pre-wrap">
-              {finalResult ? finalResult.answer : streamedText}
+            <div className="prose prose-invert max-w-none text-slate-200 text-sm leading-relaxed">
+              <LiteMarkdown text={finalResult ? finalResult.answer : stripCitationTags(streamedText)} />
               {isStreaming && (
                 <span className="inline-block w-2 h-4 ml-1 bg-emerald-400 animate-pulse align-middle" />
               )}

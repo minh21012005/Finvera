@@ -241,3 +241,25 @@ async def test_t049_tools_dispatch_concurrently_but_events_keep_proposal_order()
     tool_events = [e for e in events if e["type"] == "tool_call"]
     assert [e["toolCall"]["sequenceNo"] for e in tool_events] == [1, 2, 3, 4]
     assert elapsed < 0.7, f"dispatch was not concurrent: {elapsed:.2f}s"
+
+
+def test_strip_synthesis_tags_keeps_markdown_line_structure():
+    from app.features.chat.service import strip_synthesis_tags
+    raw = (
+        "**1. Kỹ thuật**\n"
+        "* MA20 là 213.380,0 VND [T1:MA20.value=213380] .\n"
+        "  * RSI14 đạt 68,74 [T1:RSI14.value=68.74] điểm.\n"
+        "\n"
+        "**2. Định giá**\n"
+        "P/E là 101,05 [T2:peRatio=101.05]."
+    )
+    clean = strip_synthesis_tags(raw)
+    assert clean.splitlines() == [
+        "**1. Kỹ thuật**",
+        "* MA20 là 213.380,0 VND.",
+        "  * RSI14 đạt 68,74 điểm.",
+        "",
+        "**2. Định giá**",
+        "P/E là 101,05.",
+    ]
+    assert "[T" not in clean

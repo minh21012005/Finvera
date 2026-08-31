@@ -704,6 +704,7 @@ clean. `finvera-ai`: `uv run pytest` 81/81.
 | Date | Change |
 |---|---|
 | 2026-08-30 | Opened from the full-system review. Q-01 completed (R-016, T080). |
+| 2026-08-31 | specs/007 T050: Analyst answer layout (newlines preserved by the tag stripper, safe markdown renderer, grouped verified claims). |
 | 2026-08-31 | Q-44: AI tool payload audit (valuation/fundamentals/stock/technical) + concurrent dispatch. |
 | 2026-08-31 | Q-43: explain evidence now carries the result being explained (valuation + signals). |
 | 2026-08-31 | Phase 2 plan written (P2-01..P2-07): TCBS live audit, reason-code presentation, analyst e2e, import/warmup incrementality, history-basis consistency, G-11, provider tier. |

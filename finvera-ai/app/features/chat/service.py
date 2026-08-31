@@ -214,10 +214,15 @@ def extract_structured_claims_from_text(text: str) -> List[RawStructuredClaim]:
 
 
 def strip_synthesis_tags(text: str) -> str:
+    """Removes the inline citation tags while KEEPING the model's line structure
+    (markdown headings, bullets, paragraphs) -- collapsing every whitespace run to one
+    space flattened the whole answer into a single line (owner report 2026-08-31)."""
     clean = re.sub(r"\[T\d+:[\w.]+=[^\]]+\]", "", text)
     clean = re.sub(r"\[Block\s*\d+\]", "", clean, flags=re.IGNORECASE)
-    clean = re.sub(r"\s+", " ", clean).strip()
-    return clean
+    clean = re.sub(r"[ \t]+([.,;:!?])", r"\1", clean)      # "VND ." left by a removed tag -> "VND."
+    clean = re.sub(r"(?<=\S)[ \t]{2,}", " ", clean)          # inner runs only; leading indentation is list nesting
+    clean = re.sub(r"\n{3,}", "\n\n", clean)
+    return clean.strip()
 
 
 class ChatOrchestrationService:
