@@ -32,7 +32,7 @@ from pathlib import Path
 from typing import Any
 
 CONTRACT_VERSION = "vnstock-equity-profile-v1"
-SOURCE = "VNSTOCK_KBS"
+SOURCE = "VNSTOCK_VCI"  # ADR-0013 (Feature 021)
 QUALITY_REASON = "SHARES_OUTSTANDING_UNAVAILABLE"
 
 
@@ -43,28 +43,33 @@ def canonical_json(value: dict[str, Any]) -> str:
 def fetch_universe():
     from vnstock import Listing
 
-    frame = Listing(source="kbs").symbols_by_exchange()
+    frame = Listing(source="vci").symbols_by_exchange()
     required = {"symbol", "type", "exchange", "organ_name"}
     if not required.issubset(frame.columns):
         raise ValueError("Vnstock symbols_by_exchange schema is missing an expected column")
-    return frame[(frame["type"] == "stock") & (frame["exchange"].isin(["HOSE", "HNX", "UPCOM"]))]
+    # VCI labels (ADR-0013): type is upper-case STOCK and HOSE appears as HSX.
+    return frame[(frame["type"] == "STOCK") & (frame["exchange"].isin(["HSX", "HNX", "UPCOM"]))]
 
 
 def fetch_overview(symbol: str) -> dict[str, Any] | None:
-    """Feature 010 R-003: Company(kbs).overview() carries outstanding_shares / free_float_percentage.
-    A failed call returns None so the profile keeps SHARES_OUTSTANDING_UNAVAILABLE rather than a guess."""
+    """VCI Company.overview() (ADR-0013): `issue_share` appears in several duplicated columns of
+    which some are empty -- the first non-null occurrence is the share count; `market_cap` and
+    `current_price` provide an independent implied count for the cross-check in share_fields."""
+    from vnstock import Company
+
     try:
-        from vnstock import Company
-        frame = Company(symbol=symbol, source="kbs").overview()
+        frame = Company(symbol=symbol, source="vci").overview()
         if frame is None or len(frame) == 0:
             return None
-        row = frame.iloc[0]
-        return {k: row[k] for k in frame.columns}
+        overview: dict[str, Any] = {}
+        for position, column in enumerate(frame.columns):
+            value = frame.iloc[0, position]
+            if column not in overview or overview[column] is None or (isinstance(overview[column], float) and overview[column] != overview[column]):
+                overview[column] = value
+        return overview
     except (Exception, SystemExit) as exc:  # noqa: BLE001 -- one symbol's overview failure must not stop the batch
-        # vnai ends its rate-limit handling with sys.exit(...); treat it like any other miss.
         if isinstance(exc, SystemExit) and "rate limit" not in str(exc).lower():
             raise
-        time.sleep(65)
         return None
 
 
@@ -72,36 +77,33 @@ UNVERIFIED_REASON = "SHARES_OUTSTANDING_UNVERIFIED"
 
 
 def share_fields(overview: dict[str, Any] | None) -> tuple[int | None, str | None]:
-    """(sharesOutstanding, qualityReason). Feature 011 research R-002: vnstock's
-    `free_float_percentage` is really shares x par value and `free_float` is the par value, so no
-    free-float figure is ever emitted. The share count is cross-checked against
-    charter_capital (bn VND) / par_value; a > 1 % gap keeps the count but flags it."""
+    """(sharesOutstanding, qualityReason). VCI `issue_share` is the outstanding count; it is
+    cross-checked against market_cap / current_price (both from the same page). A > 1 % gap keeps
+    the count but flags it UNVERIFIED (Feature 011 R-002 rule, VCI inputs per ADR-0013)."""
     if not overview:
-        return None, QUALITY_REASON
+        return None, "SHARES_OUTSTANDING_UNAVAILABLE"
     shares = None
     try:
-        raw = overview.get("outstanding_shares")
-        if raw is not None and raw == raw and int(raw) > 0:
-            shares = int(raw)
+        raw = overview.get("issue_share")
+        if raw is not None and raw == raw and float(raw) > 0:
+            shares = int(float(raw))
     except (TypeError, ValueError):
         shares = None
     if shares is None:
-        return None, QUALITY_REASON
+        return None, "SHARES_OUTSTANDING_UNAVAILABLE"
     try:
-        charter = float(overview.get("charter_capital"))
-        par = float(overview.get("par_value"))
-        if charter > 0 and par > 0:
-            implied = charter * 1e9 / par
-            # Outstanding can legitimately be BELOW charter/par (treasury shares: AAM 10.45M vs
-            # 12.3M charter), never materially above it.
-            if shares > implied * 1.01:
+        market_cap = float(overview.get("market_cap"))
+        price = float(overview.get("current_price"))
+        if market_cap > 0 and price > 0:
+            implied = market_cap / price
+            if abs(shares - implied) > implied * 0.01:
                 return shares, UNVERIFIED_REASON
     except (TypeError, ValueError):
         pass
     return shares, None
 
 
-TOOL_VERSION = "0.2.0"  # 0.2.0: outstanding shares (Feature 010); free float never emitted (Feature 011)
+TOOL_VERSION = "1.0.0"  # 1.0.0: VCI source (ADR-0013); issue_share + market-cap cross-check; free float still never emitted
 DEFAULT_MAX_AGE_DAYS = 30
 
 

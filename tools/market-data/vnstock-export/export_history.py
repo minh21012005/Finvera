@@ -16,7 +16,7 @@ from typing import Any
 
 CONTRACT_VERSION = "vnstock-history-private-bootstrap-v1"
 MARKET_PACKAGE_CONTRACT_VERSION = "vnstock-market-private-package-v1"
-SOURCE = "VNSTOCK_KBS"
+SOURCE = "VNSTOCK_VCI"  # ADR-0013 (Feature 021)
 DEFAULT_INDEXES = (
     ("VN_INDEX", "VNINDEX", "HOSE"),
     ("VN30", "VN30", "HOSE"),
@@ -43,7 +43,7 @@ def package_records(rows: list[dict[str, Any]], venue: str, symbol: str, listed_
         trading_date = str(row["time"]).split(" ", maxsplit=1)[0]
         close = decimal_string(row["close"])
         record = {
-            "adjustmentStatus": "RAW", "canonicalRecord": "", "closePrice": close,
+            "adjustmentStatus": "PROVIDER_ADJUSTED", "canonicalRecord": "", "closePrice": close,
             "instrumentStatus": "UNKNOWN", "isin": None, "listedFrom": listed_from,
             "observedAt": f"{trading_date}T08:00:00Z", "sourceSequence": None,
             "symbol": symbol.upper(), "tradingDate": trading_date, "venue": venue,
@@ -170,6 +170,8 @@ def load_existing_index_records(output: Path, start: str) -> list[dict[str, Any]
         package = json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return []
+    if package.get("upstreamSource") != SOURCE:
+        return []  # FR-002 (ADR-0013): a package captured from another provider is re-fetched in full, never extended
     if package.get("contractVersion") != MARKET_PACKAGE_CONTRACT_VERSION:
         return []
     records = package.get("indexRecords", [])
@@ -203,24 +205,24 @@ def incremental_market_index_records(
 
 
 def fetch_rows(symbol: str, start: str, end: str) -> list[dict[str, Any]]:
-    from vnstock import Market
+    from vnstock import Quote
 
-    frame = Market().equity(symbol).ohlcv(start=start, end=padded_end(end), interval="1D", count=1000, source="kbs")
+    frame = Quote(symbol=symbol, source="vci").history(start=start, end=padded_end(end), interval="1D")
     required = {"time", "close"}
     if not required.issubset(frame.columns):
         raise ValueError("Vnstock OHLCV schema does not contain time and close")
-    return cut_to_end(frame.loc[:, ["time", "close"]].to_dict("records"), end)
+    return cut_to_range(frame.loc[:, ["time", "close"]].to_dict("records"), start, end)
 
 
 def fetch_index_rows(symbol: str, start: str, end: str) -> list[dict[str, Any]]:
-    from vnstock import Market
+    from vnstock import Quote
 
-    frame = Market().index(symbol).ohlcv(start=start, end=padded_end(end), interval="1D", count=1000, source="kbs")
+    frame = Quote(symbol=symbol, source="vci").history(start=start, end=padded_end(end), interval="1D")
     required = {"time", "close"}
     if not required.issubset(frame.columns):
         raise ValueError("Vnstock index OHLCV schema does not contain time and close")
     columns = ["time", "close"] + (["volume"] if "volume" in frame.columns else [])
-    return cut_to_end(frame.loc[:, columns].to_dict("records"), end)
+    return cut_to_range(frame.loc[:, columns].to_dict("records"), start, end)
 
 
 # Feature 011 research R-001: KBS treats `end` as non-inclusive (end=Fri -> last bar Thu). Same
@@ -230,6 +232,11 @@ KBS_END_PADDING_DAYS = 3
 
 def padded_end(end: str) -> str:
     return (date.fromisoformat(end) + timedelta(days=KBS_END_PADDING_DAYS)).isoformat()
+
+
+def cut_to_range(rows: list[dict[str, Any]], start: str, end: str) -> list[dict[str, Any]]:
+    """Clamp both ends: VCI returns a buffer of sessions before the requested start (research R-002)."""
+    return [row for row in cut_to_end(rows, end) if str(row["time"]).split(" ", maxsplit=1)[0] >= start]
 
 
 def cut_to_end(rows: list[dict[str, Any]], end: str) -> list[dict[str, Any]]:
@@ -254,13 +261,13 @@ def main() -> None:
     if args.market_overview:
         index_snapshot_records = incremental_market_index_records(
             args.start, args.end, args.output, args.lookback_days, args.full_refresh)
-        package = build_market_package([], index_snapshot_records, args.start, args.end, "0.2.0")
+        package = build_market_package([], index_snapshot_records, args.start, args.end, "1.0.0")
         filename = market_overview_filename()
     else:
         if not args.symbol or not args.venue:
             parser.error("--symbol and --venue are required unless --market-overview is set")
         records = package_records(fetch_rows(args.symbol, args.start, args.end), args.venue, args.symbol, args.start)
-        package = build_package(records, args.start, args.end, "0.1.0")
+        package = build_package(records, args.start, args.end, "1.0.0")
         filename = f"{args.venue.lower()}-{args.symbol.lower()}-{args.start}-{args.end}.json"
     args.output.mkdir(parents=True, exist_ok=True)
     path = args.output / filename

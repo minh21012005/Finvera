@@ -104,4 +104,23 @@ class EquityProfileImportServiceTests {
         assertThat(saved.getValue().getSectorReferenceId()).isEqualTo(sectorId); // carried, not lost
         assertThat(saved.getValue().getEffectiveTo()).isNull();
     }
+
+    @Test
+    void anAbsentEnglishNameNeverErasesAKnownOne() {
+        // ADR-0013: the VCI listing carries no EN names; unknown must not overwrite known.
+        UUID instrumentId = UUID.randomUUID();
+        when(referenceData.findActiveInstrumentBySymbol("VNM")).thenReturn(
+                Optional.of(new InstrumentReference(instrumentId, "HOSE", "VNM", "COMMON_EQUITY", "ACTIVE")));
+        var existing = new EquityProfileEntity(UUID.randomUUID(), instrumentId, "CTCP VNM", "Vietnam Dairy JSC", null,
+                null, null, "LISTED", LocalDate.of(2026, 8, 22), null, "VNSTOCK_KBS", "old", null);
+        when(profiles.findFirstByInstrumentIdAndEffectiveToIsNull(instrumentId)).thenReturn(Optional.of(existing));
+
+        var withoutEnName = new ProfileRecord("VNM", "CTCP VNM", null, "LISTED", LocalDate.of(2026, 8, 31), null, "x",
+                2_089_955_445L, null);
+        service.importPackage(packageWith(EquityProfileImportService.CONTRACT_VERSION, List.of(withoutEnName)));
+
+        org.mockito.ArgumentCaptor<EquityProfileEntity> saved = org.mockito.ArgumentCaptor.forClass(EquityProfileEntity.class);
+        org.mockito.Mockito.verify(profiles).save(saved.capture());
+        assertThat(saved.getValue().getCompanyNameEn()).isEqualTo("Vietnam Dairy JSC");
+    }
 }

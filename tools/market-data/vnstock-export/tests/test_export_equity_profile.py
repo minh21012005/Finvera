@@ -26,9 +26,8 @@ def universe():
 
 
 def test_outstanding_shares_from_overview_clear_the_quality_reason():
-    # Real VNM overview values (2026-08-30): free_float_percentage is shares x par, NOT a ratio.
-    lookup = {"VNM": {"outstanding_shares": 2089955445, "charter_capital": 20900, "par_value": 10000,
-                      "free_float_percentage": 20899554450000, "free_float": 10000},
+    # Real VNM overview values (VCI, 2026-08-31): issue_share cross-checked vs market_cap / price.
+    lookup = {"VNM": {"issue_share": 2089955445, "market_cap": 130204224223500.0, "current_price": 62300.0},
               "MBB": None}
     records = {r["symbol"]: r for r in mod.build_records(universe(), "2026-08-30", lookup.get)}
     assert records["VNM"]["sharesOutstanding"] == 2089955445
@@ -41,16 +40,20 @@ def test_outstanding_shares_from_overview_clear_the_quality_reason():
 
 
 def test_non_positive_shares_are_treated_as_unavailable():
-    records = mod.build_records(universe(), "2026-08-30", lambda s: {"outstanding_shares": 0})
+    records = mod.build_records(universe(), "2026-08-30", lambda s: {"issue_share": 0})
     assert all(r["sharesOutstanding"] is None for r in records)
 
 
-def test_share_count_inconsistent_with_charter_capital_is_flagged_not_dropped():
-    shares, reason = mod.share_fields({"outstanding_shares": 3_000_000_000, "charter_capital": 20900, "par_value": 10000})
+def test_share_count_inconsistent_with_market_cap_is_flagged_not_dropped():
+    # VCI cross-check (ADR-0013): market_cap / current_price implies the count; > 1 % gap flags it.
+    inconsistent = {"issue_share": 3_000_000_000, "market_cap": 130204224223500.0, "current_price": 62300.0}
+    shares, reason = mod.share_fields(inconsistent)
     assert shares == 3_000_000_000
-    assert reason == "SHARES_OUTSTANDING_UNVERIFIED"                   # more shares than charter capital allows
-    assert mod.share_fields({"outstanding_shares": 10451182, "charter_capital": 123, "par_value": 10000}) == (10451182, None)  # AAM: treasury shares
-    assert mod.share_fields({"outstanding_shares": 2089955445, "charter_capital": 20900, "par_value": 10000}) == (2089955445, None)
+    assert reason == "SHARES_OUTSTANDING_UNVERIFIED"
+    consistent = {"issue_share": 2089955445, "market_cap": 130204224223500.0, "current_price": 62300.0}
+    assert mod.share_fields(consistent) == (2089955445, None)
+    # no market_cap/price on the page -> count kept, nothing to verify against, no false flag
+    assert mod.share_fields({"issue_share": 2089955445}) == (2089955445, None)
 
 
 def test_recent_package_is_reused_and_only_new_symbols_are_fetched(tmp_path):
@@ -67,7 +70,7 @@ def test_recent_package_is_reused_and_only_new_symbols_are_fetched(tmp_path):
 
     def lookup(symbol):
         calls.append(symbol)
-        return {"outstanding_shares": 8054999909, "charter_capital": 80550, "par_value": 10000}
+        return {"issue_share": 8054999909, "market_cap": 8054999909 * 21050.0, "current_price": 21050.0}
 
     records = {r["symbol"]: r for r in mod.build_records(universe(), "2026-08-30", lookup, share_lookup=reusable.get)}
     assert calls == ["MBB"]                                   # VNM served from the package, MBB fetched

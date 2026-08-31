@@ -95,6 +95,10 @@ finvera:
     technical:
       warmup:
         enabled: ${FINVERA_STOCK_TECHNICAL_WARMUP_ENABLED:false}
+    daily-bars:
+      # ADR-0013 (Feature 021): bars come from VCI; every daily-bar import ends by retiring
+      # non-primary bars wherever the primary source covers the same date (idempotent).
+      primary-source: ${FINVERA_STOCK_DAILY_BARS_PRIMARY_SOURCE:VNSTOCK_VCI}
     fundamentals:
       # Feature 018 (ADR-0011): statements come from VCI; every fundamentals import ends by
       # retiring current rows of any other source (idempotent, nothing deleted).

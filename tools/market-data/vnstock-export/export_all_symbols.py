@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import time
 from datetime import UTC, date, datetime, timedelta
@@ -71,11 +72,11 @@ def fetch_symbol_universe() -> list[str]:
     to paper over here."""
     from vnstock import Listing
 
-    frame = Listing(source="kbs").symbols_by_exchange()
+    frame = Listing(source="vci").symbols_by_exchange()
     required = {"symbol", "type", "exchange"}
     if not required.issubset(frame.columns):
         raise ValueError("Vnstock symbols_by_exchange schema is missing an expected column")
-    stocks = frame[(frame["type"] == "stock") & (frame["exchange"].isin(["HOSE", "HNX", "UPCOM"]))]
+    stocks = frame[(frame["type"] == "STOCK") & (frame["exchange"].isin(["HSX", "HNX", "UPCOM"]))]
     symbols = sorted({str(s).upper() for s in stocks["symbol"].tolist() if str(s).strip()})
     return symbols
 
@@ -225,7 +226,20 @@ def fundamentals_current(symbol: str, entry: dict[str, Any], args: argparse.Name
 # usage counters directly and wait for room BEFORE each dataset, and treat a rate-limit
 # failure as transient (retried after the window resets, and again on the next run).
 CALLS_PER_DATASET = {"daily_bars": 2, "fundamentals": 3, "fundamentals_annual": 3}
-TRANSIENT_FAILURE_NAMES = ("RetryError", "RateLimitExceeded")
+TRANSIENT_FAILURE_NAMES = ("RetryError", "RateLimitExceeded", "NetworkError")
+# Feature 018 R-008: a dropped connection ("Connection aborted", ConnectionResetError 10054, read timeout...) is
+# not a fact about the symbol. vnstock surfaces it as a ValueError, which used to settle the dataset
+# as failed forever; it is now retried in-run and, if still failing, recorded as transient.
+NETWORK_EXCEPTION_NAMES = frozenset({
+    "ConnectionError", "ConnectionResetError", "ConnectionAbortedError", "ConnectTimeout", "ReadTimeout",
+    "Timeout", "TimeoutError", "ChunkedEncodingError", "ProtocolError", "RemoteDisconnected", "SSLError",
+    "MaxRetryError", "NewConnectionError", "IncompleteRead",
+})
+NETWORK_MESSAGE_PATTERN = re.compile(
+    r"connection aborted|connection reset|forcibly closed|max retries exceeded|timed out|read timeout|"
+    r"remote end closed|temporarily unavailable|api request failed|bad gateway|gateway time-?out|"
+    r"service unavailable|name resolution|getaddrinfo", re.IGNORECASE)
+NETWORK_RETRY_WAITS_SECONDS = (5.0, 20.0)
 # Feature 018: "the provider has no statements for this symbol and period" (VCI serves only annual
 # statements for many small UPCoM names — A32, ACE, AGX, APT, BBH, BCP...) is not a defect of the
 # symbol but a state that changes when the company files: it is re-checked after this many days
@@ -271,35 +285,73 @@ def recheck_due(checked_at: str, today: date) -> bool:
     return (today - checked).days >= UNAVAILABLE_RECHECK_DAYS
 
 
+def is_network_failure(exc: BaseException) -> bool:
+    """True when the exception, or anything in its cause/context chain, is a dropped connection."""
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    while current is not None and id(current) not in seen and len(seen) < 8:
+        seen.add(id(current))
+        if type(current).__name__ in NETWORK_EXCEPTION_NAMES or isinstance(current, (ConnectionError, TimeoutError)):
+            return True
+        if NETWORK_MESSAGE_PATTERN.search(str(current)):
+            return True
+        current = current.__cause__ or current.__context__
+    return False
+
+
+def classify_failure(exc: BaseException) -> str:
+    """Failure class recorded in the checkpoint: the exception type, or NetworkError for dropped connections."""
+    if isinstance(exc, SystemExit):
+        return "RateLimitExceeded"
+    if is_network_failure(exc):
+        return "NetworkError"
+    return type(exc).__name__
+
+
+def failure_tool_version(key: str) -> str:
+    return export_daily_bars.TOOL_VERSION if key == "daily_bars" else FUNDAMENTALS_TOOL_VERSION
+
+
 def is_transient_failure(value: Any) -> bool:
     return any(str(value) == f"failed:{name}" for name in TRANSIENT_FAILURE_NAMES)
 
 
 def run_dataset(entry: dict[str, Any], key: str, label: str, action, on_success, on_failure) -> None:
     """Run one dataset export with quota pacing; a rate-limit failure is retried once after the window resets."""
-    for attempt in (1, 2):
+    rate_limit_retried = False
+    network_retries = 0
+    while True:
         wait_for_quota(CALLS_PER_DATASET[key])
         try:
             action()
             on_success()
+            entry.pop(f"{key}_failed_tool_version", None)
             print(f"  {label}: OK")
             return
         except (Exception, SystemExit) as exc:  # noqa: BLE001 -- one bad symbol must not stop the batch
             # vnai ends its rate-limit handling with sys.exit("Rate limit exceeded ..."), which is a
             # SystemExit (not an Exception) and would otherwise terminate the whole export.
-            name = type(exc).__name__
-            if isinstance(exc, SystemExit):
-                if "rate limit" not in str(exc).lower():
-                    raise
-                name = "RateLimitExceeded"
-            if name in TRANSIENT_FAILURE_NAMES and attempt == 1:
+            if isinstance(exc, SystemExit) and "rate limit" not in str(exc).lower():
+                raise
+            name = classify_failure(exc)
+            if name == "NetworkError" and network_retries < len(NETWORK_RETRY_WAITS_SECONDS):
+                pause = NETWORK_RETRY_WAITS_SECONDS[network_retries]
+                network_retries += 1
+                print(f"  {label}: connection dropped ({type(exc).__name__}), retrying in {pause:.0f}s")
+                time.sleep(pause)
+                continue
+            if name in TRANSIENT_FAILURE_NAMES and name != "NetworkError" and not rate_limit_retried:
                 # The provider enforces the limit server-side; the local counter can lag it, so
                 # wait a full window (not just the remainder of this one) before the retry.
+                rate_limit_retried = True
                 print(f"  {label}: rate-limited, retrying in {MAX_QUOTA_WAIT_SECONDS:.0f}s")
                 time.sleep(MAX_QUOTA_WAIT_SECONDS)
                 continue
             entry[key] = f"failed:{name}"
             entry[f"{key}_checked_at"] = date.today().isoformat()
+            # Feature 018 R-008: a settled failure belongs to the exporter version that produced it; a failure
+            # recorded by an older version (or before this field existed) is retried once.
+            entry[f"{key}_failed_tool_version"] = failure_tool_version(key)
             on_failure()
             if name in UNAVAILABLE_FAILURE_NAMES:
                 print(f"  {label}: UNAVAILABLE at provider ({name}); re-checked after {UNAVAILABLE_RECHECK_DAYS} days")
@@ -347,6 +399,10 @@ def is_finished(symbol: str, entry: dict[str, Any], args: argparse.Namespace) ->
         value = str(entry.get(key, ""))
         # Q-39: a rate-limit failure is transient and is always retried on the next run.
         if not value.startswith("failed") or is_transient_failure(value):
+            return False
+        # Feature 018 R-008: a failure recorded by an older exporter version (or before the version was recorded)
+        # is not evidence about this version -- retry it once, then it settles with the version.
+        if entry.get(f"{key}_failed_tool_version") != failure_tool_version(key):
             return False
         # Feature 018: provider-unavailable statements are re-checked once the recheck window passed.
         if is_unavailable_failure(value):

@@ -63,8 +63,12 @@ public class EquityProfileImportService {
                 }
                 existing.closeAt(record.effectiveFrom());
                 profiles.saveAndFlush(existing);
+                // ADR-0013: the VCI listing has no English names; an absent EN name in the incoming
+                // record means "unknown", never "removed" -- the known EN name is carried forward.
+                String companyNameEn = record.companyNameEn() != null ? record.companyNameEn()
+                        : existing.getCompanyNameEn();
                 profiles.save(new EquityProfileEntity(UUID.randomUUID(), instrumentId, record.companyNameVi(),
-                        record.companyNameEn(), existing.getSectorReferenceId(), record.sharesOutstanding(),
+                        companyNameEn, existing.getSectorReferenceId(), record.sharesOutstanding(),
                         record.freeFloatRatio(), record.listingStatus(), record.effectiveFrom(), null,
                         input.upstreamSource(), input.packageSha256(), record.qualityReason()));
                 results.add(new ProfileResult(record.symbol(), ProfileStatus.UPDATED));

@@ -264,7 +264,8 @@ public class TechnicalIndicatorService {
     // Same source preference as StockChartService: only decides which single
     // accepted row represents a same-date multi-source conflict in the series
     // this engine consumes; it does not decide whether that date is flagged.
-    private static final List<String> SOURCE_PREFERENCE = List.of("VNSTOCK_KBS", "VNSTOCK", "FINVERA_FIXTURE");
+    // ADR-0013 (Feature 021): VCI is the source of record; KBS still serves dates VCI has no bar for.
+    private static final List<String> SOURCE_PREFERENCE = List.of("VNSTOCK_VCI", "VNSTOCK_KBS", "VNSTOCK", "FINVERA_FIXTURE");
 
     private static EquityDailyBarEntity preferred(EquityDailyBarEntity left, EquityDailyBarEntity right) {
         int leftRank = SOURCE_PREFERENCE.indexOf(left.getSource());
@@ -275,9 +276,12 @@ public class TechnicalIndicatorService {
     }
 
     private static BarInput toBarInput(EquityDailyBarEntity entity) {
-        AdjustmentStatus status = "ADJUSTED".equals(entity.getAdjustmentStatus())
-                ? AdjustmentStatus.ADJUSTED
-                : "RAW".equals(entity.getAdjustmentStatus()) ? AdjustmentStatus.RAW : AdjustmentStatus.UNKNOWN;
+        AdjustmentStatus status = switch (entity.getAdjustmentStatus()) {
+            case "ADJUSTED" -> AdjustmentStatus.ADJUSTED;
+            case "PROVIDER_ADJUSTED" -> AdjustmentStatus.PROVIDER_ADJUSTED; // ADR-0013: VCI bar series
+            case "RAW" -> AdjustmentStatus.RAW;
+            default -> AdjustmentStatus.UNKNOWN;
+        };
         return new BarInput(entity.getTradingDate(), entity.getOpenPrice(), entity.getHighPrice(),
                 entity.getLowPrice(), entity.getClosePrice(), entity.getAdjustedClose(),
                 entity.getAdjustmentFactor(), entity.getVolume(), status);

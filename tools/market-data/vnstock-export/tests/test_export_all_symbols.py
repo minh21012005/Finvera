@@ -47,7 +47,11 @@ def test_rate_limit_failures_are_transient_and_retried_next_run():
     assert mod.is_transient_failure("failed:RetryError") is True
     assert mod.is_transient_failure("failed:ValueError") is False
     assert mod.is_finished("X", {"daily_bars": "failed:RetryError", "fundamentals": "failed:ValueError", "fundamentals_annual": "failed:ValueError"}, args) is False
-    assert mod.is_finished("X", {"daily_bars": "failed:ValueError", "fundamentals": "failed:ValueError", "fundamentals_annual": "failed:ValueError"}, args) is True
+    settled = {"daily_bars": "failed:ValueError", "fundamentals": "failed:ValueError", "fundamentals_annual": "failed:ValueError",
+               "daily_bars_failed_tool_version": mod.export_daily_bars.TOOL_VERSION,
+               "fundamentals_failed_tool_version": mod.FUNDAMENTALS_TOOL_VERSION,
+               "fundamentals_annual_failed_tool_version": mod.FUNDAMENTALS_TOOL_VERSION}
+    assert mod.is_finished("X", settled, args) is True
 
 
 def test_run_dataset_retries_once_after_a_rate_limit_then_records_success(monkeypatch):
@@ -92,7 +96,10 @@ def test_provider_unavailable_statements_are_rechecked_after_the_window(tmp_path
     args = argparse.Namespace(start="2023-01-01", end="2026-08-31", period="quarter", output=tmp_path,
                               full_refresh=False, retry_failed=False, lookback_days=90, unit_scale=1)
     fresh = {"daily_bars": "failed:ValueError", "fundamentals": "failed:NoStatementsAvailable",
-             "fundamentals_checked_at": "2026-08-30", "fundamentals_annual": "failed:ValueError"}
+             "fundamentals_checked_at": "2026-08-30", "fundamentals_annual": "failed:ValueError",
+             "daily_bars_failed_tool_version": mod.export_daily_bars.TOOL_VERSION,
+             "fundamentals_failed_tool_version": mod.FUNDAMENTALS_TOOL_VERSION,
+             "fundamentals_annual_failed_tool_version": mod.FUNDAMENTALS_TOOL_VERSION}
     stale = dict(fresh, fundamentals_checked_at="2026-07-01")
     missing = {k: v for k, v in fresh.items() if k != "fundamentals_checked_at"}
     assert mod.is_finished("X", fresh, args) is True
@@ -102,3 +109,54 @@ def test_provider_unavailable_statements_are_rechecked_after_the_window(tmp_path
     assert mod.is_unavailable_failure("failed:ValueError") is False
     assert mod.recheck_due("2026-07-27", mod.date(2026, 8, 31)) is True
     assert mod.recheck_due("2026-07-28", mod.date(2026, 8, 31)) is False
+
+
+def test_dropped_connections_are_transient_and_retried_in_run(monkeypatch):
+    # Feature 018 R-008: DCH 2026-08-31 -- vnstock raised ValueError("API request failed: ('Connection aborted.',
+    # ConnectionResetError(10054, ...))"); that is a network event, not a fact about the symbol.
+    wrapped = ValueError("API request failed: ('Connection aborted.', ConnectionResetError(10054, 'forcibly closed'))")
+    assert mod.classify_failure(wrapped) == "NetworkError"
+    chained = ValueError("no data")
+    chained.__cause__ = ConnectionResetError(10054, "An existing connection was forcibly closed by the remote host")
+    assert mod.classify_failure(chained) == "NetworkError"
+    assert mod.classify_failure(ValueError("symbol has no bars")) == "ValueError"
+    assert mod.is_transient_failure("failed:NetworkError") is True
+
+    monkeypatch.setattr(mod, "NETWORK_RETRY_WAITS_SECONDS", (0.0, 0.0))
+    monkeypatch.setattr(mod, "wait_for_quota", lambda calls: None)
+    monkeypatch.setattr(mod.time, "sleep", lambda seconds: None)
+    calls = {"n": 0}
+
+    def flaky():
+        calls["n"] += 1
+        if calls["n"] < 3:
+            raise wrapped
+
+    entry = {}
+    mod.run_dataset(entry, "daily_bars", "daily_bars", flaky, lambda: entry.__setitem__("daily_bars", "done"), lambda: None)
+    assert calls["n"] == 3 and entry["daily_bars"] == "done"
+
+    def always_down():
+        raise wrapped
+
+    entry = {}
+    mod.run_dataset(entry, "daily_bars", "daily_bars", always_down, lambda: None, lambda: None)
+    assert entry["daily_bars"] == "failed:NetworkError"
+    assert entry["daily_bars_failed_tool_version"] == mod.export_daily_bars.TOOL_VERSION
+
+
+def test_failures_recorded_by_another_exporter_version_do_not_settle(tmp_path):
+    # Feature 018 R-008: 153 checkpoint entries carried failed:ValueError written by the exporter before the VCI
+    # switch / before NoStatementsAvailable existed; they must be retried once, not skipped forever.
+    import argparse
+    args = argparse.Namespace(start="2023-01-01", end="2026-08-31", period="quarter", output=tmp_path,
+                              full_refresh=False, retry_failed=False, lookback_days=90, unit_scale=1)
+    legacy = {"daily_bars": "failed:ValueError", "fundamentals": "failed:ValueError", "fundamentals_annual": "failed:ValueError"}
+    assert mod.is_finished("X", legacy, args) is False
+    current = dict(legacy,
+                   daily_bars_failed_tool_version=mod.export_daily_bars.TOOL_VERSION,
+                   fundamentals_failed_tool_version=mod.FUNDAMENTALS_TOOL_VERSION,
+                   fundamentals_annual_failed_tool_version=mod.FUNDAMENTALS_TOOL_VERSION)
+    assert mod.is_finished("X", current, args) is True
+    stale_version = dict(current, fundamentals_failed_tool_version="0.7.0")
+    assert mod.is_finished("X", stale_version, args) is False

@@ -50,6 +50,7 @@ class StockIngestionServiceTests {
     @Autowired MarketInstrumentRepository instruments;
     @Autowired EquityDailyBarRepository dailyBars;
     @Autowired FundamentalReportRepository reports;
+    @Autowired DailyBarSourceRetirementService barRetirement;
     @Autowired FundamentalSourceRetirementService retirement;
     @Autowired FundamentalReportMetricRepository reportMetrics;
     @Autowired StockIngestionService ingestion;
@@ -337,5 +338,35 @@ class StockIngestionServiceTests {
         assertThat(reports.findById(kbs.barId()).orElseThrow().isCurrent()).isFalse();
         assertThat(reports.findById(vci.barId()).orElseThrow().isCurrent()).isTrue();
         assertThat(reports.findAllByCurrentTrueAndSourceNot("VNSTOCK_VCI")).isEmpty();
+    }
+
+    @Test
+    void retiringNonPrimaryBarsKeepsDatesThePrimarySourceDoesNotCover() {
+        // ADR-0013: after the VCI import, a KBS bar is retired only where a VCI bar covers the
+        // same date; a date VCI does not serve keeps its KBS bar (missing is never fabricated).
+        saveInstrument("STK22");
+        var kbsCovered = ingestion.ingestDailyBar(new IncomingDailyBar("VNSTOCK_KBS", "STK22",
+                LocalDate.of(2026, 8, 27), Instant.parse("2026-08-27T08:00:00Z"), new BigDecimal("100.000000"),
+                new BigDecimal("101.000000"), new BigDecimal("99.000000"), new BigDecimal("100.500000"),
+                900_000L, null, "RAW", false));
+        var kbsOnly = ingestion.ingestDailyBar(new IncomingDailyBar("VNSTOCK_KBS", "STK22",
+                LocalDate.of(2026, 8, 26), Instant.parse("2026-08-26T08:00:00Z"), new BigDecimal("100.000000"),
+                new BigDecimal("101.000000"), new BigDecimal("99.000000"), new BigDecimal("100.000000"),
+                800_000L, null, "RAW", false));
+        var vci = ingestion.ingestDailyBar(new IncomingDailyBar("VNSTOCK_VCI", "STK22",
+                LocalDate.of(2026, 8, 27), Instant.parse("2026-08-28T01:00:00Z"), new BigDecimal("100.000000"),
+                new BigDecimal("101.000000"), new BigDecimal("99.000000"), new BigDecimal("100.500000"),
+                900_000L, null, "PROVIDER_ADJUSTED", false));
+
+        int first = barRetirement.retireAllExcept("VNSTOCK_VCI");
+        int second = barRetirement.retireAllExcept("VNSTOCK_VCI");
+
+        assertThat(first).isGreaterThanOrEqualTo(1);
+        assertThat(second).isZero();                                        // idempotent
+        assertThat(dailyBars.findById(kbsCovered.barId()).orElseThrow().isCurrent()).isFalse();
+        assertThat(dailyBars.findById(kbsCovered.barId()).orElseThrow().getQualityReason())
+                .isEqualTo(DailyBarSourceRetirementService.SOURCE_RETIRED);
+        assertThat(dailyBars.findById(kbsOnly.barId()).orElseThrow().isCurrent()).isTrue();
+        assertThat(dailyBars.findById(vci.barId()).orElseThrow().isCurrent()).isTrue();
     }
 }

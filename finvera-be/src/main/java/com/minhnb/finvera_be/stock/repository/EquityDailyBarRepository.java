@@ -29,6 +29,21 @@ public interface EquityDailyBarRepository extends JpaRepository<EquityDailyBarEn
             """)
     List<Object[]> findLatestAcceptedAtByInstrumentIdIn(@Param("instrumentIds") Collection<UUID> instrumentIds);
 
+    /**
+     * ADR-0013 (Feature 021): marks every current bar of another source not-current where a current
+     * bar from the primary source covers the same (instrument, trading date). A symbol or date the
+     * primary source cannot serve keeps its old-source bar; nothing is deleted.
+     */
+    @org.springframework.data.jpa.repository.Modifying
+    @Query(value = """
+            update equity_daily_bar b set is_current = false, quality_reason = 'SOURCE_RETIRED'
+            where b.is_current = true and b.source <> :primarySource
+              and exists (select 1 from equity_daily_bar v
+                          where v.instrument_id = b.instrument_id and v.trading_date = b.trading_date
+                            and v.source = :primarySource and v.is_current = true)
+            """, nativeQuery = true)
+    int retireBarsNotFrom(@Param("primarySource") String primarySource);
+
     Optional<EquityDailyBarEntity> findFirstByInstrumentIdAndTradingDateAndSourceAndCurrentTrue(
             UUID instrumentId, LocalDate tradingDate, String source);
 

@@ -18,7 +18,13 @@ assert ALL_SYMBOLS_SPEC.loader is not None
 ALL_SYMBOLS_SPEC.loader.exec_module(export_all_symbols)
 
 
-def test_current_kbs_ohlcv_schema_normalizes_prices_without_exporting_reference_price():
+def test_records_carry_the_provider_adjusted_label():
+    # ADR-0013: VCI serves corporate-action-adjusted series; the label must say so, not RAW.
+    rows = [{"time": "2026-08-24 00:00:00", "open": "62.5", "high": "63.0", "low": "62.0", "close": "62.3", "volume": "1000"}]
+    assert export_daily_bars.package_records(rows, "VNM")[0]["adjustmentStatus"] == "PROVIDER_ADJUSTED"
+
+
+def test_current_board_unit_ohlcv_schema_normalizes_prices_without_exporting_reference_price():
     rows = [{
         "time": "2026-08-24 00:00:00",
         "open": "208.0",
@@ -55,7 +61,9 @@ def test_reference_like_columns_are_ignored_for_historical_vnstock_bars():
 
 
 def test_daily_bar_tool_version_changes_when_canonical_price_unit_changes():
-    assert export_daily_bars.TOOL_VERSION == "0.4.0"
+    # 1.0.0: VCI source under ADR-0013 -- a version change forces the full universe re-export.
+    assert export_daily_bars.TOOL_VERSION == "1.0.0"
+    assert export_daily_bars.SOURCE == "VNSTOCK_VCI"
 
 
 def test_full_universe_checkpoint_does_not_skip_old_daily_bar_tool_version(tmp_path):
@@ -152,7 +160,7 @@ def test_full_universe_reexport_drops_records_from_old_daily_bar_tool_version(tm
 
     package = json.loads(path.read_text(encoding="utf-8"))
 
-    assert package["toolVersion"] == "0.4.0"
+    assert package["toolVersion"] == export_daily_bars.TOOL_VERSION
     assert package["records"][0]["tradingDate"] == "2026-08-01"
     assert package["records"][-1]["tradingDate"] == "2026-08-20"
     assert package["records"][0]["close"] == "214500.000000"
@@ -175,27 +183,29 @@ class _FakeOhlcvFrame:
         return list(self._rows)
 
 
-def test_fetch_rows_pads_the_provider_end_date_and_cuts_back_to_the_requested_end(monkeypatch):
-    """Feature 011 R-001: KBS treats `end` as exclusive-ish (end=2026-08-29 -> last bar 08-27)."""
+def test_fetch_rows_pads_the_end_and_clamps_both_ends_of_the_vci_response(monkeypatch):
+    """Feature 011 R-001 (end padding) + Feature 021 R-002: VCI also returns a buffer of sessions
+    BEFORE the requested start, which must never leak into the package."""
     import types
     seen = {}
 
     def bar(day):
         return {"time": f"{day} 07:00:00", "open": 62.5, "high": 63.0, "low": 62.0, "close": 62.3, "volume": 1000}
 
-    class _Equity:
-        def ohlcv(self, start, end, interval, count, source):
+    class _Quote:
+        def __init__(self, symbol, source):
+            seen["source"] = source
+
+        def history(self, start, end, interval):
             seen["end"] = end
-            return _FakeOhlcvFrame([bar("2026-08-27"), bar("2026-08-28"), bar("2026-09-01")])
+            return _FakeOhlcvFrame([bar("2026-08-20"), bar("2026-08-27"), bar("2026-08-28"), bar("2026-09-01")])
 
-    class _Market:
-        def equity(self, _symbol):
-            return _Equity()
-
-    monkeypatch.setitem(sys.modules, "vnstock", types.SimpleNamespace(Market=_Market))
+    monkeypatch.setitem(sys.modules, "vnstock", types.SimpleNamespace(Quote=_Quote))
     rows = export_daily_bars.fetch_rows("VNM", "2026-08-24", "2026-08-30")
+    assert seen["source"] == "vci"
     assert seen["end"] == "2026-09-02"                      # 3-day padding
-    assert [r["time"][:10] for r in rows] == ["2026-08-27", "2026-08-28"]  # 09-01 (after end) dropped
+    # 08-20 (VCI pre-start buffer) and 09-01 (after end) both dropped
+    assert [r["time"][:10] for r in rows] == ["2026-08-27", "2026-08-28"]
 
 
 def test_earlier_start_than_existing_file_triggers_a_full_range_refetch(tmp_path, monkeypatch):

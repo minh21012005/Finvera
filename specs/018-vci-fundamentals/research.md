@@ -105,3 +105,29 @@ observation: 192 of the first ~280 symbols (alphabetically A–B, mostly small U
 names) were annual-only; the universe-wide share is recorded in T007 from the
 checkpoint.
 
+## R-008 — Failure classes in the universe exporter (found 2026-08-31 during the first VCI crawl)
+
+**Observation.** `[289/1520] DCH daily_bars: FAILED (ValueError)` with the provider log
+`API request failed: ('Connection aborted.', ConnectionResetError(10054, ...))`. vnstock wraps a
+dropped connection in a `ValueError`; the exporter recorded `failed:ValueError`, which
+`is_finished` treats as a *settled* failure — never retried without `--retry-failed`. The same
+checkpoint held 153 `fundamentals: failed:ValueError` entries written by the run that was stopped
+before `NoStatementsAvailable` existed (annual-only symbols), also settled forever, and 51
+`daily_bars: failed:ValueError` entries of unknown age.
+
+**Root cause.** Two conflations: (1) a network event was classified by the wrapper's exception
+type instead of by what happened; (2) a settled failure was not tied to the exporter version that
+produced it, so a fix in the exporter could never un-settle it.
+
+**Rules (export_all_symbols.py, tests in test_export_all_symbols.py).**
+
+| Rule | Statement |
+|---|---|
+| F-1 network is transient | `classify_failure` walks the exception cause/context chain; a connection/timeout type or a message matching the network pattern (`connection aborted`, `forcibly closed`, `max retries`, `timed out`, `api request failed`, …) is `NetworkError`, retried in-run after 5 s and 20 s, and if still failing recorded as `failed:NetworkError` — transient, retried on the next run. |
+| F-2 version-scoped settlement | Every recorded failure carries `<key>_failed_tool_version`; `is_finished` settles a failure only when that version equals the current exporter version for the dataset. Entries without the field (all pre-existing ones) are retried once and then settle with the version. |
+| F-3 unchanged | `NoStatementsAvailable` still re-checks after 35 days (R-007); rate limits still wait a full quota window. |
+
+**Consequence for the running crawl.** The running process keeps the old code; the next
+`.efresh-data.ps1` retries the ~200 unsettled entries once (≈ 3 calls each, ~25 min) and DCH's
+bars are filled then. No owner flag is needed.
+

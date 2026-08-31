@@ -2,7 +2,7 @@ export type DataStatus = "CURRENT" | "DELAYED" | "STALE" | "PARTIAL" | "UNAVAILA
 export type Direction = "UP" | "DOWN" | "UNCHANGED";
 export type SessionState = "PRE_OPEN" | "OPEN" | "BREAK" | "INTERRUPTED" | "CLOSED" | "NON_TRADING_DAY" | "UNKNOWN";
 export type Applicability = "DEFINED" | "NOT_APPLICABLE" | "MISSING";
-export type AdjustmentStatus = "ADJUSTED" | "RAW" | "NOT_APPLICABLE" | "UNKNOWN";
+export type AdjustmentStatus = "ADJUSTED" | "PROVIDER_ADJUSTED" | "RAW" | "NOT_APPLICABLE" | "UNKNOWN";
 export type ListingStatus = "LISTED" | "SUSPENDED" | "HALTED" | "DELISTED" | "UNKNOWN";
 export type ChartWindow = "1M" | "3M" | "6M" | "1Y" | "2Y" | "ALL";
 
@@ -206,7 +206,7 @@ const SESSION_STATES = new Set<SessionState>([
   "PRE_OPEN", "OPEN", "BREAK", "INTERRUPTED", "CLOSED", "NON_TRADING_DAY", "UNKNOWN",
 ]);
 const APPLICABILITIES = new Set<Applicability>(["DEFINED", "NOT_APPLICABLE", "MISSING"]);
-const ADJUSTMENT_STATUSES = new Set<AdjustmentStatus>(["ADJUSTED", "RAW", "NOT_APPLICABLE", "UNKNOWN"]);
+const ADJUSTMENT_STATUSES = new Set<AdjustmentStatus>(["ADJUSTED", "PROVIDER_ADJUSTED", "RAW", "NOT_APPLICABLE", "UNKNOWN"]);
 const LISTING_STATUSES = new Set<ListingStatus>(["LISTED", "SUSPENDED", "HALTED", "DELISTED", "UNKNOWN"]);
 const INDICATOR_CODES = new Set<IndicatorCode>([
   "MA20", "MA50", "MA200", "RSI14", "MACD", "BBANDS", "ATR14", "AVG_VOLUME20", "RELATIVE_VOLUME",

@@ -40,6 +40,13 @@ public final class StockChartAssembler {
             return new ChartResult(AdjustmentStatus.ADJUSTED, chartBars, null);
         }
 
+        // ADR-0013: the provider's series is already on one adjusted basis; the stored OHLC values
+        // ARE that series, so they are served as-is under the honest PROVIDER_ADJUSTED label.
+        if (uniform && statuses.contains(AdjustmentStatus.PROVIDER_ADJUSTED)) {
+            List<ChartBar> chartBars = ordered.stream().map(StockChartAssembler::toRawBar).toList();
+            return new ChartResult(AdjustmentStatus.PROVIDER_ADJUSTED, chartBars, null);
+        }
+
         List<ChartBar> rawBars = ordered.stream().map(StockChartAssembler::toRawBar).toList();
         boolean cleanRaw = uniform && statuses.contains(AdjustmentStatus.RAW);
         return new ChartResult(AdjustmentStatus.RAW, rawBars, cleanRaw ? null : "ADJUSTMENT_BASIS_UNAVAILABLE");

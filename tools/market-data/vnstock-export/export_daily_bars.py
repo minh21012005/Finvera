@@ -19,14 +19,14 @@ from pathlib import Path
 from typing import Any
 
 CONTRACT_VERSION = "vnstock-daily-bar-v1"
-SOURCE = "VNSTOCK_KBS"
-TOOL_VERSION = "0.4.0"
+SOURCE = "VNSTOCK_VCI"  # ADR-0013 (Feature 021): single provider; KBS path retained in git history as fallback
+TOOL_VERSION = "1.0.0"  # 1.0.0: VCI source, PROVIDER_ADJUSTED label, range clamped on both ends
 MIN_RECORDS = 20
-KBS_PRICE_MULTIPLIER = Decimal("1000")
-# Feature 011 research R-001: the provider's `end` is not inclusive (end=Fri -> last bar Thu;
-# end=Sat -> Thu; end=Sun -> Fri). Ask for a few days more and cut back to `end` ourselves.
-# Verified 2026-08-30 that KBS never returns a row after the last completed session.
-KBS_END_PADDING_DAYS = 3
+BOARD_PRICE_MULTIPLIER = Decimal("1000")  # VCI quotes equity prices in thousand VND, same board unit as KBS
+# Feature 011 research R-001 (KBS) / Feature 021 research R-002 (VCI): pad the requested end and
+# cut back ourselves; VCI additionally returns a buffer of sessions BEFORE the requested start, so
+# both ends are clamped in fetch_rows.
+END_PADDING_DAYS = 3
 
 
 def decimal_string(value: Any) -> str:
@@ -36,8 +36,8 @@ def decimal_string(value: Any) -> str:
     return format(decimal.quantize(Decimal("0.000001")), "f")
 
 
-def normalize_kbs_price(value: Any) -> Decimal:
-    """KBS OHLCV prices are quoted in Vietnamese board units (thousand VND).
+def normalize_board_price(value: Any) -> Decimal:
+    """Provider OHLCV prices are quoted in Vietnamese board units (thousand VND).
 
     Finvera's stock data model and API expose equity prices in base VND/share.
     The provider-unit conversion belongs at the exporter/provider boundary so
@@ -46,7 +46,7 @@ def normalize_kbs_price(value: Any) -> Decimal:
     decimal = Decimal(str(value))
     if decimal.is_nan() or decimal.is_infinite() or decimal < 0:
         raise ValueError("price fields must be finite non-negative decimals")
-    return decimal * KBS_PRICE_MULTIPLIER
+    return decimal * BOARD_PRICE_MULTIPLIER
 
 
 def canonical_json(value: dict[str, Any]) -> str:
@@ -57,13 +57,13 @@ def package_records(rows: list[dict[str, Any]], symbol: str) -> list[dict[str, A
     records = []
     for row in rows:
         trading_date = str(row["time"]).split(" ", maxsplit=1)[0]
-        open_price = normalize_kbs_price(row["open"])
-        high_price = normalize_kbs_price(row["high"])
-        low_price = normalize_kbs_price(row["low"])
-        close_price = normalize_kbs_price(row["close"])
+        open_price = normalize_board_price(row["open"])
+        high_price = normalize_board_price(row["high"])
+        low_price = normalize_board_price(row["low"])
+        close_price = normalize_board_price(row["close"])
         volume = Decimal(str(row["volume"])) if row.get("volume") is not None else None
         record = {
-            "adjustmentStatus": "RAW",
+            "adjustmentStatus": "PROVIDER_ADJUSTED",  # VCI serves corporate-action-adjusted series (specs/021 research R-002)
             "canonicalRecord": "",
             "close": decimal_string(close_price),
             "high": decimal_string(high_price),
@@ -97,22 +97,22 @@ def build_package(records: list[dict[str, Any]], symbol: str, start: str, end: s
 
 
 def fetch_rows(symbol: str, start: str, end: str) -> list[dict[str, Any]]:
-    from vnstock import Market
+    from vnstock import Quote
 
-    padded_end = (date.fromisoformat(end) + timedelta(days=KBS_END_PADDING_DAYS)).isoformat()
-    frame = Market().equity(symbol).ohlcv(start=start, end=padded_end, interval="1D", count=1000, source="kbs")
+    padded_end = (date.fromisoformat(end) + timedelta(days=END_PADDING_DAYS)).isoformat()
+    frame = Quote(symbol=symbol, source="vci").history(start=start, end=padded_end, interval="1D")
     required = {"time", "open", "high", "low", "close"}
     if not required.issubset(frame.columns):
         raise ValueError("Vnstock OHLCV schema does not contain the required OHLC columns")
-    # Current public KBS OHLCV schema exposes historical time/OHLCV only. Do
-    # not read similarly named quote/reference fields here; EOD breadth uses
-    # the prior accepted close as its comparison basis.
+    # Historical time/OHLCV only; no similarly named quote/reference fields are read. EOD breadth
+    # uses the prior accepted close as its comparison basis.
     columns = [c for c in (
         "time", "open", "high", "low", "close", "volume",
     ) if c in frame.columns]
     rows = frame.loc[:, columns].to_dict("records")
-    # Padding must never let a bar after the requested end (or a future/partial session) through.
-    return [row for row in rows if str(row["time"]).split(" ", maxsplit=1)[0] <= end]
+    # Clamp BOTH ends: padding must never let a bar after `end` through, and VCI returns a buffer
+    # of sessions before the requested `start` (specs/021 research R-002).
+    return [row for row in rows if start <= str(row["time"]).split(" ", maxsplit=1)[0] <= end]
 
 
 def output_filename(symbol: str) -> str:

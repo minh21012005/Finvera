@@ -1,0 +1,354 @@
+[
+ {
+  "symbol": "A+ Fund",
+  "organ_name": "Quỹ Đầu tư A+",
+  "com_type_code": "QU",
+  "icb_level": 1,
+  "icb_code": "8000",
+  "icb_name": "Tài chính"
+ },
+ {
+  "symbol": "A+ Fund",
+  "organ_name": "Quỹ Đầu tư A+",
+  "com_type_code": "QU",
+  "icb_level": 2,
+  "icb_code": "8700",
+  "icb_name": "Dịch vụ tài chính"
+ },
+ {
+  "symbol": "A+ Fund",
+  "organ_name": "Quỹ Đầu tư A+",
+  "com_type_code": "QU",
+  "icb_level": 3,
+  "icb_code": "8980",
+  "icb_name": "Quỹ đầu tư"
+ },
+ {
+  "symbol": "A+ Fund",
+  "organ_name": "Quỹ Đầu tư A+",
+  "com_type_code": "QU",
+  "icb_level": 4,
+  "icb_code": "8985",
+  "icb_name": "Quỹ đầu tư"
+ },
+ {
+  "symbol": "A32",
+  "organ_name": "Công ty Cổ phần 32",
+  "com_type_code": "CT",
+  "icb_level": 1,
+  "icb_code": "3000",
+  "icb_name": "Hàng Tiêu dùng"
+ },
+ {
+  "symbol": "A32",
+  "organ_name": "Công ty Cổ phần 32",
+  "com_type_code": "CT",
+  "icb_level": 2,
+  "icb_code": "3700",
+  "icb_name": "Hàng cá nhân & Gia dụng"
+ },
+ {
+  "symbol": "A32",
+  "organ_name": "Công ty Cổ phần 32",
+  "com_type_code": "CT",
+  "icb_level": 3,
+  "icb_code": "3760",
+  "icb_name": "Hàng cá nhân"
+ },
+ {
+  "symbol": "A32",
+  "organ_name": "Công ty Cổ phần 32",
+  "com_type_code": "CT",
+  "icb_level": 4,
+  "icb_code": "3765",
+  "icb_name": "Giầy dép"
+ },
+ {
+  "symbol": "ACV",
+  "organ_name": "Tổng Công ty Cảng Hàng không Việt Nam - CTCP",
+  "com_type_code": "CT",
+  "icb_level": 1,
+  "icb_code": "2000",
+  "icb_name": "Công nghiệp"
+ },
+ {
+  "symbol": "ACV",
+  "organ_name": "Tổng Công ty Cảng Hàng không Việt Nam - CTCP",
+  "com_type_code": "CT",
+  "icb_level": 2,
+  "icb_code": "2700",
+  "icb_name": "Hàng & Dịch vụ Công nghiệp"
+ },
+ {
+  "symbol": "ACV",
+  "organ_name": "Tổng Công ty Cảng Hàng không Việt Nam - CTCP",
+  "com_type_code": "CT",
+  "icb_level": 3,
+  "icb_code": "2770",
+  "icb_name": "Vận tải"
+ },
+ {
+  "symbol": "ACV",
+  "organ_name": "Tổng Công ty Cảng Hàng không Việt Nam - CTCP",
+  "com_type_code": "CT",
+  "icb_level": 4,
+  "icb_code": "2777",
+  "icb_name": "Kho bãi, hậu cần và bảo dưỡng"
+ },
+ {
+  "symbol": "FUEVN50G",
+  "organ_name": "Quỹ ETF VinaCapital VN50 Growth",
+  "com_type_code": "QU",
+  "icb_level": 1,
+  "icb_code": "8000",
+  "icb_name": "Tài chính"
+ },
+ {
+  "symbol": "FUEVN50G",
+  "organ_name": "Quỹ ETF VinaCapital VN50 Growth",
+  "com_type_code": "QU",
+  "icb_level": 2,
+  "icb_code": "8700",
+  "icb_name": "Dịch vụ tài chính"
+ },
+ {
+  "symbol": "FUEVN50G",
+  "organ_name": "Quỹ ETF VinaCapital VN50 Growth",
+  "com_type_code": "QU",
+  "icb_level": 3,
+  "icb_code": "8980",
+  "icb_name": "Quỹ đầu tư"
+ },
+ {
+  "symbol": "FUEVN50G",
+  "organ_name": "Quỹ ETF VinaCapital VN50 Growth",
+  "com_type_code": "QU",
+  "icb_level": 4,
+  "icb_code": "8985",
+  "icb_name": "Quỹ đầu tư"
+ },
+ {
+  "symbol": "HPG",
+  "organ_name": "Công ty Cổ phần Tập đoàn Hòa Phát",
+  "com_type_code": "CT",
+  "icb_level": 1,
+  "icb_code": "1000",
+  "icb_name": "Nguyên vật liệu"
+ },
+ {
+  "symbol": "HPG",
+  "organ_name": "Công ty Cổ phần Tập đoàn Hòa Phát",
+  "com_type_code": "CT",
+  "icb_level": 2,
+  "icb_code": "1700",
+  "icb_name": "Tài nguyên Cơ bản"
+ },
+ {
+  "symbol": "HPG",
+  "organ_name": "Công ty Cổ phần Tập đoàn Hòa Phát",
+  "com_type_code": "CT",
+  "icb_level": 3,
+  "icb_code": "1750",
+  "icb_name": "Kim loại"
+ },
+ {
+  "symbol": "HPG",
+  "organ_name": "Công ty Cổ phần Tập đoàn Hòa Phát",
+  "com_type_code": "CT",
+  "icb_level": 4,
+  "icb_code": "1757",
+  "icb_name": "Thép và sản phẩm thép"
+ },
+ {
+  "symbol": "MBB",
+  "organ_name": "Ngân hàng Thương mại Cổ phần Quân đội",
+  "com_type_code": "NH",
+  "icb_level": 1,
+  "icb_code": "8301",
+  "icb_name": "Ngân hàng"
+ },
+ {
+  "symbol": "MBB",
+  "organ_name": "Ngân hàng Thương mại Cổ phần Quân đội",
+  "com_type_code": "NH",
+  "icb_level": 2,
+  "icb_code": "8300",
+  "icb_name": "Ngân hàng"
+ },
+ {
+  "symbol": "MBB",
+  "organ_name": "Ngân hàng Thương mại Cổ phần Quân đội",
+  "com_type_code": "NH",
+  "icb_level": 3,
+  "icb_code": "8350",
+  "icb_name": "Ngân hàng"
+ },
+ {
+  "symbol": "MBB",
+  "organ_name": "Ngân hàng Thương mại Cổ phần Quân đội",
+  "com_type_code": "NH",
+  "icb_level": 4,
+  "icb_code": "8355",
+  "icb_name": "Ngân hàng"
+ },
+ {
+  "symbol": "VNH",
+  "organ_name": "Công ty Cổ phần Đầu tư Việt Việt Nhật",
+  "com_type_code": "CT",
+  "icb_level": 1,
+  "icb_code": "3000",
+  "icb_name": "Hàng Tiêu dùng"
+ },
+ {
+  "symbol": "VNH",
+  "organ_name": "Vietnam Holding Ltd",
+  "com_type_code": "QU",
+  "icb_level": 1,
+  "icb_code": "8000",
+  "icb_name": "Tài chính"
+ },
+ {
+  "symbol": "VNH",
+  "organ_name": "Công ty Cổ phần Đầu tư Việt Việt Nhật",
+  "com_type_code": "CT",
+  "icb_level": 2,
+  "icb_code": "3500",
+  "icb_name": "Thực phẩm và đồ uống"
+ },
+ {
+  "symbol": "VNH",
+  "organ_name": "Vietnam Holding Ltd",
+  "com_type_code": "QU",
+  "icb_level": 2,
+  "icb_code": "8700",
+  "icb_name": "Dịch vụ tài chính"
+ },
+ {
+  "symbol": "VNH",
+  "organ_name": "Công ty Cổ phần Đầu tư Việt Việt Nhật",
+  "com_type_code": "CT",
+  "icb_level": 3,
+  "icb_code": "3570",
+  "icb_name": "Sản xuất thực phẩm"
+ },
+ {
+  "symbol": "VNH",
+  "organ_name": "Vietnam Holding Ltd",
+  "com_type_code": "QU",
+  "icb_level": 3,
+  "icb_code": "8980",
+  "icb_name": "Quỹ đầu tư"
+ },
+ {
+  "symbol": "VNH",
+  "organ_name": "Công ty Cổ phần Đầu tư Việt Việt Nhật",
+  "com_type_code": "CT",
+  "icb_level": 4,
+  "icb_code": "3573",
+  "icb_name": "Nuôi trồng nông & hải sản"
+ },
+ {
+  "symbol": "VNH",
+  "organ_name": "Vietnam Holding Ltd",
+  "com_type_code": "QU",
+  "icb_level": 4,
+  "icb_code": "8985",
+  "icb_name": "Quỹ đầu tư"
+ },
+ {
+  "symbol": "VNM",
+  "organ_name": "Công ty Cổ phần Sữa Việt Nam",
+  "com_type_code": "CT",
+  "icb_level": 1,
+  "icb_code": "3000",
+  "icb_name": "Hàng Tiêu dùng"
+ },
+ {
+  "symbol": "VNM",
+  "organ_name": "Công ty Cổ phần Sữa Việt Nam",
+  "com_type_code": "CT",
+  "icb_level": 2,
+  "icb_code": "3500",
+  "icb_name": "Thực phẩm và đồ uống"
+ },
+ {
+  "symbol": "VNM",
+  "organ_name": "Công ty Cổ phần Sữa Việt Nam",
+  "com_type_code": "CT",
+  "icb_level": 3,
+  "icb_code": "3570",
+  "icb_name": "Sản xuất thực phẩm"
+ },
+ {
+  "symbol": "VNM",
+  "organ_name": "Công ty Cổ phần Sữa Việt Nam",
+  "com_type_code": "CT",
+  "icb_level": 4,
+  "icb_code": "3577",
+  "icb_name": "Thực phẩm"
+ },
+ {
+  "symbol": "XDC",
+  "organ_name": "Công ty Cổ phần Xây dựng Công trình Tân Cảng",
+  "com_type_code": "CT",
+  "icb_level": 1,
+  "icb_code": "2000",
+  "icb_name": "Công nghiệp"
+ },
+ {
+  "symbol": "XDC",
+  "organ_name": "Công ty Cổ phần Xây dựng Công trình Tân Cảng",
+  "com_type_code": "CT",
+  "icb_level": 2,
+  "icb_code": "2300",
+  "icb_name": "Xây dựng và Vật liệu"
+ },
+ {
+  "symbol": "XDC",
+  "organ_name": "Công ty Cổ phần Xây dựng Công trình Tân Cảng",
+  "com_type_code": "CT",
+  "icb_level": 3,
+  "icb_code": "2350",
+  "icb_name": "Xây dựng và Vật liệu"
+ },
+ {
+  "symbol": "XDC",
+  "organ_name": "Công ty Cổ phần Xây dựng Công trình Tân Cảng",
+  "com_type_code": "CT",
+  "icb_level": 4,
+  "icb_code": "2357",
+  "icb_name": "Xây dựng"
+ },
+ {
+  "symbol": "YTC",
+  "organ_name": "Công ty Cổ phần Xuất nhập khẩu Y tế Thành phố Hồ Chí Minh",
+  "com_type_code": "CT",
+  "icb_level": 1,
+  "icb_code": "4000",
+  "icb_name": "Dược phẩm và Y tế"
+ },
+ {
+  "symbol": "YTC",
+  "organ_name": "Công ty Cổ phần Xuất nhập khẩu Y tế Thành phố Hồ Chí Minh",
+  "com_type_code": "CT",
+  "icb_level": 2,
+  "icb_code": "4500",
+  "icb_name": "Y tế"
+ },
+ {
+  "symbol": "YTC",
+  "organ_name": "Công ty Cổ phần Xuất nhập khẩu Y tế Thành phố Hồ Chí Minh",
+  "com_type_code": "CT",
+  "icb_level": 3,
+  "icb_code": "4530",
+  "icb_name": "Thiết bị và Dịch vụ Y tế"
+ },
+ {
+  "symbol": "YTC",
+  "organ_name": "Công ty Cổ phần Xuất nhập khẩu Y tế Thành phố Hồ Chí Minh",
+  "com_type_code": "CT",
+  "icb_level": 4,
+  "icb_code": "4537",
+  "icb_name": "Dụng cụ y tế"
+ }
+]

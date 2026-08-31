@@ -552,7 +552,7 @@ export function StockChart({
           <p className="meta-item text-xs text-slate-400">
             Chuỗi giá{" "}
             <span className="font-semibold text-cyan-400">
-              {adjustmentStatus === "ADJUSTED"
+              {adjustmentStatus === "ADJUSTED" || adjustmentStatus === "PROVIDER_ADJUSTED"
                 ? "đã điều chỉnh sự kiện doanh nghiệp"
                 : "chưa điều chỉnh (RAW)"}
             </span>{" "}
@@ -693,7 +693,7 @@ export function StockChart({
         <svg
           ref={svgRef}
           role="img"
-          aria-label={`Biểu đồ giá dạng nến, ${bars.length} phiên, chuỗi ${adjustmentStatus === "ADJUSTED" ? "đã điều chỉnh" : "chưa điều chỉnh"
+          aria-label={`Biểu đồ giá dạng nến, ${bars.length} phiên, chuỗi ${adjustmentStatus === "ADJUSTED" || adjustmentStatus === "PROVIDER_ADJUSTED" ? "đã điều chỉnh" : "chưa điều chỉnh"
             }`}
           viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
           width="100%"

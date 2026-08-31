@@ -1,0 +1,92 @@
+[
+ {
+  "symbol": "YTC",
+  "exchange": "UPCOM",
+  "type": "STOCK",
+  "sid": 3561.0,
+  "organ_short_name": "XNK Y tế TP.HCM",
+  "organ_name": "Công ty Cổ phần Xuất nhập khẩu Y tế Thành phố Hồ Chí Minh",
+  "product_grp_id": "UPX",
+  "icb_code2": "4500"
+ },
+ {
+  "symbol": "XDC",
+  "exchange": "DELISTED",
+  "type": "STOCK",
+  "sid": 3550.0,
+  "organ_short_name": "Xây dựng Công trình Tân Cảng",
+  "organ_name": "Công ty Cổ phần Xây dựng Công trình Tân Cảng",
+  "product_grp_id": null,
+  "icb_code2": "2300"
+ },
+ {
+  "symbol": "VNM",
+  "exchange": "HSX",
+  "type": "STOCK",
+  "sid": 3475.0,
+  "organ_short_name": "VINAMILK",
+  "organ_name": "Công ty Cổ phần Sữa Việt Nam",
+  "product_grp_id": "STO",
+  "icb_code2": "3500"
+ },
+ {
+  "symbol": "VNH",
+  "exchange": "UPCOM",
+  "type": "STOCK",
+  "sid": 3472.0,
+  "organ_short_name": "Đầu tư Việt Việt Nhật",
+  "organ_name": "Công ty Cổ phần Đầu tư Việt Việt Nhật",
+  "product_grp_id": "UPX",
+  "icb_code2": "3500"
+ },
+ {
+  "symbol": "MBB",
+  "exchange": "HSX",
+  "type": "STOCK",
+  "sid": 2566.0,
+  "organ_short_name": "MBBank",
+  "organ_name": "Ngân hàng Thương mại Cổ phần Quân đội",
+  "product_grp_id": "STO",
+  "icb_code2": "8300"
+ },
+ {
+  "symbol": "HPG",
+  "exchange": "HSX",
+  "type": "STOCK",
+  "sid": 2351.0,
+  "organ_short_name": "Hòa Phát",
+  "organ_name": "Công ty Cổ phần Tập đoàn Hòa Phát",
+  "product_grp_id": "STO",
+  "icb_code2": "1700"
+ },
+ {
+  "symbol": "FUEVN50G",
+  "exchange": "HSX",
+  "type": "ETF",
+  "sid": 2164.0,
+  "organ_short_name": "QUỸ ETF VINACAPITAL VN50 GROWTH",
+  "organ_name": "QUỸ ETF VINACAPITAL VN50 GROWTH",
+  "product_grp_id": "STO",
+  "icb_code2": "8700"
+ },
+ {
+  "symbol": "ACV",
+  "exchange": "UPCOM",
+  "type": "STOCK",
+  "sid": 64.0,
+  "organ_short_name": "Cảng Hàng không VN",
+  "organ_name": "Tổng Công ty Cảng Hàng không Việt Nam - CTCP",
+  "product_grp_id": "UPX",
+  "icb_code2": "2700"
+ },
+ {
+  "symbol": "A32",
+  "exchange": "UPCOM",
+  "type": "STOCK",
+  "sid": 42.0,
+  "organ_short_name": "Công ty 32",
+  "organ_name": "Công ty Cổ phần 32",
+  "product_grp_id": "UPX",
+  "icb_code2": "3700"
+ }
+]

@@ -94,7 +94,7 @@ def test_rejects_insufficient_history_and_invalid_decimal():
         export_history.decimal_string("-1")
 
 
-def test_index_fetch_pads_the_provider_end_and_cuts_back(monkeypatch):
+def test_index_fetch_pads_the_end_and_clamps_both_ends_of_the_vci_response(monkeypatch):
     import sys, types
     seen = {}
 
@@ -109,19 +109,35 @@ def test_index_fetch_pads_the_provider_end_and_cuts_back(monkeypatch):
             return self
 
         def to_dict(self, _kind):
-            return [{"time": "2026-08-28 07:00:00", "close": 1300.5, "volume": 1},
+            return [{"time": "2026-08-20 07:00:00", "close": 1290.0, "volume": 1},
+                    {"time": "2026-08-28 07:00:00", "close": 1300.5, "volume": 1},
                     {"time": "2026-09-01 07:00:00", "close": 1301.0, "volume": 1}]
 
-    class _Index:
-        def ohlcv(self, start, end, interval, count, source):
+    class _Quote:
+        def __init__(self, symbol, source):
+            seen["source"] = source
+
+        def history(self, start, end, interval):
             seen["end"] = end
             return _Frame()
 
-    class _Market:
-        def index(self, _s):
-            return _Index()
-
-    monkeypatch.setitem(sys.modules, "vnstock", types.SimpleNamespace(Market=_Market))
+    monkeypatch.setitem(sys.modules, "vnstock", types.SimpleNamespace(Quote=_Quote))
     rows_ = export_history.fetch_index_rows("VNINDEX", "2026-08-24", "2026-08-30")
+    assert seen["source"] == "vci"
     assert seen["end"] == "2026-09-02"
+    # 08-20 (VCI pre-start buffer) and 09-01 (after end) both dropped
     assert [r["time"][:10] for r in rows_] == ["2026-08-28"]
+
+
+def test_incremental_index_merge_refuses_packages_from_another_upstream_source(tmp_path):
+    # FR-002 (ADR-0013): a KBS-era package is never extended with VCI rows -- re-fetch in full.
+    import json
+    index_rows = [{"time": "2026-08-21 00:00:00", "close": "1710.0", "volume": "1000"},
+                  {"time": "2026-08-24 00:00:00", "close": "1728.0", "volume": "1200"}]
+    records = export_history.index_records(index_rows, "VN_INDEX", "VNINDEX")
+    package = export_history.build_market_package([], records, "2026-08-21", "2026-08-24", "1.0.0")
+    stale = dict(package, upstreamSource="VNSTOCK_KBS")
+    (tmp_path / "market-overview.json").write_text(json.dumps(stale), encoding="utf-8")
+    assert export_history.load_existing_index_records(tmp_path, "2026-08-21") == []
+    (tmp_path / "market-overview.json").write_text(json.dumps(package), encoding="utf-8")
+    assert len(export_history.load_existing_index_records(tmp_path, "2026-08-21")) == 1

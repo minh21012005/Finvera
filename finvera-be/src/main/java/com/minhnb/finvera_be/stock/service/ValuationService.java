@@ -292,7 +292,8 @@ public class ValuationService {
     // TechnicalIndicatorService (T038): a date is conflicted only when more
     // than one source is simultaneously accepted-current for it AND
     // SourceReconciliationService's policy finds a material divergence.
-    private static final List<String> SOURCE_PREFERENCE = List.of("VNSTOCK_KBS", "VNSTOCK", "FINVERA_FIXTURE");
+    // ADR-0013 (Feature 021): VCI is the source of record; KBS still serves dates VCI has no bar for.
+    private static final List<String> SOURCE_PREFERENCE = List.of("VNSTOCK_VCI", "VNSTOCK_KBS", "VNSTOCK", "FINVERA_FIXTURE");
 
     private static List<EquityDailyBarEntity> dedupeByTradingDate(List<EquityDailyBarEntity> rows) {
         Map<LocalDate, EquityDailyBarEntity> byDate = new LinkedHashMap<>();

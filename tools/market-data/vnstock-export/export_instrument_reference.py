@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Any
 
 CONTRACT_VERSION = "vnstock-instrument-reference-v1"
-SOURCE = "VNSTOCK_KBS"
+SOURCE = "VNSTOCK_VCI"  # ADR-0013 (Feature 021)
 
 
 def canonical_json(value: dict[str, Any]) -> str:
@@ -37,11 +37,15 @@ def canonical_json(value: dict[str, Any]) -> str:
 def fetch_universe():
     from vnstock import Listing
 
-    frame = Listing(source="kbs").symbols_by_exchange()
+    frame = Listing(source="vci").symbols_by_exchange()
     required = {"symbol", "type", "exchange"}
     if not required.issubset(frame.columns):
         raise ValueError("Vnstock symbols_by_exchange schema is missing an expected column")
-    return frame[(frame["type"] == "stock") & (frame["exchange"].isin(["HOSE", "HNX", "UPCOM"]))]
+    # VCI labels: type upper-case STOCK; HOSE appears as HSX (mapped back to Finvera's venue name).
+    return frame[(frame["type"] == "STOCK") & (frame["exchange"].isin(list(VENUE_BY_PROVIDER)))]
+
+
+VENUE_BY_PROVIDER = {"HSX": "HOSE", "HNX": "HNX", "UPCOM": "UPCOM"}
 
 
 def build_records(frame, listed_from: str) -> list[dict[str, Any]]:
@@ -58,7 +62,7 @@ def build_records(frame, listed_from: str) -> list[dict[str, Any]]:
             "isin": None,
             "listedFrom": listed_from,
             "symbol": symbol,
-            "venue": str(row["exchange"]).upper(),
+            "venue": VENUE_BY_PROVIDER[str(row["exchange"]).upper()],
         }
         record["canonicalRecord"] = canonical_json({k: v for k, v in record.items() if k != "canonicalRecord"})
         records.append(record)
@@ -86,7 +90,7 @@ def main() -> None:
     args = parser.parse_args()
     listed_from = datetime.now().date().isoformat()
     records = build_records(fetch_universe(), listed_from)
-    package = build_package(records, "0.1.0")
+    package = build_package(records, "1.0.0")
     args.output.mkdir(parents=True, exist_ok=True)
     path = args.output / "instrument-reference.json"
     path.write_text(json.dumps(package, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

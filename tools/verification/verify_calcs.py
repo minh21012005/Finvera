@@ -274,6 +274,100 @@ def anchors_check():
             note("anchors", False, f"{r['n']} current fundamental_report rows still sourced from VNSTOCK_KBS (Q-57: mislabelled periods)")
         else:
             note("anchors", True, f"{r['n']} current fundamental_report rows from {r['source']}")
+    # shares identity: NET_PROFIT / EPS from the FY2025 VCI statements must land near the profile's shares
+    # (unit sanity for EPS and shares: a x1000 error in either shows up here at once; +/-10% allows
+    # minority interests and corporate actions after the fiscal year-end)
+    rows = q("""select i.symbol, p.shares_outstanding sh, np.value np, eps.value eps from equity_profile p join market_instrument i on i.id=p.instrument_id
+                join fundamental_report r on r.instrument_id=i.id and r.is_current and r.period_type='ANNUAL' and r.fiscal_year=2025 and r.source='VNSTOCK_VCI'
+                join fundamental_report_metric np on np.report_id=r.id and np.metric_code='NET_PROFIT' and np.applicability='DEFINED'
+                join fundamental_report_metric eps on eps.report_id=r.id and eps.metric_code='EPS' and eps.applicability='DEFINED' and eps.value <> 0
+                where p.effective_to is null and p.shares_outstanding > 0""")
+    ratios = [(r["symbol"], (f(r["np"]) / f(r["eps"])) / f(r["sh"])) for r in rows]
+    within = [sym for sym, x in ratios if 0.9 <= x <= 1.1]
+    worst = sorted(ratios, key=lambda t: abs(t[1] - 1), reverse=True)[:5]
+    note("anchors", len(ratios) > 0 and len(within) / len(ratios) >= 0.9,
+         f"shares identity: NET_PROFIT/EPS (FY2025, VCI) within +/-10% of profile shares for {len(within)}/{len(ratios)}; "
+         f"worst {[(sym, round(x, 2)) for sym, x in worst]}")
+
+
+# ---------------- sector coverage (Feature 020) ----------------
+def sector_coverage_check():
+    total = int(q("select count(*) n from equity_profile where effective_to is null and listing_status='LISTED'")[0]["n"])
+    rows = q("""select s.scheme, s.scheme_version, i.venue, count(*) n from equity_profile p join sector_reference s on s.id=p.sector_reference_id
+                join market_instrument i on i.id=p.instrument_id where p.effective_to is null and p.listing_status='LISTED'
+                group by 1,2,3 order by 1,2,3""")
+    schemes = sorted({(r["scheme"], r["scheme_version"]) for r in rows})
+    classified = sum(int(r["n"]) for r in rows)
+    by_venue = {}
+    for r in rows:
+        by_venue[r["venue"]] = by_venue.get(r["venue"], 0) + int(r["n"])
+    ok = total > 0 and classified / total >= 0.95 and len(schemes) == 1
+    note("sector", ok, f"{classified}/{total} LISTED profiles have a sector under {schemes}, by venue {by_venue} "
+                       f"(Feature 020 gate: >= 95% under one scheme)")
+
+
+# ---------------- provider cross-check: stored KBS closes vs VCI (independent provider) ----------------
+INDEX_PROVIDER_SYMBOLS = {"VN_INDEX": "VNINDEX", "HNX_INDEX": "HNXINDEX", "UPCOM_INDEX": "HNXUPCOMINDEX", "VN30": "VN30", "HNX30": "HNX30"}
+
+def vci_closes(provider_symbols, start, end, source="vci"):
+    """Closing prices from VCI through the exporter environment (vnstock 4.0.7); one call per symbol."""
+    script = (
+        "import json, sys, warnings\n"
+        "warnings.simplefilter('ignore')\n"
+        "from vnstock import Quote\n"
+        "out = {}\n"
+        "for s in sys.argv[3:]:\n"
+        "    try:\n"
+        "        df = Quote(symbol=s, source='vci').history(start=sys.argv[1], end=sys.argv[2], interval='1D')\n"
+        "        out[s] = {str(r['time'])[:10]: float(r['close']) for _, r in df.iterrows()}\n"
+        "    except BaseException as e:\n"
+        "        out[s] = {'error': type(e).__name__}\n"
+        "print('@@' + json.dumps(out))\n")
+    r = subprocess.run(["uv", "run", "--project", "../provider-poc", "python", "-c", script, start, end, source, *provider_symbols],
+                       cwd=r"D:\Finvera\tools\market-data\vnstock-export", capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+    for line in r.stdout.splitlines():
+        if line.startswith("@@"):
+            return json.loads(line[2:])
+    raise RuntimeError("VCI quote probe produced no result: " + r.stderr[-300:])
+
+def provider_crosscheck(symbols, days=10):
+    end = date.today()
+    start = end - timedelta(days=days)
+    # ADR-0013: the reference is always the OTHER provider than the one the stored bars come from,
+    # so this stays a genuine two-provider check before and after the VCI migration.
+    stored_sources = {r["source"] for r in q("select distinct source from equity_daily_bar where is_current")}
+    reference = "kbs" if "VNSTOCK_VCI" in stored_sources else "vci"
+    indices = {r["code"]: INDEX_PROVIDER_SYMBOLS.get(r["code"], r["code"]) for r in q("select code from market_index where active_to is null")}
+    closes = vci_closes(list(symbols) + list(indices.values()), start.isoformat(), end.isoformat(), reference)
+    for sym in symbols:
+        stored = {r["trading_date"]: f(r["close_price"]) for r in q(f"""select b.trading_date, b.close_price from equity_daily_bar b
+                  join market_instrument i on i.id=b.instrument_id where i.symbol='{sym}' and b.is_current and b.trading_date >= '{start}'""")}
+        got = closes.get(sym, {})
+        if not got or "error" in got:
+            note("provider", True, f"{sym}: {reference} quote unavailable ({got.get('error', 'empty') if got else 'empty'}) -- informational"); continue
+        common = sorted(set(stored) & set(got))
+        # exact match expected; providers can differ by tick-rounding of corporate-action adjustments
+        # (seen 2026-08: MSB 13,270 KBS vs 13,250 VCI on pre-ex-date sessions, 0.15%) -- those are
+        # conventions, not errors, so only relative differences above 0.5% count as mismatches.
+        diffs_all = [(d, stored[d], got[d] * 1000) for d in common if abs(stored[d] - got[d] * 1000) > 0.5]
+        bad = [(d, a, b) for d, a, b in diffs_all if abs(a - b) > 0.005 * max(abs(a), abs(b))]
+        rounding = len(diffs_all) - len(bad)
+        if len(common) < 3 and not bad:
+            note("provider", True, f"{sym}: only {len(common)} overlapping sessions (thinly traded) -- informational"); continue
+        note("provider", not bad, f"{sym}: close stored vs {reference} on {len(common)} sessions, {len(bad)} mismatches"
+             + (f" {bad[:3]}" if bad else "") + (f"; {rounding} adjustment-rounding diffs <=0.5%" if rounding else ""))
+    for code, psym in indices.items():
+        # the EOD fact is the CLOSED snapshot's latest revision; intraday UNKNOWN ticks are not closes
+        stored = {r["trading_date"]: f(r["index_level"]) for r in q(f"""select s.trading_date, s.index_level from index_snapshot s
+                  join market_index m on m.id=s.index_id where m.code='{code}' and s.trading_date >= '{start}' and s.session_state='CLOSED'
+                  and not exists (select 1 from index_snapshot n where n.supersedes_id = s.id)""")}
+        got = closes.get(psym, {})
+        if not got or "error" in got:
+            note("provider", True, f"index {code}: {reference} symbol {psym} unavailable -- informational"); continue
+        common = sorted(set(stored) & set(got))
+        bad = [(d, stored[d], got[d]) for d in common if abs(stored[d] - got[d]) > 0.02]
+        note("provider", not bad and len(common) >= 3, f"index {code}: level stored vs {reference} on {len(common)} sessions, {len(bad)} mismatches {bad[:3]}")
 
 
 # ---------------- run ----------------
@@ -298,8 +392,9 @@ for sym in symbols:
 
 breadth_check("2026-08-28")
 
-diffs = [r for r in REPORT if not r[1]]
 anchors_check()
+sector_coverage_check()
+provider_crosscheck(symbols)
 diffs = [r for r in REPORT if not r[1]]
 print(f"\nTOTAL checks={len(REPORT)} diffs={len(diffs)}")
 for d in diffs: print("  DIFF", d[0], d[2])

@@ -28,7 +28,7 @@ from typing import Any
 
 from export_fundamentals import CONTRACT_VERSION, canonical_json, period_bounds, output_filename
 
-TOOL_VERSION = "1.0.0"
+TOOL_VERSION = "1.1.0"  # 1.1.0: Feature 019 derived ratios (contract vci-derived-ratios-v1)
 SOURCE = "VNSTOCK_VCI"
 PAR_VALUE_VND = Decimal("10000")
 SIX = Decimal("0.000001")
@@ -43,6 +43,22 @@ RULE_MARGIN = "vci-margin-v1"
 RULE_DEBT_TO_EQUITY = "vci-debt-to-equity-v1"
 RULE_FCF = "vci-fcf-ocf-plus-capex-v1"
 RULE_EBITDA = "vci-ebitda-operating-profit-plus-da-v1"
+# Feature 019 (contract vci-derived-ratios-v1)
+RULE_CURRENT_RATIO = "vci-current-ratio-v1"
+RULE_QUICK_RATIO = "vci-quick-ratio-v1"
+RULE_CASH_RATIO = "vci-cash-ratio-v1"
+RULE_DEBT_TO_ASSETS = "vci-debt-to-assets-v1"
+RULE_LIAB_TO_EQUITY = "vci-liabilities-to-equity-v1"
+RULE_EQUITY_TO_ASSETS = "vci-equity-to-assets-v1"
+RULE_INTEREST_COVERAGE = "vci-interest-coverage-v1"
+RULE_ASSET_TURNOVER = "vci-asset-turnover-v1"
+RULE_INVENTORY_TURNOVER = "vci-inventory-turnover-v1"
+RULE_RECEIVABLES_TURNOVER = "vci-receivables-turnover-v1"
+RULE_ROCE = "vci-roce-v1"
+RULE_BALANCE_GROWTH = "vci-balance-growth-yoy-v1"
+RULE_NIM = "vci-nim-earning-assets-v1"
+RULE_CIR = "vci-cir-v1"
+RULE_LDR = "vci-ldr-v1"
 END_SUFFIX = "-end"   # average-balance denominators fall back to the period-end balance, disclosed
 
 COMPANY_TYPES = ("BANK", "INSURER", "BROKER", "NON_FINANCIAL")
@@ -102,6 +118,36 @@ INPUTS: dict[str, dict[str, tuple]] = {
         "parent_profit": (IS, "net_profit_loss_after_tax"), "total_assets": (BS, "total_assets"),
         "share_capital": (BS, "paid_in_capital"), "treasury": (BS, "treasury_shares"),
         "ocf": (CF, "net_cash_inflows_outflows_from_operating_activities"), "capex": (CF, "purchases_of_fixed_assets_and_other_long_term_assets"),
+    },
+}
+
+# Feature 019: statement lines the derived ratios read (contract vci-derived-ratios-v1).
+# A missing id simply means the ratio that needs it is absent for that company type/period.
+RATIO_INPUTS: dict[str, dict[str, tuple]] = {
+    "NON_FINANCIAL": {
+        "current_assets": (BS, "current_assets"), "current_liabilities": (BS, "current_liabilities"),
+        "inventory": (BS, "inventories_net"), "receivables": (BS, "trade_accounts_receivable"),
+        "liabilities": (BS, "liabilities"), "equity_total": (BS, "owners_equity"),
+        "pre_tax": (IS, "net_accounting_profit_loss_before_tax"), "interest_expense": (IS, "interest_expenses"),
+        "cogs": (IS, "cost_of_sales"),
+    },
+    "BANK": {
+        "liabilities": (BS, "total_liabilities"), "equity_total": (BS, "owners_equity"),
+        "net_interest_income": (IS, "net_interest_income"), "operating_income": (IS, "total_operating_income"),
+        "admin_expenses": (IS, "general_and_admin_expenses"),
+        "loans_gross": (BS, "loans_and_advances_to_customers"), "deposits": (BS, "deposits_from_customers"),
+        "earning_assets": (BS, ("sum", "balances_with_other_credit_institutions",
+                                "placements_with_and_loans_to_other_credit_institutions",
+                                "trading_securities_net", "investment_securities",
+                                "loans_and_advances_to_customers_net")),
+    },
+    "INSURER": {
+        "current_assets": (BS, "current_assets"), "current_liabilities": (BS, "current_liabilities"),
+        "inventory": (BS, "inventories"), "liabilities": (BS, "liabilities"), "equity_total": (BS, "owners_equity"),
+    },
+    "BROKER": {
+        "current_assets": (BS, "current_assets"), "current_liabilities": (BS, "current_liabilities"),
+        "liabilities": (BS, "liabilities"), "equity_total": (BS, "owners_equity"),
     },
 }
 
@@ -354,11 +400,185 @@ def build_metric_records(symbol: str, frames: Frames, period: str) -> list[dict[
             if op is not None and da is not None:
                 records.append(record("EBITDA", column, op + da, IS, company_type, RULE_EBITDA))
 
+    derive_ratios(records, frames, company_type, periods, quarter_columns, inputs, record, fact)
+
     for rec in records:
         rec["symbol"] = symbol.upper()
         rec["canonicalRecord"] = ""
         rec["canonicalRecord"] = canonical_json({k: v for k, v in rec.items() if k != "canonicalRecord"})
     return records
+
+
+def derive_ratios(records, frames, company_type, periods, quarter_columns, inputs, record, fact) -> None:
+    """Feature 019 (contract vci-derived-ratios-v1): ratio metrics derived from statement lines.
+    VCI expense lines are negative -- flows below take abs() where the contract says so. A ratio is
+    emitted only when every input resolves and denominators are positive: missing, never zero."""
+    rin = RATIO_INPUTS[company_type]
+
+    def get(name: str, column: str) -> Decimal | None:
+        spec = rin.get(name)
+        return None if spec is None else resolve(frames, *spec, column)
+
+    def flow(name: str, column: str, kind: str, use_fact: bool = False) -> Decimal | None:
+        """Annual value, or the TTM sum over 4 consecutive quarters; None on a broken window."""
+        source = (lambda c: fact(name, c)) if use_fact else (lambda c: get(name, c))
+        if kind == "ANNUAL":
+            return source(column)
+        win = window(quarter_columns, column, 4)
+        if not win:
+            return None
+        values = [source(c) for c in win]
+        return None if any(v is None for v in values) else sum(values, Decimal(0))
+
+    def avg_balance(name: str, column: str, kind: str) -> tuple[Decimal, str] | None:
+        """Average balance per the contract (2-point annual / 5-point quarterly), else the
+        period-end balance with the -end suffix; None when even the end balance is missing/<=0."""
+        end = get(name, column)
+        if end is None or end <= 0:
+            return None
+        if kind == "ANNUAL":
+            prior_col = str(parse_period(column)[1] - 1)
+            prior = get(name, prior_col)
+            if prior is not None and prior > 0:
+                return average([prior, end]), ""
+        else:
+            five = window(quarter_columns, column, 5)
+            if five:
+                balances = [get(name, c) for c in five]
+                if all(b is not None and b > 0 for b in balances):
+                    return average(balances), ""
+        return end, END_SUFFIX
+
+    def emit(code: str, column: str, value: Decimal, report: str, rule: str) -> None:
+        records.append(record(code, column, value, report, company_type, rule))
+
+    for column in periods:
+        kind = parse_period(column)[0]
+        current_assets = get("current_assets", column)
+        current_liabilities = get("current_liabilities", column)
+        liabilities = get("liabilities", column)
+        equity_total = get("equity_total", column)
+        assets = resolve(frames, *INPUTS[company_type]["total_assets"], column)
+
+        # liquidity (period-end)
+        if current_assets is not None and current_liabilities is not None and current_liabilities > 0:
+            emit("CURRENT_RATIO", column, current_assets / current_liabilities, BS, RULE_CURRENT_RATIO)
+            inventory = get("inventory", column)
+            if inventory is not None:
+                emit("QUICK_RATIO", column, (current_assets - inventory) / current_liabilities, BS, RULE_QUICK_RATIO)
+            cash = fact("CASH_AND_EQUIVALENTS", column)
+            if cash is not None:
+                emit("CASH_RATIO", column, cash / current_liabilities, BS, RULE_CASH_RATIO)
+
+        # leverage (period-end, percent)
+        debt = fact("TOTAL_DEBT", column)
+        if company_type in ("NON_FINANCIAL", "BROKER") and debt is not None and assets is not None and assets > 0:
+            emit("DEBT_TO_ASSETS", column, debt / assets * HUNDRED, BS, RULE_DEBT_TO_ASSETS)
+        if liabilities is not None and equity_total is not None and equity_total > 0:
+            emit("LIABILITIES_TO_EQUITY", column, liabilities / equity_total * HUNDRED, BS, RULE_LIAB_TO_EQUITY)
+        if equity_total is not None and assets is not None and assets > 0:
+            emit("EQUITY_TO_ASSETS", column, equity_total / assets * HUNDRED, BS, RULE_EQUITY_TO_ASSETS)
+
+        # growth (annual only, percent)
+        if kind == "ANNUAL":
+            prior_col = str(parse_period(column)[1] - 1)
+            for code, name in (("TOTAL_ASSETS_GROWTH_PERCENT", None), ("EQUITY_GROWTH_PERCENT", "equity_total")):
+                end = assets if name is None else equity_total
+                prior = (resolve(frames, *INPUTS[company_type]["total_assets"], prior_col) if name is None
+                         else get(name, prior_col))
+                if end is not None and prior is not None and prior > 0:
+                    emit(code, column, (end - prior) / prior * HUNDRED, BS, RULE_BALANCE_GROWTH)
+
+        # flow ratios (annual, or TTM over 4 quarters)
+        revenue_flow = flow("REVENUE", column, kind, use_fact=True)
+        if revenue_flow is not None and revenue_flow > 0:
+            asset_avg = avg_balance_total_assets(frames, company_type, column, kind, quarter_columns)
+            if asset_avg is not None:
+                value, suffix = asset_avg
+                emit("TOTAL_ASSET_TURNOVER", column, revenue_flow / value, IS, RULE_ASSET_TURNOVER + suffix)
+
+        if company_type == "NON_FINANCIAL":
+            pre_tax_flow = flow("pre_tax", column, kind)
+            interest_flow = flow("interest_expense", column, kind)
+            interest_abs = None if interest_flow is None else abs(interest_flow)
+            if pre_tax_flow is not None and interest_abs:
+                emit("INTEREST_COVERAGE", column, (pre_tax_flow + interest_abs) / interest_abs, IS, RULE_INTEREST_COVERAGE)
+                capital_avg = avg_capital_employed(frames, company_type, rin, column, kind, quarter_columns)
+                if capital_avg is not None:
+                    value, suffix = capital_avg
+                    emit("ROCE", column, (pre_tax_flow + interest_abs) / value * HUNDRED, IS, RULE_ROCE + suffix)
+            cogs_flow = flow("cogs", column, kind)
+            if cogs_flow is not None and cogs_flow != 0:
+                inv_avg = avg_balance("inventory", column, kind)
+                if inv_avg is not None:
+                    value, suffix = inv_avg
+                    emit("INVENTORY_TURNOVER", column, abs(cogs_flow) / value, IS, RULE_INVENTORY_TURNOVER + suffix)
+            if revenue_flow is not None and revenue_flow > 0:
+                rec_avg = avg_balance("receivables", column, kind)
+                if rec_avg is not None:
+                    value, suffix = rec_avg
+                    emit("RECEIVABLES_TURNOVER", column, revenue_flow / value, IS, RULE_RECEIVABLES_TURNOVER + suffix)
+
+        if company_type == "BANK":
+            nii_flow = flow("net_interest_income", column, kind)
+            # at least the customer-loans line must resolve for the earning-asset sum to mean anything
+            if nii_flow is not None and resolve(frames, BS, "loans_and_advances_to_customers_net", column) is not None:
+                ea_avg = avg_balance("earning_assets", column, kind)
+                if ea_avg is not None:
+                    value, suffix = ea_avg
+                    emit("NIM", column, nii_flow / value * HUNDRED, IS, RULE_NIM + suffix)
+            oi_flow = flow("operating_income", column, kind)
+            admin_flow = flow("admin_expenses", column, kind)
+            if oi_flow is not None and oi_flow > 0 and admin_flow is not None:
+                emit("COST_INCOME_RATIO", column, abs(admin_flow) / oi_flow * HUNDRED, IS, RULE_CIR)
+            loans = get("loans_gross", column)
+            deposits = get("deposits", column)
+            if loans is not None and deposits is not None and deposits > 0:
+                emit("LOAN_TO_DEPOSIT", column, loans / deposits * HUNDRED, BS, RULE_LDR)
+
+
+def avg_balance_total_assets(frames, company_type, column, kind, quarter_columns):
+    spec = INPUTS[company_type]["total_assets"]
+    end = resolve(frames, *spec, column)
+    if end is None or end <= 0:
+        return None
+    if kind == "ANNUAL":
+        prior = resolve(frames, *spec, str(parse_period(column)[1] - 1))
+        if prior is not None and prior > 0:
+            return average([prior, end]), ""
+    else:
+        five = window(quarter_columns, column, 5)
+        if five:
+            balances = [resolve(frames, *spec, c) for c in five]
+            if all(b is not None and b > 0 for b in balances):
+                return average(balances), ""
+    return end, END_SUFFIX
+
+
+def avg_capital_employed(frames, company_type, rin, column, kind, quarter_columns):
+    """avg(total_assets - current_liabilities) per the ROCE rule."""
+    def capital(col):
+        assets = resolve(frames, *INPUTS[company_type]["total_assets"], col)
+        cl = resolve(frames, *rin["current_liabilities"], col)
+        if assets is None or cl is None:
+            return None
+        value = assets - cl
+        return value if value > 0 else None
+
+    end = capital(column)
+    if end is None:
+        return None
+    if kind == "ANNUAL":
+        prior = capital(str(parse_period(column)[1] - 1))
+        if prior is not None:
+            return average([prior, end]), ""
+    else:
+        five = window(quarter_columns, column, 5)
+        if five:
+            balances = [capital(c) for c in five]
+            if all(b is not None for b in balances):
+                return average(balances), ""
+    return end, END_SUFFIX
 
 
 class NoStatementsAvailable(ValueError):

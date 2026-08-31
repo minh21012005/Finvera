@@ -56,9 +56,15 @@ public class StockImportConfiguration {
     @ConditionalOnProperty(name = "finvera.stock.import.daily-bar.package-path")
     ApplicationRunner stockDailyBarImport(
             @Value("${finvera.stock.import.daily-bar.package-path}") String packagePath,
-            StockHistoryImportPackageParser parser, StockHistoryImportService importer) {
-        return arguments -> importAll("daily-bar", packagePath, "daily-bars-*.json",
-                path -> importer.importPackage(parser.parse(path)));
+            @Value("${finvera.stock.daily-bars.primary-source:VNSTOCK_VCI}") String primarySource,
+            StockHistoryImportPackageParser parser, StockHistoryImportService importer,
+            com.minhnb.finvera_be.stock.service.DailyBarSourceRetirementService retirement) {
+        return arguments -> {
+            importAll("daily-bar", packagePath, "daily-bars-*.json",
+                    path -> importer.importPackage(parser.parse(path)));
+            // ADR-0013: retire non-primary bars wherever the primary source now covers the date.
+            retirement.retireAllExcept(primarySource);
+        };
     }
 
     @Bean

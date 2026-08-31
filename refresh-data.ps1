@@ -20,7 +20,7 @@
     Every import here is safe/idempotent (only adds missing rows or backfills gaps), so this is
     safe to run after a 3-day gap, a 7-day gap, or any length of time.
 
-    The sector-reference snapshot changes rarely, but is still imported on every refresh. This
+    The sector-reference package (VCI ICB level 3, Feature 020) is re-exported and imported on every refresh. This
     makes a freshly-created local database complete in one command and is idempotent when the
     classification package has not changed. All overrides here are applied to THIS PowerShell
     process only, from finvera-be\.env.refresh (flags only, no secrets) layered on top
@@ -148,16 +148,28 @@ function Get-LegacyLatestMarketOverviewPackage([string]$outputDir, [string]$star
 }
 
 function Get-SectorReferencePackage([string]$configuredPath, [string]$outputDir) {
+    # Feature 020 / ADR-0012: the sector scheme is VCI ICB level 3. The package step 1 just exported
+    # is the default; an explicit override is honoured only when it is itself a VCI package, so a
+    # stale pin to the retired KBS file cannot silently keep 820 UPCoM instruments without a sector.
+    $vci = Get-ChildItem -LiteralPath $outputDir -Filter "sector-reference-vci-*.json" -File -ErrorAction SilentlyContinue |
+        Sort-Object LastWriteTimeUtc -Descending |
+        Select-Object -First 1
     if (-not [string]::IsNullOrWhiteSpace($configuredPath) -and (Test-Path -LiteralPath $configuredPath)) {
+        if ((Split-Path -Leaf $configuredPath) -like "sector-reference-vci-*") { return $configuredPath }
+        if ($vci) {
+            Write-Warning "FINVERA_STOCK_IMPORT_SECTOR_REFERENCE_PACKAGE_PATH points to '$configuredPath' (retired KBS scheme); importing the VCI ICB package '$($vci.FullName)' instead. Remove the override from finvera-be\.env to silence this."
+            return $vci.FullName
+        }
         return $configuredPath
     }
+    if ($vci) { return $vci.FullName }
 
     $latest = Get-ChildItem -LiteralPath $outputDir -Filter "sector-reference-*.json" -File -ErrorAction SilentlyContinue |
         Sort-Object LastWriteTimeUtc -Descending |
         Select-Object -First 1
     if ($latest) { return $latest.FullName }
 
-    throw "Sector-reference package not found. Set FINVERA_STOCK_IMPORT_SECTOR_REFERENCE_PACKAGE_PATH in finvera-be\\.env or generate it with export_sector_reference.py before refresh."
+    throw "Sector-reference package not found. Set FINVERA_STOCK_IMPORT_SECTOR_REFERENCE_PACKAGE_PATH in finvera-be\\.env or generate it with export_sector_reference_vci.py before refresh."
 }
 
 function Invoke-BackendStage([string]$name, [string[]]$waitPatterns, [int]$timeoutSec) {
@@ -250,6 +262,9 @@ if (-not $SkipCrawl) {
     try {
         uv run --project ../provider-poc python export_instrument_reference.py
         Assert-NativeSuccess "Instrument-reference export"
+        # Feature 020 / ADR-0012: sector reference from VCI ICB level 3 (all exchanges, 3 calls).
+        uv run --project ../provider-poc python export_sector_reference_vci.py
+        Assert-NativeSuccess "Sector-reference (VCI ICB) export"
         $profileArgs = @("run", "--project", "../provider-poc", "python", "export_equity_profile.py")
         if ($FullRefresh) { $profileArgs += "--full-refresh" }
         & uv @profileArgs
@@ -318,7 +333,7 @@ Invoke-BackendStage -Name "Buoc 5/7: Nap lich su chi so thi truong" `
 
 Set-StageFlags @("FINVERA_STOCK_IMPORT_DAILY_BAR_ENABLED", "FINVERA_STOCK_IMPORT_FUNDAMENTALS_ENABLED")
 Invoke-BackendStage -Name "Buoc 6/7: Nap gia + bao cao tai chinh moi" `
-    -WaitPatterns @("stock_import dataset=daily-bar total=", "stock_import dataset=fundamentals total=", "fundamental_source_retirement source=") `
+    -WaitPatterns @("stock_import dataset=daily-bar total=", "stock_import dataset=fundamentals total=", "fundamental_source_retirement source=", "daily_bar_source_retirement primary=") `
     -TimeoutSec 7200
 
 Set-StageFlags $WarmupStageFlags

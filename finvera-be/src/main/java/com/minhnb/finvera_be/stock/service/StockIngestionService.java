@@ -314,7 +314,10 @@ public class StockIngestionService {
     }
 
     private static Fact toFact(EquityDailyBarEntity bar) {
+        // A PROVIDER_ADJUSTED bar behaves like RAW here: adjustment rewrites history, while this
+        // fact carries the latest session's as-traded close for same-session comparison (ADR-0013).
         AdjustmentStatus status = "RAW".equals(bar.getAdjustmentStatus())
+                || "PROVIDER_ADJUSTED".equals(bar.getAdjustmentStatus())
                 ? AdjustmentStatus.RAW
                 : AdjustmentStatus.UNKNOWN;
         // Q-25: the policy's reference slot is the official reference price (null for

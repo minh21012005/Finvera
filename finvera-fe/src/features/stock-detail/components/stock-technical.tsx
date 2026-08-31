@@ -18,7 +18,7 @@ export function StockTechnical({ technical }: { technical: StockTechnicalData })
         </span>
       </header>
       <p className="meta-item">
-        Tính trên chuỗi giá {technical.adjustmentStatus === "ADJUSTED" ? "đã điều chỉnh sự kiện doanh nghiệp" : "chưa điều chỉnh (RAW)"} ·
+        Tính trên chuỗi giá {technical.adjustmentStatus === "ADJUSTED" || technical.adjustmentStatus === "PROVIDER_ADJUSTED" ? "đã điều chỉnh sự kiện doanh nghiệp" : "chưa điều chỉnh (RAW)"} ·
         Phiên bản quy tắc {technical.ruleVersion}
       </p>
 

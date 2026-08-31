@@ -14,7 +14,10 @@ public final class StockTypes {
     }
 
     public enum AdjustmentStatus {
-        ADJUSTED, RAW, NOT_APPLICABLE, UNKNOWN
+        // PROVIDER_ADJUSTED (ADR-0013): the provider serves one corporate-action-adjusted series
+        // with no separate raw close/factor pair -- distinct from ADJUSTED, whose bars carry their
+        // own adjusted_close + adjustment_factor next to the raw prices.
+        ADJUSTED, PROVIDER_ADJUSTED, RAW, NOT_APPLICABLE, UNKNOWN
     }
 
     public enum MetricApplicability {
