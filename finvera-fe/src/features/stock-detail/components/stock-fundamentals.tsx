@@ -1,6 +1,7 @@
 import type { StockFundamentals as StockFundamentalsData } from "../api/stock-detail";
 import { dataStatusLabel, formatFundamentalValue, fundamentalMetricLabel } from "../format/stock-format";
 
+import { ApplicabilityNote, ReasonCodes } from "../../../shared/components/reason-codes";
 /** Feature 009 FR-002: catalog codes grouped by category; unknown codes fall into "Khác". */
 const METRIC_GROUPS: ReadonlyArray<{ title: string; codes: ReadonlySet<string> }> = [
   { title: "Kết quả kinh doanh", codes: new Set(["REVENUE", "REVENUE_TTM", "REVENUE_GROWTH_PERCENT", "GROSS_PROFIT", "OPERATING_PROFIT", "NET_PROFIT", "NET_PROFIT_TTM", "EBITDA", "EBITDA_TTM", "EPS", "EPS_TTM", "TRAILING_EPS", "EPS_GROWTH_PERCENT"]) },
@@ -52,7 +53,7 @@ export function StockFundamentals({ fundamentals }: { fundamentals: StockFundame
 
       {fundamentals.meta.reasonCodes.length > 0 && (
         <p className="reason-codes" role="note">
-          Ghi chú: {fundamentals.meta.reasonCodes.join(", ")}
+          <ReasonCodes prefix="Ghi chú: " codes={fundamentals.meta.reasonCodes} />
         </p>
       )}
 
@@ -64,11 +65,9 @@ export function StockFundamentals({ fundamentals }: { fundamentals: StockFundame
               <li key={metric.metricCode} className={`fundamental-card ${metric.applicability.toLowerCase()}`}>
                 <p className="metric-name">{fundamentalMetricLabel(metric.metricCode)}</p>
                 <p className="metric-value">
-                  {metric.applicability === "NOT_APPLICABLE"
-                    ? `Không áp dụng${metric.reasonCode ? ` (${metric.reasonCode})` : ""}`
-                    : metric.applicability === "MISSING"
-                    ? `Không có dữ liệu${metric.reasonCode ? ` (${metric.reasonCode})` : ""}`
-                    : formatFundamentalValue(metric.value, metric.unit)}
+                  {metric.applicability === "DEFINED"
+                    ? formatFundamentalValue(metric.value, metric.unit)
+                    : <ApplicabilityNote applicability={metric.applicability} reasonCode={metric.reasonCode} />}
                 </p>
               </li>
             ))}

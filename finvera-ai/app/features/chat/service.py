@@ -213,6 +213,18 @@ def extract_structured_claims_from_text(text: str) -> List[RawStructuredClaim]:
     return claims
 
 
+# Contract reason-code-presentation-v1 (specs/014-reason-code-presentation): the five codes the
+# valuation tool emits when it withholds, worded exactly as the frontend dictionary words them.
+VALUATION_WITHHOLD_LABELS: Dict[str, str] = {
+    "NO_COMPARISON_BASIS": "Chưa đủ cơ sở so sánh (lịch sử riêng lẫn ngành)",
+    "CORE_METRIC_UNAVAILABLE": "Không có chỉ số lõi (P/E và P/B) khả dụng",
+    "INSUFFICIENT_METRIC_COVERAGE": "Độ phủ chỉ số dưới ngưỡng 50 %",
+    "PRICE_UNAVAILABLE": "Chưa có giá được chấp nhận",
+    "FUNDAMENTALS_UNAVAILABLE": "Chưa có báo cáo tài chính được ghi nhận",
+    "NO_VALUATION": "Chưa có đánh giá định giá",
+}
+
+
 def strip_synthesis_tags(text: str) -> str:
     """Removes the inline citation tags while KEEPING the model's line structure
     (markdown headings, bullets, paragraphs) -- collapsing every whitespace run to one
@@ -411,7 +423,9 @@ class ChatOrchestrationService:
                     part = f"Định giá {sym} được phân loại ở mức {cls}"
                     raw_claims.append(RawStructuredClaim(claimText=f"Phân loại {cls}", sequenceNo=seq, fieldPath="classification", claimedValue=str(cls)))
                 else:
-                    reasons = ", ".join(str(r) for r in (data.get("reasonCodes") or [])) or "chưa đủ dữ liệu"
+                    # Contract reason-code-presentation-v1 (specs/014): wording, never a bare identifier;
+                    # an unknown code is still shown as itself.
+                    reasons = "; ".join(VALUATION_WITHHOLD_LABELS.get(str(r), str(r)) for r in (data.get("reasonCodes") or [])) or "chưa đủ dữ liệu"
                     part = f"Định giá {sym} hiện chưa được công bố ({reasons})"
                 if pe:
                     part += f"; P/E là {pe}"

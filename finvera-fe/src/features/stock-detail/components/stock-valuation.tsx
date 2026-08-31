@@ -3,6 +3,8 @@ import { dataStatusLabel, formatDecimal, valuationLabel, valuationMetricLabel } 
 import { buildValuationEvidence } from "../format/explain-evidence";
 import { ExplainButton } from "../../analyst/components/ExplainButton";
 
+import { ApplicabilityNote, ReasonCodes } from "../../../shared/components/reason-codes";
+import { reasonCodeLabel } from "../../../shared/format/reason-codes";
 const DISCLAIMER_COPY: Record<string, string> = {
   QUANTITATIVE_DECISION_SUPPORT:
     "Định giá tương đối là công cụ hỗ trợ ra quyết định định lượng, không phải dự báo giá hay khuyến nghị đầu tư.",
@@ -74,11 +76,9 @@ export function StockValuation({ valuation, symbol }: { valuation: StockValuatio
               <li key={m.metricCode} className={`valuation-metric-item ${m.applicability.toLowerCase()}`}>
                 <p className="metric-name">{valuationMetricLabel(m.metricCode)}</p>
                 <p className="metric-value">
-                  {m.applicability === "NOT_APPLICABLE"
-                    ? `Không áp dụng${m.reasonCode ? ` (${m.reasonCode})` : ""}`
-                    : m.applicability === "MISSING"
-                    ? `Không có dữ liệu${m.reasonCode ? ` (${m.reasonCode})` : ""}`
-                    : formatDecimal(m.value)}
+                  {m.applicability === "DEFINED"
+                    ? formatDecimal(m.value)
+                    : <ApplicabilityNote applicability={m.applicability} reasonCode={m.reasonCode} />}
                 </p>
                 {m.ownHistoryPercentile && (
                   <p className="percentile-label">
@@ -98,15 +98,13 @@ export function StockValuation({ valuation, symbol }: { valuation: StockValuatio
         <div className="withheld-notice" role="status">
           <p className="withheld-title">Định giá tạm thời chưa thể công bố</p>
           <p className="reason-codes">
-            Lý do: {valuation.meta.reasonCodes.length > 0
-              ? valuation.meta.reasonCodes.map(r => r === "NO_COMPARISON_BASIS" ? "Chưa đủ cơ sở so sánh (NO_COMPARISON_BASIS)" : r).join(", ")
-              : "Dữ liệu chưa hoàn thiện"}
+            <ReasonCodes prefix="Lý do: " codes={valuation.meta.reasonCodes} />
           </p>
         </div>
       )}
 
       <p className="disclaimer" role="note">
-        {DISCLAIMER_COPY[valuation.disclaimerCode] ?? valuation.disclaimerCode}
+        {DISCLAIMER_COPY[valuation.disclaimerCode] ?? reasonCodeLabel(valuation.disclaimerCode)}
       </p>
     </section>
   );

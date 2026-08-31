@@ -79,7 +79,8 @@ describe("HoldingsTable Component", () => {
       />,
     );
     const status = screen.getByTestId("portfolio-data-status");
-    expect(status).toHaveTextContent("PARTIAL");
+    expect(status).toHaveTextContent("Một phần");
+    expect(status).not.toHaveTextContent("PARTIAL");
     expect(status).toHaveTextContent(/Thiếu giá/);
     expect(screen.getByText("Chưa có")).toBeInTheDocument();
   });

@@ -263,3 +263,28 @@ def test_strip_synthesis_tags_keeps_markdown_line_structure():
         "P/E là 101,05.",
     ]
     assert "[T" not in clean
+
+
+def test_offline_valuation_withheld_sentence_words_reason_codes():
+    """
+    Feature 014 FR-007 (contract reason-code-presentation-v1): the offline sentence explains a
+    withheld valuation in words; a code the map does not know is still shown, as itself.
+    """
+    from app.features.orchestration.allowlist import ToolName
+    from app.features.orchestration.dispatch import DispatchedToolCall
+
+    mock_client = AsyncMock(spec=BackendToolClient)
+    service = ChatOrchestrationService(dispatcher=OrchestrationDispatcher(tool_client=mock_client))
+    call = DispatchedToolCall(
+        sequence_no=1, tool_name=ToolName.VALUATION, arguments={"symbol": "NBW"}, status="SUCCEEDED",
+        response_data={"symbol": "NBW", "classification": None, "peRatio": None,
+                       "reasonCodes": ["NO_COMPARISON_BASIS", "SOME_FUTURE_CODE"]},
+    )
+
+    answer_parts, raw_claims, _ = service._offline_synthesize([call])
+
+    sentence = " ".join(answer_parts)
+    assert "Chưa đủ cơ sở so sánh (lịch sử riêng lẫn ngành)" in sentence
+    assert "SOME_FUTURE_CODE" in sentence            # unknown code never hidden
+    assert "NO_COMPARISON_BASIS" not in sentence      # known code never shown raw
+    assert raw_claims == []                           # nothing fabricated for a withheld valuation

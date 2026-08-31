@@ -9,6 +9,8 @@ import {
 import { navigate } from "../../../router";
 import { RotateCw, Plus } from "lucide-react";
 
+import { ReasonCodes } from "../../../shared/components/reason-codes";
+import { dataStatusLabel } from "../../../shared/format/reason-codes";
 export function PortfolioList() {
   const [portfolios, setPortfolios] = useState<PortfolioSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -206,8 +208,8 @@ export function PortfolioList() {
                       <strong style={{ fontSize: "1.1rem" }}>{Number(portfolio.totalValue).toLocaleString("vi-VN")} đ</strong>
                       {portfolio.dataStatus && portfolio.dataStatus !== "CURRENT" && (
                         <span role="status" style={{ display: "block", fontSize: "0.75rem", color: "var(--text-secondary)" }}>
-                          ⚠ {portfolio.dataStatus}
-                          {portfolio.reasonCodes?.includes("POSITION_PRICE_UNAVAILABLE") ? " — thiếu giá một số mã, chưa tính vào tổng" : ""}
+                          ⚠ {dataStatusLabel(portfolio.dataStatus)}
+                          {portfolio.reasonCodes && portfolio.reasonCodes.length > 0 ? <> — <ReasonCodes codes={portfolio.reasonCodes} /></> : null}
                         </span>
                       )}
                     </div>

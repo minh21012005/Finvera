@@ -1,5 +1,6 @@
 import type { PortfolioDataStatus, Position } from "../api/portfolio";
 
+import { dataStatusLabel, describeReasonCodes } from "../../../shared/format/reason-codes";
 interface HoldingsTableProps {
   positions: Position[];
   cashBalance: string;
@@ -12,9 +13,8 @@ interface HoldingsTableProps {
 function describePortfolioStatus(status: PortfolioDataStatus | undefined, reasonCodes: string[] = []): string | null {
   switch (status) {
     case "PARTIAL":
-      return reasonCodes.includes("POSITION_PRICE_UNAVAILABLE")
-        ? "Thiếu giá: ít nhất một mã chưa có giá được chấp nhận — tổng dưới đây chưa bao gồm mã đó"
-        : "Dữ liệu chưa đầy đủ";
+      // Every reason the API gives, worded (contract reason-code-presentation-v1).
+      return describeReasonCodes(reasonCodes, "Dữ liệu chưa đầy đủ");
     case "DELAYED":
       return "Giá trễ 1 phiên";
     case "STALE":
@@ -57,7 +57,7 @@ export function HoldingsTable({ positions, cashBalance, totalValue, dataStatus, 
           <strong style={{ fontSize: "1.25rem" }}>{Number(totalValue).toLocaleString("vi-VN")} đ</strong>
           {statusNote && (
             <span role="status" data-testid="portfolio-data-status" style={{ display: "block", fontSize: "0.78rem", color: "var(--text-secondary)", marginTop: "4px" }}>
-              ⚠ {dataStatus}: {statusNote}
+              ⚠ {dataStatusLabel(dataStatus ?? "")}: {statusNote}
             </span>
           )}
         </div>

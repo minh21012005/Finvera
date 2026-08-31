@@ -69,7 +69,7 @@ describe("stock signal risk-factor breakdown", () => {
       },
     ];
     render(<StockSignals symbol="HPG" signals={signalsResponse(baseSignal(factors, { riskScore: 20, riskLevel: "LOW" }))} />);
-    expect(screen.getByText(/REGIME_UNAVAILABLE/)).toBeVisible();
+    expect(screen.getByTitle("REGIME_UNAVAILABLE")).toHaveTextContent(/Chưa có đánh giá trạng thái thị trường/);
     expect(screen.getByText(/Rủi ro thấp/)).toBeVisible();
     expect(screen.getByText(/\(20\/100\)/)).toBeVisible();
   });
@@ -107,7 +107,7 @@ describe("stock signal risk-factor breakdown", () => {
     expect(screen.getByText(/Chiều: Mua \(LONG\)/)).toBeVisible();
     expect(screen.getByText(/Vùng vào lệnh/)).toBeVisible();
     // The overall risk score/level is explicitly withheld, not fabricated as zero.
-    expect(screen.getByText(/INSUFFICIENT_RISK_FACTORS/)).toBeVisible();
+    expect(screen.getByTitle("INSUFFICIENT_RISK_FACTORS")).toHaveTextContent(/Chưa đủ yếu tố rủi ro/);
     expect(screen.getAllByText(/Chưa xác định/).length).toBeGreaterThan(0);
   });
 

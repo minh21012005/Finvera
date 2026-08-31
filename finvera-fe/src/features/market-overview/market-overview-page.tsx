@@ -7,6 +7,7 @@ import { formatAsOf, formatDate } from "./format/market-format";
 import { SymbolSearch } from "../stock-detail/components/symbol-search";
 import { navigate } from "../../router";
 
+import { dataStatusLabel as statusLabel } from "../../shared/format/reason-codes";
 type LoadState =
   | { kind: "loading" }
   | { kind: "ready"; overview: MarketOverview }
@@ -116,6 +117,3 @@ function errorMessage(status?: number): string {
   return "Không thể tải tổng quan thị trường lúc này. Không có dữ liệu nào được thay thế bằng giá trị ước lượng.";
 }
 
-function statusLabel(status: MarketOverview["dataStatus"]): string {
-  return ({ CURRENT: "Hiện tại", DELAYED: "Chậm", STALE: "Cũ", PARTIAL: "Một phần", UNAVAILABLE: "Không có dữ liệu" })[status];
-}

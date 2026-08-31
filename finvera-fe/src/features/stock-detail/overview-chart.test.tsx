@@ -128,7 +128,7 @@ describe("stock overview card", () => {
         )}
       />,
     );
-    expect(screen.getByText(/REFERENCE_PRICE_UNAVAILABLE/)).toBeVisible();
+    expect(screen.getByTitle("REFERENCE_PRICE_UNAVAILABLE")).toHaveTextContent(/Thiếu giá tham chiếu/);
     expect(screen.queryByText("0 VND")).not.toBeInTheDocument();
   });
 

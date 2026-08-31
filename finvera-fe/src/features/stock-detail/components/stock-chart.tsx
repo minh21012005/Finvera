@@ -12,6 +12,7 @@ import {
   MoveHorizontal,
 } from "lucide-react";
 
+import { ReasonCodes } from "../../../shared/components/reason-codes";
 // SVG Canvas Geometry - TradingView / SSI / TCBS Pro Standard
 const WIDTH = 1000;
 const HEIGHT = 350;
@@ -361,7 +362,7 @@ export function StockChart({
       <section aria-labelledby="stock-chart-heading" className="stock-chart-card">
         <h2 id="stock-chart-heading">Biểu đồ giá</h2>
         <p role="status">
-          Không có dữ liệu biểu đồ{meta.reasonCodes.length > 0 ? `: ${meta.reasonCodes.join(", ")}` : ""}
+          Không có dữ liệu biểu đồ<ReasonCodes prefix=": " codes={meta.reasonCodes} fallback={null} />
         </p>
       </section>
     );

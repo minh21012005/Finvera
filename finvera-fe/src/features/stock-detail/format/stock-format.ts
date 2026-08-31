@@ -10,6 +10,7 @@ import type {
 
 export { formatDecimal, formatVnd, formatVolume, formatAsOf, formatDate } from "../../market-overview/format/market-format";
 import { formatDecimal } from "../../market-overview/format/market-format";
+import { applicabilityNote, dataStatusLabel as sharedDataStatusLabel } from "../../../shared/format/reason-codes";
 
 export function formatPercent(value: string | null): string {
   if (value === null) return "Không có dữ liệu";
@@ -31,8 +32,9 @@ export function directionLabel(direction: Direction): { icon: string; label: str
   }
 }
 
+/** Contract reason-code-presentation-v1 P-5 (shared dictionary, raw value as fallback). */
 export function dataStatusLabel(status: DataStatus): string {
-  return { CURRENT: "Hiện tại", DELAYED: "Chậm", STALE: "Cũ", PARTIAL: "Một phần", UNAVAILABLE: "Không có dữ liệu" }[status];
+  return sharedDataStatusLabel(status);
 }
 
 export function sessionStateLabel(state: SessionState): string {
@@ -49,9 +51,9 @@ export function sessionStateLabel(state: SessionState): string {
   );
 }
 
+/** Contract reason-code-presentation-v1 P-4: "Không áp dụng — <why>" / "Không có dữ liệu — <why>". */
 export function applicabilityReasonLabel(applicability: Applicability, reasonCode: string | null): string | null {
-  if (applicability === "DEFINED") return null;
-  return reasonCode ?? (applicability === "MISSING" ? "MISSING" : "NOT_APPLICABLE");
+  return applicabilityNote(applicability, reasonCode);
 }
 
 const INDICATOR_LABELS: Record<IndicatorCode, string> = {

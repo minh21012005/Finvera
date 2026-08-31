@@ -1,7 +1,9 @@
-import type { CalculationBasis, DataStatus, MarketRegime } from "../api/market-overview";
+import type { CalculationBasis, MarketRegime } from "../api/market-overview";
 import { formatAsOf } from "../format/market-format";
 import { Activity } from "lucide-react";
 
+import { ReasonCode, ReasonCodes } from "../../../shared/components/reason-codes";
+import { dataStatusLabel as statusLabel } from "../../../shared/format/reason-codes";
 /** Displays the backend's deterministic regime result; it never calculates a market signal in the browser. */
 export function RegimeOverview({ regime }: { regime: MarketRegime }) {
   const canPresentAssessment = regime.label !== null && regime.score !== null && regime.confidence !== null;
@@ -69,13 +71,13 @@ export function RegimeOverview({ regime }: { regime: MarketRegime }) {
           </>
         ) : (
           <div className="unavailable-msg">
-            <p role="status">Không công bố đánh giá regime: {regime.reasonCodes.join(", ") || "REGIME_UNAVAILABLE"}</p>
+            <p role="status">Không công bố đánh giá regime: <ReasonCodes codes={regime.reasonCodes.length > 0 ? regime.reasonCodes : ["REGIME_UNAVAILABLE"]} /></p>
           </div>
         )}
 
         {canPresentAssessment && regime.reasonCodes.length > 0 && (
           <div className="unavailable-msg" style={{ margin: "12px 0 0 0" }}>
-            <p role="status">Lưu ý chất lượng: {regime.reasonCodes.join(", ")}</p>
+            <p role="status"><ReasonCodes prefix="Lưu ý chất lượng: " codes={regime.reasonCodes} /></p>
           </div>
         )}
       </div>
@@ -85,7 +87,7 @@ export function RegimeOverview({ regime }: { regime: MarketRegime }) {
           Phiên bản quy tắc: {regime.ruleVersion} · Basis: {regime.assessmentBasis ?? "N/A"} · Cập nhật: {formatAsOf(regime.asOf)} · Nguồn: {regime.source.provider}
         </p>
         <p style={{ margin: "0", color: "var(--text-muted)" }}>
-          <small>{regime.disclaimerCode}</small>
+          <small><ReasonCode code={regime.disclaimerCode} /></small>
         </p>
       </div>
     </section>
@@ -153,9 +155,6 @@ function FactorList({ regime }: { regime: MarketRegime }) {
   );
 }
 
-function statusLabel(status: DataStatus): string {
-  return ({ CURRENT: "Hiện tại", DELAYED: "Chậm", STALE: "Cũ", PARTIAL: "Một phần", UNAVAILABLE: "Không có dữ liệu" })[status];
-}
 
 function basisCopy(basis: CalculationBasis | null): { label: string; description: string } {
   if (basis === "LIVE") {

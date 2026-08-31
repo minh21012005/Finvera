@@ -53,7 +53,7 @@ describe("explain evidence for valuation (Q-43)", () => {
     expect(byCode.COMPARISON_BASIS).toContain("750 phiên");
     expect(byCode.PB).toContain("phân vị lịch sử");
     expect(byCode.PB).toContain("trọng số");
-    expect(byCode.PE_NOT_APPLICABLE).toContain("NEGATIVE_OR_ZERO_EPS");
+    expect(byCode.PE_NOT_APPLICABLE).toContain("EPS âm hoặc bằng 0");
     expect(byCode.DIVIDEND_YIELD).toContain("không tính điểm");
     expect(byCode.VALUATION_NOTES).toContain("thu hẹp");
     expect(byCode.EV_EBITDA).toBeUndefined();               // missing data is not evidence

@@ -3,6 +3,7 @@ import type { StockValuation } from "../api/stock-detail";
 import type { Signal } from "../api/stock-signals";
 import { formatDecimal, valuationLabel, valuationMetricLabel } from "./stock-format";
 import { directionLabel, riskFactorLabel, riskLevelDisplay, strategyLabel } from "./signal-format";
+import { reasonCodeLabel } from "../../../shared/format/reason-codes";
 
 /**
  * Evidence handed to the AI "explain" endpoint (Feature 007 FR-006). The AI may only
@@ -12,13 +13,6 @@ import { directionLabel, riskFactorLabel, riskLevelDisplay, strategyLabel } from
  * sent only PE/PB/dividend yield and the model rightly answered that it had not been given
  * the classification).
  */
-const VALUATION_NOTE_COPY: Record<string, string> = {
-  REDUCED_METRIC_SET: "Bộ chỉ số bị thu hẹp: một chỉ số lõi (P/E hoặc P/B) không áp dụng, kết luận dựa trên chỉ số lõi còn lại",
-  HISTORY_SHARES_OUTSTANDING_HELD_CURRENT: "Lịch sử riêng được tính với số cổ phiếu lưu hành hiện tại",
-  SECTOR_BASIS_INSUFFICIENT: "Cơ sở ngành không đủ 8 mã nên không dùng",
-  HISTORY_BASIS_INSUFFICIENT: "Lịch sử riêng chưa đủ 500 phiên nên không dùng",
-};
-
 export function buildValuationEvidence(valuation: StockValuation): EvidenceFactor[] {
   if (!valuation.published || valuation.classification === null) {
     return [];
@@ -62,14 +56,13 @@ export function buildValuationEvidence(valuation: StockValuation): EvidenceFacto
     } else if (m.applicability === "NOT_APPLICABLE") {
       factors.push({
         factorCode: `${m.metricCode}_NOT_APPLICABLE`,
-        description: `${label} không áp dụng cho công ty này${m.reasonCode ? ` (${m.reasonCode})` : ""}`,
+        description: `${label} không áp dụng cho công ty này${m.reasonCode ? ` (${reasonCodeLabel(m.reasonCode)})` : ""}`,
       });
     }
   }
 
-  const notes = valuation.meta.reasonCodes
-    .map((code) => VALUATION_NOTE_COPY[code])
-    .filter((copy): copy is string => Boolean(copy));
+  // Every engine note is handed over (contract reason-code-presentation-v1 P-2: never dropped).
+  const notes = valuation.meta.reasonCodes.map(reasonCodeLabel);
   if (notes.length > 0) {
     factors.push({ factorCode: "VALUATION_NOTES", description: `Ghi chú của bộ tính: ${notes.join("; ")}` });
   }

@@ -28,7 +28,7 @@ describe("BreadthOverview", () => {
       eligible: 1204, reasonCodes: ["MISSING_REFERENCE_PRICE"] }} />);
 
     expect(screen.getByRole("status")).toHaveTextContent(/3 mã chưa phân loại/i);
-    expect(screen.getByText(/MISSING_REFERENCE_PRICE/)).toBeVisible();
+    expect(screen.getByTitle("MISSING_REFERENCE_PRICE")).toHaveTextContent(/Thiếu giá đóng cửa phiên trước/);
     expect(screen.getByLabelText(/Độ rộng thị trường: Một phần/i)).toBeVisible();
   });
 

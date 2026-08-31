@@ -11,6 +11,7 @@ import {
   sessionStateLabel,
 } from "../format/stock-format";
 
+import { ReasonCode, ReasonCodes } from "../../../shared/components/reason-codes";
 export function StockOverview({ overview }: { overview: StockOverviewData }) {
   const { profile, price, session, meta } = overview;
   const direction = directionLabel(price.direction);
@@ -35,7 +36,7 @@ export function StockOverview({ overview }: { overview: StockOverviewData }) {
 
       {changeUnavailable ? (
         <p role="status" className="unavailable-msg">
-          Thay đổi giá: Không có dữ liệu{price.changeBasisReason ? ` (${price.changeBasisReason})` : ""}
+          Thay đổi giá: Không có dữ liệu{price.changeBasisReason ? <> — <ReasonCode code={price.changeBasisReason} /></> : null}
         </p>
       ) : (
         <p className={`direction-badge ${direction.className}`} aria-label={`${direction.label}: ${formatDecimal(price.absoluteChange)} đồng, ${formatPercent(price.percentageChange)}`}>
@@ -89,7 +90,7 @@ export function StockOverview({ overview }: { overview: StockOverviewData }) {
 
       {meta.reasonCodes.length > 0 && (
         <p className="reason-codes" role="note">
-          Ghi chú: {meta.reasonCodes.join(", ")}
+          <ReasonCodes prefix="Ghi chú: " codes={meta.reasonCodes} />
         </p>
       )}
     </section>

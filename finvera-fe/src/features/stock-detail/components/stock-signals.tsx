@@ -12,6 +12,8 @@ import { ExplainButton } from "../../analyst/components/ExplainButton";
 import { buildSignalEvidence } from "../format/explain-evidence";
 import { CheckCircle2, ShieldAlert, Zap, Layers } from "lucide-react";
 
+import { ApplicabilityNote, ReasonCode, ReasonCodes } from "../../../shared/components/reason-codes";
+import { reasonCodeLabel } from "../../../shared/format/reason-codes";
 const DISCLAIMER_COPY: Record<string, string> = {
   QUANTITATIVE_DECISION_SUPPORT:
     "Tín hiệu chiến lược là kịch bản hỗ trợ ra quyết định định lượng dựa trên dữ liệu đã chấp nhận, không phải khuyến nghị đầu tư hay đảm bảo kết quả.",
@@ -102,8 +104,8 @@ export function StockSignals({ signals, symbol }: { signals: StockSignalsData; s
 
               {primarySignal.riskLevel === null && (
                 <p role="status" className="unavailable-msg">
-                  Chưa đủ yếu tố rủi ro để tính điểm tổng hợp
-                  {primarySignal.reasonCodes.length > 0 ? ` (${primarySignal.reasonCodes.join(", ")})` : " (INSUFFICIENT_RISK_FACTORS)"}.
+                  Điểm rủi ro tổng hợp chưa được tính —{" "}
+                  <ReasonCodes codes={primarySignal.reasonCodes.length > 0 ? primarySignal.reasonCodes : ["INSUFFICIENT_RISK_FACTORS"]} />.
                 </p>
               )}
 
@@ -118,7 +120,7 @@ export function StockSignals({ signals, symbol }: { signals: StockSignalsData; s
                       </span>
                     ) : (
                       <span className="factor-details unavailable-msg">
-                        Không có dữ liệu ({factor.reasonCode ?? factor.applicability})
+                        <ApplicabilityNote applicability={factor.applicability} reasonCode={factor.reasonCode} />
                       </span>
                     )}
                   </li>
@@ -167,14 +169,16 @@ export function StockSignals({ signals, symbol }: { signals: StockSignalsData; s
               {evaluation.status === "INSUFFICIENT_HISTORY" && (
                 <div className="signal-card-row-message">
                   <p role="status" className="unavailable-msg">
-                    Chưa đủ dữ liệu lịch sử để đánh giá chiến lược này ({evaluation.reasonCode ?? "INSUFFICIENT_HISTORY"}).
+                    Chưa đủ dữ liệu lịch sử để đánh giá chiến lược này
+                    {evaluation.reasonCode && evaluation.reasonCode !== "INSUFFICIENT_HISTORY" ? <> (<ReasonCode code={evaluation.reasonCode} />)</> : null}.
                   </p>
                 </div>
               )}
               {evaluation.status === "WITHHELD" && (
                 <div className="signal-card-row-message">
                   <p role="status" className="unavailable-msg">
-                    Tín hiệu tạm giữ do xung đột nguồn dữ liệu ({evaluation.reasonCode ?? "WITHHELD"}).
+                    Tín hiệu tạm giữ do xung đột nguồn dữ liệu
+                    {evaluation.reasonCode && evaluation.reasonCode !== "WITHHELD" ? <> (<ReasonCode code={evaluation.reasonCode} />)</> : null}.
                   </p>
                 </div>
               )}
@@ -213,7 +217,7 @@ export function StockSignals({ signals, symbol }: { signals: StockSignalsData; s
       </ul>
 
       <p className="disclaimer" role="note">
-        {DISCLAIMER_COPY[signals.disclaimerCode] ?? signals.disclaimerCode}
+        {DISCLAIMER_COPY[signals.disclaimerCode] ?? reasonCodeLabel(signals.disclaimerCode)}
       </p>
     </section>
   );

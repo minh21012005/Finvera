@@ -58,7 +58,8 @@ describe("stock technical section", () => {
       components: [],
     });
     render(<StockTechnical technical={technical([insufficient])} />);
-    expect(screen.getByText(/INSUFFICIENT_HISTORY/)).toBeVisible();
+    expect(screen.getByTitle("INSUFFICIENT_HISTORY")).toHaveTextContent(/Chưa đủ lịch sử dữ liệu/);
+    expect(screen.queryByText(/INSUFFICIENT_HISTORY/)).not.toBeInTheDocument();
     expect(screen.getByText(/cần 200 phiên/)).toBeVisible();
     expect(screen.getByText(/hiện có/)).toHaveTextContent("199");
     expect(screen.queryByText(/^0$/)).not.toBeInTheDocument();

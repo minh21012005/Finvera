@@ -41,7 +41,9 @@ describe("RegimeOverview", () => {
     expect(screen.getByText(/Cuối phiên/i)).toBeVisible();
     expect(screen.getByText(/Basis: EOD/i)).toBeVisible();
     expect(screen.getByText(/POSITIVE/i)).toBeVisible();
-    expect(screen.getByText(/QUANTITATIVE_DECISION_SUPPORT_NOT_INVESTMENT_ADVICE/i)).toBeVisible();
+    const disclaimer = screen.getByTitle("QUANTITATIVE_DECISION_SUPPORT_NOT_INVESTMENT_ADVICE");
+    expect(disclaimer).toBeVisible();
+    expect(disclaimer).toHaveTextContent(/không phải khuyến nghị đầu tư/i);
   });
 
   it("makes permitted renormalization observable through the reason and effective factor weight", () => {
@@ -71,7 +73,8 @@ describe("RegimeOverview", () => {
       reasonCodes: ["MANDATORY_INPUT_UNAVAILABLE"],
     }} />);
 
-    expect(screen.getByRole("status")).toHaveTextContent(/MANDATORY_INPUT_UNAVAILABLE/);
+    expect(screen.getByRole("status")).toHaveTextContent(/Thiếu đầu vào bắt buộc/);
+    expect(screen.getByTitle("MANDATORY_INPUT_UNAVAILABLE")).toBeVisible();
     expect(screen.queryByText(/\/100/)).not.toBeInTheDocument();
     expect(screen.queryByText("TREND")).not.toBeInTheDocument();
   });

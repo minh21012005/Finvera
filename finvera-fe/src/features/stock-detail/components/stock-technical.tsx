@@ -1,6 +1,8 @@
 import type { StockTechnical as StockTechnicalData } from "../api/stock-detail";
 import { componentLabel, dataStatusLabel, formatIndicatorValue, indicatorLabel } from "../format/stock-format";
 
+import { ApplicabilityNote, ReasonCodes } from "../../../shared/components/reason-codes";
+import { reasonCodeLabel } from "../../../shared/format/reason-codes";
 const DISCLAIMER_COPY: Record<string, string> = {
   QUANTITATIVE_DECISION_SUPPORT:
     "Chỉ báo kỹ thuật là hỗ trợ ra quyết định định lượng, không phải khuyến nghị đầu tư.",
@@ -22,7 +24,7 @@ export function StockTechnical({ technical }: { technical: StockTechnicalData })
 
       {technical.meta.reasonCodes.length > 0 && (
         <p className="reason-codes" role="note">
-          Ghi chú: {technical.meta.reasonCodes.join(", ")}
+          <ReasonCodes prefix="Ghi chú: " codes={technical.meta.reasonCodes} />
         </p>
       )}
 
@@ -33,7 +35,7 @@ export function StockTechnical({ technical }: { technical: StockTechnicalData })
 
             {indicator.applicability === "MISSING" ? (
               <p role="status" className="unavailable-msg">
-                Không có dữ liệu ({indicator.reasonCode ?? "MISSING"}) — cần {indicator.requiredBars} phiên, hiện có{" "}
+                <ApplicabilityNote applicability="MISSING" reasonCode={indicator.reasonCode} /> — cần {indicator.requiredBars} phiên, hiện có{" "}
                 {indicator.availableBars}.
               </p>
             ) : (
@@ -42,9 +44,9 @@ export function StockTechnical({ technical }: { technical: StockTechnicalData })
                   <div key={component.componentCode}>
                     <dt>{componentLabel(component.componentCode)}</dt>
                     <dd>
-                      {component.applicability === "NOT_APPLICABLE"
-                        ? `Không áp dụng${component.reasonCode ? ` (${component.reasonCode})` : ""}`
-                        : formatIndicatorValue(component.value, component.unit)}
+                      {component.applicability === "DEFINED"
+                        ? formatIndicatorValue(component.value, component.unit)
+                        : <ApplicabilityNote applicability={component.applicability} reasonCode={component.reasonCode} />}
                     </dd>
                   </div>
                 ))}
@@ -55,7 +57,7 @@ export function StockTechnical({ technical }: { technical: StockTechnicalData })
       </ul>
 
       <p className="disclaimer" role="note">
-        {DISCLAIMER_COPY[technical.disclaimerCode] ?? technical.disclaimerCode}
+        {DISCLAIMER_COPY[technical.disclaimerCode] ?? reasonCodeLabel(technical.disclaimerCode)}
       </p>
     </section>
   );

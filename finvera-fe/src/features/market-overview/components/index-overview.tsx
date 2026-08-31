@@ -1,6 +1,8 @@
-import type { DataStatus, Direction, MarketIndex, MarketOverview } from "../api/market-overview";
+import type { Direction, MarketIndex, MarketOverview } from "../api/market-overview";
 import { formatAsOf, formatDecimal, formatVolume, formatVnd } from "../format/market-format";
 
+import { ReasonCodes } from "../../../shared/components/reason-codes";
+import { dataStatusLabel as statusLabel } from "../../../shared/format/reason-codes";
 const STABLE_ORDER: MarketIndex["code"][] = ["VN_INDEX", "VN30", "HNX_INDEX", "UPCOM_INDEX"];
 
 export function IndexOverview({ overview }: { overview: MarketOverview }) {
@@ -40,7 +42,7 @@ function IndexCard({ index }: { index: MarketIndex }) {
 
       {unavailable ? (
         <div className="unavailable-msg">
-          <p role="status">Không có dữ liệu: {index.reasonCodes.join(", ") || "MISSING_INDEX"}</p>
+          <p role="status">Không có dữ liệu: <ReasonCodes codes={index.reasonCodes.length > 0 ? index.reasonCodes : ["MISSING_INDEX"]} /></p>
         </div>
       ) : (
         <dl>
@@ -85,6 +87,3 @@ function directionLabel(direction: Direction): { icon: string; label: string; cl
   }
 }
 
-function statusLabel(status: DataStatus): string {
-  return ({ CURRENT: "Hiện tại", DELAYED: "Chậm", STALE: "Cũ", PARTIAL: "Một phần", UNAVAILABLE: "Không có dữ liệu" })[status];
-}

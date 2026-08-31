@@ -3,6 +3,7 @@ import { navigate } from "../../../router";
 import { formatDecimal } from "../../market-overview/format/market-format";
 import { categoryLabel, dataStatusClassName, dataStatusLabel, matchedValueLabel } from "../format/screener-format";
 
+import { ReasonCode } from "../../../shared/components/reason-codes";
 export function ScreenerResults({ result }: { result: ScreenResponse }) {
   return (
     <section aria-labelledby="screener-results-heading" className="screener-results">
@@ -16,7 +17,7 @@ export function ScreenerResults({ result }: { result: ScreenResponse }) {
             <li key={d.category} className={`status-pill ${dataStatusClassName(d.status)}`}>
               {categoryLabel(d.category)}: {dataStatusLabel(d.status)}
               {d.excludedCount > 0 ? ` (${d.excludedCount} mã bị loại)` : ""}
-              {d.reasonCode ? ` — ${d.reasonCode}` : ""}
+              {d.reasonCode ? <> — <ReasonCode code={d.reasonCode} /></> : null}
             </li>
           ))}
         </ul>

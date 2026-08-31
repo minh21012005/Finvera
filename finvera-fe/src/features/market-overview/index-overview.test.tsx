@@ -85,7 +85,9 @@ describe("market overview index cards", () => {
 
     const upcom = screen.getByRole("article", { name: /UPCoM-Index/i });
     expect(upcom).toHaveTextContent("Không có dữ liệu");
-    expect(upcom).toHaveTextContent("MISSING_INDEX");
+    expect(upcom).toHaveTextContent("Không có dữ liệu chỉ số được chấp nhận");
+    expect(upcom.querySelector('[data-reason-code="MISSING_INDEX"]')).not.toBeNull();
+    expect(upcom).not.toHaveTextContent("MISSING_INDEX");
     expect(upcom).not.toHaveTextContent("0 VND");
   });
 });

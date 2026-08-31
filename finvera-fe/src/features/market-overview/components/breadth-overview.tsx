@@ -1,7 +1,9 @@
-import type { CalculationBasis, DataStatus, MarketBreadth } from "../api/market-overview";
+import type { CalculationBasis, MarketBreadth } from "../api/market-overview";
 import { formatAsOf } from "../format/market-format";
 import { TrendingUp, TrendingDown, Minus, PieChart } from "lucide-react";
 
+import { ReasonCodes } from "../../../shared/components/reason-codes";
+import { dataStatusLabel as statusLabel } from "../../../shared/format/reason-codes";
 export function BreadthOverview({ breadth }: { breadth: MarketBreadth }) {
   const unavailable = breadth.dataStatus === "UNAVAILABLE";
   const adv = breadth.advancing ?? 0;
@@ -42,7 +44,7 @@ export function BreadthOverview({ breadth }: { breadth: MarketBreadth }) {
 
         {unavailable ? (
           <div className="unavailable-msg">
-            <p role="status">Không có dữ liệu độ rộng: {breadth.reasonCodes.join(", ") || "BREADTH_NOT_AVAILABLE"}</p>
+            <p role="status">Không có dữ liệu độ rộng: <ReasonCodes codes={breadth.reasonCodes.length > 0 ? breadth.reasonCodes : ["BREADTH_NOT_AVAILABLE"]} /></p>
           </div>
         ) : (
           <>
@@ -102,7 +104,7 @@ export function BreadthOverview({ breadth }: { breadth: MarketBreadth }) {
 
             {breadth.unclassified !== null && breadth.unclassified > 0 && (
               <p role="status" className="unavailable-msg" style={{ margin: "12px 0 0 0" }}>
-                {breadth.unclassified} mã chưa phân loại. Lý do: {breadth.reasonCodes.join(", ")}
+                {breadth.unclassified} mã chưa phân loại. <ReasonCodes prefix="Lý do: " codes={breadth.reasonCodes} />
               </p>
             )}
           </>
@@ -116,9 +118,6 @@ export function BreadthOverview({ breadth }: { breadth: MarketBreadth }) {
   );
 }
 
-function statusLabel(status: DataStatus): string {
-  return ({ CURRENT: "Hiện tại", DELAYED: "Chậm", STALE: "Cũ", PARTIAL: "Một phần", UNAVAILABLE: "Không có dữ liệu" })[status];
-}
 
 function basisCopy(basis: CalculationBasis | null): { label: string; description: string } {
   if (basis === "LIVE") {
