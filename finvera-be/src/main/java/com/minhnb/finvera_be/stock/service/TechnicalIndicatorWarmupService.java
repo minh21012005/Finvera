@@ -9,6 +9,7 @@ import com.minhnb.finvera_be.stock.entity.TechnicalIndicatorResultEntity;
 import com.minhnb.finvera_be.stock.repository.EquityDailyBarRepository;
 import com.minhnb.finvera_be.stock.repository.EquityProfileRepository;
 import com.minhnb.finvera_be.stock.repository.TechnicalIndicatorResultRepository;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
@@ -80,6 +81,24 @@ public class TechnicalIndicatorWarmupService {
                 .findLatestNCurrentByInstrumentIdIn(instrumentIds, BOOTSTRAP_BARS).stream()
                 .collect(java.util.stream.Collectors.groupingBy(EquityDailyBarEntity::getInstrumentId));
 
+        // Q-45: "no newer trading date" is not "no new data". A provider correction of an old
+        // bar or a history backfill re-imports rows (new accepted_at) without moving the latest
+        // date; the stored indicators are then stale (wrong MA/RSI, or INSUFFICIENT_HISTORY on an
+        // instrument that now has 250+ bars). Recompute whenever any current bar was accepted
+        // after the latest result was calculated.
+        Map<UUID, Instant> lastCalculatedByInstrument = indicatorResults
+                .findByInstrumentIdInAndRuleVersionAndCurrentTrue(instrumentIds, TechnicalIndicatorsV1.RULE_VERSION)
+                .stream()
+                .filter(r -> r.getCalculatedAt() != null)
+                .collect(Collectors.toMap(TechnicalIndicatorResultEntity::getInstrumentId,
+                        TechnicalIndicatorResultEntity::getCalculatedAt, (a, b) -> a.isAfter(b) ? a : b));
+        Map<UUID, Instant> barsAcceptedByInstrument = new java.util.HashMap<>();
+        for (Object[] row : dailyBars.findLatestAcceptedAtByInstrumentIdIn(instrumentIds)) {
+            if (row != null && row.length == 2 && row[0] instanceof UUID id && row[1] instanceof Instant at) {
+                barsAcceptedByInstrument.put(id, at);
+            }
+        }
+
         int succeeded = 0;
         int skipped = 0;
         int failed = 0;
@@ -95,13 +114,19 @@ public class TechnicalIndicatorWarmupService {
             try {
                 List<LocalDate> datesToBackfill = datesToBackfill(recentBarsByInstrument.get(instrumentId),
                         lastComputedByInstrument.get(instrumentId));
-                if (datesToBackfill.isEmpty()) {
-                    // Already up-to-date: last computed date >= latest bar date. Skip the
-                    // expensive findBySymbol round-trip entirely — no new data means the
-                    // indicator result and its persisted row would be identical.
+                boolean barsRevised = barsRevisedSinceLastResult(barsAcceptedByInstrument.get(instrumentId),
+                        lastCalculatedByInstrument.get(instrumentId));
+                if (datesToBackfill.isEmpty() && !barsRevised) {
+                    // Already up-to-date: last computed date >= latest bar date AND no bar was
+                    // accepted since the result was calculated. Skip the expensive findBySymbol
+                    // round-trip entirely — the recomputed row would be identical.
                     skipped++;
                     logProgress(processed, instrumentIds.size(), succeeded, skipped, failed);
                     continue;
+                }
+                if (datesToBackfill.isEmpty()) {
+                    log.info("technical_indicator_warmup symbol={} bars revised after last result; recomputing latest",
+                            reference.symbol());
                 }
                 for (int i = 0; i < datesToBackfill.size() - 1; i++) {
                     technicalIndicators.findBySymbol(reference.symbol(), datesToBackfill.get(i));
@@ -135,6 +160,10 @@ public class TechnicalIndicatorWarmupService {
      * than {@value #BOOTSTRAP_BARS} entries even for an instrument with no history at all yet, so
      * a brand-new symbol costs a bounded amount of work rather than its entire multi-year history.
      */
+    static boolean barsRevisedSinceLastResult(Instant latestBarAcceptedAt, Instant lastCalculatedAt) {
+        return latestBarAcceptedAt != null && lastCalculatedAt != null && latestBarAcceptedAt.isAfter(lastCalculatedAt);
+    }
+
     private static List<LocalDate> datesToBackfill(List<EquityDailyBarEntity> recentBars, LocalDate lastComputed) {
         if (recentBars == null || recentBars.isEmpty()) {
             return List.of();

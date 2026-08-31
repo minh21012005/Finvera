@@ -30,6 +30,8 @@ public final class FundamentalSummaryCalculator {
      */
     public static final String RULE_VERSION = "fundamental-summary-v2";
     public static final String ANNUAL_BASIS = "ANNUAL_BASIS";
+    /** EPS_TTM taken from the provider's own trailing EPS because quarterly EPS is not reported (banks, securities). */
+    public static final String PROVIDER_TRAILING_EPS = "PROVIDER_TRAILING_EPS";
     /**
      * Feature 011 (contract provider-ratio-facts-v2 U-4): codes the provider only reports on an
      * annual basis. Read from the newest report when present, else from the latest annual report
@@ -197,7 +199,9 @@ public final class FundamentalSummaryCalculator {
         if (newest != null && newest.metrics() != null) {
             for (ReportMetric m : newest.metrics()) {
                 if ("TRAILING_EPS".equals(m.metricCode()) && m.applicability() == MetricApplicability.DEFINED && m.value() != null) {
-                    target.add(new SummaryMetric("EPS_TTM", m.value(), MetricApplicability.DEFINED, null));
+                    // Disclosed (Constitution II): this figure is the provider's TTM EPS, not a sum of
+                    // Finvera-imported quarters (independent recomputation 2026-08-31 flagged the silent path).
+                    target.add(new SummaryMetric("EPS_TTM", m.value(), MetricApplicability.DEFINED, PROVIDER_TRAILING_EPS));
                     return;
                 }
             }

@@ -59,6 +59,12 @@ Constitution I: a formula change is a new rule version with parallel results.
 | `EPS_GROWTH_PERCENT`, `REVENUE_GROWTH_PERCENT` | TTM vs prior TTM (needs 8 quarters) | 8 quarters if visible; **else latest annual vs prior annual** (`(cur/prior − 1)×100`, `NOT_APPLICABLE` when prior ≤ 0), reason `ANNUAL_BASIS` |
 | everything else | unchanged | unchanged |
 
+**Amendment 2026-08-31 (independent recomputation)**: when fewer than four
+quarterly `EPS` values exist but the newest report carries the provider's
+`TRAILING_EPS`, `EPS_TTM` is that figure and is labelled `PROVIDER_TRAILING_EPS`
+(banks and securities firms report no quarterly EPS). It is never mixed with a
+quarterly sum. This path pre-dated v2 but was undisclosed.
+
 `RULE_VERSION` constant becomes `fundamental-summary-v2`; existing v1 rows
 remain for reproducibility; warmup recomputes. `valuation-v1` is untouched —
 it simply receives `DEFINED` inputs more often, and its own-history basis sees

@@ -170,4 +170,38 @@ class TechnicalIndicatorWarmupServiceTests {
         when(bar.getTradingDate()).thenReturn(tradingDate);
         return bar;
     }
+
+    @Test
+    void recomputesWhenABarWasAcceptedAfterTheLastResultEvenWithoutANewerDate() {
+        // Q-45: NBW's 2026-07-02 close was corrected by the provider after the indicators were
+        // computed; the latest trading date did not change, so the old rule skipped it.
+        UUID nbwId = UUID.randomUUID();
+        givenListedInstrument(nbwId, "NBW");
+        LocalDate latest = LocalDate.of(2026, 7, 2);
+        java.time.Instant computedAt = java.time.Instant.parse("2026-08-25T16:17:41Z");
+        TechnicalIndicatorResultEntity previousRow = mock(TechnicalIndicatorResultEntity.class);
+        when(previousRow.getInstrumentId()).thenReturn(nbwId);
+        when(previousRow.getAsOfTradingDate()).thenReturn(latest);
+        when(previousRow.getCalculatedAt()).thenReturn(computedAt);
+        when(indicatorResults.findByInstrumentIdInAndRuleVersionAndCurrentTrue(List.of(nbwId),
+                TechnicalIndicatorsV1.RULE_VERSION)).thenReturn(List.of(previousRow));
+        EquityDailyBarEntity latestBar = bar(nbwId, latest);   // stub before the next when(): Mockito strictness
+        List<Object[]> accepted = List.<Object[]>of(new Object[] {nbwId, java.time.Instant.parse("2026-08-30T16:01:47Z")});
+        when(dailyBars.findLatestNCurrentByInstrumentIdIn(List.of(nbwId), 30)).thenReturn(List.of(latestBar));
+        when(dailyBars.findLatestAcceptedAtByInstrumentIdIn(List.of(nbwId))).thenReturn(accepted);
+
+        var summary = service.warmUp();
+
+        verify(technicalIndicators).findBySymbol("NBW");          // latest recomputed from the revised bars
+        verify(technicalIndicators, never()).findBySymbol(any(), any());
+        assertThat(summary.succeeded()).isEqualTo(1);
+        assertThat(summary.skipped()).isZero();
+    }
+
+    @Test
+    void stillSkipsWhenTheLatestBarPredatesTheLastResult() {
+        assertThat(TechnicalIndicatorWarmupService.barsRevisedSinceLastResult(
+                java.time.Instant.parse("2026-08-25T00:00:00Z"), java.time.Instant.parse("2026-08-25T16:00:00Z"))).isFalse();
+        assertThat(TechnicalIndicatorWarmupService.barsRevisedSinceLastResult(null, java.time.Instant.now())).isFalse();
+    }
 }

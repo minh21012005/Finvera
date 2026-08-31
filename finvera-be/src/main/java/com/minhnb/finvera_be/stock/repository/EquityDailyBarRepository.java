@@ -15,6 +15,20 @@ public interface EquityDailyBarRepository extends JpaRepository<EquityDailyBarEn
 
     String DEPRECATED_TCBS_STOCK_SOURCE = "TCBS_IFLASH_STOCK_DATA";
 
+    /**
+     * Q-45: when the newest current bar of an instrument was accepted — a provider correction
+     * (NBW 2026-07-02: 33,400 → 31,800) or a history backfill re-imports rows without adding a
+     * newer trading date, and the technical warmup must notice that, not just new dates.
+     */
+    @Query("""
+            select b.instrumentId, max(b.acceptedAt)
+            from EquityDailyBarEntity b
+            where b.current = true
+              and b.instrumentId in :instrumentIds
+            group by b.instrumentId
+            """)
+    List<Object[]> findLatestAcceptedAtByInstrumentIdIn(@Param("instrumentIds") Collection<UUID> instrumentIds);
+
     Optional<EquityDailyBarEntity> findFirstByInstrumentIdAndTradingDateAndSourceAndCurrentTrue(
             UUID instrumentId, LocalDate tradingDate, String source);
 

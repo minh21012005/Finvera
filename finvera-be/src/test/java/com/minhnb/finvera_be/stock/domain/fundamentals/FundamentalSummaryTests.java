@@ -146,6 +146,7 @@ class FundamentalSummaryTests {
         var epsTtm = findSummaryMetric(result, "EPS_TTM");
         assertThat(epsTtm.applicability()).isEqualTo(MetricApplicability.DEFINED);
         assertThat(epsTtm.value()).isEqualByComparingTo(new BigDecimal("4050.730000"));
+        assertThat(epsTtm.qualityReason()).isEqualTo(FundamentalSummaryCalculator.PROVIDER_TRAILING_EPS);
     }
 
     // ── EPS year-over-year growth ────────────────────────────────────────────────
