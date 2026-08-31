@@ -83,3 +83,22 @@ def test_vnai_rate_limit_system_exit_does_not_terminate_the_export(monkeypatch):
     assert calls["n"] == 2                                   # retried once after a full window
     assert entry["fundamentals"] == "failed:RateLimitExceeded"  # transient -> retried at end of run / next run
     assert mod.is_transient_failure(entry["fundamentals"])
+
+
+def test_provider_unavailable_statements_are_rechecked_after_the_window(tmp_path):
+    # Feature 018: A32/ACE/... have annual statements on VCI but no quarterly ones; that is a state,
+    # not a permanent failure -- settled for 35 days, then tried again (no --retry-failed needed).
+    import argparse
+    args = argparse.Namespace(start="2023-01-01", end="2026-08-31", period="quarter", output=tmp_path,
+                              full_refresh=False, retry_failed=False, lookback_days=90, unit_scale=1)
+    fresh = {"daily_bars": "failed:ValueError", "fundamentals": "failed:NoStatementsAvailable",
+             "fundamentals_checked_at": "2026-08-30", "fundamentals_annual": "failed:ValueError"}
+    stale = dict(fresh, fundamentals_checked_at="2026-07-01")
+    missing = {k: v for k, v in fresh.items() if k != "fundamentals_checked_at"}
+    assert mod.is_finished("X", fresh, args) is True
+    assert mod.is_finished("X", stale, args) is False
+    assert mod.is_finished("X", missing, args) is False
+    assert mod.is_unavailable_failure("failed:NoStatementsAvailable") is True
+    assert mod.is_unavailable_failure("failed:ValueError") is False
+    assert mod.recheck_due("2026-07-27", mod.date(2026, 8, 31)) is True
+    assert mod.recheck_due("2026-07-28", mod.date(2026, 8, 31)) is False

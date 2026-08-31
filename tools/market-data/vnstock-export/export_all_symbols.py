@@ -226,6 +226,12 @@ def fundamentals_current(symbol: str, entry: dict[str, Any], args: argparse.Name
 # failure as transient (retried after the window resets, and again on the next run).
 CALLS_PER_DATASET = {"daily_bars": 2, "fundamentals": 3, "fundamentals_annual": 3}
 TRANSIENT_FAILURE_NAMES = ("RetryError", "RateLimitExceeded")
+# Feature 018: "the provider has no statements for this symbol and period" (VCI serves only annual
+# statements for many small UPCoM names — A32, ACE, AGX, APT, BBH, BCP...) is not a defect of the
+# symbol but a state that changes when the company files: it is re-checked after this many days
+# instead of being settled forever like a genuine failure.
+UNAVAILABLE_FAILURE_NAMES = ("NoStatementsAvailable",)
+UNAVAILABLE_RECHECK_DAYS = 35
 MAX_QUOTA_WAIT_SECONDS = 65.0
 
 
@@ -250,6 +256,19 @@ def wait_for_quota(needed: int, status=quota_status, sleep=time.sleep, log=print
             log(f"  quota: {window.get('usage')}/{window.get('limit')} used, need {needed}; waiting {pause:.0f}s")
         sleep(pause)
         waited += pause
+
+
+def is_unavailable_failure(value: str) -> bool:
+    return any(value == f"failed:{name}" for name in UNAVAILABLE_FAILURE_NAMES)
+
+
+def recheck_due(checked_at: str, today: date) -> bool:
+    """True when a provider-unavailable dataset should be tried again (no timestamp = due)."""
+    try:
+        checked = date.fromisoformat(checked_at)
+    except ValueError:
+        return True
+    return (today - checked).days >= UNAVAILABLE_RECHECK_DAYS
 
 
 def is_transient_failure(value: Any) -> bool:
@@ -280,8 +299,12 @@ def run_dataset(entry: dict[str, Any], key: str, label: str, action, on_success,
                 time.sleep(MAX_QUOTA_WAIT_SECONDS)
                 continue
             entry[key] = f"failed:{name}"
+            entry[f"{key}_checked_at"] = date.today().isoformat()
             on_failure()
-            print(f"  {label}: FAILED ({name})")
+            if name in UNAVAILABLE_FAILURE_NAMES:
+                print(f"  {label}: UNAVAILABLE at provider ({name}); re-checked after {UNAVAILABLE_RECHECK_DAYS} days")
+            else:
+                print(f"  {label}: FAILED ({name})")
             return
 
 
@@ -323,7 +346,12 @@ def is_finished(symbol: str, entry: dict[str, Any], args: argparse.Namespace) ->
     def settled_failure(key: str) -> bool:
         value = str(entry.get(key, ""))
         # Q-39: a rate-limit failure is transient and is always retried on the next run.
-        return value.startswith("failed") and not is_transient_failure(value)
+        if not value.startswith("failed") or is_transient_failure(value):
+            return False
+        # Feature 018: provider-unavailable statements are re-checked once the recheck window passed.
+        if is_unavailable_failure(value):
+            return not recheck_due(str(entry.get(f"{key}_checked_at", "")), date.fromisoformat(args.end))
+        return True
 
     daily_bars_settled = daily_bars_current(symbol, entry, args) or settled_failure("daily_bars")
     fundamentals_settled = fundamentals_current(symbol, entry, args) or settled_failure("fundamentals")

@@ -97,8 +97,11 @@ while their yearly statements are complete (8 years). The exporter records a
 named, settled failure (`NoStatementsAvailable`) for the quarterly package and
 writes the annual one; `fundamental-summary-v2` then works on the annual basis
 (`ANNUAL_BASIS`, disclosed) — never on a KBS quarter, because the default import retires the KBS rows for
-those periods (contract I-3). The daily
-crawl does not retry settled failures; run `export_all_symbols.py --retry-failed`
-occasionally (or after a quarter-end) to pick up symbols that start publishing
-quarterly statements. Measured share to be recorded in T007 from the checkpoint.
+those periods (contract I-3). Such a symbol is
+not a settled failure: the crawl stamps `fundamentals_checked_at` and tries again
+automatically once 35 days have passed (`UNAVAILABLE_RECHECK_DAYS`), so a company
+that starts filing quarterly statements is picked up without any flag. First-crawl
+observation: 192 of the first ~280 symbols (alphabetically A–B, mostly small UPCoM
+names) were annual-only; the universe-wide share is recorded in T007 from the
+checkpoint.
 
