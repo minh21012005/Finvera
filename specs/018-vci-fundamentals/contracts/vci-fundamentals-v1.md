@@ -90,6 +90,7 @@ liquidity/coverage ratios. Each is a candidate for a later derivation rule.
 |---|---|
 | I-1 | If a current `fundamental_report` exists for the same (instrument, periodType, fiscalYear, fiscalQuarter, reportKind) from a **different** source, the incoming report supersedes it: previous row `current = false`, reason `SOURCE_SUPERSEDED`, incoming accepted as `CORRECTED` (revision +1). The out-of-order guard applies only within the same source. |
 | I-2 | Everything else (acceptance, catalog checks, summary recomputation, warmup detection of new `accepted_at`) is unchanged. |
+| I-3 | Periods the new source does not serve (e.g. A32 quarterly) keep no stale row: every fundamentals import ends with `retireAllExcept(primary-source)` — each still-current report of any other source → `current = false`, reason `SOURCE_RETIRED`; nothing deleted; idempotent (0 rows on later runs). The warmup recomputes because the same import lands new primary-source rows (new `accepted_at`) for those instruments. |
 
 ## Anchor set (asserted by the exporter tests on the captured fixtures)
 

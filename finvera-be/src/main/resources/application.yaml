@@ -95,6 +95,14 @@ finvera:
     technical:
       warmup:
         enabled: ${FINVERA_STOCK_TECHNICAL_WARMUP_ENABLED:false}
+    fundamentals:
+      # Feature 018 (ADR-0011): statements come from VCI; every fundamentals import ends by
+      # retiring current rows of any other source (idempotent, nothing deleted).
+      primary-source: ${FINVERA_STOCK_FUNDAMENTALS_PRIMARY_SOURCE:VNSTOCK_VCI}
+      retire:
+        # Expert/recovery knob: retire one named source explicitly (the default import already does this).
+        enabled: ${FINVERA_STOCK_FUNDAMENTALS_RETIRE_ENABLED:false}
+        source: ${FINVERA_STOCK_FUNDAMENTALS_RETIRE_SOURCE:}
     valuation:
       warmup:
         enabled: ${FINVERA_STOCK_VALUATION_WARMUP_ENABLED:false}

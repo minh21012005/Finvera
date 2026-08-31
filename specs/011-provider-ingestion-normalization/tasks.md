@@ -35,5 +35,5 @@ Written before implementation (2026-08-30).
 
 - [x] T008 [Q-57] `export_fundamentals.py` 0.7.0: `orient_statement_frames` mirrors yearly income/cash-flow labels (contract `kbs-yearly-statement-orientation-v1`), annual statement records carry `derivation=kbs-yearly-statement-labels-mirrored-v1`; FE dictionary wording added.
       Verify: `test_yearly_statement_labels_are_mirrored_and_ratio_left_alone`, `test_quarterly_frames_and_single_year_frames_are_never_relabelled` — exporter suite 43/43.
-      Owner action: run the normal `.efresh-data.ps1` (the 0.7.0 toolVersion bump re-exports every symbol's fundamentals, ≈ 2.5 h), then `python tools/verification/history_basis_study.py` and `verify_calcs.py`.
+      Owner action: run the normal `.\refresh-data.ps1` (the 0.7.0 toolVersion bump re-exports every symbol's fundamentals, ≈ 2.5 h), then `python tools/verification/history_basis_study.py` and `verify_calcs.py`.
 

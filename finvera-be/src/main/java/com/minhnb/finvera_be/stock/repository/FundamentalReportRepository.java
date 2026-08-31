@@ -21,6 +21,12 @@ public interface FundamentalReportRepository extends JpaRepository<FundamentalRe
 
     Optional<FundamentalReportEntity> findFirstByInstrumentIdAndCurrentTrueOrderByPeriodEndDesc(UUID instrumentId);
 
+    /** Feature 018 source retirement: every current row still attributed to a source. */
+    List<FundamentalReportEntity> findAllBySourceAndCurrentTrue(String source);
+
+    /** Feature 018 default retirement: current rows whose source is not the primary fundamentals source. */
+    List<FundamentalReportEntity> findAllByCurrentTrueAndSourceNot(String source);
+
     java.util.List<FundamentalReportEntity> findAllByInstrumentIdAndCurrentTrueOrderByPeriodEndDesc(UUID instrumentId);
 
     /** Q-48: when the newest current report of an instrument was accepted (valuation warmup staleness check). */

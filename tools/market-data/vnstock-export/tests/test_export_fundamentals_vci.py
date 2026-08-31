@@ -133,8 +133,8 @@ def test_first_occurrence_wins_and_package_carries_source_and_type():
     assert pkg["upstreamSource"] == "VNSTOCK_VCI" and pkg["companyType"] == "BROKER"
     assert pkg["contractVersion"] == "vnstock-fundamentals-v1" and pkg["unitScale"] == 1
     assert all(r["canonicalRecord"] and r["symbol"] == "SSI" for r in pkg["records"])
-    with pytest.raises(ValueError):
-        vci.build_package([], "SSI", "BROKER")
+    with pytest.raises(vci.NoStatementsAvailable):
+        vci.build_package([], "SSI", "BROKER")   # e.g. A32: annual statements only -> named, settled failure
 
 
 def test_fixture_is_unchanged_since_the_probe():

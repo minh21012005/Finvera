@@ -88,3 +88,17 @@ beside current KBS rows for the same period. Decision (FR-005): a different
 source's current row is superseded when the new source lands
 (`SOURCE_SUPERSEDED`), which retires every KBS statement/ratio fact once the
 universe is re-imported. Revision chains keep the KBS rows queryable.
+
+## R-007 — Symbols with annual-only statements on VCI (seen during the first crawl)
+
+A32, ACE, BCP (and, by the checkpoint, a sizeable share of small UPCoM names)
+return **no quarterly** income statement / balance sheet / cash flow from VCI
+while their yearly statements are complete (8 years). The exporter records a
+named, settled failure (`NoStatementsAvailable`) for the quarterly package and
+writes the annual one; `fundamental-summary-v2` then works on the annual basis
+(`ANNUAL_BASIS`, disclosed) — never on a KBS quarter, because the default import retires the KBS rows for
+those periods (contract I-3). The daily
+crawl does not retry settled failures; run `export_all_symbols.py --retry-failed`
+occasionally (or after a quarter-end) to pick up symbols that start publishing
+quarterly statements. Measured share to be recorded in T007 from the checkpoint.
+

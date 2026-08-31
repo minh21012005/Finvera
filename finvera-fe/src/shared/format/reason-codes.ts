@@ -95,6 +95,7 @@ export const REASON_CODE_LABELS: Readonly<Record<string, string>> = {
   "vci-fcf-ocf-plus-capex-v1": "Dòng tiền tự do = dòng tiền HĐKD + chi đầu tư TSCĐ (quy tắc vci-fcf-ocf-plus-capex-v1)",
   "vci-ebitda-operating-profit-plus-da-v1": "EBITDA = lợi nhuận hoạt động + khấu hao (quy tắc vci-ebitda-operating-profit-plus-da-v1)",
   SOURCE_SUPERSEDED: "Bản ghi từ nguồn cũ đã được thay bằng nguồn mới có nhãn kỳ đã kiểm chứng",
+  SOURCE_RETIRED: "Bản ghi từ nguồn cũ đã bị thu hồi vì nhãn kỳ của nguồn đó không đáng tin; không có bản thay thế cho kỳ này",
   "kbs-yearly-statement-labels-mirrored-v1":
     "Số liệu báo cáo năm đã được gán lại đúng năm tài chính — nhãn năm của nhà cung cấp bị đảo (quy tắc kbs-yearly-statement-labels-mirrored-v1)",
   // valuation

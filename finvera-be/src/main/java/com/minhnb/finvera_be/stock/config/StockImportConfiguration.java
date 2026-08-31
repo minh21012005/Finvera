@@ -66,9 +66,18 @@ public class StockImportConfiguration {
     @ConditionalOnProperty(name = "finvera.stock.import.fundamentals.package-path")
     ApplicationRunner stockFundamentalsImport(
             @Value("${finvera.stock.import.fundamentals.package-path}") String packagePath,
-            FundamentalReportImportPackageParser parser, FundamentalReportImportService importer) {
-        return arguments -> importAll("fundamentals", packagePath, "fundamentals-*.json",
-                path -> importer.importPackage(parser.parse(path)));
+            @Value("${finvera.stock.fundamentals.primary-source:VNSTOCK_VCI}") String primarySource,
+            FundamentalReportImportPackageParser parser, FundamentalReportImportService importer,
+            com.minhnb.finvera_be.stock.service.FundamentalSourceRetirementService retirement) {
+        return arguments -> {
+            importAll("fundamentals", packagePath, "fundamentals-*.json",
+                    path -> importer.importPackage(parser.parse(path)));
+            // Feature 018 / contract vci-fundamentals-v1 I-3: the default refresh leaves no current
+            // statement row from a source other than the primary one (KBS pages carried the wrong
+            // period; VCI replaces them period by period, this retires whatever VCI does not serve).
+            // Idempotent: 0 rows on every run after the first.
+            retirement.retireAllExcept(primarySource);
+        };
     }
 
     @Bean

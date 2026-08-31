@@ -1,6 +1,6 @@
 # ADR-0011: Use VCI (via vnstock) for Fundamental Statements and Ratios
 
-**Status**: Proposed — awaiting owner decision  
+**Status**: Accepted — owner approved 2026-08-31 ("impl theo hướng chuẩn nhất"); implemented by Feature 018  
 **Date**: 2026-08-31  
 **Decision owners**: Finvera maintainer  
 **Related specs**: `011-provider-ingestion-normalization` (research R-009, contract `kbs-yearly-statement-orientation-v1`), `017-history-basis-consistency`, docs/REMEDIATION_PLAN.md Q-57  
@@ -75,9 +75,10 @@ Double the calls, VCI becomes the truth anyway. Rejected as strictly worse than 
 
 ## Decision
 
-Proposed: **Option A**. Scope: all fundamentals datasets; market/price datasets
-unchanged. Effective only after the owner confirms and the VCI entitlement/rate
-limit is probed (owner-operated, read-only).
+**Option A**, accepted 2026-08-31. Scope: all fundamentals datasets; market/price datasets
+unchanged. VCI probed the same day (32 calls, mean 2.3 s, no rate-limit response) — see
+specs/018-vci-fundamentals/research.md. Ratios are derived in Finvera (the VCI ratio frame is
+malformed in vnstock 4.0.7), a refinement of the option as written.
 
 ## Consequences
 
@@ -95,7 +96,7 @@ limit is probed (owner-operated, read-only).
 
 1. Probe VCI quota/terms; upgrade `tools/market-data/provider-poc` to vnstock 4.0.7 (also fixes the Finance VCI bug).
 2. Feature 018: spec → research (field audit with anchors) → contract → exporter/importer → tests → owner re-crawl → rebuild.
-3. Until then the product keeps serving KBS fundamentals **flagged**: the reason codes on those facts must state the defect (Q-57 interim disclosure), or the fundamentals sections are withheld — owner's call.
+3. The default fundamentals import ends by retiring every current row of a non-primary source (`SOURCE_RETIRED`, nothing deleted, idempotent), so the plain refresh command is sufficient; until the re-crawl completes the product still serves KBS fundamentals (owner informed; personal system).
 4. Rollback: KBS exporter and packages remain; revision chains keep every prior fact.
 
 ## Validation

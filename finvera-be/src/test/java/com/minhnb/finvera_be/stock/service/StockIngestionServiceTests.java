@@ -50,6 +50,7 @@ class StockIngestionServiceTests {
     @Autowired MarketInstrumentRepository instruments;
     @Autowired EquityDailyBarRepository dailyBars;
     @Autowired FundamentalReportRepository reports;
+    @Autowired FundamentalSourceRetirementService retirement;
     @Autowired FundamentalReportMetricRepository reportMetrics;
     @Autowired StockIngestionService ingestion;
 
@@ -291,5 +292,50 @@ class StockIngestionServiceTests {
                 List.of(new MetricValue("REVENUE", new BigDecimal("1100000000.000000"), "DEFINED", null)), false, null));
         assertThat(stale.status()).isEqualTo(IngestionStatus.REJECTED);
         assertThat(stale.reasonCode()).isEqualTo("OUT_OF_ORDER");
+    }
+
+    @Test
+    void retiringASourceMarksItsCurrentReportsNotCurrentWithoutDeletingThem() {
+        // Feature 018: KBS rows for periods VCI does not serve must not stay current with the wrong period.
+        saveInstrument("STK19");
+        var kbs = ingestion.ingestFundamentalReport(new IncomingFundamentalReport("VNSTOCK_KBS", "STK19", "QUARTER", 2025, 4,
+                LocalDate.of(2025, 10, 1), LocalDate.of(2025, 12, 31), "UNKNOWN", "UNKNOWN", "VND", 1, "fundamental-metric-catalog-v1",
+                Instant.parse("2026-02-14T00:00:00Z"),
+                List.of(new MetricValue("REVENUE", new BigDecimal("500000000.000000"), "DEFINED", null)), false, null));
+        var vci = ingestion.ingestFundamentalReport(new IncomingFundamentalReport("VNSTOCK_VCI", "STK19", "ANNUAL", 2025, null,
+                LocalDate.of(2025, 1, 1), LocalDate.of(2025, 12, 31), "UNKNOWN", "UNKNOWN", "VND", 1, "fundamental-metric-catalog-v1",
+                Instant.parse("2026-02-14T00:00:00Z"),
+                List.of(new MetricValue("REVENUE", new BigDecimal("2000000000.000000"), "DEFINED", null)), false, null));
+
+        var summary = retirement.retire("VNSTOCK_KBS");
+
+        assertThat(summary.retiredReports()).isGreaterThanOrEqualTo(1);
+        var retired = reports.findById(kbs.barId()).orElseThrow();
+        assertThat(retired.isCurrent()).isFalse();
+        assertThat(retired.getRestatementReason()).isEqualTo(FundamentalSourceRetirementService.SOURCE_RETIRED);
+        assertThat(reports.findById(vci.barId()).orElseThrow().isCurrent()).isTrue();
+        assertThat(reports.findAllBySourceAndCurrentTrue("VNSTOCK_KBS")).isEmpty();
+    }
+
+    @Test
+    void retireAllExceptKeepsThePrimarySourceAndIsIdempotent() {
+        saveInstrument("STK20");
+        var kbs = ingestion.ingestFundamentalReport(new IncomingFundamentalReport("VNSTOCK_KBS", "STK20", "QUARTER", 2025, 3,
+                LocalDate.of(2025, 7, 1), LocalDate.of(2025, 9, 30), "UNKNOWN", "UNKNOWN", "VND", 1, "fundamental-metric-catalog-v1",
+                Instant.parse("2025-11-14T00:00:00Z"),
+                List.of(new MetricValue("REVENUE", new BigDecimal("400000000.000000"), "DEFINED", null)), false, null));
+        var vci = ingestion.ingestFundamentalReport(new IncomingFundamentalReport("VNSTOCK_VCI", "STK20", "ANNUAL", 2025, null,
+                LocalDate.of(2025, 1, 1), LocalDate.of(2025, 12, 31), "UNKNOWN", "UNKNOWN", "VND", 1, "fundamental-metric-catalog-v1",
+                Instant.parse("2026-02-14T00:00:00Z"),
+                List.of(new MetricValue("REVENUE", new BigDecimal("1600000000.000000"), "DEFINED", null)), false, null));
+
+        var first = retirement.retireAllExcept("VNSTOCK_VCI");
+        var second = retirement.retireAllExcept("VNSTOCK_VCI");
+
+        assertThat(first.retiredReports()).isGreaterThanOrEqualTo(1);
+        assertThat(second.retiredReports()).isZero();                       // idempotent: nothing left to retire
+        assertThat(reports.findById(kbs.barId()).orElseThrow().isCurrent()).isFalse();
+        assertThat(reports.findById(vci.barId()).orElseThrow().isCurrent()).isTrue();
+        assertThat(reports.findAllByCurrentTrueAndSourceNot("VNSTOCK_VCI")).isEmpty();
     }
 }

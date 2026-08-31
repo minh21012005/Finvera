@@ -20,6 +20,7 @@ import argparse
 import hashlib
 import json
 import re
+import warnings
 from datetime import UTC, datetime
 from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
@@ -360,9 +361,15 @@ def build_metric_records(symbol: str, frames: Frames, period: str) -> list[dict[
     return records
 
 
+class NoStatementsAvailable(ValueError):
+    """The provider returned no statement rows for this symbol and period (e.g. A32 has annual
+    statements on VCI but no quarterly ones). Recorded by the crawl as a settled, named failure —
+    never written as an empty package, never guessed."""
+
+
 def build_package(records: list[dict[str, Any]], symbol: str, company_type: str, unit_scale: int = 1) -> dict[str, Any]:
     if not records:
-        raise ValueError("no mappable statement facts were found for this symbol")
+        raise NoStatementsAvailable(f"{symbol}: provider returned no mappable statement facts for this period")
     records = sorted(records, key=lambda r: (r["periodType"], r["fiscalYear"], r["fiscalQuarter"] or 0, r["metricCode"]))
     payload = {"records": records}
     payload_json = canonical_json(payload)
@@ -380,11 +387,15 @@ def fetch_frames(symbol: str, period: str) -> Frames:
     from vnstock import Finance
 
     finance = Finance(symbol=symbol, source="vci")
-    return {
-        IS: Table.from_frame(finance.income_statement(period=period)),
-        BS: Table.from_frame(finance.balance_sheet(period=period)),
-        CF: Table.from_frame(finance.cash_flow(period=period)),
-    }
+    with warnings.catch_warnings():
+        # vnstock's own pandas fillna/ffill usage emits a FutureWarning per call; it is not ours to fix
+        # and would drown the crawl log (one line per statement per symbol).
+        warnings.simplefilter("ignore", FutureWarning)
+        return {
+            IS: Table.from_frame(finance.income_statement(period=period)),
+            BS: Table.from_frame(finance.balance_sheet(period=period)),
+            CF: Table.from_frame(finance.cash_flow(period=period)),
+        }
 
 
 def frames_from_fixture(data: dict[str, Any], period: str) -> Frames:

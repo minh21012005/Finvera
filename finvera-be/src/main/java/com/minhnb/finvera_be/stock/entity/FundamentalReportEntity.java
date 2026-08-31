@@ -73,6 +73,8 @@ public class FundamentalReportEntity {
     public int getRevision() { return revision; }
     public boolean isCurrent() { return current; }
     public void markSuperseded() { this.current = false; }
+    /** Feature 018: retire a row whose source is no longer trusted and that no newer source replaces. */
+    public void markRetired(String reason) { this.current = false; this.restatementReason = reason; }
     public UUID getSupersedesId() { return supersedesId; }
     public String getRestatementReason() { return restatementReason; }
 }

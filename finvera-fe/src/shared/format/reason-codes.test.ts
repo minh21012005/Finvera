@@ -42,7 +42,7 @@ const INVENTORY = [
   "vci-trailing-eps-parent-profit-over-shares-v1", "vci-bvps-parent-equity-over-shares-v1",
   "vci-roe-parent-profit-over-average-equity-v1", "vci-roe-parent-profit-over-average-equity-v1-end",
   "vci-roa-net-profit-over-average-assets-v1", "vci-roa-net-profit-over-average-assets-v1-end", "vci-margin-v1",
-  "vci-debt-to-equity-v1", "vci-fcf-ocf-plus-capex-v1", "vci-ebitda-operating-profit-plus-da-v1", "SOURCE_SUPERSEDED",
+  "vci-debt-to-equity-v1", "vci-fcf-ocf-plus-capex-v1", "vci-ebitda-operating-profit-plus-da-v1", "SOURCE_SUPERSEDED", "SOURCE_RETIRED",
   // valuation
   "HISTORY_BASIS_INSUFFICIENT", "SECTOR_BASIS_INSUFFICIENT", "NO_COMPARISON_BASIS", "CORE_METRIC_UNAVAILABLE",
   "INSUFFICIENT_METRIC_COVERAGE", "REDUCED_METRIC_SET", "HISTORY_SHARES_OUTSTANDING_HELD_CURRENT", "MISSING_EPS",
