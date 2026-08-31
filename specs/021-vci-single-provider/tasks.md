@@ -11,3 +11,7 @@
 | T007 | `verify_calcs.py` cross-check direction flip (stored=VCI, reference=KBS) | DONE | script |
 | T008 | Owner re-crawl (bars + profiles + market overview + fundamentals 1.1.0 in one pass) | PENDING owner | — |
 | T009 | Post-crawl verification: verify_calcs fully green, UI spot-check, evidence rows (Q-57, Q-38, P2-10) | PENDING | — |
+| T010 | Audit finding R-006: drop VCI no-trade filler bars (volume ≤ 0) in export_daily_bars | DONE 2026-08-31 | exporter suite 75/75 |
+| T011 | Audit finding R-007: delisting propagation (exporter DELISTED records; importer revises on status change, carries shares forward) | DONE 2026-08-31 | exporter suite + EquityProfileImportServiceTests |
+| T012 | Post-refactor audit: live package↔DB comparison for bars/indices/instruments/profiles/fundamentals (R-008) | DONE 2026-08-31 | research R-008 |
+

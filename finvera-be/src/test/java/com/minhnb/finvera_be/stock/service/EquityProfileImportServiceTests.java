@@ -52,8 +52,10 @@ class EquityProfileImportServiceTests {
         UUID instrumentId = UUID.randomUUID();
         when(referenceData.findActiveInstrumentBySymbol("VNM")).thenReturn(
                 Optional.of(new InstrumentReference(instrumentId, "HOSE", "VNM", "COMMON_EQUITY", "ACTIVE")));
+        EquityProfileEntity unchanged = mock(EquityProfileEntity.class);
+        when(unchanged.getListingStatus()).thenReturn("UNKNOWN");  // same status as record(): no revision
         when(profiles.findFirstByInstrumentIdAndEffectiveToIsNull(instrumentId))
-                .thenReturn(Optional.of(mock(EquityProfileEntity.class)));
+                .thenReturn(Optional.of(unchanged));
 
         PackageInput input = packageWith(EquityProfileImportService.CONTRACT_VERSION, List.of(record("VNM")));
         var summary = service.importPackage(input);
@@ -69,6 +71,33 @@ class EquityProfileImportServiceTests {
         var summary = service.importPackage(input);
 
         assertThat(summary.results().get(0).status()).isEqualTo(ProfileStatus.UNKNOWN_INSTRUMENT);
+    }
+
+    @Test
+    void aListingStatusChangeRevisesTheProfileAndCarriesKnownSharesForward() {
+        // ADR-0013 / specs/021 R-007: DAN and DVT were delisted at the provider but stayed LISTED.
+        UUID instrumentId = UUID.randomUUID();
+        when(referenceData.findActiveInstrumentBySymbol("DAN")).thenReturn(
+                Optional.of(new InstrumentReference(instrumentId, "HNX", "DAN", "COMMON_EQUITY", "ACTIVE")));
+        EquityProfileEntity existing = mock(EquityProfileEntity.class);
+        when(existing.getListingStatus()).thenReturn("LISTED");
+        when(existing.getSharesOutstanding()).thenReturn(21_000_000L);
+        when(existing.getCompanyNameEn()).thenReturn("Danang Housing JSC");
+        when(profiles.findFirstByInstrumentIdAndEffectiveToIsNull(instrumentId)).thenReturn(Optional.of(existing));
+
+        ProfileRecord delisted = new ProfileRecord("DAN", "Nha Da Nang", null, "DELISTED",
+                LocalDate.of(2026, 8, 31), "SHARES_OUTSTANDING_UNAVAILABLE", "x");
+        var summary = service.importPackage(
+                packageWith(EquityProfileImportService.CONTRACT_VERSION, List.of(delisted)));
+
+        assertThat(summary.results().get(0).status()).isEqualTo(ProfileStatus.UPDATED);
+        var captor = org.mockito.ArgumentCaptor.forClass(EquityProfileEntity.class);
+        org.mockito.Mockito.verify(profiles).save(captor.capture());
+        EquityProfileEntity revised = captor.getValue();
+        assertThat(revised.getListingStatus()).isEqualTo("DELISTED");
+        assertThat(revised.getSharesOutstanding()).isEqualTo(21_000_000L);  // unknown != removed
+        assertThat(revised.getCompanyNameEn()).isEqualTo("Danang Housing JSC");
+        assertThat(revised.getQualityReason()).isNull();                    // reason travels with the carried count
     }
 
     private static ProfileRecord record(String symbol) {

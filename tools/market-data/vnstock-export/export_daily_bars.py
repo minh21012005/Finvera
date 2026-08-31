@@ -57,11 +57,19 @@ def package_records(rows: list[dict[str, Any]], symbol: str) -> list[dict[str, A
     records = []
     for row in rows:
         trading_date = str(row["time"]).split(" ", maxsplit=1)[0]
+        volume_raw = row.get("volume")
+        # Feature 021 research R-006: for thinly-traded symbols VCI emits a flat carry-forward bar
+        # (open = high = low = close = previous close) with volume 0 for sessions where NOTHING
+        # traded. That is not a market fact -- no trade happened -- and it would distort breadth,
+        # RSI/ATR and average-volume windows. A bar with any reported volume, however small, is a
+        # real trade and is kept.
+        if volume_raw is None or Decimal(str(volume_raw)) <= 0:
+            continue
         open_price = normalize_board_price(row["open"])
         high_price = normalize_board_price(row["high"])
         low_price = normalize_board_price(row["low"])
         close_price = normalize_board_price(row["close"])
-        volume = Decimal(str(row["volume"])) if row.get("volume") is not None else None
+        volume = Decimal(str(volume_raw))
         record = {
             "adjustmentStatus": "PROVIDER_ADJUSTED",  # VCI serves corporate-action-adjusted series (specs/021 research R-002)
             "canonicalRecord": "",

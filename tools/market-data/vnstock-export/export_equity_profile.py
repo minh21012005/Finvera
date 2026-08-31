@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -34,6 +35,7 @@ from typing import Any
 CONTRACT_VERSION = "vnstock-equity-profile-v1"
 SOURCE = "VNSTOCK_VCI"  # ADR-0013 (Feature 021)
 QUALITY_REASON = "SHARES_OUTSTANDING_UNAVAILABLE"
+SYMBOL_PATTERN = re.compile(r"[A-Z0-9]{1,32}")  # the import layer's symbol shape
 
 
 def canonical_json(value: dict[str, Any]) -> str:
@@ -49,6 +51,46 @@ def fetch_universe():
         raise ValueError("Vnstock symbols_by_exchange schema is missing an expected column")
     # VCI labels (ADR-0013): type is upper-case STOCK and HOSE appears as HSX.
     return frame[(frame["type"] == "STOCK") & (frame["exchange"].isin(["HSX", "HNX", "UPCOM"]))]
+
+
+def fetch_delisted():
+    from vnstock import Listing
+
+    frame = Listing(source="vci").symbols_by_exchange()
+    required = {"symbol", "type", "exchange", "organ_name"}
+    if not required.issubset(frame.columns):
+        raise ValueError("Vnstock symbols_by_exchange schema is missing an expected column")
+    return frame[(frame["type"] == "STOCK") & (frame["exchange"] == "DELISTED")]
+
+
+def build_delisted_records(frame, effective_from: str) -> list[dict[str, Any]]:
+    """ADR-0013 / Feature 021 (specs/021 research R-007): symbols VCI marks DELISTED (type STOCK).
+    Importing one revises an existing profile's listing status; the importer carries the last known
+    share count forward (absent means unknown, never removed), and symbols Finvera never listed
+    come back UNKNOWN_INSTRUMENT. Found via DAN/DVT: delisted at the provider, still LISTED in the DB."""
+    records = []
+    seen: set[str] = set()
+    for _, row in frame.iterrows():
+        symbol = str(row["symbol"]).upper()
+        if symbol in seen or not SYMBOL_PATTERN.fullmatch(symbol):
+            continue
+        seen.add(symbol)
+        name_vi = str(row["organ_name"]).strip() if row.get("organ_name") not in (None, "") else None
+        if not name_vi:
+            continue
+        record = {
+            "canonicalRecord": "",
+            "companyNameEn": None,
+            "companyNameVi": name_vi,
+            "effectiveFrom": effective_from,
+            "listingStatus": "DELISTED",
+            "qualityReason": QUALITY_REASON,
+            "sharesOutstanding": None,
+            "symbol": symbol,
+        }
+        record["canonicalRecord"] = canonical_json({k: v for k, v in record.items() if k != "canonicalRecord"})
+        records.append(record)
+    return records
 
 
 def fetch_overview(symbol: str) -> dict[str, Any] | None:
@@ -213,6 +255,10 @@ def main() -> None:
           f"{len(to_fetch)} overview calls at {args.requests_per_minute:g}/min "
           f"(~{len(to_fetch) / max(1.0, args.requests_per_minute):.0f} min).", flush=True)
     records = build_records(universe, effective_from, paced_overview, share_lookup=reusable.get)
+    listed_symbols = {r["symbol"] for r in records}
+    delisted = [r for r in build_delisted_records(fetch_delisted(), effective_from) if r["symbol"] not in listed_symbols]
+    records = records + delisted
+    print(f"Delisted at provider: {len(delisted)} symbols recorded with listingStatus=DELISTED")
     with_shares = sum(1 for r in records if r["sharesOutstanding"] is not None)
     print(f"Outstanding shares present for {with_shares}/{len(records)} symbols")
     package = build_package(records, TOOL_VERSION)

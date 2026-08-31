@@ -79,3 +79,16 @@ def test_recent_package_is_reused_and_only_new_symbols_are_fetched(tmp_path):
     stale = dict(existing, generatedAt=datetime(2026, 1, 1, tzinfo=UTC).isoformat().replace("+00:00", "Z"))
     (tmp_path / "equity-profile.json").write_text(json.dumps(stale), encoding="utf-8")
     assert mod.reusable_share_facts(tmp_path, 30, full_refresh=False) == {}   # older than max age -> refetch
+
+
+def test_provider_delisted_symbols_become_delisted_records_without_overview_calls():
+    # ADR-0013 / specs/021 R-007 (DAN/DVT): a dead symbol must not stay LISTED in the product.
+    frame = FakeFrame([
+        {"symbol": "DAN", "type": "STOCK", "exchange": "DELISTED", "organ_name": "Nha Da Nang"},
+        {"symbol": "A+ Fund", "type": "STOCK", "exchange": "DELISTED", "organ_name": "Quy dau tu"},
+    ])
+    records = mod.build_delisted_records(frame, "2026-08-31")
+    assert [r["symbol"] for r in records] == ["DAN"]        # import-layer symbol shape guarded
+    assert records[0]["listingStatus"] == "DELISTED"
+    assert records[0]["sharesOutstanding"] is None          # unknown; the importer keeps the last known count
+    assert records[0]["companyNameVi"] == "Nha Da Nang"

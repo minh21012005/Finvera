@@ -66,3 +66,40 @@ executed dataset-by-dataset with the Feature 011/018 method: contract per datase
 exporter tests, verifier gates (the KBS↔VCI cross-check in `verify_calcs.py` simply flips its
 reference direction), one full re-crawl, then the nightly refresh is single-provider.
 TCBS live overlay unchanged. KBS code paths retained as fallback, no longer crawled.
+
+## R-006 VCI no-trade filler bars (found by the post-refactor audit, 2026-08-31)
+
+For thinly-traded symbols VCI serves a bar for **every** session: A32 2025-01→2026-08 has 399 bars
+where KBS had 168. Of the 231 extras, 126 have volume 0 and flat OHLC equal to the previous close
+— carry-forward fillers for sessions where nothing traded, all falling on real trading days (none
+on weekends/holidays); the other 105 are flat bars with real volume (1, 6, 109 shares…): genuine
+UPCoM odd-lot trades below KBS's radar. Liquid symbols (VNM) have no fillers.
+
+**Rule (export_daily_bars 1.0.0, tested):** a bar with volume ≤ 0 or no volume is dropped — no
+trade happened, and importing it would distort breadth (unchanged counts), RSI/ATR windows and
+AVG_VOLUME20. A bar with any reported volume is kept: a 1-share trade is a real trade. The DB holds
+0 zero-volume bars today, so the rule keeps the new series semantically identical to the audited
+KBS baseline.
+
+## R-007 Delisting propagation (found by the post-refactor audit, 2026-08-31)
+
+DAN and DVT are `DELISTED` in VCI's listing but their profiles said `LISTED` (a pre-existing gap:
+nothing ever wrote a delisted status). Fix: `export_equity_profile` 1.0.0 also emits
+`listingStatus = DELISTED` records for provider-delisted stocks (no overview calls; symbols
+Finvera never listed come back `UNKNOWN_INSTRUMENT`); `EquityProfileImportService` now revises on
+a listing-status change and carries the last known share count (and its quality reason) forward —
+an absent value means unknown, never removed.
+
+## R-008 Post-refactor audit evidence (2026-08-31)
+
+Live packages built into a scratch dir and compared against the database: VNM bars 65/65 sessions,
+last 5 closes exact, 0 differences above the 0.5 % adjustment-rounding band, `valueVnd` exact,
+range clamped; A32 same after the R-006 rule; instrument reference 1,522 symbols, venues map
+HSX→HOSE, the 2 DB-only symbols are exactly the delisted DAN/DVT (R-007); market-overview package
+carries all four index codes with levels equal to the stored CLOSED snapshots (VN30 2026-08-27 =
+1979.23); profile shares verified against market-cap for VNM/MBB/SSI/BVH (A32 flagged UNVERIFIED —
+provider's own market cap is 4 % stale, count kept and disclosed); fundamentals 1.1.0 live run for
+VNM matches audited FY2025 REVENUE/NET_PROFIT/EPS to the đồng with all 16 derived ratios in
+plausible ranges. Static sweep: no `source="kbs"` call remains outside the two retired fallback
+exporters; every importer validation (contract version, source prefix, venue set, adjustment
+status, checksum) accepts the new packages.

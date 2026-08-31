@@ -52,12 +52,15 @@ public class EquityProfileImportService {
             UUID instrumentId = instrumentOpt.get().instrumentId();
             var current = profiles.findFirstByInstrumentIdAndEffectiveToIsNull(instrumentId);
             if (current.isPresent()) {
-                // Feature 010 FR-001: a profile is revised (effective-dated) only when a share count
+                // Feature 010 FR-001: a profile is revised (effective-dated) when a share count
                 // arrives for a row that has none, or the count changed. Names alone never revise.
+                // Feature 021 (ADR-0013, specs/021 R-007): a listing-status change revises too --
+                // a symbol the provider delisted (DAN/DVT) must not stay LISTED here.
                 EquityProfileEntity existing = current.orElseThrow();
                 boolean sharesArrived = record.sharesOutstanding() != null
                         && !record.sharesOutstanding().equals(existing.getSharesOutstanding());
-                if (!sharesArrived) {
+                boolean statusChanged = !record.listingStatus().equals(existing.getListingStatus());
+                if (!sharesArrived && !statusChanged) {
                     results.add(new ProfileResult(record.symbol(), ProfileStatus.ALREADY_PRESENT));
                     continue;
                 }
@@ -67,10 +70,17 @@ public class EquityProfileImportService {
                 // record means "unknown", never "removed" -- the known EN name is carried forward.
                 String companyNameEn = record.companyNameEn() != null ? record.companyNameEn()
                         : existing.getCompanyNameEn();
+                // An absent share count means unknown, never removed: the last known count (and the
+                // quality reason attached to it) is carried into the revision.
+                Long sharesOutstanding = record.sharesOutstanding() != null ? record.sharesOutstanding()
+                        : existing.getSharesOutstanding();
+                String qualityReason = record.sharesOutstanding() != null ? record.qualityReason()
+                        : existing.getSharesOutstanding() != null ? existing.getQualityReason()
+                        : record.qualityReason();
                 profiles.save(new EquityProfileEntity(UUID.randomUUID(), instrumentId, record.companyNameVi(),
-                        companyNameEn, existing.getSectorReferenceId(), record.sharesOutstanding(),
+                        companyNameEn, existing.getSectorReferenceId(), sharesOutstanding,
                         record.freeFloatRatio(), record.listingStatus(), record.effectiveFrom(), null,
-                        input.upstreamSource(), input.packageSha256(), record.qualityReason()));
+                        input.upstreamSource(), input.packageSha256(), qualityReason));
                 results.add(new ProfileResult(record.symbol(), ProfileStatus.UPDATED));
                 continue;
             }

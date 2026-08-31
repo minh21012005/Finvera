@@ -18,6 +18,20 @@ assert ALL_SYMBOLS_SPEC.loader is not None
 ALL_SYMBOLS_SPEC.loader.exec_module(export_all_symbols)
 
 
+def test_no_trade_filler_bars_are_dropped_but_real_odd_lot_trades_are_kept():
+    # Feature 021 R-006: A32 2025 -- VCI fills non-traded sessions with a flat zero-volume bar.
+    def flat(day, volume):
+        return {"time": f"{day} 00:00:00", "open": "31.62", "high": "31.62", "low": "31.62",
+                "close": "31.62", "volume": volume}
+
+    records = export_daily_bars.package_records(
+        [flat("2025-01-06", "0"), flat("2025-01-07", None), flat("2025-01-08", "1"), flat("2025-01-09", "225")],
+        "A32")
+
+    assert [r["tradingDate"] for r in records] == ["2025-01-08", "2025-01-09"]  # no-trade fillers dropped
+    assert records[0]["volume"] == "1.000000"                                    # a 1-share trade is a real trade
+
+
 def test_records_carry_the_provider_adjusted_label():
     # ADR-0013: VCI serves corporate-action-adjusted series; the label must say so, not RAW.
     rows = [{"time": "2026-08-24 00:00:00", "open": "62.5", "high": "63.0", "low": "62.0", "close": "62.3", "volume": "1000"}]
