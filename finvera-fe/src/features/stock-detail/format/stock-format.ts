@@ -200,6 +200,8 @@ const VALUATION_METRIC_LABELS: Record<string, string> = {
   DIVIDEND_YIELD: "Tỷ suất cổ tức",
 };
 
+VALUATION_METRIC_LABELS["PS"] = "P/S (Giá/Doanh thu 4 quý)";
+
 export function valuationMetricLabel(code: string): string {
   return VALUATION_METRIC_LABELS[code] ?? code;
 }

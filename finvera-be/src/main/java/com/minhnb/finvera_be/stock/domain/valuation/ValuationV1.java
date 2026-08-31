@@ -433,7 +433,21 @@ public final class ValuationV1 {
             dividendYield = new MetricValue("DIVIDEND_YIELD", yieldVal, MetricApplicability.DEFINED, null);
         }
 
-        return new ComputedMetrics(pe, pb, evEbitda, peg, dividendYield);
+        // 6. PS = marketCap / revenueTtm -- informational like DIVIDEND_YIELD (weight 0, outside the
+        //    composite and the PE/PB core gate). Feature 022: prices loss-making companies where PE
+        //    is NOT_APPLICABLE (valuation-v2 addendum 2026-08-31).
+        MetricValue ps;
+        if (inputs.revenueTtm() == null) {
+            ps = new MetricValue("PS", null, MetricApplicability.MISSING, "MISSING_REVENUE");
+        } else if (inputs.revenueTtm().compareTo(BigDecimal.ZERO) <= 0) {
+            ps = new MetricValue("PS", null, MetricApplicability.NOT_APPLICABLE, "NEGATIVE_OR_ZERO_REVENUE");
+        } else if (marketCap == null) {
+            ps = new MetricValue("PS", null, MetricApplicability.MISSING, "MISSING_MARKET_CAP_INPUTS");
+        } else {
+            ps = new MetricValue("PS", DecimalMath.divide12(marketCap, inputs.revenueTtm()), MetricApplicability.DEFINED, null);
+        }
+
+        return new ComputedMetrics(pe, pb, evEbitda, peg, dividendYield, ps);
     }
 
     private List<MetricResult> buildMetricResults(
@@ -442,7 +456,7 @@ public final class ValuationV1 {
             Map<String, BigDecimal> secPct,
             Map<String, BigDecimal> effWeights) {
         List<MetricResult> list = new ArrayList<>();
-        for (MetricValue mv : List.of(computed.pe(), computed.pb(), computed.evEbitda(), computed.peg(), computed.dividendYield())) {
+        for (MetricValue mv : List.of(computed.pe(), computed.pb(), computed.evEbitda(), computed.peg(), computed.dividendYield(), computed.ps())) {
             BigDecimal effW = effWeights.get(mv.metricCode());
             list.add(new MetricResult(
                     mv.metricCode(),
@@ -486,7 +500,7 @@ public final class ValuationV1 {
     public record HistoryPoint(String metricCode, BigDecimal value) {}
     public record SectorPoint(String instrumentId, String metricCode, BigDecimal value) {}
     public record MetricValue(String metricCode, BigDecimal value, MetricApplicability applicability, String qualityReason) {}
-    public record ComputedMetrics(MetricValue pe, MetricValue pb, MetricValue evEbitda, MetricValue peg, MetricValue dividendYield) {
+    public record ComputedMetrics(MetricValue pe, MetricValue pb, MetricValue evEbitda, MetricValue peg, MetricValue dividendYield, MetricValue ps) {
         public List<MetricValue> allScored() {
             return List.of(pe, pb, evEbitda, peg);
         }
@@ -533,6 +547,7 @@ public final class ValuationV1 {
             BigDecimal cashAndEquivalents,
             BigDecimal dividendPerShareTtm,
             BigDecimal dividendYield,
+            BigDecimal revenueTtm,
             List<HistoryPoint> ownHistorySeries,
             List<SectorPoint> sectorSeries,
             String priceDataStatus,
@@ -555,6 +570,7 @@ public final class ValuationV1 {
             private BigDecimal cashAndEquivalents;
             private BigDecimal dividendPerShareTtm;
             private BigDecimal dividendYield;
+            private BigDecimal revenueTtm;
             private List<HistoryPoint> ownHistorySeries = List.of();
             private List<SectorPoint> sectorSeries = List.of();
             private String priceDataStatus = "CURRENT";
@@ -571,6 +587,7 @@ public final class ValuationV1 {
             public Builder totalDebt(BigDecimal d) { this.totalDebt = d; return this; }
             public Builder cashAndEquivalents(BigDecimal c) { this.cashAndEquivalents = c; return this; }
             public Builder dividendPerShareTtm(BigDecimal div) { this.dividendPerShareTtm = div; return this; }
+            public Builder revenueTtm(BigDecimal r) { this.revenueTtm = r; return this; }
             public Builder dividendYield(BigDecimal dy) { this.dividendYield = dy; return this; }
             public Builder ownHistorySeries(List<HistoryPoint> h) { this.ownHistorySeries = h; return this; }
             public Builder sectorSeries(List<SectorPoint> s) { this.sectorSeries = s; return this; }
@@ -582,7 +599,7 @@ public final class ValuationV1 {
                 return new Inputs(
                         price, sharesOutstanding, epsTtm, epsGrowthPercent,
                         equityAttributableToParent, bvps, ebitdaTtm, totalDebt,
-                        cashAndEquivalents, dividendPerShareTtm, dividendYield,
+                        cashAndEquivalents, dividendPerShareTtm, dividendYield, revenueTtm,
                         ownHistorySeries, sectorSeries, priceDataStatus,
                         fundamentalsDataStatus, sourceConflict
                 );

@@ -34,10 +34,12 @@ is > 0; otherwise it is absent — missing, never zero, never proxied.
 | EQUITY_GROWTH_PERCENT (%) | all | growth of `owners_equity` | `vci-balance-growth-yoy-v1` |
 | NIM (%) | BANK | `net_interest_income(flow) / avg(earning assets) × 100`; earning assets = Σ of the ids that resolve among `balances_with_other_credit_institutions`, `placements_with_and_loans_to_other_credit_institutions`, `trading_securities_net`, `investment_securities`, `loans_and_advances_to_customers_net` (at least the loans line must resolve) | `vci-nim-earning-assets-v1` |
 | COST_INCOME_RATIO (%) | BANK | `\|general_and_admin_expenses\| / total_operating_income × 100` | `vci-cir-v1` |
+| DIVIDEND_PER_SHARE (VND/share) | all | `\|dividends_paid\|(period) / shares(period)`; CF id `dividends_paid`; caveat: the consolidated line includes dividends paid to minority holders, so this is a slight over-statement for groups with large minorities (Feature 022; feeds summary DIVIDEND_PER_SHARE_TTM -> valuation DIVIDEND_YIELD) | `vci-dps-cash-dividends-over-shares-v1` |
 | LOAN_TO_DEPOSIT (%) | BANK | `loans_and_advances_to_customers (gross) / deposits_from_customers × 100` | `vci-ldr-v1` |
 
-Not derived (and why): DIVIDEND_YIELD / PS / BETA need a price (out of scope here; follow-up
-P2-09); bank/insurer INTEREST_COVERAGE (interest is operating for them); broker/insurer
+Not derived here (and why): DIVIDEND_YIELD and PS need a price and are computed in the valuation
+layer (Feature 022: yield from DIVIDEND_PER_SHARE above; PS from REVENUE_TTM); BETA deferred (owner
+scope decision 2026-08-31); bank/insurer INTEREST_COVERAGE (interest is operating for them); broker/insurer
 inventory & receivables turnover and ROCE (post-2016 securities layout / insurer layout lack the
 canonical lines); bank liquidity ratios (no current-asset split on bank balance sheets).
 

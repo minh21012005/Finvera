@@ -179,3 +179,27 @@ def test_every_derived_ratio_carries_a_rule_id_and_catalog_unit_convention():
     assert "PS" not in seen and "DIVIDEND_YIELD" not in seen and "BETA" not in seen
     # the full contract table is exercised across the four company types
     assert seen == percent_codes | ratio_codes
+
+
+def test_dividend_per_share_from_cash_dividends_for_every_company_type():
+    # Feature 022: DPS = |dividends_paid| / shares feeds the summary DIVIDEND_PER_SHARE_TTM and the
+    # valuation DIVIDEND_YIELD chain that went dark when the KBS ratio frame was retired.
+    for symbol in ("VNM", "MBB", "BVH", "SSI"):
+        r = recs(symbol, "year")
+        raw = None
+        for row in fixture(symbol)["datasets"]["cash_flow:year"]["rows"]:
+            if row.get("item_id") == "dividends_paid" and row.get("2025") is not None:
+                raw = Decimal(str(row["2025"]))
+                break
+        dps = get(r, "DIVIDEND_PER_SHARE", 2025)
+        if raw is None:
+            assert dps is None, symbol            # absent line stays absent -- never fabricated as 0
+            continue
+        assert dps is not None, symbol
+        assert dps["derivation"] == "vci-dps-cash-dividends-over-shares-v1"
+        assert Decimal("0") <= val(dps) < Decimal("20000"), (symbol, dps["value"])  # VND per share
+    vnm = recs("VNM", "year")
+    paid = abs(line("VNM", "cash_flow:year", "dividends_paid", "2025"))
+    shares = (line("VNM", "balance_sheet:year", "paid_in_capital", "2025")
+              + line("VNM", "balance_sheet:year", "treasury_shares", "2025")) / Decimal(10000)
+    assert val(get(vnm, "DIVIDEND_PER_SHARE", 2025)) == (paid / shares).quantize(Q6)

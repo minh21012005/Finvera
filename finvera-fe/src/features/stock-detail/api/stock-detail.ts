@@ -147,7 +147,7 @@ export interface StockFundamentals {
 }
 
 export type ValuationLabel = "UNDER_VALUED" | "FAIR_VALUED" | "OVER_VALUED";
-export type ValuationMetricCode = "PE" | "PB" | "EV_EBITDA" | "PEG" | "DIVIDEND_YIELD";
+export type ValuationMetricCode = "PE" | "PB" | "EV_EBITDA" | "PEG" | "DIVIDEND_YIELD" | "PS";
 
 export interface ValuationMetricValue {
   metricCode: ValuationMetricCode;

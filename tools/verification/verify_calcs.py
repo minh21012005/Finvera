@@ -104,7 +104,7 @@ def summary_v2(reports, as_of):
             v = annuals[0]["metrics"].get(code)
             return (v, "ANNUAL_BASIS") if v is not None else (None, None)
         return (None, None)
-    for code, tgt in (("EPS", "EPS_TTM"), ("NET_PROFIT", "NET_PROFIT_TTM"), ("REVENUE", "REVENUE_TTM")):
+    for code, tgt in (("EPS", "EPS_TTM"), ("NET_PROFIT", "NET_PROFIT_TTM"), ("REVENUE", "REVENUE_TTM"), ("DIVIDEND_PER_SHARE", "DIVIDEND_PER_SHARE_TTM")):
         out[tgt] = ttm(code)
     if out["EPS_TTM"][0] is None:
         # fundamental-summary-v2: quarterly EPS absent (banks, securities, some industrials) ->
@@ -185,6 +185,12 @@ def valuation_checks(sym, bars, reports, shares):
     cmpv("PB", None if bvps is None else ("NA" if bvps <= 0 else price / bvps), tol=1e-4)
     pe = None if eps_ttm is None or eps_ttm <= 0 else price / eps_ttm
     cmpv("PEG", None if pe is None or growth is None else ("NA" if growth == "NA" or growth <= 0 else pe / growth), tol=1e-4)
+    # Feature 022: PS (informational, marketCap / REVENUE_TTM) and DIVIDEND_YIELD (DPS_TTM / price)
+    revenue_ttm = cur["REVENUE_TTM"][0]
+    if shares:
+        cmpv("PS", None if revenue_ttm is None else ("NA" if revenue_ttm <= 0 else price * shares / revenue_ttm), tol=1e-4)
+    dps_ttm = cur.get("DIVIDEND_PER_SHARE_TTM", (None, None))[0]
+    cmpv("DIVIDEND_YIELD", None if dps_ttm is None or price <= 0 else dps_ttm * 100 / price, tol=1e-4)
     # market cap sanity via shares
     if shares:
         note("valuation", True, f"{sym}: marketCap = {price:.0f} x {shares} = {price*shares/1e9:,.0f} bn VND (informational)")

@@ -84,7 +84,11 @@ $envRefreshFile = Join-Path $beDir ".env.refresh"
 # sessions with a visible report, and the provider's four fiscal years make FY2022 visible from
 # ~Mar 2023, so this is the earliest start that adds usable history. The exporters detect the
 # earlier start (package rangeStart) and re-fetch the whole range once.
-$historyStartDate = "2023-01-01"
+# Feature 022 (2026-08-31): 2019-01-01 -- the own-history valuation percentile needs a full
+# market cycle (2020 crash, 2021 bubble, 2022 bear) to mean anything; VCI serves ~8 rolling years
+# in the same single call, so the deeper window costs no extra requests. 2019 (not the 2018 window
+# edge) so the range stays re-fetchable for at least a year as the provider window rolls.
+$historyStartDate = "2019-01-01"
 $historyEndDate = (Get-Date).ToString("yyyy-MM-dd")
 
 $ManagedRuntimeFlags = @(

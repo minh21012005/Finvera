@@ -695,4 +695,40 @@ class ValuationV1Tests {
         assertThat(result.published()).isTrue();
         assertThat(result.reasonCodes()).doesNotContain(ValuationV1.REDUCED_METRIC_SET);
     }
+
+    @Test
+    void psIsInformationalAndPricesLossMakersWherePeIsNotApplicable() {
+        // Feature 022 (valuation-v2 addendum): PS = marketCap / revenueTtm, weight 0.
+        var inputs = ValuationV1.Inputs.builder()
+                .price(new java.math.BigDecimal("20000"))
+                .sharesOutstanding(1_000_000L)
+                .epsTtm(new java.math.BigDecimal("-500"))                 // loss-maker: PE NOT_APPLICABLE
+                .bvps(new java.math.BigDecimal("15000"))
+                .revenueTtm(new java.math.BigDecimal("100000000000"))     // 100 bn revenue
+                .ownHistorySeries(java.util.List.of())
+                .sectorSeries(java.util.List.of())
+                .priceDataStatus("CURRENT")
+                .fundamentalsDataStatus("CURRENT")
+                .build();
+
+        var computed = ValuationV1.computeMetrics(inputs);
+
+        assertThat(computed.pe().applicability().name()).isEqualTo("NOT_APPLICABLE");
+        assertThat(computed.ps().applicability().name()).isEqualTo("DEFINED");
+        // marketCap 20,000 x 1,000,000 = 2e10; PS = 2e10 / 1e11 = 0.2
+        assertThat(computed.ps().value()).isEqualByComparingTo(new java.math.BigDecimal("0.2"));
+        assertThat(computed.allScored()).noneMatch(m -> m.metricCode().equals("PS"));  // weight 0, outside the composite
+
+        var zeroRevenue = ValuationV1.Inputs.builder()
+                .price(new java.math.BigDecimal("20000")).sharesOutstanding(1_000_000L)
+                .revenueTtm(java.math.BigDecimal.ZERO)
+                .ownHistorySeries(java.util.List.of()).sectorSeries(java.util.List.of())
+                .priceDataStatus("CURRENT").fundamentalsDataStatus("CURRENT").build();
+        assertThat(ValuationV1.computeMetrics(zeroRevenue).ps().applicability().name()).isEqualTo("NOT_APPLICABLE");
+        var noRevenue = ValuationV1.Inputs.builder()
+                .price(new java.math.BigDecimal("20000")).sharesOutstanding(1_000_000L)
+                .ownHistorySeries(java.util.List.of()).sectorSeries(java.util.List.of())
+                .priceDataStatus("CURRENT").fundamentalsDataStatus("CURRENT").build();
+        assertThat(ValuationV1.computeMetrics(noRevenue).ps().qualityReason()).isEqualTo("MISSING_REVENUE");
+    }
 }

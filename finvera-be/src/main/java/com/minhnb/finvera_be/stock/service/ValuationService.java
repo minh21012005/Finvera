@@ -204,6 +204,7 @@ public class ValuationService {
                 .cashAndEquivalents(cash)
                 .dividendPerShareTtm(dividendTtm)
                 .dividendYield(currentFundamentals.dividendYield())
+                .revenueTtm(currentFundamentals.revenueTtm())
                 .ownHistorySeries(historyPoints)
                 // T064: gated by finvera.stock.provider.sector-basis-enabled (default false —
                 // owner validates latency in non-production first, per tasks.md T064). Sector
@@ -403,6 +404,7 @@ public class ValuationService {
                     .cashAndEquivalents(peerFundamentals.cashAndEquivalents())
                     .dividendPerShareTtm(peerFundamentals.dividendPerShareTtm())
                     .dividendYield(peerFundamentals.dividendYield())
+                    .revenueTtm(peerFundamentals.revenueTtm())
                     .build());
 
             for (MetricValue mv : computed.allScored()) {
@@ -450,7 +452,7 @@ public class ValuationService {
             out.put(e.getValue(), new CurrentFundamentalMetrics(
                     v.get("EPS_TTM"), v.get("EPS_GROWTH_PERCENT"), v.get("EQUITY_ATTRIBUTABLE_TO_PARENT"), v.get("BVPS"),
                     v.get("EBITDA_TTM"), v.get("TOTAL_DEBT"), v.get("CASH_AND_EQUIVALENTS"),
-                    v.get("DIVIDEND_PER_SHARE_TTM"), v.get("DIVIDEND_YIELD")));
+                    v.get("DIVIDEND_PER_SHARE_TTM"), v.get("DIVIDEND_YIELD"), v.get("REVENUE_TTM")));
         }
         return out;
     }
@@ -469,6 +471,7 @@ public class ValuationService {
         BigDecimal cash = null;
         BigDecimal dividendTtm = null;
         BigDecimal dividendYield = null;
+        BigDecimal revenueTtm = null;
         for (var m : f.metrics()) {
             if (m.applicability() == MetricApplicability.DEFINED && m.value() != null) {
                 switch (m.metricCode()) {
@@ -485,14 +488,15 @@ public class ValuationService {
                     case "CASH_AND_EQUIVALENTS" -> cash = m.value();
                     case "DIVIDEND_PER_SHARE_TTM" -> dividendTtm = m.value();
                     case "DIVIDEND_YIELD" -> dividendYield = m.value();
+                    case "REVENUE_TTM" -> revenueTtm = m.value();  // Feature 022: PS input
                 }
             }
         }
-        return new CurrentFundamentalMetrics(epsTtm, epsGrowth, equityParent, bvps, ebitdaTtm, totalDebt, cash, dividendTtm, dividendYield);
+        return new CurrentFundamentalMetrics(epsTtm, epsGrowth, equityParent, bvps, ebitdaTtm, totalDebt, cash, dividendTtm, dividendYield, revenueTtm);
     }
 
     private static final Set<String> VALUATION_INPUT_CODES = Set.of(
-            "EPS_TTM", "EPS_GROWTH_PERCENT", "EQUITY_ATTRIBUTABLE_TO_PARENT", "BVPS", "EBITDA_TTM",
+            "EPS_TTM", "REVENUE_TTM", "EPS_GROWTH_PERCENT", "EQUITY_ATTRIBUTABLE_TO_PARENT", "BVPS", "EBITDA_TTM",
             "TOTAL_DEBT", "CASH_AND_EQUIVALENTS", "DIVIDEND_PER_SHARE_TTM", "DIVIDEND_YIELD");
 
     /** Which basis each consumed fundamental input came from, when the summary says so (ANNUAL_BASIS, rule ids...). */
@@ -513,9 +517,9 @@ public class ValuationService {
     private record CurrentFundamentalMetrics(
             BigDecimal epsTtm, BigDecimal epsGrowthPercent, BigDecimal equityAttributableToParent,
             BigDecimal bvps, BigDecimal ebitdaTtm, BigDecimal totalDebt, BigDecimal cashAndEquivalents,
-            BigDecimal dividendPerShareTtm, BigDecimal dividendYield) {
+            BigDecimal dividendPerShareTtm, BigDecimal dividendYield, BigDecimal revenueTtm) {
         static final CurrentFundamentalMetrics EMPTY =
-                new CurrentFundamentalMetrics(null, null, null, null, null, null, null, null, null);
+                new CurrentFundamentalMetrics(null, null, null, null, null, null, null, null, null, null);
     }
 
     private DataStatus evaluatePriceFreshness(EquityDailyBarEntity latestBar, LocalDate sessionTradingDate) {

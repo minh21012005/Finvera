@@ -56,3 +56,17 @@ summary was (re)persisted; a peer without a persisted summary still goes through
 the computing path. Measured on the owner's machine: MBB (24 peers) 8.5 s →
 after the amendment see docs/REMEDIATION_PLAN.md Q-55. No change to the formulas,
 weights, bases or floors.
+
+## Addendum 2026-08-31 (Feature 022): PS as an informational metric
+
+`PS = marketCap / REVENUE_TTM` joins the metric list beside DIVIDEND_YIELD as an **informational**
+metric: weight 0, excluded from the composite score, the coverage denominator and the PE/PB core
+gate. Purpose: a defensible price multiple for loss-making companies where PE is NOT_APPLICABLE.
+Applicability: `MISSING_REVENUE` when REVENUE_TTM is absent, `NEGATIVE_OR_ZERO_REVENUE`
+(NOT_APPLICABLE) when it is <= 0, `MISSING_MARKET_CAP_INPUTS` when price or shares are missing.
+Percentile bases accrue for PS exactly like the other metrics as history builds. DIVIDEND_YIELD's
+input chain is restored by `vci-dps-cash-dividends-over-shares-v1` (contract
+vci-derived-ratios-v1): DIVIDEND_PER_SHARE -> summary DIVIDEND_PER_SHARE_TTM -> yield vs price.
+BETA stays deferred: no anchored definition adds decision value for a personal investor (owner
+scope decision 2026-08-31, "đủ và chính xác, không thừa").
+

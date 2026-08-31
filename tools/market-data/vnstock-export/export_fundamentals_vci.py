@@ -28,7 +28,7 @@ from typing import Any
 
 from export_fundamentals import CONTRACT_VERSION, canonical_json, period_bounds, output_filename
 
-TOOL_VERSION = "1.1.0"  # 1.1.0: Feature 019 derived ratios (contract vci-derived-ratios-v1)
+TOOL_VERSION = "1.2.0"  # 1.2.0: Feature 022 DIVIDEND_PER_SHARE from cash dividends (feeds valuation DIVIDEND_YIELD)
 SOURCE = "VNSTOCK_VCI"
 PAR_VALUE_VND = Decimal("10000")
 SIX = Decimal("0.000001")
@@ -59,6 +59,8 @@ RULE_BALANCE_GROWTH = "vci-balance-growth-yoy-v1"
 RULE_NIM = "vci-nim-earning-assets-v1"
 RULE_CIR = "vci-cir-v1"
 RULE_LDR = "vci-ldr-v1"
+# Feature 022
+RULE_DPS = "vci-dps-cash-dividends-over-shares-v1"
 END_SUFFIX = "-end"   # average-balance denominators fall back to the period-end balance, disclosed
 
 COMPANY_TYPES = ("BANK", "INSURER", "BROKER", "NON_FINANCIAL")
@@ -399,6 +401,12 @@ def build_metric_records(symbol: str, frames: Frames, period: str) -> list[dict[
             da = resolve(frames, *inputs["da"], column)
             if op is not None and da is not None:
                 records.append(record("EBITDA", column, op + da, IS, company_type, RULE_EBITDA))
+        # Feature 022: cash dividend per share = |dividends_paid| / shares. The consolidated cash-flow
+        # line includes dividends paid to minority holders (documented in vci-derived-ratios-v1);
+        # a present 0 means "no dividend paid" -- a real fact; an absent line stays absent.
+        dividends = resolve(frames, CF, "dividends_paid", column)
+        if dividends is not None and sh:
+            records.append(record("DIVIDEND_PER_SHARE", column, abs(dividends) / sh, CF, company_type, RULE_DPS))
 
     derive_ratios(records, frames, company_type, periods, quarter_columns, inputs, record, fact)
 
