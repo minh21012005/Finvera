@@ -272,7 +272,9 @@ public class ValuationService {
                 result.reasonCodes(),
                 asOfDate,
                 asOf,
-                coherenceKey
+                coherenceKey,
+                latestBar != null ? latestBar.getTradingDate() : null,
+                inputBasisOf(fundamentalsOpt.orElse(null))
         ));
     }
 
@@ -420,6 +422,25 @@ public class ValuationService {
             }
         }
         return new CurrentFundamentalMetrics(epsTtm, epsGrowth, equityParent, bvps, ebitdaTtm, totalDebt, cash, dividendTtm, dividendYield);
+    }
+
+    private static final Set<String> VALUATION_INPUT_CODES = Set.of(
+            "EPS_TTM", "EPS_GROWTH_PERCENT", "EQUITY_ATTRIBUTABLE_TO_PARENT", "BVPS", "EBITDA_TTM",
+            "TOTAL_DEBT", "CASH_AND_EQUIVALENTS", "DIVIDEND_PER_SHARE_TTM", "DIVIDEND_YIELD");
+
+    /** Which basis each consumed fundamental input came from, when the summary says so (ANNUAL_BASIS, rule ids...). */
+    private static Map<String, String> inputBasisOf(FundamentalReportService.StockFundamentals fundamentals) {
+        if (fundamentals == null || fundamentals.metrics() == null) {
+            return Map.of();
+        }
+        Map<String, String> basis = new java.util.LinkedHashMap<>();
+        for (var m : fundamentals.metrics()) {
+            if (VALUATION_INPUT_CODES.contains(m.metricCode()) && m.applicability() == MetricApplicability.DEFINED
+                    && m.reasonCode() != null) {
+                basis.put(m.metricCode(), m.reasonCode());
+            }
+        }
+        return Map.copyOf(basis);
     }
 
     private record CurrentFundamentalMetrics(
@@ -706,8 +727,22 @@ public class ValuationService {
             List<String> reasonCodes,
             LocalDate tradingDate,
             Instant asOf,
-            String coherenceKey
-    ) {}
+            String coherenceKey,
+            /** T049: the session whose close priced this assessment (may trail {@code tradingDate}). */
+            LocalDate priceTradingDate,
+            /** T049: basis/quality reason of each fundamental input consumed (e.g. EPS_GROWTH_PERCENT -> ANNUAL_BASIS). */
+            Map<String, String> inputBasis
+    ) {
+        public StockValuation(String symbol, String ruleVersion, boolean published, ValuationLabel classification,
+                BigDecimal score, Integer displayedScore, Integer confidence, boolean usedOwnHistory, boolean usedSector,
+                String sector, String sectorScheme, String sectorSchemeVersion, Integer sectorConstituentCount,
+                Integer historyPointCount, List<ValuationMetric> metrics, DataStatus dataStatus, List<String> reasonCodes,
+                LocalDate tradingDate, Instant asOf, String coherenceKey) {
+            this(symbol, ruleVersion, published, classification, score, displayedScore, confidence, usedOwnHistory,
+                    usedSector, sector, sectorScheme, sectorSchemeVersion, sectorConstituentCount, historyPointCount,
+                    metrics, dataStatus, reasonCodes, tradingDate, asOf, coherenceKey, null, Map.of());
+        }
+    }
 
     public record ValuationMetric(
             String metricCode,

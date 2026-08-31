@@ -5,6 +5,7 @@ import {
   AnalystFinalResult,
   ToolCallEvent,
 } from '../api/analyst';
+import { groupClaimsBySentence } from '../format/claim-grouping';
 
 export const AskAnalyst: React.FC = () => {
   const [question, setQuestion] = useState('');
@@ -246,21 +247,17 @@ export const AskAnalyst: React.FC = () => {
                   <span>Dữ liệu đã được kiểm chứng ({finalResult.structuredClaims.length} số liệu)</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {finalResult.structuredClaims.map((claim, idx) => (
+                  {groupClaimsBySentence(finalResult.structuredClaims).map((group, idx) => (
                     <div
                       key={idx}
                       className="p-2.5 rounded-lg bg-slate-800/60 border border-emerald-500/30 flex flex-col justify-between space-y-1"
                     >
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-semibold text-emerald-300">
-                          {claim.claimText}
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-mono">
-                          [#{claim.sequenceNo} {claim.toolName} → {claim.sourceField}]
-                        </span>
+                      <div className="text-xs font-semibold text-emerald-300">{group.claimText}</div>
+                      <div className="text-[10px] text-slate-400 font-mono">
+                        [#{group.sequenceNo} {group.toolName} → {group.sourceFields.join(', ')}]
                       </div>
                       <div className="text-[10px] text-slate-400 flex items-center justify-end">
-                        <span>Thời điểm: {claim.asOf ? new Date(claim.asOf).toLocaleTimeString('vi-VN') : 'N/A'}</span>
+                        <span>Thời điểm: {group.asOf ? new Date(group.asOf).toLocaleTimeString('vi-VN') : 'N/A'}</span>
                       </div>
                     </div>
                   ))}

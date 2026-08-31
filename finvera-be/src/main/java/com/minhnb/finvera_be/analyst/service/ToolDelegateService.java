@@ -301,7 +301,7 @@ public class ToolDelegateService {
         var valuationOpt = valuationService.findBySymbol(cleanSymbol);
         if (valuationOpt.isEmpty()) {
             return new ValuationToolResponse(cleanSymbol, null, null, null, "NONE", Instant.now(), Collections.emptyMap(),
-                    false, null, null, null, null, null, null, List.of(), List.of("NO_VALUATION"), "UNAVAILABLE");
+                    false, null, null, null, null, null, null, List.of(), List.of("NO_VALUATION"), "UNAVAILABLE", null, Map.of());
         }
         var valuation = valuationOpt.get();
         Map<String, Object> raw = new HashMap<>();
@@ -354,7 +354,9 @@ public class ToolDelegateService {
                 valuation.sectorConstituentCount(),
                 facts,
                 valuation.reasonCodes() != null ? valuation.reasonCodes() : List.of(),
-                valuation.dataStatus() != null ? valuation.dataStatus().name() : "UNAVAILABLE");
+                valuation.dataStatus() != null ? valuation.dataStatus().name() : "UNAVAILABLE",
+                valuation.priceTradingDate() != null ? valuation.priceTradingDate().toString() : null,
+                valuation.inputBasis() != null ? valuation.inputBasis() : Map.of());
     }
 
     public PortfolioPositionsToolResponse getPortfolioPositions(UUID ownerId) {

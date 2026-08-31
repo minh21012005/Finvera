@@ -269,7 +269,8 @@ class ToolDelegateServiceTests {
                     new com.minhnb.finvera_be.stock.service.ValuationService.ValuationMetric(
                         "PEG", null, MetricApplicability.NOT_APPLICABLE, null, null, null, "NEGATIVE_OR_ZERO_GROWTH")),
                 DataStatus.CURRENT, List.of("HISTORY_SHARES_OUTSTANDING_HELD_CURRENT"),
-                LocalDate.of(2026, 8, 28), Instant.parse("2026-08-31T00:00:00Z"), "coh");
+                LocalDate.of(2026, 8, 31), Instant.parse("2026-08-31T00:00:00Z"), "coh",
+                LocalDate.of(2026, 8, 28), java.util.Map.of("EPS_GROWTH_PERCENT", "ANNUAL_BASIS", "DIVIDEND_YIELD", "ANNUAL_BASIS"));
         when(valuationService.findBySymbol("MBB")).thenReturn(Optional.of(published));
 
         var response = toolDelegateService.getValuation("MBB");
@@ -286,6 +287,8 @@ class ToolDelegateServiceTests {
         assertThat(peg.applicability()).isEqualTo("NOT_APPLICABLE");
         assertThat(peg.qualityReason()).isEqualTo("NEGATIVE_OR_ZERO_GROWTH");
         assertThat(response.raw()).doesNotContainKey("PEG");             // missing/N-A never masquerade as values
+        assertThat(response.priceTradingDate()).isEqualTo("2026-08-28");  // the close that priced it, not the session date
+        assertThat(response.inputBasis()).containsEntry("EPS_GROWTH_PERCENT", "ANNUAL_BASIS");
     }
 
     @Test

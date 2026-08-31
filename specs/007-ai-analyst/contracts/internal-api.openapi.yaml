@@ -623,6 +623,11 @@ components:
         metrics: { type: array, items: { $ref: "#/components/schemas/MetricFact" } }
         reasonCodes: { type: array, items: { type: string } }
         dataStatus: { type: string }
+        priceTradingDate: { type: string, format: date, nullable: true, description: "session whose close priced the assessment; may trail asOf" }
+        inputBasis:
+          type: object
+          additionalProperties: { type: string }
+          description: "basis/quality reason per consumed fundamental input, e.g. EPS_GROWTH_PERCENT -> ANNUAL_BASIS"
 
     PortfolioPositionsTool:
       type: object

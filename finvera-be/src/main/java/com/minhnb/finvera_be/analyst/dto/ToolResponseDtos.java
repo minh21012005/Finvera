@@ -124,11 +124,13 @@ public final class ToolResponseDtos {
             Integer sectorConstituentCount,
             List<MetricFactDto> metrics,
             List<String> reasonCodes,
-            String dataStatus) {
+            String dataStatus,
+            String priceTradingDate,
+            Map<String, String> inputBasis) {
         public ValuationToolResponse(String symbol, String peRatio, String pbRatio, String classification,
                 String comparisonBasis, Instant asOf, Map<String, Object> raw) {
             this(symbol, peRatio, pbRatio, classification, comparisonBasis, asOf, raw, classification != null,
-                    null, null, null, null, null, null, List.of(), List.of(), "UNAVAILABLE");
+                    null, null, null, null, null, null, List.of(), List.of(), "UNAVAILABLE", null, Map.of());
         }
     }
 
