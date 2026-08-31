@@ -149,7 +149,7 @@ async def test_t017_tool_failure_degrades_gracefully():
 
     final_data = next(e for e in events if e["type"] == "final")["final"]
     assert final_data["refused"] is False
-    assert "28500" in final_data["answer"]
+    assert "28.500" in final_data["answer"]  # vi-VN formatting (Feature 015)
     # Check that failed tool call is in toolCalls with FAILED status
     failed_tool = next(t for t in final_data["toolCalls"] if t["status"] == "FAILED")
     assert failed_tool["failureReason"] == "TIMEOUT: 10s exceeded"

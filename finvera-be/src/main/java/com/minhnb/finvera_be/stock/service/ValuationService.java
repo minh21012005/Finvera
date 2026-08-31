@@ -28,6 +28,10 @@ import com.minhnb.finvera_be.stock.repository.EquityDailyBarRepository;
 import com.minhnb.finvera_be.stock.repository.EquityProfileRepository;
 import com.minhnb.finvera_be.stock.repository.FundamentalReportMetricRepository;
 import com.minhnb.finvera_be.stock.repository.FundamentalReportRepository;
+import com.minhnb.finvera_be.stock.repository.FundamentalSummaryMetricRepository;
+import com.minhnb.finvera_be.stock.repository.FundamentalSummaryRepository;
+import com.minhnb.finvera_be.stock.entity.FundamentalSummaryEntity;
+import com.minhnb.finvera_be.stock.entity.FundamentalSummaryMetricEntity;
 import com.minhnb.finvera_be.stock.repository.SectorReferenceRepository;
 import com.minhnb.finvera_be.stock.repository.ValuationAssessmentInputRepository;
 import com.minhnb.finvera_be.stock.repository.ValuationAssessmentRepository;
@@ -93,6 +97,8 @@ public class ValuationService {
     private final StockFreshnessPolicy freshnessPolicy = new StockFreshnessPolicy();
     private final Clock clock;
     private final boolean sectorBasisEnabled;
+    private final FundamentalSummaryRepository fundamentalSummaries;
+    private final FundamentalSummaryMetricRepository fundamentalSummaryMetrics;
 
     public ValuationService(
             MarketReferenceDataService referenceData,
@@ -106,8 +112,12 @@ public class ValuationService {
             ValuationAssessmentInputRepository assessmentInputs,
             FundamentalReportService fundamentalReportService,
             StockIngestionService ingestion,
+            FundamentalSummaryRepository fundamentalSummaries,
+            FundamentalSummaryMetricRepository fundamentalSummaryMetrics,
             Clock clock,
             @Value("${finvera.stock.provider.sector-basis-enabled:false}") boolean sectorBasisEnabled) {
+        this.fundamentalSummaries = fundamentalSummaries;
+        this.fundamentalSummaryMetrics = fundamentalSummaryMetrics;
         this.referenceData = referenceData;
         this.dailyBars = dailyBars;
         this.profiles = profiles;
@@ -342,10 +352,24 @@ public class ValuationService {
             return List.of();
         }
 
+        List<UUID> peerIds = peers.stream().map(EquityProfileEntity::getInstrumentId).toList();
         Map<UUID, String> symbolsById = referenceData
-                .findInstrumentsByIds(peers.stream().map(EquityProfileEntity::getInstrumentId).toList())
+                .findInstrumentsByIds(peerIds)
                 .stream()
                 .collect(java.util.stream.Collectors.toMap(InstrumentReference::instrumentId, InstrumentReference::symbol));
+
+        // Q-55 (Feature 015): peers were priced from their FULL bar history (one query of ~900 rows
+        // each) and their fundamentals recomputed report-by-report — 8-18 s per valuation for a
+        // 24-37 peer sector, past the AI tool timeout. Two bulk reads instead: the latest current
+        // bar per peer, and each peer's persisted current fundamental summary — the same figures
+        // the calculator produced when that summary was (re)persisted (fundamental-summary-v2
+        // revision chain; a peer without a persisted summary falls back to the computing path).
+        Map<UUID, EquityDailyBarEntity> latestBarByPeer = new java.util.HashMap<>();
+        for (EquityDailyBarEntity bar : dailyBars.findLatestNCurrentByInstrumentIdIn(peerIds, 1)) {
+            latestBarByPeer.merge(bar.getInstrumentId(), bar,
+                    (a, b) -> a.getTradingDate().isAfter(b.getTradingDate()) ? a : b);
+        }
+        Map<UUID, CurrentFundamentalMetrics> persistedPeerMetrics = persistedCurrentMetrics(peerIds);
 
         List<SectorPoint> points = new ArrayList<>();
         for (EquityProfileEntity peer : peers) {
@@ -355,15 +379,16 @@ public class ValuationService {
                 continue; // delisted/unknown since the profile snapshot was taken; skip, don't guess
             }
 
-            List<EquityDailyBarEntity> peerBars = dedupeByTradingDate(
-                    dailyBars.findByInstrumentIdAndCurrentTrueOrderByTradingDateAsc(peerInstrumentId));
-            if (peerBars.isEmpty()) {
+            EquityDailyBarEntity latestPeerBar = latestBarByPeer.get(peerInstrumentId);
+            if (latestPeerBar == null) {
                 continue;
             }
-            BigDecimal peerPrice = peerBars.get(peerBars.size() - 1).getClosePrice();
+            BigDecimal peerPrice = latestPeerBar.getClosePrice();
 
-            CurrentFundamentalMetrics peerFundamentals =
-                    extractCurrentMetrics(fundamentalReportService.findBySymbol(peerSymbol).orElse(null));
+            CurrentFundamentalMetrics peerFundamentals = persistedPeerMetrics.get(peerInstrumentId);
+            if (peerFundamentals == null) {
+                peerFundamentals = extractCurrentMetrics(fundamentalReportService.findBySymbol(peerSymbol).orElse(null));
+            }
 
             ComputedMetrics computed = ValuationV1.computeMetrics(Inputs.builder()
                     .price(peerPrice)
@@ -386,6 +411,47 @@ public class ValuationService {
             }
         }
         return points;
+    }
+
+    /** Q-55: peers' current valuation inputs from their persisted current summaries, two bulk queries. */
+    private Map<UUID, CurrentFundamentalMetrics> persistedCurrentMetrics(List<UUID> instrumentIds) {
+        Map<UUID, CurrentFundamentalMetrics> out = new java.util.HashMap<>();
+        if (instrumentIds.isEmpty()) {
+            return out;
+        }
+        Map<UUID, UUID> instrumentBySummary = new java.util.HashMap<>();
+        for (FundamentalSummaryEntity summary : fundamentalSummaries
+                .findLatestByInstrumentIdInAndRuleVersion(instrumentIds, FundamentalSummaryCalculator.RULE_VERSION)) {
+            // Sibling revisions can tie on calculated_at (Q-54): keep one deterministically.
+            UUID keep = instrumentBySummary.entrySet().stream()
+                    .filter(e -> e.getValue().equals(summary.getInstrumentId()))
+                    .map(Map.Entry::getKey).findFirst().orElse(null);
+            if (keep == null || summary.getId().toString().compareTo(keep.toString()) < 0) {
+                if (keep != null) {
+                    instrumentBySummary.remove(keep);
+                }
+                instrumentBySummary.put(summary.getId(), summary.getInstrumentId());
+            }
+        }
+        if (instrumentBySummary.isEmpty()) {
+            return out;
+        }
+        Map<UUID, Map<String, BigDecimal>> valuesByInstrument = new java.util.HashMap<>();
+        for (FundamentalSummaryMetricEntity row : fundamentalSummaryMetrics.findBySummaryIdIn(instrumentBySummary.keySet())) {
+            UUID instrumentId = instrumentBySummary.get(row.getSummaryId());
+            if (instrumentId == null || row.getValue() == null || !"DEFINED".equals(row.getApplicability())) {
+                continue;
+            }
+            valuesByInstrument.computeIfAbsent(instrumentId, k -> new java.util.HashMap<>()).put(row.getMetricCode(), row.getValue());
+        }
+        for (Map.Entry<UUID, UUID> e : instrumentBySummary.entrySet()) {
+            Map<String, BigDecimal> v = valuesByInstrument.getOrDefault(e.getValue(), Map.of());
+            out.put(e.getValue(), new CurrentFundamentalMetrics(
+                    v.get("EPS_TTM"), v.get("EPS_GROWTH_PERCENT"), v.get("EQUITY_ATTRIBUTABLE_TO_PARENT"), v.get("BVPS"),
+                    v.get("EBITDA_TTM"), v.get("TOTAL_DEBT"), v.get("CASH_AND_EQUIVALENTS"),
+                    v.get("DIVIDEND_PER_SHARE_TTM"), v.get("DIVIDEND_YIELD")));
+        }
+        return out;
     }
 
     /** Shared by the subject instrument's current metrics and every sector peer's current metrics. */

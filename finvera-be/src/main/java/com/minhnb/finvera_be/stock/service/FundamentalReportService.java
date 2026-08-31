@@ -256,8 +256,18 @@ public class FundamentalReportService {
         return existingRows.equals(computedRows);
     }
 
-    private static String metricRowKey(String code, java.math.BigDecimal value, String applicability, String reason) {
-        String v = value == null ? "" : value.stripTrailingZeros().toPlainString();
+    /** {@code fundamental_summary_metric.value} is {@code numeric(28,6)} (V00x migrations). */
+    static final int PERSISTED_VALUE_SCALE = 6;
+
+    /**
+     * Q-53: the calculator works at scale 12 while the column stores scale 6, so a naive
+     * comparison ("-2.7735753908" vs "-2.773575") never matched and every read re-persisted
+     * a revision (214 rows for 105 instruments in one hour of the Feature 015 capture; MBB 5×).
+     * Both sides are rounded to the persisted precision before comparing.
+     */
+    static String metricRowKey(String code, java.math.BigDecimal value, String applicability, String reason) {
+        String v = value == null ? "" : value.setScale(PERSISTED_VALUE_SCALE, java.math.RoundingMode.HALF_UP)
+                .stripTrailingZeros().toPlainString();
         return code + "|" + v + "|" + applicability + "|" + (reason == null ? "" : reason);
     }
 

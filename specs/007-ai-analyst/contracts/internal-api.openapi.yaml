@@ -462,6 +462,19 @@ components:
         ruleVersion:
           type: string
           const: orchestration-v1
+        synthesisMode:
+          type: string
+          nullable: true
+          enum: [ONLINE, OFFLINE_TEMPLATE]
+          description: >-
+            Feature 015: ONLINE = the model wrote the answer from the tool JSON; OFFLINE_TEMPLATE =
+            the deterministic templates did (no provider, or the provider failed — e.g. quota) and
+            the answer opens with a sentence saying so.
+        plannerMode:
+          type: string
+          nullable: true
+          enum: [MODEL, KEYWORD_FALLBACK]
+          description: "Feature 015 - how the tool calls were chosen."
 
     OrchestrationStreamEvent:
       type: object

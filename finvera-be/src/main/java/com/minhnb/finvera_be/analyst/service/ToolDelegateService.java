@@ -153,6 +153,15 @@ public class ToolDelegateService {
                 overview.reasonCodes() != null ? overview.reasonCodes() : List.of());
     }
 
+    /**
+     * Q-49: the underlying service materialises its result on read (idempotent revision
+     * chain). Under the class-level read-only transaction Hibernate never flushed, so the
+     * fundamentals tool silently dropped its writes and the valuation tool — whose
+     * {@code saveAndFlush} forced a flush — failed with "cannot execute INSERT in a
+     * read-only transaction" (surfaced to finvera-ai as HTTP 401 via /error). Writable, like
+     * the public stock-detail endpoints that call the same services.
+     */
+    @Transactional
     public TechnicalToolResponse getTechnical(String symbol) {
         String cleanSymbol = normalizeSymbol(symbol);
         var technicalOpt = technicalIndicatorService.findBySymbol(cleanSymbol);
@@ -237,6 +246,15 @@ public class ToolDelegateService {
         };
     }
 
+    /**
+     * Q-49: the underlying service materialises its result on read (idempotent revision
+     * chain). Under the class-level read-only transaction Hibernate never flushed, so the
+     * fundamentals tool silently dropped its writes and the valuation tool — whose
+     * {@code saveAndFlush} forced a flush — failed with "cannot execute INSERT in a
+     * read-only transaction" (surfaced to finvera-ai as HTTP 401 via /error). Writable, like
+     * the public stock-detail endpoints that call the same services.
+     */
+    @Transactional
     public FundamentalsToolResponse getFundamentals(String symbol) {
         String cleanSymbol = normalizeSymbol(symbol);
         var reportOpt = fundamentalReportService.findBySymbol(cleanSymbol);
@@ -296,6 +314,15 @@ public class ToolDelegateService {
                 report.reasonCodes() != null ? report.reasonCodes() : List.of());
     }
 
+    /**
+     * Q-49: the underlying service materialises its result on read (idempotent revision
+     * chain). Under the class-level read-only transaction Hibernate never flushed, so the
+     * fundamentals tool silently dropped its writes and the valuation tool — whose
+     * {@code saveAndFlush} forced a flush — failed with "cannot execute INSERT in a
+     * read-only transaction" (surfaced to finvera-ai as HTTP 401 via /error). Writable, like
+     * the public stock-detail endpoints that call the same services.
+     */
+    @Transactional
     public ValuationToolResponse getValuation(String symbol) {
         String cleanSymbol = normalizeSymbol(symbol);
         var valuationOpt = valuationService.findBySymbol(cleanSymbol);

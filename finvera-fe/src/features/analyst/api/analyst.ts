@@ -47,6 +47,10 @@ export interface AnalystFinalResult {
   toolCalls: ToolCallEvent[];
   toolCallBoundReached: boolean;
   ruleVersion: string;
+  /** Feature 015: ONLINE = the model wrote the text; OFFLINE_TEMPLATE = deterministic template from tool data (model unavailable). */
+  synthesisMode?: 'ONLINE' | 'OFFLINE_TEMPLATE' | null;
+  /** Feature 015: MODEL = native function-calling chose the tools; KEYWORD_FALLBACK = the deterministic heuristic did. */
+  plannerMode?: 'MODEL' | 'KEYWORD_FALLBACK' | null;
 }
 
 export interface AskAnalystCallbacks {

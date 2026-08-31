@@ -310,8 +310,13 @@ public class ScreenerService {
     private Map<UUID, Map<String, MetricPoint>> fetchFundamentalMetrics(List<UUID> instrumentIds) {
         List<FundamentalSummaryEntity> summaries = fundamentalSummaries
                 .findLatestByInstrumentIdInAndRuleVersion(instrumentIds, FundamentalSummaryCalculator.RULE_VERSION);
+        // Q-54: two concurrent materialising reads (e.g. VALUATION(MBB) and VALUATION(VCB) both
+        // touching peer KLB) can leave sibling revisions with the same calculated_at; pick one
+        // deterministically (smallest id) instead of failing the whole screen with
+        // IllegalStateException("Duplicate key").
         Map<UUID, UUID> summaryIdByInstrument = summaries.stream()
-                .collect(Collectors.toMap(FundamentalSummaryEntity::getInstrumentId, FundamentalSummaryEntity::getId));
+                .collect(Collectors.toMap(FundamentalSummaryEntity::getInstrumentId, FundamentalSummaryEntity::getId,
+                        (a, b) -> a.toString().compareTo(b.toString()) <= 0 ? a : b));
         Map<UUID, UUID> instrumentBySummaryId = new HashMap<>();
         summaryIdByInstrument.forEach((instrumentId, summaryId) -> instrumentBySummaryId.put(summaryId, instrumentId));
 

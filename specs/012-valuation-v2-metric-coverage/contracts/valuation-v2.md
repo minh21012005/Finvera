@@ -43,3 +43,16 @@ metrics (0..1). A P/B-only assessment therefore publishes with
 | Real gap still withheld | PE `MISSING_EPS`, PB DEFINED, PEG `MISSING_GROWTH`, EV/EBITDA `MISSING_EBITDA` → coverage 0.375 → `INSUFFICIENT_METRIC_COVERAGE`, not published. |
 | Only PEG defined (v1 vector, unchanged outcome) | PE and PB present as gaps → withheld. |
 | Rule version | Every result reports `valuation-v2`. |
+
+## Amendment 2026-08-31 (Q-55) — sector-peer inputs
+
+Peer inputs for the sector basis are read from each peer's **persisted current
+fundamental summary** (`fundamental_summary` / `fundamental_summary_metric`,
+rule `fundamental-summary-v2`, latest `as_of_trading_date` then latest
+`calculated_at`; a tie between sibling revisions is resolved by the smallest id)
+and the peer's **latest current daily bar**, both fetched in bulk. The figures
+are identical to what the calculator would produce for that peer at the time the
+summary was (re)persisted; a peer without a persisted summary still goes through
+the computing path. Measured on the owner's machine: MBB (24 peers) 8.5 s →
+after the amendment see docs/REMEDIATION_PLAN.md Q-55. No change to the formulas,
+weights, bases or floors.

@@ -198,6 +198,8 @@ async def test_online_synthesis_failure_falls_back_to_offline_templates_without_
 
     final = next(e for e in events if e["type"] == "final")["final"]
     assert final["refused"] is False
-    assert "130000" in final["answer"]
+    assert "130.000" in final["answer"]  # vi-VN formatting (Feature 015)
+    assert final["answer"].startswith("(Mô hình AI tạm thời không khả dụng")  # Q-51 disclosure
+    assert final["synthesisMode"] == "OFFLINE_TEMPLATE"
     deltas = [e for e in events if e["type"] == "delta"]
     assert len(deltas) > 0

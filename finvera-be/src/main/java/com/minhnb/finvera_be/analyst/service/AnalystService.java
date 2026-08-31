@@ -242,7 +242,9 @@ public class AnalystService {
                                 internalFinal.refused(),
                                 recordedToolCalls,
                                 internalFinal.toolCallBoundReached(),
-                                internalFinal.ruleVersion() != null ? internalFinal.ruleVersion() : "orchestration-v1");
+                                internalFinal.ruleVersion() != null ? internalFinal.ruleVersion() : "orchestration-v1",
+                                internalFinal.synthesisMode(),
+                                internalFinal.plannerMode());
 
                         Map<String, Object> publicFinalEnvelope = Map.of(
                                 "type", "final",

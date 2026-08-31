@@ -209,4 +209,32 @@ class FundamentalReportServiceTests {
                 LocalDate.of(2010, 1, 1), null, "ACTIVE", "FINVERA_FIXTURE", "v1"));
         return id;
     }
+
+    @Test
+    void metricRowKeyComparesAtThePersistedScale() {
+        // Q-53: computed scale-12 growth vs the numeric(28,6) column must be "unchanged".
+        String computed = FundamentalReportService.metricRowKey("EPS_GROWTH_PERCENT",
+                new BigDecimal("-2.773575390800"), "DEFINED", "ANNUAL_BASIS");
+        String persisted = FundamentalReportService.metricRowKey("EPS_GROWTH_PERCENT",
+                new BigDecimal("-2.773575"), "DEFINED", "ANNUAL_BASIS");
+        assertThat(computed).isEqualTo(persisted);
+        assertThat(FundamentalReportService.metricRowKey("EPS_TTM", new BigDecimal("4050.730000"), "DEFINED", null))
+                .isEqualTo(FundamentalReportService.metricRowKey("EPS_TTM", new BigDecimal("4050.73"), "DEFINED", null));
+        assertThat(FundamentalReportService.metricRowKey("X", new BigDecimal("1.0000004"), "DEFINED", null))
+                .isNotEqualTo(FundamentalReportService.metricRowKey("X", new BigDecimal("1.0000014"), "DEFINED", null));
+    }
+
+    @Test
+    void aSecondReadOfAnUnchangedSummaryWithScale12ValuesDoesNotCreateARevision() {
+        UUID instrumentId = saveInstrument("STF06");
+        ingestFourQuarters("STF06", 2025, new BigDecimal("333.333333"));
+        fundamentals.findBySymbol("STF06").orElseThrow();
+        var first = summaries.findFirstByInstrumentIdAndRuleVersionOrderByAsOfTradingDateDescCalculatedAtDesc(
+                instrumentId, com.minhnb.finvera_be.stock.domain.fundamentals.FundamentalSummaryCalculator.RULE_VERSION).orElseThrow();
+        fundamentals.findBySymbol("STF06").orElseThrow();
+        fundamentals.findBySymbol("STF06").orElseThrow();
+        var still = summaries.findFirstByInstrumentIdAndRuleVersionOrderByAsOfTradingDateDescCalculatedAtDesc(
+                instrumentId, com.minhnb.finvera_be.stock.domain.fundamentals.FundamentalSummaryCalculator.RULE_VERSION).orElseThrow();
+        assertThat(still.getId()).isEqualTo(first.getId());
+    }
 }

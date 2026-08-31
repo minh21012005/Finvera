@@ -1,0 +1,2584 @@
+{
+ "capturedAt": "2026-08-31T17:57:02",
+ "questions": [
+  {
+   "id": "Q01",
+   "symbol": "VNM",
+   "question": "Giá cổ phiếu VNM hôm nay bao nhiêu và biến động thế nào?",
+   "probe": "STOCK: price/change/asOf; PRICE not fabricated",
+   "elapsedMs": 3634,
+   "toolCalls": [
+    {
+     "sequenceNo": 1,
+     "toolName": "STOCK",
+     "arguments": {
+      "symbol": "VNM",
+      "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+     },
+     "status": "SUCCEEDED",
+     "failureReason": null,
+     "latencyMs": 175
+    }
+   ],
+   "toolResponses": [
+    {
+     "sequenceNo": 1,
+     "toolName": "STOCK",
+     "arguments": {
+      "symbol": "VNM",
+      "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+     },
+     "response": {
+      "symbol": "VNM",
+      "companyName": "CTCP Sữa Việt Nam",
+      "price": "62300.000000",
+      "changePercent": "-0.320000",
+      "volume": 2385900,
+      "asOf": "2026-08-31T10:57:06.179720700Z",
+      "raw": {
+       "venue": "HOSE",
+       "referencePrice": "62500.000000",
+       "marketCapVnd": "130204224223500.000000",
+       "tradingDate": "2026-08-28",
+       "sector": "Thực phẩm - Đồ uống"
+      },
+      "dataStatus": "DELAYED",
+      "reasonCodes": [
+       "PRICE_LIMITS_UNAVAILABLE"
+      ]
+     }
+    }
+   ],
+   "final": {
+    "answer": "(Mô hình AI tạm thời không khả dụng — câu trả lời dưới đây được lập theo mẫu, trực tiếp từ dữ liệu công cụ, chưa qua diễn giải.) Cổ phiếu VNM đóng cửa ở 62.300 đồng (-0,32 %) (theo phiên 2026-08-28; dữ liệu trễ một phiên).",
+    "structuredClaims": [
+     {
+      "claimText": "Giá 62300.000000",
+      "sequenceNo": 1,
+      "fieldPath": "price",
+      "claimedValue": "62300.000000",
+      "asOf": "2026-08-31T10:57:05.729809700Z"
+     },
+     {
+      "claimText": "Thay đổi -0.320000%",
+      "sequenceNo": 1,
+      "fieldPath": "changePercent",
+      "claimedValue": "-0.320000",
+      "asOf": "2026-08-31T10:57:05.729809700Z"
+     }
+    ],
+    "documentClaims": [],
+    "refused": false,
+    "toolCalls": [
+     {
+      "sequenceNo": 1,
+      "toolName": "STOCK",
+      "arguments": {
+       "symbol": "VNM",
+       "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+      },
+      "status": "SUCCEEDED",
+      "failureReason": null,
+      "latencyMs": 175
+     }
+    ],
+    "toolCallBoundReached": false,
+    "ruleVersion": "orchestration-v1",
+    "synthesisMode": "OFFLINE_TEMPLATE",
+    "plannerMode": "MODEL"
+   },
+   "check": {
+    "unsupportedNumbers": [],
+    "basisMisses": [],
+    "verifiedClaims": 2,
+    "refused": false
+   }
+  },
+  {
+   "id": "Q02",
+   "symbol": "VNM",
+   "question": "Giải thích định giá của VNM: P/E, P/B, so với lịch sử của chính nó.",
+   "probe": "VALUATION: classification, score, percentiles, notes",
+   "elapsedMs": 23760,
+   "toolCalls": [
+    {
+     "sequenceNo": 1,
+     "toolName": "VALUATION",
+     "arguments": {
+      "symbol": "VNM",
+      "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+     },
+     "status": "SUCCEEDED",
+     "failureReason": null,
+     "latencyMs": 549
+    },
+    {
+     "sequenceNo": 2,
+     "toolName": "RESEARCH_RAG",
+     "arguments": {
+      "query": "định giá P/E P/B lịch sử VNM",
+      "owner_id": "550e8400-e29b-41d4-a716-446655440000",
+      "symbol": "VNM",
+      "document_type": null,
+      "news_category": null,
+      "date_from": null,
+      "date_to": null,
+      "top_k": 8
+     },
+     "status": "FAILED",
+     "failureReason": "HTTP_503: {\"detail\":\"Retrieval service is currently unavailable\",\"instance\":\"/internal/v1/tools/research/retrieve\",\"status\":503,\"title\":\"Retrieval service is currently unavailable\",\"type\":\"about:blank\",\"code\":\"",
+     "latencyMs": 235
+    }
+   ],
+   "toolResponses": [
+    {
+     "sequenceNo": 1,
+     "toolName": "VALUATION",
+     "arguments": {
+      "symbol": "VNM",
+      "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+     },
+     "response": {
+      "symbol": "VNM",
+      "peRatio": "14.321839080460",
+      "pbRatio": "3.430616740088",
+      "classification": "FAIR_VALUED",
+      "comparisonBasis": "OWN_HISTORY+SECTOR",
+      "asOf": "2026-08-31T10:57:29.962716300Z",
+      "raw": {
+       "PB": "3.430616740088",
+       "PE": "14.321839080460",
+       "DIVIDEND_YIELD": "7.920000"
+      },
+      "published": true,
+      "ruleVersion": "valuation-v2",
+      "score": "56.33607203894004107081819360",
+      "displayedScore": 56,
+      "confidence": 87,
+      "historyPointCount": 750,
+      "sectorConstituentCount": 29,
+      "metrics": [
+       {
+        "metricCode": "PE",
+        "value": "14.321839080460",
+        "applicability": "DEFINED",
+        "qualityReason": null,
+        "ownHistoryPercentile": "32.866666666667",
+        "sectorPercentile": "67.857142857143",
+        "effectiveWeight": "0.571428571429"
+       },
+       {
+        "metricCode": "PB",
+        "value": "3.430616740088",
+        "applicability": "DEFINED",
+        "qualityReason": null,
+        "ownHistoryPercentile": "55.174927113703",
+        "sectorPercentile": "89.655172413793",
+        "effectiveWeight": "0.428571428571"
+       },
+       {
+        "metricCode": "EV_EBITDA",
+        "value": null,
+        "applicability": "MISSING",
+        "qualityReason": "MISSING_EBITDA",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "PEG",
+        "value": null,
+        "applicability": "NOT_APPLICABLE",
+        "qualityReason": "NEGATIVE_OR_ZERO_GROWTH",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "DIVIDEND_YIELD",
+        "value": "7.920000",
+        "applicability": "DEFINED",
+        "qualityReason": null,
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       }
+      ],
+      "reasonCodes": [
+       "HISTORY_SHARES_OUTSTANDING_HELD_CURRENT"
+      ],
+      "dataStatus": "DELAYED",
+      "priceTradingDate": "2026-08-28",
+      "inputBasis": {
+       "DIVIDEND_YIELD": "ANNUAL_BASIS",
+       "EPS_GROWTH_PERCENT": "ANNUAL_BASIS"
+      }
+     }
+    }
+   ],
+   "final": {
+    "answer": "Dưới đây là giải thích chi tiết về định giá cổ phiếu VNM (P/E, P/B so với lịch sử) dựa trên dữ liệu hệ thống:\n\n### 1. Thời điểm và trạng thái dữ liệu\n- Dữ liệu định giá dựa trên giá giao dịch ngày 2026-08-28.\n- Trạng thái dữ liệu: trễ (DELAYED).\n- Phân loại định giá tổng thể: Định giá hợp lý (FAIR_VALUED).\n\n---\n\n### 2. Định giá P/E và P/B so với lịch sử của chính cổ phiếu VNM\n\n- **Chỉ số P/E (Price-to-Earnings)**:\n  - Giá trị P/E hiện tại: **14.321839080460**.\n  - So với lịch sử của chính VNM: Nằm ở bách phân vị **32.866666666667**%. \n\n- **Chỉ số P/B (Price-to-Book)**:\n  - Giá trị P/B hiện tại: **3.430616740088**.\n  - So với lịch sử của chính VNM: Nằm ở bách phân vị **55.174927113703**%.\n\n---\n\n### 3. Thông tin bổ sung về cơ sở số liệu & các chỉ số khác\n- **EV/EBITDA**: Không có giá trị (null), lý do chất lượng dữ liệu là thiếu EBITDA (MISSING_EBITDA).\n- **PEG**: Không áp dụng (null), lý do tăng trưởng âm hoặc bằng 0 (NEGATIVE_OR_ZERO_GROWTH).\n- **Tỷ suất cổ tức (DIVIDEND_YIELD)**: Đạt **7.920000**%, tính trên cơ sở số liệu năm (ANNUAL_BASIS).",
+    "structuredClaims": [
+     {
+      "claimText": "Thời điểm và trạng thái dữ liệu - Dữ liệu định giá dựa trên giá giao dịch ngày 2026-08-28 .",
+      "sequenceNo": 1,
+      "fieldPath": "priceTradingDate",
+      "claimedValue": "2026-08-28",
+      "asOf": "2026-08-31T10:57:10.342545400Z"
+     },
+     {
+      "claimText": "- Trạng thái dữ liệu: trễ (DELAYED) .",
+      "sequenceNo": 1,
+      "fieldPath": "dataStatus",
+      "claimedValue": "DELAYED",
+      "asOf": "2026-08-31T10:57:10.342545400Z"
+     },
+     {
+      "claimText": "- Phân loại định giá tổng thể: Định giá hợp lý (FAIR_VALUED) .",
+      "sequenceNo": 1,
+      "fieldPath": "classification",
+      "claimedValue": "FAIR_VALUED",
+      "asOf": "2026-08-31T10:57:10.342545400Z"
+     },
+     {
+      "claimText": "- Giá trị P/E hiện tại: **14.321839080460** .",
+      "sequenceNo": 1,
+      "fieldPath": "peRatio",
+      "claimedValue": "14.321839080460",
+      "asOf": "2026-08-31T10:57:10.342545400Z"
+     },
+     {
+      "claimText": "- Giá trị P/B hiện tại: **3.430616740088** .",
+      "sequenceNo": 1,
+      "fieldPath": "pbRatio",
+      "claimedValue": "3.430616740088",
+      "asOf": "2026-08-31T10:57:10.342545400Z"
+     }
+    ],
+    "documentClaims": [],
+    "refused": false,
+    "toolCalls": [
+     {
+      "sequenceNo": 1,
+      "toolName": "VALUATION",
+      "arguments": {
+       "symbol": "VNM",
+       "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+      },
+      "status": "SUCCEEDED",
+      "failureReason": null,
+      "latencyMs": 549
+     },
+     {
+      "sequenceNo": 2,
+      "toolName": "RESEARCH_RAG",
+      "arguments": {
+       "query": "định giá P/E P/B lịch sử VNM",
+       "owner_id": "550e8400-e29b-41d4-a716-446655440000",
+       "symbol": "VNM",
+       "document_type": null,
+       "news_category": null,
+       "date_from": null,
+       "date_to": null,
+       "top_k": 8
+      },
+      "status": "FAILED",
+      "failureReason": "HTTP_503: {\"detail\":\"Retrieval service is currently unavailable\",\"instance\":\"/internal/v1/tools/research/retrieve\",\"status\":503,\"title\":\"Retrieval service is currently unavailable\",\"type\":\"about:blank\",\"code\":\"",
+      "latencyMs": 235
+     }
+    ],
+    "toolCallBoundReached": false,
+    "ruleVersion": "orchestration-v1",
+    "synthesisMode": "ONLINE",
+    "plannerMode": "MODEL"
+   },
+   "check": {
+    "unsupportedNumbers": [],
+    "basisMisses": [],
+    "verifiedClaims": 5,
+    "refused": false
+   }
+  },
+  {
+   "id": "Q03",
+   "symbol": null,
+   "question": "So sánh định giá của MBB và VCB, ngân hàng nào đang rẻ hơn?",
+   "probe": "two VALUATION calls; PROVIDER_TRAILING_EPS basis",
+   "elapsedMs": 1900,
+   "toolCalls": [
+    {
+     "sequenceNo": 1,
+     "toolName": "STOCK",
+     "arguments": {
+      "symbol": "MBB",
+      "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+     },
+     "status": "SUCCEEDED",
+     "failureReason": null,
+     "latencyMs": 333
+    },
+    {
+     "sequenceNo": 2,
+     "toolName": "VALUATION",
+     "arguments": {
+      "symbol": "MBB",
+      "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+     },
+     "status": "SUCCEEDED",
+     "failureReason": null,
+     "latencyMs": 367
+    }
+   ],
+   "toolResponses": [
+    {
+     "sequenceNo": 1,
+     "toolName": "STOCK",
+     "arguments": {
+      "symbol": "MBB",
+      "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+     },
+     "response": {
+      "symbol": "MBB",
+      "companyName": "Ngân hàng TMCP Quân đội",
+      "price": "21050.000000",
+      "changePercent": "0.000000",
+      "volume": 8679400,
+      "asOf": "2026-08-31T10:57:32.060974700Z",
+      "raw": {
+       "venue": "HOSE",
+       "referencePrice": "21050.000000",
+       "marketCapVnd": "169557748084450.000000",
+       "tradingDate": "2026-08-28",
+       "sector": "Ngân hàng"
+      },
+      "dataStatus": "DELAYED",
+      "reasonCodes": [
+       "PRICE_LIMITS_UNAVAILABLE"
+      ]
+     }
+    },
+    {
+     "sequenceNo": 2,
+     "toolName": "VALUATION",
+     "arguments": {
+      "symbol": "MBB",
+      "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+     },
+     "response": {
+      "symbol": "MBB",
+      "peRatio": "5.196594194133",
+      "pbRatio": "1.274000998623",
+      "classification": "OVER_VALUED",
+      "comparisonBasis": "OWN_HISTORY+SECTOR",
+      "asOf": "2026-08-31T10:57:32.074045300Z",
+      "raw": {
+       "PB": "1.274000998623",
+       "PE": "5.196594194133",
+       "DIVIDEND_YIELD": "1.190000"
+      },
+      "published": true,
+      "ruleVersion": "valuation-v2",
+      "score": "68.95843181281876007750393860",
+      "displayedScore": 69,
+      "confidence": 87,
+      "historyPointCount": 750,
+      "sectorConstituentCount": 24,
+      "metrics": [
+       {
+        "metricCode": "PE",
+        "value": "5.196594194133",
+        "applicability": "DEFINED",
+        "qualityReason": null,
+        "ownHistoryPercentile": "78.466666666667",
+        "sectorPercentile": "21.739130434783",
+        "effectiveWeight": "0.571428571429"
+       },
+       {
+        "metricCode": "PB",
+        "value": "1.274000998623",
+        "applicability": "DEFINED",
+        "qualityReason": null,
+        "ownHistoryPercentile": "99.781341107872",
+        "sectorPercentile": "66.666666666667",
+        "effectiveWeight": "0.428571428571"
+       },
+       {
+        "metricCode": "EV_EBITDA",
+        "value": null,
+        "applicability": "MISSING",
+        "qualityReason": "MISSING_EBITDA",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "PEG",
+        "value": null,
+        "applicability": "NOT_APPLICABLE",
+        "qualityReason": "NEGATIVE_OR_ZERO_GROWTH",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "DIVIDEND_YIELD",
+        "value": "1.190000",
+        "applicability": "DEFINED",
+        "qualityReason": null,
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       }
+      ],
+      "reasonCodes": [
+       "HISTORY_SHARES_OUTSTANDING_HELD_CURRENT"
+      ],
+      "dataStatus": "DELAYED",
+      "priceTradingDate": "2026-08-28",
+      "inputBasis": {
+       "EPS_GROWTH_PERCENT": "ANNUAL_BASIS",
+       "DIVIDEND_YIELD": "ANNUAL_BASIS",
+       "EPS_TTM": "PROVIDER_TRAILING_EPS"
+      }
+     }
+    }
+   ],
+   "final": {
+    "answer": "(Mô hình AI tạm thời không khả dụng — câu trả lời dưới đây được lập theo mẫu, trực tiếp từ dữ liệu công cụ, chưa qua diễn giải.) Cổ phiếu MBB đóng cửa ở 21.050 đồng (0 %) (theo phiên 2026-08-28; dữ liệu trễ một phiên). Định giá MBB được phân loại ở mức OVER_VALUED; P/E là 5,2; P/B là 1,27 (EPS 12 tháng lấy theo số trailing của nhà cung cấp; tăng trưởng/cổ tức tính trên số liệu năm; giá theo phiên 2026-08-28, dữ liệu trễ một phiên).",
+    "structuredClaims": [
+     {
+      "claimText": "Giá 21050.000000",
+      "sequenceNo": 1,
+      "fieldPath": "price",
+      "claimedValue": "21050.000000",
+      "asOf": "2026-08-31T10:57:31.197807900Z"
+     },
+     {
+      "claimText": "Thay đổi 0.000000%",
+      "sequenceNo": 1,
+      "fieldPath": "changePercent",
+      "claimedValue": "0.000000",
+      "asOf": "2026-08-31T10:57:31.197807900Z"
+     },
+     {
+      "claimText": "Phân loại OVER_VALUED",
+      "sequenceNo": 2,
+      "fieldPath": "classification",
+      "claimedValue": "OVER_VALUED",
+      "asOf": "2026-08-31T10:57:31.190502200Z"
+     },
+     {
+      "claimText": "P/E 5.196594194133",
+      "sequenceNo": 2,
+      "fieldPath": "peRatio",
+      "claimedValue": "5.196594194133",
+      "asOf": "2026-08-31T10:57:31.190502200Z"
+     },
+     {
+      "claimText": "P/B 1.274000998623",
+      "sequenceNo": 2,
+      "fieldPath": "pbRatio",
+      "claimedValue": "1.274000998623",
+      "asOf": "2026-08-31T10:57:31.190502200Z"
+     }
+    ],
+    "documentClaims": [],
+    "refused": false,
+    "toolCalls": [
+     {
+      "sequenceNo": 1,
+      "toolName": "STOCK",
+      "arguments": {
+       "symbol": "MBB",
+       "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+      },
+      "status": "SUCCEEDED",
+      "failureReason": null,
+      "latencyMs": 333
+     },
+     {
+      "sequenceNo": 2,
+      "toolName": "VALUATION",
+      "arguments": {
+       "symbol": "MBB",
+       "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+      },
+      "status": "SUCCEEDED",
+      "failureReason": null,
+      "latencyMs": 367
+     }
+    ],
+    "toolCallBoundReached": false,
+    "ruleVersion": "orchestration-v1",
+    "synthesisMode": "OFFLINE_TEMPLATE",
+    "plannerMode": "KEYWORD_FALLBACK"
+   },
+   "check": {
+    "unsupportedNumbers": [],
+    "basisMisses": [],
+    "verifiedClaims": 5,
+    "refused": false
+   }
+  },
+  {
+   "id": "Q04",
+   "symbol": "HPG",
+   "question": "Các chỉ báo kỹ thuật của HPG (MA, RSI, MACD) đang nói gì?",
+   "probe": "TECHNICAL: values + signals",
+   "elapsedMs": 1435,
+   "toolCalls": [
+    {
+     "sequenceNo": 1,
+     "toolName": "TECHNICAL",
+     "arguments": {
+      "symbol": "HPG",
+      "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+     },
+     "status": "SUCCEEDED",
+     "failureReason": null,
+     "latencyMs": 223
+    }
+   ],
+   "toolResponses": [
+    {
+     "sequenceNo": 1,
+     "toolName": "TECHNICAL",
+     "arguments": {
+      "symbol": "HPG",
+      "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+     },
+     "response": {
+      "symbol": "HPG",
+      "indicators": {
+       "MA20": {
+        "indicatorCode": "MA20",
+        "applicability": "DEFINED",
+        "requiredBars": 20,
+        "availableBars": 20,
+        "windowStartDate": "2026-08-03",
+        "windowEndDate": "2026-08-28",
+        "inputBarCount": 20,
+        "inputSetHash": "729fdf815bae973af4f6f32bcf3349bba59806ec5678ac0fbaa0bd30f383f04c",
+        "reasonCode": null,
+        "components": [
+         {
+          "componentCode": "VALUE",
+          "value": 21820.0,
+          "unit": "VND",
+          "displayPrecision": 2,
+          "applicability": "DEFINED",
+          "reasonCode": null
+         }
+        ]
+       },
+       "RSI14": {
+        "indicatorCode": "RSI14",
+        "applicability": "DEFINED",
+        "requiredBars": 250,
+        "availableBars": 250,
+        "windowStartDate": "2025-08-28",
+        "windowEndDate": "2026-08-28",
+        "inputBarCount": 250,
+        "inputSetHash": "68979e8b456cc007326b4533cde44c5876b6396dac09fc203a6c383d048fc3b1",
+        "reasonCode": null,
+        "components": [
+         {
+          "componentCode": "VALUE",
+          "value": 53.462694291646,
+          "unit": "POINTS",
+          "displayPrecision": 2,
+          "applicability": "DEFINED",
+          "reasonCode": null
+         }
+        ]
+       },
+       "AVG_VOLUME20": {
+        "indicatorCode": "AVG_VOLUME20",
+        "applicability": "DEFINED",
+        "requiredBars": 20,
+        "availableBars": 20,
+        "windowStartDate": "2026-08-03",
+        "windowEndDate": "2026-08-28",
+        "inputBarCount": 20,
+        "inputSetHash": "3f97dbb93f045fd961c5d98819a6ef1c5b7d020b230b0bf740fd3ae0ca5e4bd4",
+        "reasonCode": null,
+        "components": [
+         {
+          "componentCode": "VALUE",
+          "value": 21138995.0,
+          "unit": "SHARES",
+          "displayPrecision": 0,
+          "applicability": "DEFINED",
+          "reasonCode": null
+         }
+        ]
+       },
+       "MA200": {
+        "indicatorCode": "MA200",
+        "applicability": "DEFINED",
+        "requiredBars": 200,
+        "availableBars": 200,
+        "windowStartDate": "2025-11-10",
+        "windowEndDate": "2026-08-28",
+        "inputBarCount": 200,
+        "inputSetHash": "7817fa47550cae434792df544390d5b83a3427cde70a14af817c693c788ae258",
+        "reasonCode": null,
+        "components": [
+         {
+          "componentCode": "VALUE",
+          "value": 23637.55,
+          "unit": "VND",
+          "displayPrecision": 2,
+          "applicability": "DEFINED",
+          "reasonCode": null
+         }
+        ]
+       },
+       "RELATIVE_VOLUME": {
+        "indicatorCode": "RELATIVE_VOLUME",
+        "applicability": "DEFINED",
+        "requiredBars": 21,
+        "availableBars": 21,
+        "windowStartDate": "2026-07-31",
+        "windowEndDate": "2026-08-28",
+        "inputBarCount": 21,
+        "inputSetHash": "6710f8c74e6ea77b1e557f1f82dcfdd33fb732f03d9abad06af567b4c8abd694",
+        "reasonCode": null,
+        "components": [
+         {
+          "componentCode": "VALUE",
+          "value": 0.797026838174,
+          "unit": "RATIO",
+          "displayPrecision": 2,
+          "applicability": "DEFINED",
+          "reasonCode": null
+         }
+        ]
+       },
+       "MACD": {
+        "indicatorCode": "MACD",
+        "applicability": "DEFINED",
+        "requiredBars": 250,
+        "availableBars": 250,
+        "windowStartDate": "2025-08-28",
+        "windowEndDate": "2026-08-28",
+        "inputBarCount": 250,
+        "inputSetHash": "68979e8b456cc007326b4533cde44c5876b6396dac09fc203a6c383d048fc3b1",
+        "reasonCode": null,
+        "components": [
+         {
+          "componentCode": "MACD_LINE",
+          "value": -18.537872241786,
+          "unit": "VND",
+          "displayPrecision": 2,
+          "applicability": "DEFINED",
+          "reasonCode": null
+         },
+         {
+          "componentCode": "SIGNAL",
+          "value": -131.241659208866,
+          "unit": "VND",
+          "displayPrecision": 2,
+          "applicability": "DEFINED",
+          "reasonCode": null
+         },
+         {
+          "componentCode": "HISTOGRAM",
+          "value": 112.70378696708,
+          "unit": "VND",
+          "displayPrecision": 2,
+          "applicability": "DEFINED",
+          "reasonCode": null
+         }
+        ]
+       },
+       "ATR14": {
+        "indicatorCode": "ATR14",
+        "applicability": "DEFINED",
+        "requiredBars": 250,
+        "availableBars": 250,
+        "windowStartDate": "2025-08-28",
+        "windowEndDate": "2026-08-28",
+        "inputBarCount": 250,
+        "inputSetHash": "e7d7152939207b724ff682952734478778d216cc63abc1334af1b19a41eee722",
+        "reasonCode": null,
+        "components": [
+         {
+          "componentCode": "VALUE",
+          "value": 469.11531030461,
+          "unit": "VND",
+          "displayPrecision": 2,
+          "applicability": "DEFINED",
+          "reasonCode": null
+         },
+         {
+          "componentCode": "PERCENT_OF_CLOSE",
+          "value": 2.1226937118,
+          "unit": "PERCENT",
+          "displayPrecision": 2,
+          "applicability": "DEFINED",
+          "reasonCode": null
+         }
+        ]
+       },
+       "MA50": {
+        "indicatorCode": "MA50",
+        "applicability": "DEFINED",
+        "requiredBars": 50,
+        "availableBars": 50,
+        "windowStartDate": "2026-06-22",
+        "windowEndDate": "2026-08-28",
+        "inputBarCount": 50,
+        "inputSetHash": "7e8d747eca11b3f4e18d0904d3967abce93fbe3467c278a171abd232fec7ff06",
+        "reasonCode": null,
+        "components": [
+         {
+          "componentCode": "VALUE",
+          "value": 22157.0,
+          "unit": "VND",
+          "displayPrecision": 2,
+          "applicability": "DEFINED",
+          "reasonCode": null
+         }
+        ]
+       },
+       "BBANDS": {
+        "indicatorCode": "BBANDS",
+        "applicability": "DEFINED",
+        "requiredBars": 20,
+        "availableBars": 20,
+        "windowStartDate": "2026-08-03",
+        "windowEndDate": "2026-08-28",
+        "inputBarCount": 20,
+        "inputSetHash": "729fdf815bae973af4f6f32bcf3349bba59806ec5678ac0fbaa0bd30f383f04c",
+        "reasonCode": null,
+        "components": [
+         {
+          "componentCode": "UPPER",
+          "value": 22671.11691323813,
+          "unit": "VND",
+          "displayPrecision": 2,
+          "applicability": "DEFINED",
+          "reasonCode": null
+         },
+         {
+          "componentCode": "MIDDLE",
+          "value": 21820.0,
+          "unit": "VND",
+          "displayPrecision": 2,
+          "applicability": "DEFINED",
+          "reasonCode": null
+         },
+         {
+          "componentCode": "LOWER",
+          "value": 20968.88308676187,
+          "unit": "VND",
+          "displayPrecision": 2,
+          "applicability": "DEFINED",
+          "reasonCode": null
+         },
+         {
+          "componentCode": "BANDWIDTH",
+          "value": 7.8012549334,
+          "unit": "PERCENT",
+          "displayPrecision": 2,
+          "applicability": "DEFINED",
+          "reasonCode": null
+         }
+        ]
+       }
+      },
+      "signal": null,
+      "riskFactors": [],
+      "asOf": "2026-08-31T10:57:33.702395100Z",
+      "signals": [],
+      "dataStatus": "DELAYED"
+     }
+    }
+   ],
+   "final": {
+    "answer": "(Mô hình AI tạm thời không khả dụng — câu trả lời dưới đây được lập theo mẫu, trực tiếp từ dữ liệu công cụ, chưa qua diễn giải.) Chỉ báo kỹ thuật của HPG (dữ liệu trễ một phiên): MA20 21.820, MA50 22.157, RSI14 53,46; không có tín hiệu chiến lược nào đang kích hoạt.",
+    "structuredClaims": [
+     {
+      "claimText": "MA20 21.820",
+      "sequenceNo": 1,
+      "fieldPath": "indicators.MA20.components[0].value",
+      "claimedValue": "21820.0",
+      "asOf": "2026-08-31T10:57:33.178311700Z"
+     },
+     {
+      "claimText": "MA50 22.157",
+      "sequenceNo": 1,
+      "fieldPath": "indicators.MA50.components[0].value",
+      "claimedValue": "22157.0",
+      "asOf": "2026-08-31T10:57:33.178311700Z"
+     },
+     {
+      "claimText": "RSI14 53,46",
+      "sequenceNo": 1,
+      "fieldPath": "indicators.RSI14.components[0].value",
+      "claimedValue": "53.462694291646",
+      "asOf": "2026-08-31T10:57:33.178311700Z"
+     },
+     {
+      "claimText": "0 tín hiệu",
+      "sequenceNo": 1,
+      "fieldPath": "signals.length",
+      "claimedValue": "0",
+      "asOf": "2026-08-31T10:57:33.178311700Z"
+     }
+    ],
+    "documentClaims": [],
+    "refused": false,
+    "toolCalls": [
+     {
+      "sequenceNo": 1,
+      "toolName": "TECHNICAL",
+      "arguments": {
+       "symbol": "HPG",
+       "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+      },
+      "status": "SUCCEEDED",
+      "failureReason": null,
+      "latencyMs": 223
+     }
+    ],
+    "toolCallBoundReached": false,
+    "ruleVersion": "orchestration-v1",
+    "synthesisMode": "OFFLINE_TEMPLATE",
+    "plannerMode": "KEYWORD_FALLBACK"
+   },
+   "check": {
+    "unsupportedNumbers": [],
+    "basisMisses": [],
+    "verifiedClaims": 4,
+    "refused": false
+   }
+  },
+  {
+   "id": "Q05",
+   "symbol": "AAA",
+   "question": "Định giá của AAA có đáng tin không? Công ty này đang lỗ phải không?",
+   "probe": "loss-maker: REDUCED_METRIC_SET, PE NOT_APPLICABLE",
+   "elapsedMs": 28573,
+   "toolCalls": [
+    {
+     "sequenceNo": 1,
+     "toolName": "STOCK",
+     "arguments": {
+      "symbol": "AAA",
+      "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+     },
+     "status": "SUCCEEDED",
+     "failureReason": null,
+     "latencyMs": 362
+    },
+    {
+     "sequenceNo": 2,
+     "toolName": "VALUATION",
+     "arguments": {
+      "symbol": "AAA",
+      "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+     },
+     "status": "SUCCEEDED",
+     "failureReason": null,
+     "latencyMs": 429
+    }
+   ],
+   "toolResponses": [
+    {
+     "sequenceNo": 1,
+     "toolName": "STOCK",
+     "arguments": {
+      "symbol": "AAA",
+      "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+     },
+     "response": {
+      "symbol": "AAA",
+      "companyName": "CTCP Nhựa An Phát Xanh",
+      "price": "7030.000000",
+      "changePercent": "-0.706215",
+      "volume": 863300,
+      "asOf": "2026-08-31T10:58:02.325796600Z",
+      "raw": {
+       "venue": "HOSE",
+       "referencePrice": "7080.000000",
+       "marketCapVnd": "2768011391900.000000",
+       "tradingDate": "2026-08-28",
+       "sector": "SX Nhựa - Hóa chất"
+      },
+      "dataStatus": "DELAYED",
+      "reasonCodes": [
+       "PRICE_LIMITS_UNAVAILABLE"
+      ]
+     }
+    },
+    {
+     "sequenceNo": 2,
+     "toolName": "VALUATION",
+     "arguments": {
+      "symbol": "AAA",
+      "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+     },
+     "response": {
+      "symbol": "AAA",
+      "peRatio": "7.606825584038",
+      "pbRatio": "0.459958126145",
+      "classification": "UNDER_VALUED",
+      "comparisonBasis": "OWN_HISTORY+SECTOR",
+      "asOf": "2026-08-31T10:58:02.341453300Z",
+      "raw": {
+       "PB": "0.459958126145",
+       "PE": "7.606825584038",
+       "DIVIDEND_YIELD": "3.810000"
+      },
+      "published": true,
+      "ruleVersion": "valuation-v2",
+      "score": "15.90516435145088721660092620",
+      "displayedScore": 16,
+      "confidence": 87,
+      "historyPointCount": 750,
+      "sectorConstituentCount": 51,
+      "metrics": [
+       {
+        "metricCode": "PE",
+        "value": "7.606825584038",
+        "applicability": "DEFINED",
+        "qualityReason": null,
+        "ownHistoryPercentile": "0.400000000000",
+        "sectorPercentile": "29.166666666667",
+        "effectiveWeight": "0.571428571429"
+       },
+       {
+        "metricCode": "PB",
+        "value": "0.459958126145",
+        "applicability": "DEFINED",
+        "qualityReason": null,
+        "ownHistoryPercentile": "27.551020408163",
+        "sectorPercentile": "11.764705882353",
+        "effectiveWeight": "0.428571428571"
+       },
+       {
+        "metricCode": "EV_EBITDA",
+        "value": null,
+        "applicability": "MISSING",
+        "qualityReason": "MISSING_EBITDA",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "PEG",
+        "value": null,
+        "applicability": "NOT_APPLICABLE",
+        "qualityReason": "NEGATIVE_OR_ZERO_GROWTH",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "DIVIDEND_YIELD",
+        "value": "3.810000",
+        "applicability": "DEFINED",
+        "qualityReason": null,
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       }
+      ],
+      "reasonCodes": [
+       "HISTORY_SHARES_OUTSTANDING_HELD_CURRENT"
+      ],
+      "dataStatus": "DELAYED",
+      "priceTradingDate": "2026-08-28",
+      "inputBasis": {
+       "EPS_GROWTH_PERCENT": "ANNUAL_BASIS",
+       "DIVIDEND_YIELD": "ANNUAL_BASIS",
+       "EPS_TTM": "PROVIDER_TRAILING_EPS"
+      }
+     }
+    }
+   ],
+   "final": {
+    "answer": "(Mô hình AI tạm thời không khả dụng — câu trả lời dưới đây được lập theo mẫu, trực tiếp từ dữ liệu công cụ, chưa qua diễn giải.) Cổ phiếu AAA đóng cửa ở 7.030 đồng (-0,71 %) (theo phiên 2026-08-28; dữ liệu trễ một phiên). Định giá AAA được phân loại ở mức UNDER_VALUED; P/E là 7,61; P/B là 0,46 (EPS 12 tháng lấy theo số trailing của nhà cung cấp; tăng trưởng/cổ tức tính trên số liệu năm; giá theo phiên 2026-08-28, dữ liệu trễ một phiên).",
+    "structuredClaims": [
+     {
+      "claimText": "Giá 7030.000000",
+      "sequenceNo": 1,
+      "fieldPath": "price",
+      "claimedValue": "7030.000000",
+      "asOf": "2026-08-31T10:58:01.316679200Z"
+     },
+     {
+      "claimText": "Thay đổi -0.706215%",
+      "sequenceNo": 1,
+      "fieldPath": "changePercent",
+      "claimedValue": "-0.706215",
+      "asOf": "2026-08-31T10:58:01.316679200Z"
+     },
+     {
+      "claimText": "Phân loại UNDER_VALUED",
+      "sequenceNo": 2,
+      "fieldPath": "classification",
+      "claimedValue": "UNDER_VALUED",
+      "asOf": "2026-08-31T10:58:01.308864900Z"
+     },
+     {
+      "claimText": "P/E 7.606825584038",
+      "sequenceNo": 2,
+      "fieldPath": "peRatio",
+      "claimedValue": "7.606825584038",
+      "asOf": "2026-08-31T10:58:01.308864900Z"
+     },
+     {
+      "claimText": "P/B 0.459958126145",
+      "sequenceNo": 2,
+      "fieldPath": "pbRatio",
+      "claimedValue": "0.459958126145",
+      "asOf": "2026-08-31T10:58:01.308864900Z"
+     }
+    ],
+    "documentClaims": [],
+    "refused": false,
+    "toolCalls": [
+     {
+      "sequenceNo": 1,
+      "toolName": "STOCK",
+      "arguments": {
+       "symbol": "AAA",
+       "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+      },
+      "status": "SUCCEEDED",
+      "failureReason": null,
+      "latencyMs": 362
+     },
+     {
+      "sequenceNo": 2,
+      "toolName": "VALUATION",
+      "arguments": {
+       "symbol": "AAA",
+       "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+      },
+      "status": "SUCCEEDED",
+      "failureReason": null,
+      "latencyMs": 429
+     }
+    ],
+    "toolCallBoundReached": false,
+    "ruleVersion": "orchestration-v1",
+    "synthesisMode": "OFFLINE_TEMPLATE",
+    "plannerMode": "KEYWORD_FALLBACK"
+   },
+   "check": {
+    "unsupportedNumbers": [],
+    "basisMisses": [],
+    "verifiedClaims": 5,
+    "refused": false
+   }
+  },
+  {
+   "id": "Q06",
+   "symbol": "ABB",
+   "question": "ABB thuộc ngành nào và định giá hiện tại ra sao?",
+   "probe": "UPCoM, no sector: OWN_HISTORY only, SECTOR_BASIS_INSUFFICIENT",
+   "elapsedMs": 1758,
+   "toolCalls": [
+    {
+     "sequenceNo": 1,
+     "toolName": "STOCK",
+     "arguments": {
+      "symbol": "ABB",
+      "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+     },
+     "status": "SUCCEEDED",
+     "failureReason": null,
+     "latencyMs": 341
+    },
+    {
+     "sequenceNo": 2,
+     "toolName": "VALUATION",
+     "arguments": {
+      "symbol": "ABB",
+      "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+     },
+     "status": "SUCCEEDED",
+     "failureReason": null,
+     "latencyMs": 237
+    }
+   ],
+   "toolResponses": [
+    {
+     "sequenceNo": 1,
+     "toolName": "STOCK",
+     "arguments": {
+      "symbol": "ABB",
+      "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+     },
+     "response": {
+      "symbol": "ABB",
+      "companyName": "Ngân hàng TMCP An Bình",
+      "price": "17300.000000",
+      "changePercent": "-0.574713",
+      "volume": 451100,
+      "asOf": "2026-08-31T10:58:04.316051100Z",
+      "raw": {
+       "venue": "UPCOM",
+       "referencePrice": "17400.000000",
+       "marketCapVnd": "27797362300400.000000",
+       "tradingDate": "2026-08-28",
+       "sector": null
+      },
+      "dataStatus": "DELAYED",
+      "reasonCodes": [
+       "PRICE_LIMITS_UNAVAILABLE"
+      ]
+     }
+    },
+    {
+     "sequenceNo": 2,
+     "toolName": "VALUATION",
+     "arguments": {
+      "symbol": "ABB",
+      "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+     },
+     "response": {
+      "symbol": "ABB",
+      "peRatio": "7.867140817273",
+      "pbRatio": "1.130591116168",
+      "classification": "FAIR_VALUED",
+      "comparisonBasis": "OWN_HISTORY",
+      "asOf": "2026-08-31T10:58:04.326627900Z",
+      "raw": {
+       "PB": "1.130591116168",
+       "PEG": "0.034320793605",
+       "PE": "7.867140817273",
+       "DIVIDEND_YIELD": "0.000000"
+      },
+      "published": true,
+      "ruleVersion": "valuation-v2",
+      "score": "52.325336665242693710953769",
+      "displayedScore": 52,
+      "confidence": 69,
+      "historyPointCount": 750,
+      "sectorConstituentCount": null,
+      "metrics": [
+       {
+        "metricCode": "PE",
+        "value": "7.867140817273",
+        "applicability": "DEFINED",
+        "qualityReason": null,
+        "ownHistoryPercentile": "16.733333333333",
+        "sectorPercentile": null,
+        "effectiveWeight": "0.571428571429"
+       },
+       {
+        "metricCode": "PB",
+        "value": "1.130591116168",
+        "applicability": "DEFINED",
+        "qualityReason": null,
+        "ownHistoryPercentile": "99.781341107872",
+        "sectorPercentile": null,
+        "effectiveWeight": "0.428571428571"
+       },
+       {
+        "metricCode": "EV_EBITDA",
+        "value": null,
+        "applicability": "MISSING",
+        "qualityReason": "MISSING_EBITDA",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "PEG",
+        "value": "0.034320793605",
+        "applicability": "DEFINED",
+        "qualityReason": null,
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "DIVIDEND_YIELD",
+        "value": "0.000000",
+        "applicability": "DEFINED",
+        "qualityReason": null,
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       }
+      ],
+      "reasonCodes": [
+       "HISTORY_SHARES_OUTSTANDING_HELD_CURRENT"
+      ],
+      "dataStatus": "DELAYED",
+      "priceTradingDate": "2026-08-28",
+      "inputBasis": {
+       "EPS_GROWTH_PERCENT": "ANNUAL_BASIS",
+       "DIVIDEND_YIELD": "ANNUAL_BASIS",
+       "EPS_TTM": "PROVIDER_TRAILING_EPS"
+      }
+     }
+    }
+   ],
+   "final": {
+    "answer": "(Mô hình AI tạm thời không khả dụng — câu trả lời dưới đây được lập theo mẫu, trực tiếp từ dữ liệu công cụ, chưa qua diễn giải.) Cổ phiếu ABB đóng cửa ở 17.300 đồng (-0,57 %) (theo phiên 2026-08-28; dữ liệu trễ một phiên). Định giá ABB được phân loại ở mức FAIR_VALUED; P/E là 7,87; P/B là 1,13 (EPS 12 tháng lấy theo số trailing của nhà cung cấp; tăng trưởng/cổ tức tính trên số liệu năm; giá theo phiên 2026-08-28, dữ liệu trễ một phiên).",
+    "structuredClaims": [
+     {
+      "claimText": "Giá 17300.000000",
+      "sequenceNo": 1,
+      "fieldPath": "price",
+      "claimedValue": "17300.000000",
+      "asOf": "2026-08-31T10:58:03.583370800Z"
+     },
+     {
+      "claimText": "Thay đổi -0.574713%",
+      "sequenceNo": 1,
+      "fieldPath": "changePercent",
+      "claimedValue": "-0.574713",
+      "asOf": "2026-08-31T10:58:03.583370800Z"
+     },
+     {
+      "claimText": "Phân loại FAIR_VALUED",
+      "sequenceNo": 2,
+      "fieldPath": "classification",
+      "claimedValue": "FAIR_VALUED",
+      "asOf": "2026-08-31T10:58:03.583370800Z"
+     },
+     {
+      "claimText": "P/E 7.867140817273",
+      "sequenceNo": 2,
+      "fieldPath": "peRatio",
+      "claimedValue": "7.867140817273",
+      "asOf": "2026-08-31T10:58:03.583370800Z"
+     },
+     {
+      "claimText": "P/B 1.130591116168",
+      "sequenceNo": 2,
+      "fieldPath": "pbRatio",
+      "claimedValue": "1.130591116168",
+      "asOf": "2026-08-31T10:58:03.583370800Z"
+     }
+    ],
+    "documentClaims": [],
+    "refused": false,
+    "toolCalls": [
+     {
+      "sequenceNo": 1,
+      "toolName": "STOCK",
+      "arguments": {
+       "symbol": "ABB",
+       "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+      },
+      "status": "SUCCEEDED",
+      "failureReason": null,
+      "latencyMs": 341
+     },
+     {
+      "sequenceNo": 2,
+      "toolName": "VALUATION",
+      "arguments": {
+       "symbol": "ABB",
+       "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+      },
+      "status": "SUCCEEDED",
+      "failureReason": null,
+      "latencyMs": 237
+     }
+    ],
+    "toolCallBoundReached": false,
+    "ruleVersion": "orchestration-v1",
+    "synthesisMode": "OFFLINE_TEMPLATE",
+    "plannerMode": "KEYWORD_FALLBACK"
+   },
+   "check": {
+    "unsupportedNumbers": [],
+    "basisMisses": [],
+    "verifiedClaims": 5,
+    "refused": false
+   }
+  },
+  {
+   "id": "Q07",
+   "symbol": "MBB",
+   "question": "Doanh thu và lợi nhuận của MBB tăng trưởng thế nào trong 12 tháng qua?",
+   "probe": "bank fundamentals: revenue basis, ANNUAL_BASIS growth, EPS_TTM provider trailing",
+   "elapsedMs": 1578,
+   "toolCalls": [
+    {
+     "sequenceNo": 1,
+     "toolName": "FUNDAMENTAL",
+     "arguments": {
+      "symbol": "MBB",
+      "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+     },
+     "status": "SUCCEEDED",
+     "failureReason": null,
+     "latencyMs": 165
+    }
+   ],
+   "toolResponses": [
+    {
+     "sequenceNo": 1,
+     "toolName": "FUNDAMENTAL",
+     "arguments": {
+      "symbol": "MBB",
+      "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+     },
+     "response": {
+      "symbol": "MBB",
+      "eps": null,
+      "roe": "20.220000",
+      "revenueGrowthPercent": null,
+      "period": "2026-Q2",
+      "asOf": "2026-08-31T10:58:05.992161700Z",
+      "raw": {
+       "EPS_GROWTH_PERCENT": "-2.773575390800",
+       "ROA": "1.980000",
+       "TRAILING_EPS": "4050.730000",
+       "BVPS": "16522.750000",
+       "ROE": "20.220000",
+       "NET_PROFIT_TTM": "29823745000000.000000",
+       "BETA": "1.200000",
+       "ROE_TTM": "20.220000",
+       "COST_INCOME_RATIO": "29.140000",
+       "NIM": "3.890000",
+       "NET_PROFIT": "5800441000000.000000",
+       "LOAN_TO_DEPOSIT": "81.920000",
+       "TOTAL_ASSETS_GROWTH_PERCENT": "43.140000",
+       "EPS_TTM": "4050.730000",
+       "DIVIDEND_YIELD": "1.190000",
+       "EQUITY_GROWTH_PERCENT": "21.320000",
+       "ROA_TTM": "1.980000"
+      },
+      "epsTtm": "4050.730000",
+      "epsGrowthPercent": "-2.773575390800",
+      "metrics": [
+       {
+        "metricCode": "BETA",
+        "value": "1.200000",
+        "applicability": "DEFINED",
+        "qualityReason": "PROVIDER_REPORTED",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "BVPS",
+        "value": "16522.750000",
+        "applicability": "DEFINED",
+        "qualityReason": null,
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "COST_INCOME_RATIO",
+        "value": "29.140000",
+        "applicability": "DEFINED",
+        "qualityReason": "PROVIDER_REPORTED",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "LOAN_TO_DEPOSIT",
+        "value": "81.920000",
+        "applicability": "DEFINED",
+        "qualityReason": "PROVIDER_REPORTED",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "NET_PROFIT",
+        "value": "5800441000000.000000",
+        "applicability": "DEFINED",
+        "qualityReason": null,
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "ROA",
+        "value": "1.980000",
+        "applicability": "DEFINED",
+        "qualityReason": "kbs-trailing-ratio-as-annualized-v1",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "ROA_TTM",
+        "value": "1.980000",
+        "applicability": "DEFINED",
+        "qualityReason": "PROVIDER_REPORTED",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "ROE",
+        "value": "20.220000",
+        "applicability": "DEFINED",
+        "qualityReason": "kbs-trailing-ratio-as-annualized-v1",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "ROE_TTM",
+        "value": "20.220000",
+        "applicability": "DEFINED",
+        "qualityReason": "PROVIDER_REPORTED",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "TRAILING_EPS",
+        "value": "4050.730000",
+        "applicability": "DEFINED",
+        "qualityReason": null,
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "NET_PROFIT_TTM",
+        "value": "29823745000000.000000",
+        "applicability": "DEFINED",
+        "qualityReason": null,
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "EPS_TTM",
+        "value": "4050.730000",
+        "applicability": "DEFINED",
+        "qualityReason": "PROVIDER_TRAILING_EPS",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "REVENUE_TTM",
+        "value": null,
+        "applicability": "MISSING",
+        "qualityReason": "NO_DATA",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "EBITDA_TTM",
+        "value": null,
+        "applicability": "MISSING",
+        "qualityReason": "NO_DATA",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "DIVIDEND_PER_SHARE_TTM",
+        "value": null,
+        "applicability": "MISSING",
+        "qualityReason": "NO_DATA",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "EPS_GROWTH_PERCENT",
+        "value": "-2.773575390800",
+        "applicability": "DEFINED",
+        "qualityReason": "ANNUAL_BASIS",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "REVENUE_GROWTH_PERCENT",
+        "value": null,
+        "applicability": "MISSING",
+        "qualityReason": "INSUFFICIENT_HISTORY",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "DEBT_TO_EQUITY",
+        "value": null,
+        "applicability": "MISSING",
+        "qualityReason": "NOT_REPORTED",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "OPERATING_MARGIN",
+        "value": null,
+        "applicability": "MISSING",
+        "qualityReason": "NOT_REPORTED",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "FREE_CASH_FLOW",
+        "value": null,
+        "applicability": "MISSING",
+        "qualityReason": "NOT_REPORTED",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "EQUITY_ATTRIBUTABLE_TO_PARENT",
+        "value": null,
+        "applicability": "MISSING",
+        "qualityReason": "NOT_REPORTED",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "TOTAL_DEBT",
+        "value": null,
+        "applicability": "MISSING",
+        "qualityReason": "NOT_REPORTED",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "CASH_AND_EQUIVALENTS",
+        "value": null,
+        "applicability": "MISSING",
+        "qualityReason": "NOT_REPORTED",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "GROSS_PROFIT",
+        "value": null,
+        "applicability": "MISSING",
+        "qualityReason": "NOT_REPORTED",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "OPERATING_PROFIT",
+        "value": null,
+        "applicability": "MISSING",
+        "qualityReason": "NOT_REPORTED",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "DIVIDEND_YIELD",
+        "value": "1.190000",
+        "applicability": "DEFINED",
+        "qualityReason": "ANNUAL_BASIS",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "EV_EBITDA",
+        "value": null,
+        "applicability": "MISSING",
+        "qualityReason": "NOT_REPORTED",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "GROSS_MARGIN",
+        "value": null,
+        "applicability": "MISSING",
+        "qualityReason": "NOT_REPORTED",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "NET_MARGIN",
+        "value": null,
+        "applicability": "MISSING",
+        "qualityReason": "NOT_REPORTED",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "ROCE",
+        "value": null,
+        "applicability": "MISSING",
+        "qualityReason": "NOT_REPORTED",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "CURRENT_RATIO",
+        "value": null,
+        "applicability": "MISSING",
+        "qualityReason": "NOT_REPORTED",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "QUICK_RATIO",
+        "value": null,
+        "applicability": "MISSING",
+        "qualityReason": "NOT_REPORTED",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "CASH_RATIO",
+        "value": null,
+        "applicability": "MISSING",
+        "qualityReason": "NOT_REPORTED",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "INTEREST_COVERAGE",
+        "value": null,
+        "applicability": "MISSING",
+        "qualityReason": "NOT_REPORTED",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "TOTAL_ASSET_TURNOVER",
+        "value": null,
+        "applicability": "MISSING",
+        "qualityReason": "NOT_REPORTED",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "INVENTORY_TURNOVER",
+        "value": null,
+        "applicability": "MISSING",
+        "qualityReason": "NOT_REPORTED",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "RECEIVABLES_TURNOVER",
+        "value": null,
+        "applicability": "MISSING",
+        "qualityReason": "NOT_REPORTED",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "DEBT_TO_ASSETS",
+        "value": null,
+        "applicability": "MISSING",
+        "qualityReason": "NOT_REPORTED",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "LIABILITIES_TO_EQUITY",
+        "value": null,
+        "applicability": "MISSING",
+        "qualityReason": "NOT_REPORTED",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "EQUITY_TO_ASSETS",
+        "value": null,
+        "applicability": "MISSING",
+        "qualityReason": "NOT_REPORTED",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "PS",
+        "value": null,
+        "applicability": "MISSING",
+        "qualityReason": "NOT_REPORTED",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "TOTAL_ASSETS_GROWTH_PERCENT",
+        "value": "43.140000",
+        "applicability": "DEFINED",
+        "qualityReason": "ANNUAL_BASIS",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "EQUITY_GROWTH_PERCENT",
+        "value": "21.320000",
+        "applicability": "DEFINED",
+        "qualityReason": "ANNUAL_BASIS",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       },
+       {
+        "metricCode": "NIM",
+        "value": "3.890000",
+        "applicability": "DEFINED",
+        "qualityReason": "ANNUAL_BASIS",
+        "ownHistoryPercentile": null,
+        "sectorPercentile": null,
+        "effectiveWeight": null
+       }
+      ],
+      "dataStatus": "CURRENT",
+      "reasonCodes": []
+     }
+    }
+   ],
+   "final": {
+    "answer": "(Mô hình AI tạm thời không khả dụng — câu trả lời dưới đây được lập theo mẫu, trực tiếp từ dữ liệu công cụ, chưa qua diễn giải.) Dữ liệu cơ bản kỳ 2026-Q2 của MBB, EPS 12 tháng 4.050,73 đồng (theo số trailing của nhà cung cấp, không có EPS quý), ROE 20,22 %, tăng trưởng EPS -2,77 % (tính trên số liệu năm, chưa đủ 8 quý).",
+    "structuredClaims": [
+     {
+      "claimText": "EPS TTM 4050.730000",
+      "sequenceNo": 1,
+      "fieldPath": "epsTtm",
+      "claimedValue": "4050.730000",
+      "asOf": "2026-08-31T10:58:05.287511900Z"
+     },
+     {
+      "claimText": "ROE 20.220000%",
+      "sequenceNo": 1,
+      "fieldPath": "roe",
+      "claimedValue": "20.220000",
+      "asOf": "2026-08-31T10:58:05.287511900Z"
+     },
+     {
+      "claimText": "tăng trưởng EPS -2.773575390800%",
+      "sequenceNo": 1,
+      "fieldPath": "epsGrowthPercent",
+      "claimedValue": "-2.773575390800",
+      "asOf": "2026-08-31T10:58:05.287511900Z"
+     }
+    ],
+    "documentClaims": [],
+    "refused": false,
+    "toolCalls": [
+     {
+      "sequenceNo": 1,
+      "toolName": "FUNDAMENTAL",
+      "arguments": {
+       "symbol": "MBB",
+       "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+      },
+      "status": "SUCCEEDED",
+      "failureReason": null,
+      "latencyMs": 165
+     }
+    ],
+    "toolCallBoundReached": false,
+    "ruleVersion": "orchestration-v1",
+    "synthesisMode": "OFFLINE_TEMPLATE",
+    "plannerMode": "KEYWORD_FALLBACK"
+   },
+   "check": {
+    "unsupportedNumbers": [],
+    "basisMisses": [],
+    "verifiedClaims": 3,
+    "refused": false
+   }
+  },
+  {
+   "id": "Q08",
+   "symbol": null,
+   "question": "Lọc các cổ phiếu có ROE trên 20% và P/E dưới 10.",
+   "probe": "SCREENING: counts + names from tool only",
+   "elapsedMs": 3555,
+   "toolCalls": [
+    {
+     "sequenceNo": 1,
+     "toolName": "SCREENING",
+     "arguments": {
+      "owner_id": "550e8400-e29b-41d4-a716-446655440000",
+      "filters": {
+       "fundamental": {
+        "peMax": "10",
+        "roeMin": "20"
+       }
+      },
+      "ambiguityNote": null
+     },
+     "status": "SUCCEEDED",
+     "failureReason": null,
+     "latencyMs": 2458
+    }
+   ],
+   "toolResponses": [
+    {
+     "sequenceNo": 1,
+     "toolName": "SCREENING",
+     "arguments": {
+      "owner_id": "550e8400-e29b-41d4-a716-446655440000",
+      "filters": {
+       "fundamental": {
+        "peMax": "10",
+        "roeMin": "20"
+       }
+      },
+      "ambiguityNote": null
+     },
+     "response": {
+      "matches": [
+       {
+        "symbol": "ABT",
+        "companyName": "CTCP Xuất nhập khẩu Thủy sản Bến Tre",
+        "matchedValues": {
+         "pe": "4.788387218399",
+         "roe": "27.570000"
+        },
+        "exchange": "HOSE",
+        "sectorName": "Chế biến Thủy sản"
+       },
+       {
+        "symbol": "ACE",
+        "companyName": "CTCP Bê tông Ly tâm An Giang",
+        "matchedValues": {
+         "pe": "6.099717114569",
+         "roe": "23.650000"
+        },
+        "exchange": "UPCOM",
+        "sectorName": null
+       },
+       {
+        "symbol": "ADP",
+        "companyName": "CTCP Sơn Á Đông",
+        "matchedValues": {
+         "pe": "7.086494688923",
+         "roe": "26.060000"
+        },
+        "exchange": "HOSE",
+        "sectorName": "SX Nhựa - Hóa chất"
+       },
+       {
+        "symbol": "ANT",
+        "companyName": "CTCP Rau quả Thực phẩm An Giang",
+        "matchedValues": {
+         "pe": "3.037848605578",
+         "roe": "33.760000"
+        },
+        "exchange": "HOSE",
+        "sectorName": "Thực phẩm - Đồ uống"
+       },
+       {
+        "symbol": "ANV",
+        "companyName": "CTCP Nam Việt",
+        "matchedValues": {
+         "pe": "5.712387910993",
+         "roe": "24.070000"
+        },
+        "exchange": "HOSE",
+        "sectorName": "Chế biến Thủy sản"
+       },
+       {
+        "symbol": "AVC",
+        "companyName": "CTCP Thủy điện A Vương",
+        "matchedValues": {
+         "pe": "8.919762680254",
+         "roe": "28.380000"
+        },
+        "exchange": "UPCOM",
+        "sectorName": null
+       },
+       {
+        "symbol": "BCE",
+        "companyName": "CTCP Xây dựng và Giao thông Bình Dương",
+        "matchedValues": {
+         "pe": "2.332109329285",
+         "roe": "21.550000"
+        },
+        "exchange": "HOSE",
+        "sectorName": "Bất động sản"
+       },
+       {
+        "symbol": "BDG",
+        "companyName": "CTCP May mặc Bình Dương",
+        "matchedValues": {
+         "pe": "7.306551631167",
+         "roe": "24.020000"
+        },
+        "exchange": "UPCOM",
+        "sectorName": null
+       },
+       {
+        "symbol": "BKC",
+        "companyName": "CTCP Khoáng sản Bắc Kạn",
+        "matchedValues": {
+         "pe": "3.655426466421",
+         "roe": "31.170000"
+        },
+        "exchange": "HNX",
+        "sectorName": "Khai khoáng"
+       },
+       {
+        "symbol": "BMP",
+        "companyName": "CTCP Nhựa Bình Minh",
+        "matchedValues": {
+         "pe": "9.361867201138",
+         "roe": "41.190000"
+        },
+        "exchange": "HOSE",
+        "sectorName": "SX Nhựa - Hóa chất"
+       },
+       {
+        "symbol": "BTH",
+        "companyName": "CTCP Chế tạo Biến thế và Vật liệu Điện Hà Nội",
+        "matchedValues": {
+         "pe": "2.174632961696",
+         "roe": "39.210000"
+        },
+        "exchange": "UPCOM",
+        "sectorName": null
+       },
+       {
+        "symbol": "CLH",
+        "companyName": "CTCP Xi măng La Hiên VVMI",
+        "matchedValues": {
+         "pe": "5.118269475640",
+         "roe": "21.700000"
+        },
+        "exchange": "HNX",
+        "sectorName": "Vật liệu xây dựng"
+       },
+       {
+        "symbol": "CTG",
+        "companyName": "Ngân hàng TMCP Công Thương Việt Nam",
+        "matchedValues": {
+         "pe": "5.147795712265",
+         "roe": "21.050000"
+        },
+        "exchange": "HOSE",
+        "sectorName": "Ngân hàng"
+       },
+       {
+        "symbol": "D2D",
+        "companyName": "CTCP Phát triển Đô thị Công nghiệp số 2",
+        "matchedValues": {
+         "pe": "2.630859610054",
+         "roe": "44.320000"
+        },
+        "exchange": "HOSE",
+        "sectorName": "Bất động sản"
+       },
+       {
+        "symbol": "DBC",
+        "companyName": "CTCP Tập đoàn Dabaco Việt Nam",
+        "matchedValues": {
+         "pe": "4.831991113580",
+         "roe": "21.660000"
+        },
+        "exchange": "HOSE",
+        "sectorName": "Thực phẩm - Đồ uống"
+       },
+       {
+        "symbol": "DDV",
+        "companyName": "CTCP DAP - VINACHEM",
+        "matchedValues": {
+         "pe": "4.469413233458",
+         "roe": "28.810000"
+        },
+        "exchange": "UPCOM",
+        "sectorName": null
+       },
+       {
+        "symbol": "DGC",
+        "companyName": "CTCP Tập đoàn Hóa chất Đức Giang",
+        "matchedValues": {
+         "pe": "6.756756756757",
+         "roe": "21.910000"
+        },
+        "exchange": "HOSE",
+        "sectorName": "SX Nhựa - Hóa chất"
+       },
+       {
+        "symbol": "DHA",
+        "companyName": "CTCP Hóa An",
+        "matchedValues": {
+         "pe": "7.092498589961",
+         "roe": "22.070000"
+        },
+        "exchange": "HOSE",
+        "sectorName": "Khai khoáng"
+       },
+       {
+        "symbol": "DP1",
+        "companyName": "CTCP Dược phẩm Trung ương CPC1",
+        "matchedValues": {
+         "pe": "4.832193909260",
+         "roe": "24.110000"
+        },
+        "exchange": "UPCOM",
+        "sectorName": null
+       },
+       {
+        "symbol": "DP3",
+        "companyName": "CTCP Dược phẩm Trung ương 3",
+        "matchedValues": {
+         "pe": "8.128012854847",
+         "roe": "24.520000"
+        },
+        "exchange": "HNX",
+        "sectorName": "Chăm sóc sức khỏe"
+       },
+       {
+        "symbol": "DRI",
+        "companyName": "CTCP Đầu tư Cao su Đắk Lắk",
+        "matchedValues": {
+         "pe": "5.032119914347",
+         "roe": "23.990000"
+        },
+        "exchange": "UPCOM",
+        "sectorName": null
+       },
+       {
+        "symbol": "DRL",
+        "companyName": "CTCP Thủy điện - Điện Lực 3",
+        "matchedValues": {
+         "pe": "9.027928122970",
+         "roe": "41.030000"
+        },
+        "exchange": "HOSE",
+        "sectorName": "Tiện ích"
+       },
+       {
+        "symbol": "DSN",
+        "companyName": "CTCP Công viên nước Đầm Sen",
+        "matchedValues": {
+         "pe": "6.097361088346",
+         "roe": "22.320000"
+        },
+        "exchange": "HOSE",
+        "sectorName": "Dịch vụ lưu trú, ăn uống, giải trí"
+       },
+       {
+        "symbol": "DTP",
+        "companyName": "CTCP Dược phẩm CPC1 Hà Nội",
+        "matchedValues": {
+         "pe": "4.297197613271",
+         "roe": "27.030000"
+        },
+        "exchange": "UPCOM",
+        "sectorName": null
+       },
+       {
+        "symbol": "EMS",
+        "companyName": "Tổng Công ty Chuyển phát nhanh Bưu Điện - CTCP",
+        "matchedValues": {
+         "pe": "4.428044280443",
+         "roe": "20.800000"
+        },
+        "exchange": "UPCOM",
+        "sectorName": null
+       },
+       {
+        "symbol": "FT1",
+        "companyName": "CTCP Phụ tùng Máy số 1",
+        "matchedValues": {
+         "pe": "3.641168861767",
+         "roe": "43.390000"
+        },
+        "exchange": "UPCOM",
+        "sectorName": null
+       },
+       {
+        "symbol": "GDT",
+        "companyName": "CTCP Chế biến Gỗ Đức Thành",
+        "matchedValues": {
+         "pe": "5.035166240409",
+         "roe": "22.150000"
+        },
+        "exchange": "HOSE",
+        "sectorName": "SX Hàng gia dụng"
+       },
+       {
+        "symbol": "GEE",
+        "companyName": "CTCP Điện lực Gelex",
+        "matchedValues": {
+         "pe": "7.424381301558",
+         "roe": "48.060000"
+        },
+        "exchange": "HOSE",
+        "sectorName": "Thiết bị điện"
+       },
+       {
+        "symbol": "GSM",
+        "companyName": "CTCP Thủy điện Hương Sơn",
+        "matchedValues": {
+         "pe": "6.873797085510",
+         "roe": "22.310000"
+        },
+        "exchange": "UPCOM",
+        "sectorName": null
+       },
+       {
+        "symbol": "HAH",
+        "companyName": "CTCP Vận tải và Xếp dỡ Hải An",
+        "matchedValues": {
+         "pe": "5.463858850313",
+         "roe": "30.980000"
+        },
+        "exchange": "HOSE",
+        "sectorName": "Vận tải - kho bãi"
+       },
+       {
+        "symbol": "HCC",
+        "companyName": "CTCP Bê tông Hòa Cầm - Intimex",
+        "matchedValues": {
+         "pe": "3.845507976490",
+         "roe": "30.380000"
+        },
+        "exchange": "HNX",
+        "sectorName": "Vật liệu xây dựng"
+       },
+       {
+        "symbol": "HDB",
+        "companyName": "Ngân hàng TMCP Phát triển Thành phố Hồ Chí Minh",
+        "matchedValues": {
+         "pe": "6.458387540423",
+         "roe": "24.060000"
+        },
+        "exchange": "HOSE",
+        "sectorName": "Ngân hàng"
+       },
+       {
+        "symbol": "HDC",
+        "companyName": "CTCP Phát triển Nhà Bà Rịa - Vũng Tàu",
+        "matchedValues": {
+         "pe": "3.540548053430",
+         "roe": "25.150000"
+        },
+        "exchange": "HOSE",
+        "sectorName": "Bất động sản"
+       },
+       {
+        "symbol": "HDM",
+        "companyName": "CTCP Dệt may Huế",
+        "matchedValues": {
+         "pe": "4.759812536614",
+         "roe": "32.400000"
+        },
+        "exchange": "UPCOM",
+        "sectorName": null
+       },
+       {
+        "symbol": "HGM",
+        "companyName": "CTCP Cơ khí và Khoáng sản Hà Giang",
+        "matchedValues": {
+         "pe": "5.891016200295",
+         "roe": "109.290000"
+        },
+        "exchange": "HNX",
+        "sectorName": "Khai khoáng"
+       },
+       {
+        "symbol": "HHS",
+        "companyName": "CTCP Đầu tư Dịch vụ Hoàng Huy",
+        "matchedValues": {
+         "pe": "1.165483955347",
+         "roe": "52.610000"
+        },
+        "exchange": "HOSE",
+        "sectorName": "Bán buôn"
+       },
+       {
+        "symbol": "HMS",
+        "companyName": "CTCP Xây dựng Bảo tàng Hồ Chí Minh",
+        "matchedValues": {
+         "pe": "3.382540974079",
+         "roe": "22.120000"
+        },
+        "exchange": "UPCOM",
+        "sectorName": null
+       },
+       {
+        "symbol": "HNF",
+        "companyName": "CTCP Thực phẩm Hữu Nghị",
+        "matchedValues": {
+         "pe": "4.801047793527",
+         "roe": "21.480000"
+        },
+        "exchange": "UPCOM",
+        "sectorName": null
+       },
+       {
+        "symbol": "HTG",
+        "companyName": "Tổng Công ty cổ phần Dệt may Hòa Thọ",
+        "matchedValues": {
+         "pe": "3.427347809075",
+         "roe": "36.010000"
+        },
+        "exchange": "HOSE",
+        "sectorName": "SX Hàng gia dụng"
+       },
+       {
+        "symbol": "HTI",
+        "companyName": "CTCP Đầu tư Phát triển Hạ tầng IDICO",
+        "matchedValues": {
+         "pe": "2.801078490114",
+         "roe": "25.520000"
+        },
+        "exchange": "HOSE",
+        "sectorName": "Xây dựng"
+       },
+       {
+        "symbol": "HVT",
+        "companyName": "CTCP Hóa chất Việt Trì",
+        "matchedValues": {
+         "pe": "6.525331167558",
+         "roe": "22.200000"
+        },
+        "exchange": "HNX",
+        "sectorName": "SX Nhựa - Hóa chất"
+       },
+       {
+        "symbol": "IDC",
+        "companyName": "Tổng Công ty IDICO - CTCP",
+        "matchedValues": {
+         "pe": "5.506607929515",
+         "roe": "31.460000"
+        },
+        "exchange": "HNX",
+        "sectorName": "Tiện ích"
+       },
+       {
+        "symbol": "IST",
+        "companyName": "CTCP ICD Tân Cảng Sóng Thần",
+        "matchedValues": {
+         "pe": "8.384258127597",
+         "roe": "33.320000"
+        },
+        "exchange": "UPCOM",
+        "sectorName": null
+       },
+       {
+        "symbol": "KHS",
+        "companyName": "CTCP Kiên Hùng",
+        "matchedValues": {
+         "pe": "3.199000126472",
+         "roe": "21.920000"
+        },
+        "exchange": "HNX",
+        "sectorName": "Chế biến Thủy sản"
+       },
+       {
+        "symbol": "KLB",
+        "companyName": "Ngân hàng TMCP Kiên Long",
+        "matchedValues": {
+         "pe": "2.923044854363",
+         "roe": "21.240000"
+        },
+        "exchange": "HOSE",
+        "sectorName": "Ngân hàng"
+       },
+       {
+        "symbol": "KSF",
+        "companyName": "CTCP Tập đoàn Sunshine",
+        "matchedValues": {
+         "pe": "4.572726743170",
+         "roe": "23.410000"
+        },
+        "exchange": "HNX",
+        "sectorName": "Bất động sản"
+       },
+       {
+        "symbol": "KSV",
+        "companyName": "Tổng Công ty Khoáng sản TKV - CTCP",
+        "matchedValues": {
+         "pe": "7.928913192071",
+         "roe": "45.710000"
+        },
+        "exchange": "HNX",
+        "sectorName": "Khai khoáng"
+       },
+       {
+        "symbol": "L18",
+        "companyName": "CTCP Đầu tư và Xây dựng Số 18",
+        "matchedValues": {
+         "pe": "4.290064830782",
+         "roe": "21.380000"
+        },
+        "exchange": "HNX",
+        "sectorName": "Xây dựng"
+       },
+       {
+        "symbol": "LHC",
+        "companyName": "CTCP Đầu tư và Xây dựng Thủy lợi Lâm Đồng",
+        "matchedValues": {
+         "pe": "5.995111282645",
+         "roe": "22.400000"
+        },
+        "exchange": "HNX",
+        "sectorName": "Xây dựng"
+       },
+       {
+        "symbol": "LIX",
+        "companyName": "CTCP Bột Giặt Lix",
+        "matchedValues": {
+         "pe": "9.691887675507",
+         "roe": "21.170000"
+        },
+        "exchange": "HOSE",
+        "sectorName": "SX Nhựa - Hóa chất"
+       }
+      ],
+      "totalMatches": 95,
+      "asOf": "2026-08-31T10:58:11.995819700Z"
+     }
+    }
+   ],
+   "final": {
+    "answer": "(Mô hình AI tạm thời không khả dụng — câu trả lời dưới đây được lập theo mẫu, trực tiếp từ dữ liệu công cụ, chưa qua diễn giải.) Bộ lọc trả về 95 mã, gồm: ABT, ACE, ADP, ANT, ANV, AVC, BCE, BDG, BKC, BMP ….",
+    "structuredClaims": [
+     {
+      "claimText": "95 mã",
+      "sequenceNo": 1,
+      "fieldPath": "totalMatches",
+      "claimedValue": "95",
+      "asOf": "2026-08-31T10:58:09.129694500Z"
+     }
+    ],
+    "documentClaims": [],
+    "refused": false,
+    "toolCalls": [
+     {
+      "sequenceNo": 1,
+      "toolName": "SCREENING",
+      "arguments": {
+       "owner_id": "550e8400-e29b-41d4-a716-446655440000",
+       "filters": {
+        "fundamental": {
+         "peMax": "10",
+         "roeMin": "20"
+        }
+       },
+       "ambiguityNote": null
+      },
+      "status": "SUCCEEDED",
+      "failureReason": null,
+      "latencyMs": 2458
+     }
+    ],
+    "toolCallBoundReached": false,
+    "ruleVersion": "orchestration-v1",
+    "synthesisMode": "OFFLINE_TEMPLATE",
+    "plannerMode": "KEYWORD_FALLBACK"
+   },
+   "check": {
+    "unsupportedNumbers": [],
+    "basisMisses": [],
+    "verifiedClaims": 1,
+    "refused": false
+   }
+  },
+  {
+   "id": "Q09",
+   "symbol": null,
+   "question": "Thị trường hôm nay thế nào? Độ rộng và trạng thái thị trường ra sao?",
+   "probe": "MARKET: breadth counts, regime label, dataStatus",
+   "elapsedMs": 4063,
+   "toolCalls": [
+    {
+     "sequenceNo": 1,
+     "toolName": "MARKET",
+     "arguments": {
+      "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+     },
+     "status": "SUCCEEDED",
+     "failureReason": null,
+     "latencyMs": 191
+    }
+   ],
+   "toolResponses": [
+    {
+     "sequenceNo": 1,
+     "toolName": "MARKET",
+     "arguments": {
+      "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+     },
+     "response": {
+      "vnIndexValue": "1832.120000",
+      "vnIndexChangePercent": "0.030575",
+      "advancers": 326,
+      "decliners": 375,
+      "unchanged": 243,
+      "asOf": "2026-08-28T08:00:00Z",
+      "raw": {
+       "breadth": {
+        "id": "829b344c-fff6-46b3-ab21-bbd9427b8650",
+        "tradingDate": "2026-08-28",
+        "asOf": "2026-08-30T16:29:33.532476Z",
+        "dataStatus": "PARTIAL",
+        "calculationBasis": "EOD",
+        "result": {
+         "advancing": 326,
+         "declining": 375,
+         "unchanged": 243,
+         "unclassified": 580,
+         "eligible": 1524,
+         "reasonCodes": [
+          "MISSING_PRICE"
+         ]
+        },
+        "universeVersion": "breadth-universe-v1",
+        "universeHash": "0f9edf5b5ab16804b28e1d33c1cf7fe7ba7bfc18d12d857f60569f75a4b17e47"
+       },
+       "marketRegime": "EARLY_BULL"
+      }
+     }
+    }
+   ],
+   "final": {
+    "answer": "(Mô hình AI tạm thời không khả dụng — câu trả lời dưới đây được lập theo mẫu, trực tiếp từ dữ liệu công cụ, chưa qua diễn giải.) Chỉ số VN-INDEX đạt 1.832,12 điểm (0,03 %) (phiên 2026-08-28), độ rộng thị trường ghi nhận 326 mã tăng và 375 mã giảm; trạng thái thị trường: EARLY_BULL.",
+    "structuredClaims": [
+     {
+      "claimText": "VN-INDEX 1832.120000 điểm",
+      "sequenceNo": 1,
+      "fieldPath": "vnIndexValue",
+      "claimedValue": "1832.120000",
+      "asOf": "2026-08-28T08:00:00Z"
+     },
+     {
+      "claimText": "Độ biến động 0.030575%",
+      "sequenceNo": 1,
+      "fieldPath": "vnIndexChangePercent",
+      "claimedValue": "0.030575",
+      "asOf": "2026-08-28T08:00:00Z"
+     },
+     {
+      "claimText": "326 mã tăng",
+      "sequenceNo": 1,
+      "fieldPath": "advancers",
+      "claimedValue": "326",
+      "asOf": "2026-08-28T08:00:00Z"
+     }
+    ],
+    "documentClaims": [],
+    "refused": false,
+    "toolCalls": [
+     {
+      "sequenceNo": 1,
+      "toolName": "MARKET",
+      "arguments": {
+       "owner_id": "550e8400-e29b-41d4-a716-446655440000"
+      },
+      "status": "SUCCEEDED",
+      "failureReason": null,
+      "latencyMs": 191
+     }
+    ],
+    "toolCallBoundReached": false,
+    "ruleVersion": "orchestration-v1",
+    "synthesisMode": "OFFLINE_TEMPLATE",
+    "plannerMode": "MODEL"
+   },
+   "check": {
+    "unsupportedNumbers": [],
+    "basisMisses": [],
+    "verifiedClaims": 3,
+    "refused": false
+   }
+  },
+  {
+   "id": "Q10",
+   "symbol": null,
+   "question": "Danh mục của tôi hiện có những rủi ro gì?",
+   "probe": "PORTFOLIO: owner has no positions -> honest no-data",
+   "elapsedMs": 1424,
+   "toolCalls": [
+    {
+     "sequenceNo": 1,
+     "toolName": "PORTFOLIO",
+     "arguments": {
+      "owner_id": "550e8400-e29b-41d4-a716-446655440000",
+      "sub_type": "ANALYTICS"
+     },
+     "status": "SUCCEEDED",
+     "failureReason": null,
+     "latencyMs": 183
+    }
+   ],
+   "toolResponses": [
+    {
+     "sequenceNo": 1,
+     "toolName": "PORTFOLIO",
+     "arguments": {
+      "owner_id": "550e8400-e29b-41d4-a716-446655440000",
+      "sub_type": "ANALYTICS"
+     },
+     "response": {
+      "totalValue": "0",
+      "totalUnrealizedPnlPercent": "0",
+      "asOf": "2026-08-31T10:58:17.540944800Z",
+      "raw": {}
+     }
+    }
+   ],
+   "final": {
+    "answer": "(Mô hình AI tạm thời không khả dụng — câu trả lời dưới đây được lập theo mẫu, trực tiếp từ dữ liệu công cụ, chưa qua diễn giải.) Tổng giá trị danh mục là 0 đồng — chưa có vị thế nào được ghi nhận, nên chưa có rủi ro hay hiệu suất để đánh giá.",
+    "structuredClaims": [
+     {
+      "claimText": "Tổng giá trị 0",
+      "sequenceNo": 1,
+      "fieldPath": "totalValue",
+      "claimedValue": "0",
+      "asOf": "2026-08-31T10:58:17.063008500Z"
+     }
+    ],
+    "documentClaims": [],
+    "refused": false,
+    "toolCalls": [
+     {
+      "sequenceNo": 1,
+      "toolName": "PORTFOLIO",
+      "arguments": {
+       "owner_id": "550e8400-e29b-41d4-a716-446655440000",
+       "sub_type": "ANALYTICS"
+      },
+      "status": "SUCCEEDED",
+      "failureReason": null,
+      "latencyMs": 183
+     }
+    ],
+    "toolCallBoundReached": false,
+    "ruleVersion": "orchestration-v1",
+    "synthesisMode": "OFFLINE_TEMPLATE",
+    "plannerMode": "KEYWORD_FALLBACK"
+   },
+   "check": {
+    "unsupportedNumbers": [],
+    "basisMisses": [],
+    "verifiedClaims": 1,
+    "refused": false
+   }
+  }
+ ]
+}

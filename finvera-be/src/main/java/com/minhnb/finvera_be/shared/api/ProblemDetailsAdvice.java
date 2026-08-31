@@ -13,11 +13,15 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestControllerAdvice
 public class ProblemDetailsAdvice {
 
     public static final String CORRELATION_ATTRIBUTE = ProblemDetailsAdvice.class.getName() + ".correlationId";
+    private static final Logger log = LoggerFactory.getLogger(ProblemDetailsAdvice.class);
 
     @ExceptionHandler(BadCredentialsException.class)
     ResponseEntity<ProblemDetail> invalidCredentials(HttpServletRequest request) {
@@ -120,6 +124,31 @@ public class ProblemDetailsAdvice {
     @ExceptionHandler(com.minhnb.finvera_be.research.service.ResearchExceptions.VectorCleanupFailedException.class)
     ResponseEntity<ProblemDetail> vectorCleanupFailed(HttpServletRequest request, Exception ex) {
         return response(request, HttpStatus.BAD_GATEWAY, "VECTOR_CLEANUP_FAILED", ex.getMessage());
+    }
+
+    /** Keeps the status a controller chose (e.g. 404 "Unknown owner") instead of the /error round trip. */
+    @ExceptionHandler(ResponseStatusException.class)
+    ResponseEntity<ProblemDetail> responseStatus(HttpServletRequest request, ResponseStatusException ex) {
+        HttpStatus status = HttpStatus.resolve(ex.getStatusCode().value());
+        if (status == null) {
+            status = HttpStatus.INTERNAL_SERVER_ERROR;
+        }
+        String title = ex.getReason() != null ? ex.getReason() : status.getReasonPhrase();
+        return response(request, status, status.name(), title);
+    }
+
+    /**
+     * Q-49: an unhandled exception used to be forwarded to /error, which sits behind the
+     * OWNER rule — so an internal-service caller saw 401 AUTHENTICATION_REQUIRED instead of
+     * the 500 that actually happened, and the real cause was only in the server log. Every
+     * unhandled failure now becomes a 500 problem with the correlation id and no internals.
+     */
+    @ExceptionHandler(Exception.class)
+    ResponseEntity<ProblemDetail> unhandled(HttpServletRequest request, Exception ex) {
+        log.error("unhandled_request_failure correlationId={} path={} exception={}",
+                correlationId(request), request.getRequestURI(), ex.getClass().getName(), ex);
+        return response(request, HttpStatus.INTERNAL_SERVER_ERROR, "SERVER_ERROR",
+                "The request could not be processed");
     }
 
     @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)

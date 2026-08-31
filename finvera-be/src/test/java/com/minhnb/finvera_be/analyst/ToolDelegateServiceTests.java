@@ -335,4 +335,17 @@ class ToolDelegateServiceTests {
         assertThat(response.dataStatus()).isEqualTo("UNAVAILABLE");
         assertThat(response.reasonCodes()).contains("PRICE_UNAVAILABLE");
     }
+
+    @org.junit.jupiter.api.Test
+    void materialisingToolsRunInAWritableTransaction() throws Exception {
+        // Q-49: fundamentals / valuation / technical persist their revision chain on read.
+        for (String method : new String[] {"getTechnical", "getFundamentals", "getValuation"}) {
+            var tx = ToolDelegateService.class.getMethod(method, String.class)
+                    .getAnnotation(org.springframework.transaction.annotation.Transactional.class);
+            assertThat(tx).as(method + " must override the class-level read-only transaction").isNotNull();
+            assertThat(tx.readOnly()).as(method + " must be writable").isFalse();
+        }
+        var classTx = ToolDelegateService.class.getAnnotation(org.springframework.transaction.annotation.Transactional.class);
+        assertThat(classTx.readOnly()).isTrue(); // every other tool stays read-only
+    }
 }

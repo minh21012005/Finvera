@@ -38,6 +38,9 @@ class VerifiedAttributionResult(BaseModel):
     toolCalls: List[Dict[str, Any]]
     toolCallBoundReached: bool
     ruleVersion: str = "orchestration-v1"
+    # Feature 015: how the text and the plan were produced (contract internal-api FinalEvent).
+    synthesisMode: Optional[str] = None   # ONLINE | OFFLINE_TEMPLATE
+    plannerMode: Optional[str] = None     # MODEL | KEYWORD_FALLBACK
 
 
 def get_nested_value(data: Any, field_path: str) -> Tuple[bool, Any]:
@@ -57,9 +60,18 @@ def get_nested_value(data: Any, field_path: str) -> Tuple[bool, Any]:
         if k.lower() == field_path.lower():
             return True, v
 
-    # Try dotted path traversal
-    parts = field_path.split(".")
-    current = data
+    # Try dotted path traversal. Feature 015: list steps are allowed — `signals[0].direction`,
+    # `matches.0.symbol` — and `<list>.length` reads the list size, so a template can state
+    # "no positions" / "12 matches" as a verifiable claim instead of being refused.
+    parts: List[str] = []
+    for raw_part in field_path.split("."):
+        m = _INDEXED_PART.match(raw_part)
+        if m:
+            parts.append(m.group(1))
+            parts.append(m.group(2))
+        else:
+            parts.append(raw_part)
+    current: Any = data
     for part in parts:
         if isinstance(current, dict):
             found = False
@@ -70,10 +82,20 @@ def get_nested_value(data: Any, field_path: str) -> Tuple[bool, Any]:
                     break
             if not found:
                 return False, None
+        elif isinstance(current, list):
+            if part == "length":
+                current = len(current)
+            elif part.isdigit() and int(part) < len(current):
+                current = current[int(part)]
+            else:
+                return False, None
         else:
             return False, None
 
     return True, current
+
+
+_INDEXED_PART = __import__("re").compile(r"^([^\[\]]+)\[(\d+)\]$")
 
 
 def match_claimed_value(claimed: str, actual: Any) -> bool:
@@ -110,6 +132,8 @@ def verify_attribution(
     dispatched_calls: List[DispatchedToolCall],
     tool_call_bound_reached: bool,
     explicit_refusal: bool = False,
+    synthesis_mode: Optional[str] = None,
+    planner_mode: Optional[str] = None,
 ) -> VerifiedAttributionResult:
     """
     U-5 & orchestration-v1 attribution verification pipeline:
@@ -173,6 +197,8 @@ def verify_attribution(
         answer=answer if not refused else "Không đủ dữ liệu tin cậy hoặc thông tin ngoài phạm vi để trả lời.",
         structuredClaims=surviving_structured if not refused else [],
         documentClaims=surviving_docs if not refused else [],
+        synthesisMode=synthesis_mode,
+        plannerMode=planner_mode,
         refused=refused,
         toolCalls=tool_calls_payload,
         toolCallBoundReached=tool_call_bound_reached,

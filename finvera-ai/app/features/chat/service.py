@@ -180,7 +180,18 @@ Quy tắc trích dẫn bắt buộc:
    CẢ HAI, không tự chọn một bên hay gộp lại thành một phát biểu duy nhất.
 6. Nếu không khối nào đủ để trả lời câu hỏi, nói rõ ràng là không có đủ dữ liệu, không trả lời
    bằng kiến thức chung của bạn.
-7. Trả lời bằng tiếng Việt tự nhiên, súc tích, không lặp lại nguyên văn JSON."""
+7. Trả lời bằng tiếng Việt tự nhiên, súc tích, không lặp lại nguyên văn JSON.
+8. Thời điểm của dữ liệu: nếu khối có `dataStatus` khác `CURRENT`, hoặc có `tradingDate`/`asOf`,
+   hãy nêu ngày của dữ liệu ("theo phiên 28/08", "cập nhật lúc …"). Không viết "hôm nay" cho một
+   mức giá/chỉ số trừ khi `tradingDate` đúng là ngày hiện tại; nếu `dataStatus` là DELAYED/STALE/
+   PARTIAL, nói rõ dữ liệu trễ/cũ/một phần.
+9. Cơ sở của số liệu: khi một trường mang `qualityReason` hoặc `reasonCodes` (ví dụ ANNUAL_BASIS,
+   PROVIDER_TRAILING_EPS, REDUCED_METRIC_SET, HISTORY_BASIS_INSUFFICIENT), phải nói rõ cơ sở đó bằng
+   lời ("tính trên số liệu năm vì chưa đủ 4 quý", "EPS 12 tháng lấy theo số của nhà cung cấp", "bộ chỉ
+   số bị thu hẹp, kết luận chỉ dựa trên P/B"). Khi `classification` là null, định giá CHƯA ĐƯỢC CÔNG
+   BỐ: nêu lý do từ `reasonCodes`, không tự xếp loại đắt/rẻ.
+10. Không kết luận "đang lỗ"/"có lãi", "tăng trưởng tốt/xấu" nếu các trường tương ứng không có mặt
+   hoặc là null; chỉ mô tả đúng những gì có."""
 
 
 def extract_structured_claims_from_text(text: str) -> List[RawStructuredClaim]:
@@ -190,7 +201,7 @@ def extract_structured_claims_from_text(text: str) -> List[RawStructuredClaim]:
     own [Block N] convention for document claims.
     """
     claims: List[RawStructuredClaim] = []
-    tag_pattern = re.compile(r"\[T(\d+):([\w.]+)=([^\]]+)\]")
+    tag_pattern = re.compile(TAG_FIELD_PATTERN)
     sentences = re.split(r"(?<=[.!?\n])\s+", text)
 
     for sentence in sentences:
@@ -225,11 +236,51 @@ VALUATION_WITHHOLD_LABELS: Dict[str, str] = {
 }
 
 
+OFFLINE_TEMPLATE_DISCLOSURE = (
+    "(Mô hình AI tạm thời không khả dụng — câu trả lời dưới đây được lập theo mẫu, trực tiếp từ "
+    "dữ liệu công cụ, chưa qua diễn giải.)"
+)
+
+DATA_STATUS_WORDS = {"DELAYED": "trễ một phiên", "STALE": "đã cũ", "PARTIAL": "một phần", "UNAVAILABLE": "không có"}
+
+
+def fmt_vi(value: Any, decimals: int = 2) -> str:
+    """vi-VN number text for the offline templates (claimedValue stays the raw string)."""
+    try:
+        num = float(str(value).replace(",", ""))
+    except (TypeError, ValueError):
+        return str(value)
+    if decimals == 0 or float(num).is_integer() and abs(num) >= 1000:
+        text = f"{num:,.0f}"
+    else:
+        text = f"{num:,.{decimals}f}".rstrip("0").rstrip(".")
+    return text.replace(",", "\u0000").replace(".", ",").replace("\u0000", ".")
+
+
+def _status_note(data: Dict[str, Any]) -> str:
+    status = str(data.get("dataStatus") or "CURRENT").upper()
+    trading_date = (data.get("raw") or {}).get("tradingDate") if isinstance(data.get("raw"), dict) else None
+    parts = []
+    if trading_date:
+        parts.append(f"theo phiên {trading_date}")
+    if status in DATA_STATUS_WORDS:
+        parts.append(f"dữ liệu {DATA_STATUS_WORDS[status]}")
+    return f" ({'; '.join(parts)})" if parts else ""
+
+
+# Q-56 (Feature 015): a field path may step into a list — `metrics[0].ownHistoryPercentile`,
+# `signals[1].direction` — now that get_nested_value resolves such paths; the tag regexes must
+# accept the same shape, otherwise the tag survives in the reader's text ("[T2:metrics[0]…").
+TAG_FIELD = r"[\w.]+(?:\[\d+\][\w.]*)*"
+TAG_FIELD_PATTERN = r"\[T(\d+):(" + TAG_FIELD + r")=([^\[\]]+)\]"
+TAG_STRIP_PATTERN = r"\[T\d+:" + TAG_FIELD + r"=[^\[\]]+\]"
+
+
 def strip_synthesis_tags(text: str) -> str:
     """Removes the inline citation tags while KEEPING the model's line structure
     (markdown headings, bullets, paragraphs) -- collapsing every whitespace run to one
     space flattened the whole answer into a single line (owner report 2026-08-31)."""
-    clean = re.sub(r"\[T\d+:[\w.]+=[^\]]+\]", "", text)
+    clean = re.sub(TAG_STRIP_PATTERN, "", text)
     clean = re.sub(r"\[Block\s*\d+\]", "", clean, flags=re.IGNORECASE)
     clean = re.sub(r"[ \t]+([.,;:!?])", r"\1", clean)      # "VND ." left by a removed tag -> "VND."
     clean = re.sub(r"(?<=\S)[ \t]{2,}", " ", clean)          # inner runs only; leading indentation is list nesting
@@ -343,8 +394,16 @@ class ChatOrchestrationService:
         online call itself fails (never when the model genuinely proposes zero tools —
         that is a legitimate "outside current capability" decision, not a failure).
         """
+        calls, _mode = await self.propose_tool_calls_with_mode(question, symbol, prior_turns)
+        return calls
+
+    async def propose_tool_calls_with_mode(
+        self, question: str, symbol: Optional[str], prior_turns: List[PriorTurn]
+    ) -> Tuple[List[Dict[str, Any]], str]:
+        """Feature 015: also reports HOW the plan was made — MODEL or KEYWORD_FALLBACK — so the
+        final event can disclose a degraded run instead of hiding it."""
         if not self.llm_adapter.is_online:
-            return self.plan_tools(question, symbol)
+            return self.plan_tools(question, symbol), "KEYWORD_FALLBACK"
 
         prompt = self._build_tool_proposal_prompt(question, symbol, prior_turns)
         proposed = await self.llm_adapter.propose_tool_calls(
@@ -353,8 +412,8 @@ class ChatOrchestrationService:
             tool_declarations=TOOL_DECLARATIONS,
         )
         if proposed is None:
-            return self.plan_tools(question, symbol)
-        return proposed
+            return self.plan_tools(question, symbol), "KEYWORD_FALLBACK"
+        return proposed, "MODEL"
 
     def _offline_synthesize(
         self, succeeded_calls: List[DispatchedToolCall]
@@ -376,8 +435,13 @@ class ChatOrchestrationService:
                 vn_chg = str(data.get("vnIndexChangePercent", "0"))
                 adv = str(data.get("advancers", 0))
                 dec = str(data.get("decliners", 0))
+                regime = (data.get("raw") or {}).get("marketRegime") if isinstance(data.get("raw"), dict) else None
+                breadth_raw = (data.get("raw") or {}).get("breadth") if isinstance(data.get("raw"), dict) else None
+                trading_date = (breadth_raw or {}).get("tradingDate") if isinstance(breadth_raw, dict) else None
+                when = f" (phiên {trading_date})" if trading_date else ""
                 answer_parts.append(
-                    f"Chỉ số VN-INDEX hiện đạt {vn_val} điểm ({vn_chg}%), với độ rộng thị trường ghi nhận {adv} mã tăng và {dec} mã giảm."
+                    f"Chỉ số VN-INDEX đạt {fmt_vi(vn_val)} điểm ({fmt_vi(vn_chg)} %){when}, độ rộng thị trường ghi nhận {adv} mã tăng và {dec} mã giảm"
+                    + (f"; trạng thái thị trường: {regime}" if regime else "") + "."
                 )
                 raw_claims.append(RawStructuredClaim(claimText=f"VN-INDEX {vn_val} điểm", sequenceNo=seq, fieldPath="vnIndexValue", claimedValue=vn_val))
                 raw_claims.append(RawStructuredClaim(claimText=f"Độ biến động {vn_chg}%", sequenceNo=seq, fieldPath="vnIndexChangePercent", claimedValue=vn_chg))
@@ -390,29 +454,59 @@ class ChatOrchestrationService:
                 else:
                     price = str(data.get("price"))
                     chg = str(data.get("changePercent", "0"))
-                    answer_parts.append(f"Cổ phiếu {sym} hiện giao dịch ở mức giá {price} ({chg}%).")
+                    answer_parts.append(f"Cổ phiếu {sym} đóng cửa ở {fmt_vi(price, 0)} đồng ({fmt_vi(chg)} %){_status_note(data)}.")
                     raw_claims.append(RawStructuredClaim(claimText=f"Giá {price}", sequenceNo=seq, fieldPath="price", claimedValue=price))
                     raw_claims.append(RawStructuredClaim(claimText=f"Thay đổi {chg}%", sequenceNo=seq, fieldPath="changePercent", claimedValue=chg))
 
             elif call.tool_name == ToolName.TECHNICAL:
                 sym = data.get("symbol", "")
-                signal = data.get("signal") or {}
-                direction = signal.get("direction", "NEUTRAL")
-                answer_parts.append(f"Tín hiệu kỹ thuật của {sym} đang ở trạng thái {direction}.")
-                raw_claims.append(RawStructuredClaim(claimText=f"Trạng thái {direction}", sequenceNo=seq, fieldPath="signal.direction", claimedValue=direction))
+                indicators = data.get("indicators") or {}
+                bits = []
+                for code, label in (("MA20", "MA20"), ("MA50", "MA50"), ("RSI14", "RSI14")):
+                    ind = indicators.get(code) or {}
+                    comps = ind.get("components") or []
+                    if ind.get("applicability") == "DEFINED" and comps and comps[0].get("value") is not None:
+                        val = comps[0]["value"]
+                        bits.append(f"{label} {fmt_vi(val, 0 if code.startswith('MA') else 2)}")
+                        raw_claims.append(RawStructuredClaim(claimText=f"{label} {fmt_vi(val)}", sequenceNo=seq,
+                                                             fieldPath=f"indicators.{code}.components[0].value", claimedValue=str(val)))
+                signals = data.get("signals") or []
+                triggered = [s_ for s_ in signals if isinstance(s_, dict) and s_.get("strategyCode")]
+                part = f"Chỉ báo kỹ thuật của {sym}{_status_note(data)}: " + (", ".join(bits) if bits else "chưa có chỉ báo khả dụng")
+                if triggered:
+                    names = ", ".join(f"{s_['strategyCode']} ({s_.get('direction')})" for s_ in triggered)
+                    part += f"; tín hiệu đang kích hoạt: {names}"
+                    raw_claims.append(RawStructuredClaim(claimText=f"{len(triggered)} tín hiệu", sequenceNo=seq, fieldPath="signals.length", claimedValue=str(len(triggered))))
+                else:
+                    part += "; không có tín hiệu chiến lược nào đang kích hoạt"
+                    raw_claims.append(RawStructuredClaim(claimText="0 tín hiệu", sequenceNo=seq, fieldPath="signals.length", claimedValue="0"))
+                answer_parts.append(part + ".")
 
             elif call.tool_name == ToolName.FUNDAMENTAL:
                 sym = data.get("symbol", "")
                 eps = data.get("eps")
                 roe = data.get("roe")
                 period = data.get("period", "ANNUAL")
+                reasons = {m.get("metricCode"): m.get("qualityReason") for m in (data.get("metrics") or []) if isinstance(m, dict)}
                 part = f"Dữ liệu cơ bản kỳ {period} của {sym}"
                 if eps:
-                    part += f", EPS đạt {eps}"
+                    part += f", EPS quý {fmt_vi(eps)} đồng"
                     raw_claims.append(RawStructuredClaim(claimText=f"EPS {eps}", sequenceNo=seq, fieldPath="eps", claimedValue=str(eps)))
+                eps_ttm = data.get("epsTtm")
+                if eps_ttm:
+                    basis = " (theo số trailing của nhà cung cấp, không có EPS quý)" if reasons.get("EPS_TTM") == "PROVIDER_TRAILING_EPS" else ""
+                    part += f", EPS 12 tháng {fmt_vi(eps_ttm)} đồng{basis}"
+                    raw_claims.append(RawStructuredClaim(claimText=f"EPS TTM {eps_ttm}", sequenceNo=seq, fieldPath="epsTtm", claimedValue=str(eps_ttm)))
                 if roe:
-                    part += f", ROE đạt {roe}%"
+                    part += f", ROE {fmt_vi(roe)} %"
                     raw_claims.append(RawStructuredClaim(claimText=f"ROE {roe}%", sequenceNo=seq, fieldPath="roe", claimedValue=str(roe)))
+                for code, key, label in (("REVENUE_GROWTH_PERCENT", "revenueGrowthPercent", "tăng trưởng doanh thu"),
+                                         ("EPS_GROWTH_PERCENT", "epsGrowthPercent", "tăng trưởng EPS")):
+                    val = data.get(key)
+                    if val is not None:
+                        basis = " (tính trên số liệu năm, chưa đủ 8 quý)" if reasons.get(code) == "ANNUAL_BASIS" else ""
+                        part += f", {label} {fmt_vi(val)} %{basis}"
+                        raw_claims.append(RawStructuredClaim(claimText=f"{label} {val}%", sequenceNo=seq, fieldPath=key, claimedValue=str(val)))
                 answer_parts.append(part + ".")
 
             elif call.tool_name == ToolName.VALUATION:
@@ -422,23 +516,60 @@ class ChatOrchestrationService:
                 if cls:
                     part = f"Định giá {sym} được phân loại ở mức {cls}"
                     raw_claims.append(RawStructuredClaim(claimText=f"Phân loại {cls}", sequenceNo=seq, fieldPath="classification", claimedValue=str(cls)))
+                    codes = [str(c) for c in (data.get("reasonCodes") or [])]
+                    if "REDUCED_METRIC_SET" in codes:
+                        part += " (bộ chỉ số bị thu hẹp: một chỉ số lõi không áp dụng, kết luận dựa trên chỉ số lõi còn lại)"
                 else:
                     # Contract reason-code-presentation-v1 (specs/014): wording, never a bare identifier;
                     # an unknown code is still shown as itself.
                     reasons = "; ".join(VALUATION_WITHHOLD_LABELS.get(str(r), str(r)) for r in (data.get("reasonCodes") or [])) or "chưa đủ dữ liệu"
                     part = f"Định giá {sym} hiện chưa được công bố ({reasons})"
                 if pe:
-                    part += f"; P/E là {pe}"
+                    part += f"; P/E là {fmt_vi(pe)}"
                     raw_claims.append(RawStructuredClaim(claimText=f"P/E {pe}", sequenceNo=seq, fieldPath="peRatio", claimedValue=str(pe)))
+                pb = data.get("pbRatio")
+                if pb:
+                    part += f"; P/B là {fmt_vi(pb)}"
+                    raw_claims.append(RawStructuredClaim(claimText=f"P/B {pb}", sequenceNo=seq, fieldPath="pbRatio", claimedValue=str(pb)))
+                # Q-52: the bases the engine used and the price date are part of the answer.
+                basis_words = []
+                input_basis = data.get("inputBasis") or {}
+                if isinstance(input_basis, dict):
+                    if input_basis.get("EPS_TTM") == "PROVIDER_TRAILING_EPS":
+                        basis_words.append("EPS 12 tháng lấy theo số trailing của nhà cung cấp")
+                    annual = [k for k, v in input_basis.items() if v == "ANNUAL_BASIS"]
+                    if annual:
+                        basis_words.append("tăng trưởng/cổ tức tính trên số liệu năm")
+                price_date = data.get("priceTradingDate")
+                status = str(data.get("dataStatus") or "CURRENT").upper()
+                if price_date:
+                    basis_words.append(f"giá theo phiên {price_date}" + (f", dữ liệu {DATA_STATUS_WORDS[status]}" if status in DATA_STATUS_WORDS else ""))
+                if basis_words:
+                    part += " (" + "; ".join(basis_words) + ")"
                 answer_parts.append(part + ".")
 
             elif call.tool_name == ToolName.PORTFOLIO:
-                positions = data.get("positions", [])
-                total_val = data.get("totalValue", "0")
-                if positions:
-                    answer_parts.append(f"Danh mục hiện nắm giữ {len(positions)} vị thế cổ phiếu.")
-                else:
-                    answer_parts.append(f"Tổng giá trị tài sản danh mục là {total_val}.")
+                positions = data.get("positions")
+                total_val = data.get("totalValue")
+                if isinstance(positions, list):
+                    if positions:
+                        answer_parts.append(f"Danh mục hiện nắm giữ {len(positions)} vị thế cổ phiếu.")
+                    else:
+                        answer_parts.append("Danh mục hiện không có vị thế nào — chưa có gì để đánh giá rủi ro hay hiệu suất.")
+                    raw_claims.append(RawStructuredClaim(claimText=f"{len(positions)} vị thế", sequenceNo=seq, fieldPath="positions.length", claimedValue=str(len(positions))))
+                elif total_val is not None:
+                    if str(total_val).strip() in ("0", "0.0", "0.00"):
+                        answer_parts.append("Tổng giá trị danh mục là 0 đồng — chưa có vị thế nào được ghi nhận, nên chưa có rủi ro hay hiệu suất để đánh giá.")
+                    else:
+                        answer_parts.append(f"Tổng giá trị tài sản danh mục là {fmt_vi(total_val, 0)} đồng.")
+                    raw_claims.append(RawStructuredClaim(claimText=f"Tổng giá trị {total_val}", sequenceNo=seq, fieldPath="totalValue", claimedValue=str(total_val)))
+
+            elif call.tool_name == ToolName.SCREENING:
+                matches = data.get("matches") or []
+                total = data.get("totalMatches", len(matches))
+                names = ", ".join(str(m.get("symbol")) for m in matches[:10] if isinstance(m, dict) and m.get("symbol"))
+                answer_parts.append(f"Bộ lọc trả về {total} mã" + (f", gồm: {names}" + (" …" if len(matches) > 10 else "") if names else "") + ".")
+                raw_claims.append(RawStructuredClaim(claimText=f"{total} mã", sequenceNo=seq, fieldPath="totalMatches", claimedValue=str(total)))
 
             elif call.tool_name == ToolName.NEWS:
                 articles = data.get("articles", [])
@@ -570,7 +701,7 @@ class ChatOrchestrationService:
         """
         # Step 1: Propose tools — real LLM function-calling when available, otherwise
         # the deterministic keyword heuristic (propose_tool_calls handles the fallback).
-        proposed_calls = await self.propose_tool_calls(request.question, request.symbol, request.priorTurns)
+        proposed_calls, planner_mode = await self.propose_tool_calls_with_mode(request.question, request.symbol, request.priorTurns)
 
         if not proposed_calls:
             refused_result = VerifiedAttributionResult(
@@ -645,6 +776,7 @@ class ChatOrchestrationService:
                 dispatched_calls=dispatched_calls,
                 tool_call_bound_reached=bound_reached,
                 explicit_refusal=True,
+                planner_mode=planner_mode,
             )
             yield {
                 "type": "final",
@@ -657,6 +789,7 @@ class ChatOrchestrationService:
         document_claims: List[DocumentClaim] = []
         full_answer = ""
         online_succeeded = False
+        online_attempted = bool(self.llm_adapter.is_online)
 
         if self.llm_adapter.is_online:
             try:
@@ -692,6 +825,10 @@ class ChatOrchestrationService:
                     "(Lưu ý: Dữ liệu trên được tổng hợp độc lập từ cả hệ thống số liệu tài chính thời gian thực và văn bản tài liệu công bố. Mọi sự sai khác về số liệu đều được bảo toàn theo đúng từng nguồn gốc tương ứng)."
                 )
 
+            if online_attempted:
+                # Q-51: a provider failure must be visible to the reader, not served as if the
+                # model had written the answer.
+                answer_parts.insert(0, OFFLINE_TEMPLATE_DISCLOSURE)
             full_answer = " ".join(answer_parts)
             words = full_answer.split(" ")
             for i in range(0, len(words), 3):
@@ -706,6 +843,8 @@ class ChatOrchestrationService:
             verified_document_claims=document_claims,
             dispatched_calls=dispatched_calls,
             tool_call_bound_reached=bound_reached,
+            synthesis_mode="ONLINE" if online_succeeded else "OFFLINE_TEMPLATE",
+            planner_mode=planner_mode,
         )
 
         yield {

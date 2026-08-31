@@ -215,3 +215,12 @@ def test_q43_rounded_restatements_pass_but_new_figures_still_fail():
     assert ok2 is False                       # 15 is nobody's rounding
     ok3, _ = verify_faithfulness("PE 5,2 và giá mục tiêu 27.500 đồng.", factors)
     assert ok3 is False                       # a new price level is fabricated
+
+
+def test_count_words_are_not_fabricated_numbers():
+    # Feature 015: the reason-code wording says "EPS 12 tháng"; "8 quý" / "250 phiên" are periods.
+    from app.features.analysis.explain import fabricated_numbers
+    evidence = "EPS_TTM=4050.73 ROE=20.22"
+    assert fabricated_numbers("EPS 12 tháng là 4.050,73; tính trên 8 quý, 250 phiên; ROE 20,22 %", evidence) == []
+    assert fabricated_numbers("EPS 12 tháng là 4.999", evidence) == ["4.999"]   # a real figure still has to exist
+    assert fabricated_numbers("lợi suất 12 %", evidence) == ["12"]               # "12 %" is a figure, not a count

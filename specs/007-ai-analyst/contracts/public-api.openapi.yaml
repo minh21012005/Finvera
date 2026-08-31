@@ -256,6 +256,15 @@ components:
           description: >-
             `true` when the per-question tool-call bound was reached
             (FR-011); `answer` then discloses that the result is partial.
+        synthesisMode:
+          type: string
+          nullable: true
+          enum: [ONLINE, OFFLINE_TEMPLATE]
+          description: Feature 015 — OFFLINE_TEMPLATE answers are template text from tool data (model unavailable) and say so.
+        plannerMode:
+          type: string
+          nullable: true
+          enum: [MODEL, KEYWORD_FALLBACK]
 
     AnalystStreamEvent:
       type: object

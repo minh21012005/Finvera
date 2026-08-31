@@ -52,6 +52,25 @@ class GeminiGenerationAdapter:
         prompt: str,
         system_instruction: Optional[str] = None,
     ) -> AsyncIterator[str]:
+        """Q-51: one quota-aware retry (provider's own retryDelay, bounded) before failing over."""
+        try:
+            async for chunk in self._generate_stream_raw_once(prompt, system_instruction):
+                yield chunk
+            return
+        except Exception as e:  # noqa: BLE001 - decide on the provider's own retry hint
+            delay = quota_retry_delay_seconds(e)
+            if delay is None:
+                raise
+            logger.info("Gemini quota hit during synthesis; retrying once in %.0fs", delay)
+            await asyncio.sleep(delay)
+        async for chunk in self._generate_stream_raw_once(prompt, system_instruction):
+            yield chunk
+
+    async def _generate_stream_raw_once(
+        self,
+        prompt: str,
+        system_instruction: Optional[str] = None,
+    ) -> AsyncIterator[str]:
         """
         Streams generated text deltas from the real online provider only — raises on
         any failure rather than silently degrading to the offline shim. Callers whose
@@ -114,11 +133,23 @@ class GeminiGenerationAdapter:
                 temperature=0.1,
                 tools=[tool],
             )
-            response = self._client.models.generate_content(
-                model=self.model,
-                contents=prompt,
-                config=config,
-            )
+            try:
+                response = self._client.models.generate_content(
+                    model=self.model,
+                    contents=prompt,
+                    config=config,
+                )
+            except Exception as first:  # noqa: BLE001 - Q-51: honour the provider's retry hint once
+                delay = quota_retry_delay_seconds(first)
+                if delay is None:
+                    raise
+                logger.info("Gemini quota hit during tool proposal; retrying once in %.0fs", delay)
+                await asyncio.sleep(delay)
+                response = self._client.models.generate_content(
+                    model=self.model,
+                    contents=prompt,
+                    config=config,
+                )
 
             function_calls = getattr(response, "function_calls", None)
             if not function_calls:
@@ -199,3 +230,30 @@ class GeminiGenerationAdapter:
 
 
 generation_adapter = GeminiGenerationAdapter()
+
+
+QUOTA_RETRY_MAX_SECONDS = 60.0
+TRANSIENT_503_RETRY_SECONDS = 5.0
+_RETRY_DELAY_PATTERNS = (
+    re.compile(r"retryDelay['\"]?\s*[:=]\s*['\"]?(\d+(?:\.\d+)?)s"),
+    re.compile(r"retry in (\d+(?:\.\d+)?)\s*s", re.IGNORECASE),
+)
+
+
+def quota_retry_delay_seconds(exc: BaseException) -> Optional[float]:
+    """Q-51: seconds to wait before ONE retry when the provider answered 429 RESOURCE_EXHAUSTED
+    with a retry hint that fits inside QUOTA_RETRY_MAX_SECONDS; None for every other failure
+    (auth, 5xx, a daily quota with a long hint) so the caller fails over immediately."""
+    text = str(exc)
+    if "503" in text and ("UNAVAILABLE" in text or "high demand" in text):
+        return TRANSIENT_503_RETRY_SECONDS  # provider-side spike, usually gone within seconds
+    if "RESOURCE_EXHAUSTED" not in text and "429" not in text:
+        return None
+    if re.search(r"PerDay|per[\s_-]?day|daily", text, re.IGNORECASE):
+        return None  # a daily quota does not recover inside the hint; fail over immediately
+    for pattern in _RETRY_DELAY_PATTERNS:
+        m = pattern.search(text)
+        if m:
+            delay = float(m.group(1))
+            return delay + 1.0 if 0 <= delay <= QUOTA_RETRY_MAX_SECONDS else None
+    return None

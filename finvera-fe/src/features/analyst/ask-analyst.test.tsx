@@ -252,4 +252,26 @@ describe('AskAnalyst Component (User Story 1: P1)', () => {
       expect(screen.getByText(/Đã tìm thấy 5 mã cổ phiếu thỏa mãn/i)).toBeDefined();
     });
   });
+
+  it('discloses degraded mode when the answer came from offline templates (Feature 015, Q-51)', async () => {
+    const mockStream = vi.mocked(analystApi.streamAskAnalyst);
+    mockStream.mockImplementation(async (_req, callbacks) => {
+      callbacks.onFinal?.({
+        answer: '(Mô hình AI tạm thời không khả dụng — câu trả lời dưới đây được lập theo mẫu.) Cổ phiếu HPG đóng cửa ở 28.500 đồng.',
+        structuredClaims: [],
+        documentClaims: [],
+        refused: false,
+        toolCalls: [],
+        toolCallBoundReached: false,
+        ruleVersion: 'orchestration-v1',
+        synthesisMode: 'OFFLINE_TEMPLATE',
+        plannerMode: 'KEYWORD_FALLBACK',
+      });
+    });
+    render(<AskAnalyst />);
+    fireEvent.change(screen.getByPlaceholderText(/Hỏi trợ lý phân tích/i), { target: { value: 'Giá HPG?' } });
+    fireEvent.click(screen.getByText(/Gửi/i));
+    await waitFor(() => expect(screen.getByText(/Chế độ suy giảm/)).toBeDefined());
+    expect(screen.getByText(/công cụ được chọn theo từ khoá/)).toBeDefined();
+  });
 });

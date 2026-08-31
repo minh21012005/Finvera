@@ -234,6 +234,17 @@ export const AskAnalyst: React.FC = () => {
               </div>
             )}
 
+            {/* Feature 015 / Q-51: degraded mode is disclosed, never served as a model answer */}
+            {finalResult?.synthesisMode === 'OFFLINE_TEMPLATE' && !finalResult.refused && (
+              <div role="status" className="p-2.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center space-x-2">
+                <span>[Chế độ suy giảm]</span>
+                <span>
+                  Mô hình AI tạm thời không khả dụng — câu trả lời được lập theo mẫu trực tiếp từ dữ liệu công cụ
+                  {finalResult.plannerMode === 'KEYWORD_FALLBACK' ? ', công cụ được chọn theo từ khoá' : ''}. Số liệu vẫn được kiểm chứng.
+                </span>
+              </div>
+            )}
+
             {/* Refusal Notice */}
             {finalResult?.refused && (
               <div className="p-2.5 rounded bg-blue-500/10 border border-blue-500/30 text-blue-300 text-xs flex items-center space-x-2">

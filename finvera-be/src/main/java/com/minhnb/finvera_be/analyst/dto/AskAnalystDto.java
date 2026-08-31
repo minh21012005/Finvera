@@ -85,7 +85,11 @@ public final class AskAnalystDto {
             boolean refused,
             List<ToolCallEventDto> toolCalls,
             boolean toolCallBoundReached,
-            String ruleVersion) {
+            String ruleVersion,
+            /** Feature 015: ONLINE | OFFLINE_TEMPLATE — how the answer text was produced. */
+            String synthesisMode,
+            /** Feature 015: MODEL | KEYWORD_FALLBACK — how the tool calls were chosen. */
+            String plannerMode) {
     }
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -96,7 +100,14 @@ public final class AskAnalystDto {
             boolean refused,
             List<ToolCallEventDto> toolCalls,
             boolean toolCallBoundReached,
-            String ruleVersion) {
+            String ruleVersion,
+            String synthesisMode,
+            String plannerMode) {
+        public PublicFinalEventDto(String answer, List<PublicStructuredClaimDto> structuredClaims,
+                List<PublicDocumentClaimDto> documentClaims, boolean refused, List<ToolCallEventDto> toolCalls,
+                boolean toolCallBoundReached, String ruleVersion) {
+            this(answer, structuredClaims, documentClaims, refused, toolCalls, toolCallBoundReached, ruleVersion, null, null);
+        }
     }
 
     public record EvidenceFactorDto(

@@ -22,7 +22,7 @@ class Settings(BaseSettings):
 
     # Gemini LLM & Embedding (ADR-0002, ADR-0008, research R-005)
     gemini_api_key: Optional[str] = None
-    gemini_generation_model: str = "gemini-2.5-flash"
+    gemini_generation_model: str = "gemini-3.6-flash"  # 2026-08-31: gemini-2.5-flash is no longer served to new projects (404 NOT_FOUND)
     gemini_embedding_model: str = "text-embedding-004"
     embedding_dimension: int = 768
     embedding_version: str = "gemini-embedding-v1"
@@ -38,8 +38,10 @@ class Settings(BaseSettings):
 
     # Feature 007 - AI Analyst (research R-005, R-010)
     analyst_max_tool_calls: int = 10
-    analyst_tool_call_timeout_seconds: float = 10.0
-    analyst_ask_timeout_seconds: float = 30.0
+    # Feature 015 / Q-55: sector-basis valuations on the owner's machine measured 8-18 s before the
+    # bulk-peer fix and ~1-2 s after; 20 s keeps headroom for a cold JVM, the ask budget follows.
+    analyst_tool_call_timeout_seconds: float = 20.0
+    analyst_ask_timeout_seconds: float = 60.0
 
     @field_validator("internal_api_key")
     @classmethod

@@ -74,6 +74,18 @@ def _candidate_values(token: str) -> List[Tuple[float, int]]:
 
 
 SMALL_COUNT_LIMIT = 10  # "7 yếu tố", "2 cơ sở": counting words are not financial figures
+# Feature 015: "EPS 12 tháng", "8 quý", "250 phiên", "24 mã" — an integer followed by a counting
+# unit is a period/count, not a figure the engine had to supply (the reason-code wording itself
+# says "12 tháng").
+_COUNT_UNIT_AFTER = re.compile(
+    r"^[ \t]*(?:tháng|quý|phiên|năm|mã|yếu tố|cổ phiếu|ngày|chiến lược|công cụ|bậc|lần|tuần|kỳ)(?![\w])",
+    re.IGNORECASE,
+)
+
+
+def _is_count_token(text: str, match: "re.Match[str]") -> bool:
+    return "." not in match.group(0) and "," not in match.group(0) \
+        and _COUNT_UNIT_AFTER.match(text[match.end():match.end() + 16]) is not None
 
 
 def fabricated_numbers(generated_text: str, evidence_text: str) -> List[str]:
@@ -83,7 +95,10 @@ def fabricated_numbers(generated_text: str, evidence_text: str) -> List[str]:
     decimals is supported when some evidence reading e satisfies |g - e| <= 0.5 * 10^-d."""
     evidence_values = [v for tok in _NUMBER_TOKEN.findall(evidence_text) for v, _ in _candidate_values(tok)]
     fabricated: List[str] = []
-    for tok in _NUMBER_TOKEN.findall(generated_text):
+    for match in _NUMBER_TOKEN.finditer(generated_text):
+        tok = match.group(0)
+        if _is_count_token(generated_text, match):
+            continue
         readings = _candidate_values(tok)
         supported = False
         for g, d in readings:
