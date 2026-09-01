@@ -170,10 +170,9 @@ public final class ValuationV1 {
             reasonCodes.add(REDUCED_METRIC_SET);
         }
 
-        // Blocking reasons per contracts/valuation-v1.md publishability table:
-        boolean isWithheld = reasonCodes.contains("PRICE_STALE")
-                || reasonCodes.contains("PRICE_UNAVAILABLE")
-                || reasonCodes.contains("FUNDAMENTALS_STALE")
+        // Blocking reasons per contracts/valuation-v1.md publishability table,
+        // amended 2026-09-01: PRICE_STALE and FUNDAMENTALS_STALE are non-blocking (warning only).
+        boolean isWithheld = reasonCodes.contains("PRICE_UNAVAILABLE")
                 || reasonCodes.contains("FUNDAMENTALS_UNAVAILABLE")
                 || reasonCodes.contains("SOURCE_CONFLICT")
                 || reasonCodes.contains("NO_COMPARISON_BASIS")

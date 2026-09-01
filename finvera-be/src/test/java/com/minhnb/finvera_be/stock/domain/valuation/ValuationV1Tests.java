@@ -309,12 +309,12 @@ class ValuationV1Tests {
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
-    // Contract test vector: Stale fundamentals
-    // A 300-day-old fundamental report withholds with FUNDAMENTALS_STALE.
+    // Contract amendment 2026-09-01: Stale fundamentals is non-blocking
+    // A 300-day-old fundamental report (STALE) still publishes with a warning.
     // ─────────────────────────────────────────────────────────────────────────────
 
     @Test
-    void staleFundamentalsWithhold() {
+    void staleFundamentalsStillPublishesWithWarning() {
         var engine = new ValuationV1();
         var inputs = ValuationV1.Inputs.builder()
                 .price(new BigDecimal("69200.000000"))
@@ -333,8 +333,70 @@ class ValuationV1Tests {
 
         var result = engine.classify(inputs);
 
-        assertThat(result.published()).isFalse();
+        assertThat(result.published()).isTrue();
+        assertThat(result.classification()).isNotNull();
+        assertThat(result.score()).isNotNull();
+        assertThat(result.confidence()).isNotNull();
         assertThat(result.reasonCodes()).contains("FUNDAMENTALS_STALE");
+    }
+
+    @Test
+    void fundamentalsUnavailableWithholds() {
+        var engine = new ValuationV1();
+        var inputs = ValuationV1.Inputs.builder()
+                .price(new BigDecimal("69200.000000"))
+                .sharesOutstanding(1_462_000_000L)
+                .epsTtm(null)
+                .epsGrowthPercent(null)
+                .equityAttributableToParent(null)
+                .ebitdaTtm(null)
+                .totalDebt(null)
+                .cashAndEquivalents(null)
+                .dividendPerShareTtm(null)
+                .ownHistorySeries(List.of())
+                .sectorSeries(List.of())
+                .fundamentalsDataStatus("UNAVAILABLE")
+                .build();
+
+        var result = engine.classify(inputs);
+
+        assertThat(result.published()).isFalse();
+        assertThat(result.reasonCodes()).contains("FUNDAMENTALS_UNAVAILABLE");
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Contract amendment 2026-09-01: PRICE_STALE is non-blocking
+    // A stale price still publishes classification, score, and confidence,
+    // with PRICE_STALE present in reason codes as a warning.
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    @Test
+    void stalePriceStillPublishesWithWarning() {
+        var engine = new ValuationV1();
+        var inputs = ValuationV1.Inputs.builder()
+                .price(new BigDecimal("69200.000000"))
+                .sharesOutstanding(1_462_000_000L)
+                .epsTtm(new BigDecimal("4580.000000"))
+                .epsGrowthPercent(new BigDecimal("18.500000"))
+                .equityAttributableToParent(new BigDecimal("42000000000000.000000"))
+                .ebitdaTtm(new BigDecimal("8900000000000.000000"))
+                .totalDebt(new BigDecimal("3000000000000.000000"))
+                .cashAndEquivalents(new BigDecimal("7500000000000.000000"))
+                .dividendPerShareTtm(new BigDecimal("2000.000000"))
+                .ownHistorySeries(buildMinimalHistory(600))
+                .sectorSeries(List.of())
+                .priceDataStatus("STALE")
+                .build();
+
+        var result = engine.classify(inputs);
+
+        // Amended: PRICE_STALE no longer withholds; classification, score, and confidence are set.
+        assertThat(result.published()).isTrue();
+        assertThat(result.classification()).isNotNull();
+        assertThat(result.score()).isNotNull();
+        assertThat(result.confidence()).isNotNull();
+        // PRICE_STALE is still disclosed in reason codes as a warning.
+        assertThat(result.reasonCodes()).contains("PRICE_STALE");
     }
 
     // ─────────────────────────────────────────────────────────────────────────────

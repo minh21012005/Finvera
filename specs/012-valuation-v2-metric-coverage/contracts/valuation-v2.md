@@ -70,3 +70,30 @@ vci-derived-ratios-v1): DIVIDEND_PER_SHARE -> summary DIVIDEND_PER_SHARE_TTM -> 
 BETA stays deferred: no anchored definition adds decision value for a personal investor (owner
 scope decision 2026-08-31, "đủ và chính xác, không thừa").
 
+## Amendment 2026-09-01: PRICE_STALE and FUNDAMENTALS_STALE demoted to non-blocking warnings
+
+`PRICE_STALE` and `FUNDAMENTALS_STALE` no longer withhold the valuation
+classification, score, or confidence. When the latest accepted daily bar is
+≥ 2 weekday sessions behind the resolved trading date, or the latest fundamental
+report is > 280 days old, the engine still computes and publishes the full
+assessment based on the latest available observations. `PRICE_STALE` and/or
+`FUNDAMENTALS_STALE` remain in `reason_codes` so the frontend can render
+a visible warning.
+
+**Rationale.** Hiding the entire valuation when price or financials are stale
+removes useful decision-support baseline without meaningfully protecting the
+user. Clear disclaimers and warning banners provide better usability while
+maintaining full transparency.
+
+**`PRICE_UNAVAILABLE` and `FUNDAMENTALS_UNAVAILABLE` remain blocking.** Without
+any price or financial reports, core multiples cannot be computed at all.
+
+Updated publishability table (supersedes v1's stale rows):
+
+| Condition | Reason code | Blocking |
+|---|---|---|
+| Price `data_status` is `STALE` | `PRICE_STALE` | **No** (warning) |
+| Price `data_status` is `UNAVAILABLE` | `PRICE_UNAVAILABLE` | Yes |
+| Fundamental summary `data_status` is `STALE` | `FUNDAMENTALS_STALE` | **No** (warning) |
+| Fundamental summary `data_status` is `UNAVAILABLE` | `FUNDAMENTALS_UNAVAILABLE` | Yes |
+

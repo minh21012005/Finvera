@@ -30,6 +30,20 @@ export function StockValuation({ valuation, symbol }: { valuation: StockValuatio
 
       {published ? (
         <div className="valuation-summary">
+          {(valuation.meta.reasonCodes.includes("PRICE_STALE") ||
+            valuation.meta.reasonCodes.includes("FUNDAMENTALS_STALE")) && (
+            <div className="stale-price-warning" role="alert">
+              <span className="warning-icon" aria-hidden="true">⚠</span>
+              <span>
+                {valuation.meta.reasonCodes.includes("PRICE_STALE") &&
+                valuation.meta.reasonCodes.includes("FUNDAMENTALS_STALE")
+                  ? "Giá và báo cáo tài chính đã cũ — kết quả định giá dựa trên dữ liệu có sẵn gần nhất, có thể chưa phản ánh tình hình hiện tại."
+                  : valuation.meta.reasonCodes.includes("PRICE_STALE")
+                  ? "Giá đã cũ nhiều phiên — kết quả định giá dựa trên giá cũ nhất có sẵn, có thể chưa phản ánh thị trường hiện tại."
+                  : "Báo cáo tài chính đã cũ — kết quả định giá dựa trên kỳ BCTC gần nhất có sẵn."}
+              </span>
+            </div>
+          )}
           <div className="valuation-badge-container">
             <span className={`valuation-label-badge ${valuation.classification?.toLowerCase()}`}>
               {valuationLabel(valuation.classification)}

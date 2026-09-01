@@ -31,6 +31,7 @@ rule of v1 are unchanged. v1 rows stay in the database under their own
 - Reason code `REDUCED_METRIC_SET` (non-blocking, disclosed).
 - Contract `valuation-v2.md`; OpenAPI/FE accept `valuation-v2`.
 - Warmup recomputes the universe under v2.
+- Amendment 2026-09-01: `PRICE_STALE` and `FUNDAMENTALS_STALE` demoted to non-blocking warnings (FE displays warning banner while full assessment remains published).
 
 ### Out of Scope
 

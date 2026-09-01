@@ -182,4 +182,64 @@ describe("stock valuation section", () => {
     expect(screen.getByText(/không phải.*khuyến nghị đầu tư/i)).toBeVisible();
     expect(screen.queryByText(/Mua|Bán/i)).not.toBeInTheDocument();
   });
+
+  it("shows stale-price warning when published with PRICE_STALE", () => {
+    const stalePrice = mockValuation({
+      published: true,
+      classification: "FAIR_VALUED",
+      score: "48.25",
+      displayedScore: 48,
+      confidence: 72,
+      meta: {
+        ...mockValuation().meta,
+        reasonCodes: ["PRICE_STALE"],
+        dataStatus: "STALE",
+      },
+    });
+    render(<StockValuation symbol="HPG" valuation={stalePrice} />);
+    // Classification and score should still be visible
+    expect(screen.getByText(/Hợp lý|Fair/i)).toBeVisible();
+    expect(screen.getByText(/Điểm đắt\/rẻ/i)).toHaveTextContent("48");
+    // Warning banner should be visible
+    expect(screen.getByRole("alert")).toBeVisible();
+    expect(screen.getByText(/Giá đã cũ nhiều phiên/i)).toBeVisible();
+  });
+
+  it("shows stale-fundamentals warning when published with FUNDAMENTALS_STALE", () => {
+    const staleFundamentals = mockValuation({
+      published: true,
+      classification: "FAIR_VALUED",
+      score: "48.25",
+      displayedScore: 48,
+      confidence: 72,
+      meta: {
+        ...mockValuation().meta,
+        reasonCodes: ["FUNDAMENTALS_STALE"],
+        dataStatus: "STALE",
+      },
+    });
+    render(<StockValuation symbol="HPG" valuation={staleFundamentals} />);
+    expect(screen.getByText(/Hợp lý|Fair/i)).toBeVisible();
+    expect(screen.getByRole("alert")).toBeVisible();
+    expect(screen.getByText(/Báo cáo tài chính đã cũ/i)).toBeVisible();
+  });
+
+  it("shows combined warning when both price and fundamentals are stale", () => {
+    const bothStale = mockValuation({
+      published: true,
+      classification: "FAIR_VALUED",
+      score: "48.25",
+      displayedScore: 48,
+      confidence: 72,
+      meta: {
+        ...mockValuation().meta,
+        reasonCodes: ["PRICE_STALE", "FUNDAMENTALS_STALE"],
+        dataStatus: "STALE",
+      },
+    });
+    render(<StockValuation symbol="HPG" valuation={bothStale} />);
+    expect(screen.getByText(/Hợp lý|Fair/i)).toBeVisible();
+    expect(screen.getByRole("alert")).toBeVisible();
+    expect(screen.getByText(/Giá và báo cáo tài chính đã cũ/i)).toBeVisible();
+  });
 });
