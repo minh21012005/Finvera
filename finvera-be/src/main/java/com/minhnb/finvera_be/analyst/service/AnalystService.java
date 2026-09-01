@@ -312,7 +312,9 @@ public class AnalystService {
         } catch (Exception e) {
             log.error("Error during explain output for queryId {}", queryId, e);
             queryService.recordQueryCompletion(queryId, AnalystQueryOutcome.FAILED, false);
-            throw new RuntimeException("Explain service failed", e);
+            return new com.minhnb.finvera_be.analyst.dto.AskAnalystDto.ExplainResponse(
+                    "Không thể tạo giải thích tự động do dịch vụ AI phản hồi chậm hoặc tạm thời gián đoạn. Vui lòng thử lại sau.",
+                    false);
         }
     }
 }

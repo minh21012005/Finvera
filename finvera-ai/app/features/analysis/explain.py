@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import re
 from typing import Any, Dict, List, Optional, Tuple
@@ -196,7 +197,11 @@ async def explain_deterministic_output(
             # generate_text_strict raises on a real provider failure instead of masking
             # it as RAG-shaped offline text — a wrong-context message that would then
             # wrongly pass or fail the faithfulness check below.
-            raw_explanation = await adapter.generate_text_strict(prompt)
+            # Bounded with 50s timeout per attempt to give LLM plenty of time while preventing infinite hanging.
+            raw_explanation = await asyncio.wait_for(
+                adapter.generate_text_strict(prompt),
+                timeout=50.0,
+            )
             provider_error = None
 
             is_faithful, ref_factors = verify_faithfulness(raw_explanation, request.evidenceFactors)

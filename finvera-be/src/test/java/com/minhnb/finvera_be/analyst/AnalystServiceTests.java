@@ -277,7 +277,7 @@ class AnalystServiceTests {
     }
 
     @Test
-    void explainOutput_aiClientException_recordsFailedAuditAndRethrows() {
+    void explainOutput_aiClientException_recordsFailedAuditAndReturnsFallback() {
         UUID ownerId = UUID.randomUUID();
         ExplainRequest req = new ExplainRequest(
                 "RISK_FACTOR",
@@ -286,9 +286,10 @@ class AnalystServiceTests {
 
         when(aiClient.explain(any())).thenThrow(new RuntimeException("AI service timeout"));
 
-        assertThatThrownBy(() -> analystService.explainOutput(ownerId, req))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Explain service failed");
+        ExplainResponse response = analystService.explainOutput(ownerId, req);
+
+        assertThat(response.verified()).isFalse();
+        assertThat(response.explanation()).contains("Không thể tạo giải thích tự động");
 
         verify(queryService).recordQueryStart(any(UUID.class), eq(ownerId), eq(AnalystRequestType.EXPLAIN), eq("Explain RISK_FACTOR (VND)"));
         verify(queryService).recordQueryCompletion(any(UUID.class), eq(AnalystQueryOutcome.FAILED), eq(false));

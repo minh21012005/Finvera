@@ -23,8 +23,8 @@ public class AnalystAiClient {
 
     public AnalystAiClient(AnalystProperties properties) {
         var requestFactory = new SimpleClientHttpRequestFactory();
-        requestFactory.setConnectTimeout(Duration.ofSeconds(5));
-        requestFactory.setReadTimeout(Duration.ofSeconds(60));
+        requestFactory.setConnectTimeout(Duration.ofSeconds(10));
+        requestFactory.setReadTimeout(Duration.ofSeconds(120));
 
         this.restClient = RestClient.builder()
                 .baseUrl(properties.aiServiceUrl())
