@@ -48,7 +48,9 @@ export function buildValuationEvidence(valuation: StockValuation): EvidenceFacto
         parts.push(`phân vị ngành ${formatDecimal(m.sectorPercentile)}%`);
       }
       if (m.effectiveWeight !== null) {
-        parts.push(`trọng số ${formatDecimal(m.effectiveWeight)}`);
+        const weightNum = Number(m.effectiveWeight);
+        const weightPct = !isNaN(weightNum) ? ` (${formatDecimal((weightNum * 100).toFixed(2))}%)` : "";
+        parts.push(`trọng số ${formatDecimal(m.effectiveWeight)}${weightPct}`);
       } else if (m.metricCode === "DIVIDEND_YIELD") {
         parts.push("chỉ hiển thị, không tính điểm");
       }

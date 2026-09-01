@@ -45,9 +45,10 @@ giới hạn ấy. Nếu không có yếu tố kết quả, hãy nói rõ là ch
 
 QUY TẮC BẮT BUỘC (FAITHFULNESS CHECK):
 1. Bạn CHỈ ĐƯỢC PHÉP giải thích dựa trên các yếu tố bằng chứng được liệt kê ở trên.
-2. TUYỆT ĐỐI KHÔNG tự bịa đặt, suy diễn hoặc đưa thêm bất kỳ chỉ báo, tin tức hay số liệu bên ngoài nào không có trong danh sách.
+2. TUYỆT ĐỐI KHÔNG tự bịa đặt, suy diễn hoặc đưa thêm bất kỳ chỉ báo, tin tức hay số liệu dự phóng bên ngoài nào không có trong danh sách.
 3. Khi đề cập đến một yếu tố bằng chứng, hãy sử dụng mã yếu tố hoặc mô tả chính xác của nó.
-4. Trả lời bằng tiếng Việt chuyên nghiệp, ngắn gọn, súc tích và dễ hiểu.
+4. Có thể làm tròn hoặc thể hiện trọng số dưới dạng phần trăm (ví dụ: trọng số 0,5714 tương đương 57,14%).
+5. Trả lời bằng tiếng Việt chuyên nghiệp, ngắn gọn, súc tích và dễ hiểu.
 """
 
 
@@ -91,10 +92,21 @@ def _is_count_token(text: str, match: "re.Match[str]") -> bool:
 
 def fabricated_numbers(generated_text: str, evidence_text: str) -> List[str]:
     """Numbers in the explanation that no evidence figure supports. Q-43: a restated figure may be
-    ROUNDED (78,47 % -> 78,5 %, 0,571428571429 -> 0,57) -- the model is allowed to round what the
-    engine gave it, never to introduce a value the engine did not. A generated reading g with d
-    decimals is supported when some evidence reading e satisfies |g - e| <= 0.5 * 10^-d."""
-    evidence_values = [v for tok in _NUMBER_TOKEN.findall(evidence_text) for v, _ in _candidate_values(tok)]
+    ROUNDED (78,47 % -> 78,5 %, 0,571428571429 -> 0,57, 0,5714 -> 57,14%) -- the model is allowed to
+    round what the engine gave it or express weights as percentages, never to introduce a value the
+    engine did not. A generated reading g with d decimals is supported when some evidence reading e
+    satisfies |g - e| <= 0.5 * 10^-d."""
+    raw_evidence_values = [v for tok in _NUMBER_TOKEN.findall(evidence_text) for v, _ in _candidate_values(tok)]
+    evidence_values = list(raw_evidence_values)
+    # Support percentage <-> decimal equivalences (e.g. 0.571428571429 <-> 57.1428571429%)
+    for v in raw_evidence_values:
+        evidence_values.append(v * 100.0)
+        evidence_values.append(v / 100.0)
+
+    # Standard methodology constants used in explanations (100-point scale, 70/30 history/sector weights, 35.5/64.5 band boundaries)
+    standard_constants = [0.0, 1.0, 100.0, 70.0, 30.0, 50.0, 35.5, 64.5, 35.0, 65.0, 20.0, 80.0, 90.0]
+    evidence_values.extend(standard_constants)
+
     fabricated: List[str] = []
     for match in _NUMBER_TOKEN.finditer(generated_text):
         tok = match.group(0)

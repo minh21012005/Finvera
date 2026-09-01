@@ -224,3 +224,22 @@ def test_count_words_are_not_fabricated_numbers():
     assert fabricated_numbers("EPS 12 tháng là 4.050,73; tính trên 8 quý, 250 phiên; ROE 20,22 %", evidence) == []
     assert fabricated_numbers("EPS 12 tháng là 4.999", evidence) == ["4.999"]   # a real figure still has to exist
     assert fabricated_numbers("lợi suất 12 %", evidence) == ["12"]               # "12 %" is a figure, not a count
+
+
+def test_weight_percentage_restatements_pass_faithfulness():
+    from app.features.analysis.explain import verify_faithfulness
+    factors = [
+        EvidenceFactor(factorCode="VALUATION_CLASSIFICATION", description="Kết luận: Định giá thấp — điểm đắt/rẻ 34/100, độ hoàn thiện dữ liệu 87% (quy tắc valuation-v2)"),
+        EvidenceFactor(factorCode="COMPARISON_BASIS", description="Cơ sở so sánh: lịch sử riêng của mã (750 phiên); ngành 8770 (47 mã cùng ngành)"),
+        EvidenceFactor(factorCode="PE", description="P/E: 11,11 — phân vị lịch sử 9,93% — phân vị ngành 30,23% — trọng số 0,571428571429"),
+        EvidenceFactor(factorCode="PB", description="P/B: 1,31 — phân vị lịch sử 52,07% — phân vị ngành 61,7% — trọng số 0,428571428571"),
+    ]
+    explanation = (
+        "Mã SSI được đánh giá Định giá thấp với điểm 34/100. "
+        "Yếu tố PE có trọng số 57,14% (phân vị lịch sử 9,93% và phân vị ngành 30,23%) "
+        "kết hợp cùng PB có trọng số 42,86% (phân vị lịch sử 52,07%) "
+        "dựa trên 750 phiên và 47 mã cùng ngành."
+    )
+    ok, refs = verify_faithfulness(explanation, factors)
+    assert ok is True
+    assert set(refs) >= {"PE", "PB"}
