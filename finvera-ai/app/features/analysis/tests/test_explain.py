@@ -9,6 +9,8 @@ from app.features.analysis.explain import (
     ExplainResult,
     explain_deterministic_output,
     verify_faithfulness,
+    fabricated_numbers,
+    build_explain_prompt,
 )
 
 
@@ -168,7 +170,6 @@ async def test_t030_provider_failure_surfaces_distinct_error_not_faithfulness_me
 
 
 def test_q21_no_referenced_factor_is_not_attributed_to_all_factors():
-    from app.features.analysis.explain import verify_faithfulness
     factors = [EvidenceFactor(factorCode="BETA", description="Hệ số Beta 1.25")]
     ok, refs = verify_faithfulness("Cổ phiếu này nhìn chung khá ổn.", factors)
     assert ok is False
@@ -176,7 +177,6 @@ def test_q21_no_referenced_factor_is_not_attributed_to_all_factors():
 
 
 def test_q21_fabricated_number_fails_faithfulness():
-    from app.features.analysis.explain import verify_faithfulness
     factors = [EvidenceFactor(factorCode="BETA", description="Hệ số Beta 1.25")]
     ok, refs = verify_faithfulness("Hệ số BETA là 1.25 nên giá có thể tăng 15% quý tới.", factors)
     assert ok is False
@@ -187,7 +187,6 @@ def test_q21_fabricated_number_fails_faithfulness():
 
 
 def test_q43_prompt_names_the_result_factor_to_explain():
-    from app.features.analysis.explain import build_explain_prompt
     req = ExplainRequest(
         ownerId=uuid.uuid4(), outputType="VALUATION_CLASSIFICATION", symbol="MBB",
         evidenceFactors=[
@@ -201,7 +200,6 @@ def test_q43_prompt_names_the_result_factor_to_explain():
 
 
 def test_q43_rounded_restatements_pass_but_new_figures_still_fail():
-    from app.features.analysis.explain import verify_faithfulness
     factors = [
         EvidenceFactor(factorCode="VALUATION_CLASSIFICATION", description="Kết luận: Định giá cao — điểm đắt/rẻ 69/100, độ hoàn thiện dữ liệu 87%"),
         EvidenceFactor(factorCode="PE", description="P/E: 5,2 — phân vị lịch sử 78,47% — phân vị ngành 21,74% — trọng số 0,571428571429"),
@@ -219,7 +217,6 @@ def test_q43_rounded_restatements_pass_but_new_figures_still_fail():
 
 def test_count_words_are_not_fabricated_numbers():
     # Feature 015: the reason-code wording says "EPS 12 tháng"; "8 quý" / "250 phiên" are periods.
-    from app.features.analysis.explain import fabricated_numbers
     evidence = "EPS_TTM=4050.73 ROE=20.22"
     assert fabricated_numbers("EPS 12 tháng là 4.050,73; tính trên 8 quý, 250 phiên; ROE 20,22 %", evidence) == []
     assert fabricated_numbers("EPS 12 tháng là 4.999", evidence) == ["4.999"]   # a real figure still has to exist
@@ -227,7 +224,6 @@ def test_count_words_are_not_fabricated_numbers():
 
 
 def test_weight_percentage_restatements_pass_faithfulness():
-    from app.features.analysis.explain import verify_faithfulness
     factors = [
         EvidenceFactor(factorCode="VALUATION_CLASSIFICATION", description="Kết luận: Định giá thấp — điểm đắt/rẻ 34/100, độ hoàn thiện dữ liệu 87% (quy tắc valuation-v2)"),
         EvidenceFactor(factorCode="COMPARISON_BASIS", description="Cơ sở so sánh: lịch sử riêng của mã (750 phiên); ngành 8770 (47 mã cùng ngành)"),
@@ -246,7 +242,6 @@ def test_weight_percentage_restatements_pass_faithfulness():
 
 
 def test_signal_explain_subword_indicators_pass_faithfulness():
-    from app.features.analysis.explain import verify_faithfulness
     factors = [
         EvidenceFactor(factorCode="SIGNAL", description="Tín hiệu Động lượng — Mua (LONG); vùng vào 21.206,31–21.493,69, dừng lỗ 20.200,51, mục tiêu 23.648,98 / 24.798,47, lợi nhuận/rủi ro 2; mức rủi ro Rủi ro trung bình (điểm 38/100)"),
         EvidenceFactor(factorCode="CONDITION_MACDHISTOGRAM", description="Điều kiện vào lệnh macdHistogram: 236.157629103096"),
@@ -266,3 +261,16 @@ def test_signal_explain_subword_indicators_pass_faithfulness():
     ok, refs = verify_faithfulness(explanation, factors)
     assert ok is True
     assert set(refs) >= {"CONDITION_MACDHISTOGRAM", "CONDITION_RSI14"}
+
+
+def test_dates_and_prefix_units_pass_faithfulness():
+    factors = [
+        EvidenceFactor(factorCode="SIGNAL", description="Tín hiệu Động lượng — Mua (LONG); vùng vào 21.206,31–21.493,69 (quy tắc strategy-signal-v1, phiên 2026-08-28)"),
+        EvidenceFactor(factorCode="CONDITION_RSI14", description="Điều kiện vào lệnh rsi14: 62.86"),
+    ]
+    explanation = (
+        "Trong phiên ngày 28/08/2026 (năm 2026), tín hiệu Mua được kích hoạt với chỉ số RSI đạt mức 62,86."
+    )
+    ok, refs = verify_faithfulness(explanation, factors)
+    assert ok is True
+    assert set(refs) >= {"SIGNAL", "CONDITION_RSI14"}

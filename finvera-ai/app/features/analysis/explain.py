@@ -83,11 +83,23 @@ _COUNT_UNIT_AFTER = re.compile(
     r"^[ \t]*(?:tháng|quý|phiên|năm|mã|yếu tố|cổ phiếu|ngày|chiến lược|công cụ|bậc|lần|tuần|kỳ)(?![\w])",
     re.IGNORECASE,
 )
+_COUNT_UNIT_BEFORE = re.compile(
+    r"(?:tháng|quý|phiên|năm|ngày|tuần|kỳ|mã|số|bước|mức|điểm|vùng)[ \t]*$",
+    re.IGNORECASE,
+)
 
 
 def _is_count_token(text: str, match: "re.Match[str]") -> bool:
-    return "." not in match.group(0) and "," not in match.group(0) \
-        and _COUNT_UNIT_AFTER.match(text[match.end():match.end() + 16]) is not None
+    if "." in match.group(0) or "," in match.group(0):
+        return False
+    # Unit after (e.g. "12 tháng", "250 phiên", "8 quý")
+    if _COUNT_UNIT_AFTER.match(text[match.end():match.end() + 16]) is not None:
+        return True
+    # Unit before (e.g. "năm 2026", "quý 4", "ngày 28", "tháng 8", "mức 38")
+    prefix = text[max(0, match.start() - 16):match.start()]
+    if _COUNT_UNIT_BEFORE.search(prefix) is not None:
+        return True
+    return False
 
 
 def fabricated_numbers(generated_text: str, evidence_text: str) -> List[str]:
@@ -127,6 +139,19 @@ def fabricated_numbers(generated_text: str, evidence_text: str) -> List[str]:
     return fabricated
 
 
+_CODE_SEMANTIC_KEYWORDS: Dict[str, List[str]] = {
+    "SIGNAL": ["tín hiệu", "vào lệnh", "long", "short", "mua", "bán"],
+    "VALUATION_CLASSIFICATION": ["định giá", "đắt", "rẻ", "phù hợp", "kết luận"],
+    "COMPARISON_BASIS": ["cơ sở", "so sánh", "lịch sử", "ngành"],
+    "VOLATILITY": ["biến động", "volatility"],
+    "ATR": ["atr", "biến động trung bình"],
+    "DRAWDOWN": ["sụt giảm", "drawdown", "đỉnh"],
+    "LIQUIDITY": ["thanh khoản", "khối lượng", "kl"],
+    "STOP_DISTANCE": ["dừng lỗ", "stop loss", "khoảng cách"],
+    "MARKET_REGIME": ["thị trường", "regime", "trạng thái"],
+}
+
+
 def verify_faithfulness(
     generated_text: str,
     allowed_factors: List[EvidenceFactor],
@@ -138,19 +163,21 @@ def verify_faithfulness(
     deterministic engine's figures, never introduce its own (Constitution I).
     Returns the factors actually referenced; never claims "all" when none were.
     """
-    # Known standard indicator factor codes
+    # Known standard financial indicator & factor codes across all Finvera engines
     all_standard_codes = {
-        "RSI", "MACD", "MA20", "MA50", "SMA", "EMA", "PE", "PB", "PS", "ROE", "ROA",
-        "DEBT_TO_EQUITY", "BETA", "VOLATILITY", "ATR", "DRAWDOWN", "LIQUIDITY"
+        "RSI", "MACD", "MA20", "MA50", "MA200", "SMA", "EMA", "BOLLINGER", "STOCHASTIC", "OBV", "ADX",
+        "PE", "PB", "PS", "EV_EBITDA", "DIVIDEND_YIELD", "ROE", "ROA", "DEBT_TO_EQUITY", "BETA",
+        "VOLATILITY", "ATR", "DRAWDOWN", "LIQUIDITY", "STOP_DISTANCE", "MARKET_REGIME"
     }
 
     # An indicator code is allowed if it appears in any supplied factorCode or description
     allowed_standard_codes = set()
     for code in all_standard_codes:
+        normalized_code = code.replace("_", "")
         for f in allowed_factors:
-            f_code_upper = f.factorCode.upper()
-            f_desc_upper = f.description.upper()
-            if code in f_code_upper or code in f_desc_upper:
+            f_code_upper = f.factorCode.upper().replace("_", "")
+            f_desc_upper = f.description.upper().replace("_", "")
+            if normalized_code in f_code_upper or normalized_code in f_desc_upper:
                 allowed_standard_codes.add(code)
                 break
 
@@ -158,7 +185,8 @@ def verify_faithfulness(
 
     for fcode in forbidden_codes:
         # If text mentions an unsupplied standard financial factor code as evidence
-        if re.search(r"\b" + re.escape(fcode) + r"\b", generated_text, re.IGNORECASE):
+        code_pat = r"\b" + re.escape(fcode) + r"\b"
+        if re.search(code_pat, generated_text, re.IGNORECASE):
             logger.warning(f"Faithfulness check failed: unsupplied factor '{fcode}' detected in explanation")
             return False, []
 
@@ -170,8 +198,23 @@ def verify_faithfulness(
         tokens = re.findall(r"[A-Za-z]+|\d+", f.factorCode)
         factor_mentioned = re.search(code_pat, generated_text, re.IGNORECASE) or f.description.lower() in generated_text.lower()
         if not factor_mentioned:
+            # Check meaningful sub-tokens of factorCode (e.g. MACD, RSI, VOLATILITY, DRAWDOWN)
             for tok in tokens:
                 if len(tok) >= 3 and re.search(r"\b" + re.escape(tok) + r"\b", generated_text, re.IGNORECASE):
+                    factor_mentioned = True
+                    break
+        if not factor_mentioned:
+            # Check semantic keywords mapped for the code
+            keywords = _CODE_SEMANTIC_KEYWORDS.get(f.factorCode.upper(), [])
+            for kw in keywords:
+                if kw in generated_text.lower():
+                    factor_mentioned = True
+                    break
+        if not factor_mentioned:
+            # Check key phrases in description separated by punctuation
+            for phrase in re.split(r"[—:;,\n]", f.description):
+                phrase_clean = phrase.strip().lower()
+                if len(phrase_clean) >= 6 and phrase_clean in generated_text.lower():
                     factor_mentioned = True
                     break
         if factor_mentioned:
