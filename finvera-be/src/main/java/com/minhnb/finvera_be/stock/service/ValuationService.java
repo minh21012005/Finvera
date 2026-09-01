@@ -170,7 +170,7 @@ public class ValuationService {
         // TechnicalIndicatorService), not a bare null-check — a stale bar must
         // be able to trip the valuation-v1 PRICE_STALE publishability gate.
         var session = referenceData.resolveSession(instrument.venue(), asOf);
-        DataStatus priceStatus = evaluatePriceFreshness(latestBar, session.tradingDate());
+        DataStatus priceStatus = evaluatePriceFreshness(instrument.venue(), latestBar, session.tradingDate());
         DataStatus overallDataStatus = freshnessPolicy.evaluateValuationAssessment(
                 List.of(priceStatus, fundamentalsStatus));
 
@@ -522,25 +522,12 @@ public class ValuationService {
                 new CurrentFundamentalMetrics(null, null, null, null, null, null, null, null, null, null);
     }
 
-    private DataStatus evaluatePriceFreshness(EquityDailyBarEntity latestBar, LocalDate sessionTradingDate) {
+    private DataStatus evaluatePriceFreshness(String venue, EquityDailyBarEntity latestBar, LocalDate sessionTradingDate) {
         if (latestBar == null) {
             return freshnessPolicy.evaluateMissing();
         }
-        int sessionsBehind = countWeekdaysBetween(latestBar.getTradingDate(), sessionTradingDate);
+        int sessionsBehind = referenceData.countTradingSessionsBetween(venue, latestBar.getTradingDate(), sessionTradingDate);
         return freshnessPolicy.evaluateDailyBarSeries(sessionsBehind);
-    }
-
-    /** Same weekday-count approximation as {@code StockOverviewService}; see its Javadoc for the caveat. */
-    private static int countWeekdaysBetween(LocalDate lastAccepted, LocalDate asOfTradingDate) {
-        int count = 0;
-        LocalDate cursor = lastAccepted;
-        while (cursor.isBefore(asOfTradingDate)) {
-            cursor = cursor.plusDays(1);
-            if (cursor.getDayOfWeek() != DayOfWeek.SATURDAY && cursor.getDayOfWeek() != DayOfWeek.SUNDAY) {
-                count++;
-            }
-        }
-        return count;
     }
 
     /**

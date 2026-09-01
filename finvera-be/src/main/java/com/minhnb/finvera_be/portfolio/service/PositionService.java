@@ -246,7 +246,7 @@ public class PositionService {
             }
             LocalDate sessionDate = sessionDateByVenue.computeIfAbsent(venue,
                     v -> marketReferenceData.resolveSession(v, asOf).tradingDate());
-            int sessionsBehind = countWeekdaysBetween(bar.tradingDate(), sessionDate);
+            int sessionsBehind = marketReferenceData.countTradingSessionsBetween(venue, bar.tradingDate(), sessionDate);
             freshness.put(bar.instrumentId(),
                     new PriceFreshness(freshnessPolicy.evaluateDailyBarSeries(sessionsBehind), bar.tradingDate()));
         }
@@ -283,19 +283,6 @@ public class PositionService {
             return new PortfolioStatus(DataStatus.PARTIAL, List.copyOf(reasons));
         }
         return new PortfolioStatus(worst == DataStatus.UNAVAILABLE ? DataStatus.PARTIAL : worst, List.copyOf(reasons));
-    }
-
-    /** Same weekday-count approximation as {@code StockOverviewService}; see its Javadoc for the caveat. */
-    private static int countWeekdaysBetween(LocalDate lastAccepted, LocalDate asOfTradingDate) {
-        int count = 0;
-        LocalDate cursor = lastAccepted;
-        while (cursor.isBefore(asOfTradingDate)) {
-            cursor = cursor.plusDays(1);
-            if (cursor.getDayOfWeek() != DayOfWeek.SATURDAY && cursor.getDayOfWeek() != DayOfWeek.SUNDAY) {
-                count++;
-            }
-        }
-        return count;
     }
 
     public record PriceFreshness(DataStatus status, LocalDate tradingDate) {

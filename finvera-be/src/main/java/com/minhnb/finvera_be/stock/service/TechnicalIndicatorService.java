@@ -134,7 +134,7 @@ public class TechnicalIndicatorService {
         Instant asOf = clock.instant();
         var session = referenceData.resolveSession(reference.venue(), asOf);
         LocalDate asOfTradingDate = technicalBars.isEmpty() ? null : technicalBars.getLast().tradingDate();
-        DataStatus dataStatus = evaluateFreshness(asOfTradingDate, session.tradingDate());
+        DataStatus dataStatus = evaluateFreshness(reference.venue(), asOfTradingDate, session.tradingDate());
 
         if (asOfTradingDate != null) {
             for (IndicatorResult indicator : withheld) {
@@ -232,25 +232,12 @@ public class TechnicalIndicatorService {
         }
     }
 
-    private DataStatus evaluateFreshness(LocalDate asOfTradingDate, LocalDate sessionTradingDate) {
+    private DataStatus evaluateFreshness(String venue, LocalDate asOfTradingDate, LocalDate sessionTradingDate) {
         if (asOfTradingDate == null) {
             return freshnessPolicy.evaluateMissing();
         }
-        int sessionsBehind = countWeekdaysBetween(asOfTradingDate, sessionTradingDate);
+        int sessionsBehind = referenceData.countTradingSessionsBetween(venue, asOfTradingDate, sessionTradingDate);
         return freshnessPolicy.evaluateDailyBarSeries(sessionsBehind);
-    }
-
-    /** Same weekday-count approximation as {@link StockOverviewService}; see its Javadoc for the caveat. */
-    private static int countWeekdaysBetween(LocalDate lastAccepted, LocalDate asOfTradingDate) {
-        int count = 0;
-        LocalDate cursor = lastAccepted;
-        while (cursor.isBefore(asOfTradingDate)) {
-            cursor = cursor.plusDays(1);
-            if (cursor.getDayOfWeek() != DayOfWeek.SATURDAY && cursor.getDayOfWeek() != DayOfWeek.SUNDAY) {
-                count++;
-            }
-        }
-        return count;
     }
 
     private static List<EquityDailyBarEntity> dedupeByTradingDate(List<EquityDailyBarEntity> rows) {

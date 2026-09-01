@@ -297,8 +297,8 @@ globally. The vocabulary (`CURRENT`, `DELAYED`, `STALE`, `PARTIAL`,
 | Dataset | `CURRENT` while | `DELAYED` while | `STALE` beyond |
 |---|---|---|---|
 | Live quote, session open | within contracted delay | contracted delay + 30 s | contracted delay + 15 min |
-| Live quote, session closed | latest completed session accepted | previous session only | more than one full session behind |
-| Daily bar series | last completed session present | one session missing | more than one session missing |
+| Live quote, session closed | latest completed session accepted (0 sessions behind) | 1 to 4 completed sessions behind | 5 or more completed sessions behind |
+| Daily bar series | last completed session present (0 sessions behind) | 1 to 4 sessions missing | 5 or more sessions missing |
 | Fundamental report | period end within 190 days | 190 to 280 days | beyond 280 days |
 | Valuation assessment | inherits the worst state among its inputs | — | — |
 
@@ -309,6 +309,16 @@ two-hour-old price current. The 190-day boundary is one quarter of about 92 days
 plus the Vietnamese statutory filing window plus margin, so an on-time quarterly
 filer never appears stale; 280 days is roughly three quarters and indicates a
 genuinely missing filing.
+
+**Amendment 2026-09-01 (Market Calendar & Session Counting)**:
+Missing session counting for daily bar series and closed sessions is computed by
+`MarketReferenceDataService.countTradingSessionsBetween`, which queries the
+official Vietnamese stock exchange calendar (`market_calendar_day`, seeded via
+`V018__seed_vietnam_market_calendar.sql` for 2024–2027) to exclude Saturdays,
+Sundays, and official Vietnamese public holidays (Tet, Hung Kings, 30/4, 1/5, 2/9).
+The `DELAYED` boundary for daily bars spans 1–4 sessions to accommodate low-liquidity
+instruments (UPCoM/HNX) without prematurely branding them `STALE`. Beyond 4 sessions
+(≥ 5 trading days / 1 full trading week without accepted trades), the series reads `STALE`.
 
 **Gate**: The exact contracted delay stays deployment configuration, never a
 hard-coded constant, exactly as Feature 001 established.

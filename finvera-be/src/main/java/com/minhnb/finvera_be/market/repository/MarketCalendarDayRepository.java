@@ -10,4 +10,7 @@ public interface MarketCalendarDayRepository extends JpaRepository<MarketCalenda
 
     Optional<MarketCalendarDayEntity> findFirstByVenueAndTradingDateOrderByAcceptedAtDesc(
             String venue, LocalDate tradingDate);
+
+    java.util.List<MarketCalendarDayEntity> findByVenueAndTradingDateBetween(
+            String venue, LocalDate startDate, LocalDate endDate);
 }

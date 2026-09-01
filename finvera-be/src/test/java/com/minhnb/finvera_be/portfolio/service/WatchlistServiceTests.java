@@ -65,6 +65,8 @@ class WatchlistServiceTests {
                 .thenReturn(List.of(new InstrumentReference(fptId, "HOSE", "FPT", "EQUITY", "ACTIVE")));
         when(marketReferenceData.resolveSession(eq("HOSE"), any())).thenReturn(
                 new MarketReferenceDataService.SessionContext(SessionState.OPEN, LocalDate.parse("2026-08-13")));
+        when(marketReferenceData.countTradingSessionsBetween(any(), any(), any()))
+                .thenCallRealMethod();
         when(stockReferenceData.findEquityProfiles(any())).thenReturn(List.of());
         when(stockReferenceData.findCurrentSignalsForInstruments(any())).thenReturn(List.of());
         when(stockReferenceData.findLatestTechnicalIndicators(any())).thenReturn(Map.of());

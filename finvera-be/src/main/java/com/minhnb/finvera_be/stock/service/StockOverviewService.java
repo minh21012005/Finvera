@@ -120,7 +120,7 @@ public class StockOverviewService {
         var session = referenceData.resolveSession(reference.venue(), now);
         Instant asOf = liveQuote.map(QuoteObservation::observedAt).orElse(now);
         DataStatus dataStatus = liveQuote.isPresent() ? DataStatus.CURRENT
-                : evaluateOverviewFreshness(latestBar, session.tradingDate());
+                : evaluateOverviewFreshness(reference.venue(), latestBar, session.tradingDate());
 
         List<String> reasonCodes = new ArrayList<>();
         if (profile.isEmpty()) {
@@ -185,30 +185,12 @@ public class StockOverviewService {
         public static final SessionLimits UNAVAILABLE = new SessionLimits(null, null, null, null);
     }
 
-    private DataStatus evaluateOverviewFreshness(Optional<EquityDailyBarEntity> latestBar, LocalDate asOfTradingDate) {
+    private DataStatus evaluateOverviewFreshness(String venue, Optional<EquityDailyBarEntity> latestBar, LocalDate asOfTradingDate) {
         if (latestBar.isEmpty()) {
             return freshnessPolicy.evaluateMissing();
         }
-        int sessionsBehind = countWeekdaysBetween(latestBar.orElseThrow().getTradingDate(), asOfTradingDate);
+        int sessionsBehind = referenceData.countTradingSessionsBetween(venue, latestBar.orElseThrow().getTradingDate(), asOfTradingDate);
         return freshnessPolicy.evaluateDailyBarSeries(sessionsBehind);
-    }
-
-    /**
-     * Approximates completed-sessions-behind by counting weekdays, since exact
-     * trading-calendar day counting (holiday-aware) is not wired into this
-     * service yet. Replace with market_calendar_day range counting when that
-     * calendar becomes authoritative for stock-detail freshness.
-     */
-    private static int countWeekdaysBetween(LocalDate lastAccepted, LocalDate asOfTradingDate) {
-        int count = 0;
-        LocalDate cursor = lastAccepted;
-        while (cursor.isBefore(asOfTradingDate)) {
-            cursor = cursor.plusDays(1);
-            if (cursor.getDayOfWeek() != DayOfWeek.SATURDAY && cursor.getDayOfWeek() != DayOfWeek.SUNDAY) {
-                count++;
-            }
-        }
-        return count;
     }
 
     public record StockOverview(

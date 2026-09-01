@@ -72,6 +72,8 @@ class PortfolioTransactionServiceTests {
                 new MarketReferenceDataService.SessionContext(
                         com.minhnb.finvera_be.market.domain.model.MarketTypes.SessionState.CLOSED,
                         LocalDate.parse("2026-08-15")));
+        when(marketReferenceData.countTradingSessionsBetween(any(), any(), any()))
+                .thenCallRealMethod();
 
         positionService = new PositionService(
                 portfolioRepository,

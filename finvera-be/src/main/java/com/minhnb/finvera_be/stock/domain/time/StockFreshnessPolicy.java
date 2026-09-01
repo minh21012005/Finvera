@@ -96,7 +96,7 @@ public final class StockFreshnessPolicy {
         if (sessionsBehind == 0) {
             return CURRENT;
         }
-        if (sessionsBehind == 1) {
+        if (sessionsBehind <= 4) {
             return DELAYED;
         }
         return STALE;

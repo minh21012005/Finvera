@@ -66,6 +66,25 @@ public interface MarketReferenceDataService {
      */
     Optional<IndexSnapshotReference> findIndexSnapshotOnOrBefore(String indexCode, LocalDate date);
 
+    /**
+     * Counts completed trading sessions between fromDate (exclusive) and toDate (inclusive),
+     * taking into account official exchange holidays in market_calendar_day, Saturdays, and Sundays.
+     */
+    default int countTradingSessionsBetween(String venue, LocalDate fromDate, LocalDate toDate) {
+        if (fromDate == null || toDate == null || !fromDate.isBefore(toDate)) {
+            return 0;
+        }
+        int count = 0;
+        LocalDate cursor = fromDate;
+        while (cursor.isBefore(toDate)) {
+            cursor = cursor.plusDays(1);
+            if (cursor.getDayOfWeek() != java.time.DayOfWeek.SATURDAY && cursor.getDayOfWeek() != java.time.DayOfWeek.SUNDAY) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     record InstrumentReference(
             UUID instrumentId,
             String venue,

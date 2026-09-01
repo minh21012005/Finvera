@@ -135,7 +135,7 @@ price. Any response that reports `TotalValue` MUST then carry
 lower bound, not the portfolio's worth. Every priced position additionally
 carries the freshness of its price, evaluated exactly as Feature 002's
 `StockFreshnessPolicy.evaluateDailyBarSeries` does (0 completed sessions behind
-= `CURRENT`, 1 = `DELAYED`, more = `STALE`); the portfolio-level `dataStatus`
+= `CURRENT`, 1 to 4 = `DELAYED`, 5 or more = `STALE`); the portfolio-level `dataStatus`
 is the most actionable of its open positions' price statuses, with
 `POSITION_PRICE_DELAYED` / `POSITION_PRICE_STALE` as reason codes. A watchlist
 item's `dataStatus` follows the same freshness rule for its `currentPrice`.

@@ -6,6 +6,7 @@ import com.minhnb.finvera_be.market.domain.model.MarketTypes.Venue;
 import com.minhnb.finvera_be.market.domain.time.MarketTimePolicy;
 import com.minhnb.finvera_be.market.domain.time.MarketTimePolicy.CalendarDay;
 import com.minhnb.finvera_be.market.domain.time.MarketTimePolicy.SessionWindow;
+import com.minhnb.finvera_be.market.entity.MarketCalendarDayEntity;
 import com.minhnb.finvera_be.market.entity.MarketInstrumentEntity;
 import com.minhnb.finvera_be.market.repository.MarketCalendarDayRepository;
 import com.minhnb.finvera_be.market.repository.MarketIndexRepository;
@@ -13,12 +14,15 @@ import com.minhnb.finvera_be.market.repository.MarketIndexSnapshotRepository;
 import com.minhnb.finvera_be.market.repository.MarketInstrumentRepository;
 import com.minhnb.finvera_be.market.repository.MarketSessionWindowRepository;
 import com.minhnb.finvera_be.market.repository.RegimeAssessmentRepository;
+import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 
@@ -148,6 +152,32 @@ public class DefaultMarketReferenceDataService implements MarketReferenceDataSer
                                 index.getId(), DEPRECATED_TCBS_INDEX_SOURCE, date))
                 .map(snapshot -> new IndexSnapshotReference(
                         indexCode, snapshot.getTradingDate(), snapshot.getIndexLevel()));
+    }
+
+    @Override
+    public int countTradingSessionsBetween(String venue, LocalDate fromDate, LocalDate toDate) {
+        if (fromDate == null || toDate == null || !fromDate.isBefore(toDate)) {
+            return 0;
+        }
+        String targetVenue = (venue != null && List.of("HOSE", "HNX", "UPCOM").contains(venue)) ? venue : "HOSE";
+        List<MarketCalendarDayEntity> calendarDaysInRange = calendarDays.findByVenueAndTradingDateBetween(
+                targetVenue, fromDate.plusDays(1), toDate);
+
+        Set<LocalDate> nonTradingHolidays = calendarDaysInRange.stream()
+                .filter(c -> !c.isTradingDay())
+                .map(MarketCalendarDayEntity::getTradingDate)
+                .collect(Collectors.toSet());
+
+        int count = 0;
+        LocalDate cursor = fromDate;
+        while (cursor.isBefore(toDate)) {
+            cursor = cursor.plusDays(1);
+            boolean isWeekend = cursor.getDayOfWeek() == DayOfWeek.SATURDAY || cursor.getDayOfWeek() == DayOfWeek.SUNDAY;
+            if (!isWeekend && !nonTradingHolidays.contains(cursor)) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private static InstrumentReference toReference(MarketInstrumentEntity entity) {

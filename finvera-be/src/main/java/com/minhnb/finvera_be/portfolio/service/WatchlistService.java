@@ -198,7 +198,7 @@ public class WatchlistService {
                     LocalDate sessionDate = sessionDateByVenue.computeIfAbsent(venue,
                             v -> marketReferenceData.resolveSession(v, Instant.now(clock)).tradingDate());
                     priceFreshness = freshnessPolicy.evaluateDailyBarSeries(
-                            countWeekdaysBetween(bar.tradingDate(), sessionDate));
+                            marketReferenceData.countTradingSessionsBetween(venue, bar.tradingDate(), sessionDate));
                 }
                 dataStatus = priceFreshness.name();
                 if (priceFreshness == DataStatus.DELAYED) {
@@ -370,18 +370,5 @@ public class WatchlistService {
             WatchlistItemId itemId = new WatchlistItemId(watchlistId, inst.get().instrumentId());
             watchlistItemRepository.deleteById(itemId);
         }
-    }
-
-    /** Same weekday-count approximation as {@code StockOverviewService}; see its Javadoc for the caveat. */
-    private static int countWeekdaysBetween(LocalDate lastAccepted, LocalDate asOfTradingDate) {
-        int count = 0;
-        LocalDate cursor = lastAccepted;
-        while (cursor.isBefore(asOfTradingDate)) {
-            cursor = cursor.plusDays(1);
-            if (cursor.getDayOfWeek() != DayOfWeek.SATURDAY && cursor.getDayOfWeek() != DayOfWeek.SUNDAY) {
-                count++;
-            }
-        }
-        return count;
     }
 }

@@ -45,14 +45,16 @@ class StockFreshnessPolicyTests {
     void quoteWhileClosedDegradesByCompletedSessionsBehind() {
         assertThat(policy.evaluateQuoteWhileClosed(0)).isEqualTo(CURRENT);
         assertThat(policy.evaluateQuoteWhileClosed(1)).isEqualTo(DELAYED);
-        assertThat(policy.evaluateQuoteWhileClosed(2)).isEqualTo(STALE);
+        assertThat(policy.evaluateQuoteWhileClosed(4)).isEqualTo(DELAYED);
+        assertThat(policy.evaluateQuoteWhileClosed(5)).isEqualTo(STALE);
     }
 
     @Test
     void dailyBarSeriesDegradesByMissingTrailingSessions() {
         assertThat(policy.evaluateDailyBarSeries(0)).isEqualTo(CURRENT);
         assertThat(policy.evaluateDailyBarSeries(1)).isEqualTo(DELAYED);
-        assertThat(policy.evaluateDailyBarSeries(2)).isEqualTo(STALE);
+        assertThat(policy.evaluateDailyBarSeries(4)).isEqualTo(DELAYED);
+        assertThat(policy.evaluateDailyBarSeries(5)).isEqualTo(STALE);
     }
 
     @Test
