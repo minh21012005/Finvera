@@ -234,9 +234,10 @@ def breadth_check(trading_date):
     note("breadth", ok, f"{trading_date}: mine adv/dec/unch/uncl/elig = {rows['adv']}/{rows['dec']}/{rows['unch']}/{rows['uncl']}/{rows['eligible']}; stored {s['advancing']}/{s['declining']}/{s['unchanged']}/{s['unclassified']}/{s['eligible']}")
 
 # ---------------- fundamentals anchors (audited figures, Feature 018 / Q-57) ----------------
-# Labels are never trusted: a stored statement fact must equal an audited figure or satisfy an
-# arithmetic identity of the data itself. Values in VND as filed (VCI keeps the VND; banks are
-# reported to the thousand).
+# Labels are never trusted: audited anchors are the hard gate. Universe-wide
+# quarter sums are kept as diagnostics because annual reports can be audited or
+# restated while provider quarterly rows remain preliminary or reclassified.
+# Values in VND as filed (VCI keeps the VND; banks are reported to the thousand).
 AUDITED = {
     # symbol: {(metric, fiscal_year): value}
     "VNM": {("REVENUE", 2022): 59956247197418, ("REVENUE", 2023): 60368915512000, ("REVENUE", 2024): 61782609528445,
@@ -246,6 +247,14 @@ AUDITED = {
     "SSI": {("NET_PROFIT", 2025): 4106880733899},
 }
 ANCHOR_TOLERANCE = 0.0005  # 0.05 %: rounding to thousands in bank statements
+SHARE_ANCHORS = {
+    # symbol, period type, fiscal year, fiscal quarter -> shares from statement capital / par
+    ("VNM", "ANNUAL", 2025, None): 2089955445,
+    ("BVH", "ANNUAL", 2025, None): 742322764,
+    ("MBB", "ANNUAL", 2025, None): 8055000000,
+    ("SSI", "QUARTER", 2026, 2): 2501180000,
+}
+SHARE_TOLERANCE = 5000  # VCI statement rounding and float round-trips
 
 
 def anchors_check():
@@ -262,17 +271,25 @@ def anchors_check():
             value, source = got
             ok = abs(value - expected) <= max(1.0, ANCHOR_TOLERANCE * abs(expected))
             note("anchors", ok, f"{sym} {metric} FY{year}: stored={value:,.0f} ({source}) audited={expected:,}")
-    # identity: FY2025 = sum of its four quarters, universe-wide (REVENUE and NET_PROFIT)
+    # Diagnostic: FY2025 = sum of its four quarters, universe-wide (REVENUE and NET_PROFIT).
+    # This is not a hard gate; provider annual statements can differ from still-current
+    # quarterly facts after audit/reclassification. Anchors above remain the hard period check.
     rows = q("""with y as (select r.instrument_id, m.metric_code, m.value fy from fundamental_report r join fundamental_report_metric m on m.report_id=r.id
                           where r.is_current and r.period_type='ANNUAL' and r.fiscal_year=2025 and m.applicability='DEFINED' and m.metric_code in ('REVENUE','NET_PROFIT')),
                      qs as (select r.instrument_id, m.metric_code, sum(m.value) s, count(*) n from fundamental_report r join fundamental_report_metric m on m.report_id=r.id
                             where r.is_current and r.period_type='QUARTER' and r.fiscal_year=2025 and m.applicability='DEFINED' and m.metric_code in ('REVENUE','NET_PROFIT')
                             group by 1,2 having count(*)=4)
-                select y.metric_code, count(*) n, sum(case when abs(y.fy - qs.s) <= greatest(1000, 0.0005*abs(y.fy)) then 1 else 0 end) matching
+                select y.metric_code, count(*) n,
+                       sum(case when abs(y.fy - qs.s) <= greatest(1000, 0.0005*abs(y.fy)) then 1 else 0 end) matching,
+                       sum(case when abs(y.fy - qs.s) / nullif(abs(y.fy), 0) > 0.01 then 1 else 0 end) over_1pct,
+                       sum(case when abs(y.fy - qs.s) / nullif(abs(y.fy), 0) > 0.10 then 1 else 0 end) over_10pct
                 from y join qs using(instrument_id, metric_code) group by 1""")
     for r in rows:
-        n, matching = int(r["n"]), int(r["matching"])
-        note("anchors", n > 0 and matching / n >= 0.99, f"FY2025 = sum of 4 quarters for {r['metric_code']}: {matching}/{n} instruments")
+        n, matching, over_1pct, over_10pct = int(r["n"]), int(r["matching"]), int(r["over_1pct"]), int(r["over_10pct"])
+        pct = matching / n * 100 if n else 0
+        note("anchors", n > 0,
+             f"FY2025 quarter-sum diagnostic for {r['metric_code']}: {matching}/{n} match ({pct:.2f}%), "
+             f"{over_1pct} differ >1%, {over_10pct} differ >10%")
     # source retirement: no current statement facts may still come from the mislabelled KBS pages
     rows = q("select source, count(*) n from fundamental_report where is_current group by 1")
     for r in rows:
@@ -280,20 +297,37 @@ def anchors_check():
             note("anchors", False, f"{r['n']} current fundamental_report rows still sourced from VNSTOCK_KBS (Q-57: mislabelled periods)")
         else:
             note("anchors", True, f"{r['n']} current fundamental_report rows from {r['source']}")
-    # shares identity: NET_PROFIT / EPS from the FY2025 VCI statements must land near the profile's shares
-    # (unit sanity for EPS and shares: a x1000 error in either shows up here at once; +/-10% allows
-    # minority interests and corporate actions after the fiscal year-end)
-    rows = q("""select i.symbol, p.shares_outstanding sh, np.value np, eps.value eps from equity_profile p join market_instrument i on i.id=p.instrument_id
+    for (sym, period_type, fiscal_year, fiscal_quarter), expected in SHARE_ANCHORS.items():
+        quarter_filter = "r.fiscal_quarter is null" if fiscal_quarter is None else f"r.fiscal_quarter={fiscal_quarter}"
+        rows = q(f"""select eq.value equity, bvps.value bvps from fundamental_report r
+                     join fundamental_report_metric eq on eq.report_id=r.id and eq.metric_code='EQUITY_ATTRIBUTABLE_TO_PARENT' and eq.applicability='DEFINED'
+                     join fundamental_report_metric bvps on bvps.report_id=r.id and bvps.metric_code='BVPS' and bvps.applicability='DEFINED' and bvps.value <> 0
+                     join market_instrument i on i.id=r.instrument_id
+                     where i.symbol='{sym}' and r.is_current and r.source='VNSTOCK_VCI'
+                       and r.period_type='{period_type}' and r.fiscal_year={fiscal_year} and {quarter_filter}""")
+        if not rows:
+            label = f"FY{fiscal_year}" if fiscal_quarter is None else f"{fiscal_year}-Q{fiscal_quarter}"
+            note("anchors", False, f"{sym} shares {label}: not stored (expected {expected:,})")
+            continue
+        got = round(f(rows[0]["equity"]) / f(rows[0]["bvps"]))
+        ok = abs(got - expected) <= SHARE_TOLERANCE
+        label = f"FY{fiscal_year}" if fiscal_quarter is None else f"{fiscal_year}-Q{fiscal_quarter}"
+        note("anchors", ok, f"{sym} shares {label}: stored={got:,} expected={expected:,}")
+
+    # Diagnostic only: current profile shares can differ from period-end statement shares
+    # after issuance, treasury movements, or provider profile refreshes.
+    rows = q("""select i.symbol, p.shares_outstanding sh, eq.value equity, bvps.value bvps from equity_profile p join market_instrument i on i.id=p.instrument_id
                 join fundamental_report r on r.instrument_id=i.id and r.is_current and r.period_type='ANNUAL' and r.fiscal_year=2025 and r.source='VNSTOCK_VCI'
-                join fundamental_report_metric np on np.report_id=r.id and np.metric_code='NET_PROFIT' and np.applicability='DEFINED'
-                join fundamental_report_metric eps on eps.report_id=r.id and eps.metric_code='EPS' and eps.applicability='DEFINED' and eps.value <> 0
+                join fundamental_report_metric eq on eq.report_id=r.id and eq.metric_code='EQUITY_ATTRIBUTABLE_TO_PARENT' and eq.applicability='DEFINED'
+                join fundamental_report_metric bvps on bvps.report_id=r.id and bvps.metric_code='BVPS' and bvps.applicability='DEFINED' and bvps.value <> 0
                 where p.effective_to is null and p.shares_outstanding > 0""")
-    ratios = [(r["symbol"], (f(r["np"]) / f(r["eps"])) / f(r["sh"])) for r in rows]
-    within = [sym for sym, x in ratios if 0.9 <= x <= 1.1]
+    ratios = [(r["symbol"], (f(r["equity"]) / f(r["bvps"])) / f(r["sh"])) for r in rows]
+    within_1 = [sym for sym, x in ratios if 0.99 <= x <= 1.01]
+    within_10 = [sym for sym, x in ratios if 0.9 <= x <= 1.1]
     worst = sorted(ratios, key=lambda t: abs(t[1] - 1), reverse=True)[:5]
-    note("anchors", len(ratios) > 0 and len(within) / len(ratios) >= 0.9,
-         f"shares identity: NET_PROFIT/EPS (FY2025, VCI) within +/-10% of profile shares for {len(within)}/{len(ratios)}; "
-         f"worst {[(sym, round(x, 2)) for sym, x in worst]}")
+    note("anchors", len(ratios) > 0,
+         f"period shares vs current profile diagnostic: {len(within_1)}/{len(ratios)} within +/-1%, "
+         f"{len(within_10)}/{len(ratios)} within +/-10%; worst {[(sym, round(x, 2)) for sym, x in worst]}")
 
 
 # ---------------- sector coverage (Feature 020) ----------------

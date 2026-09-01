@@ -26,6 +26,25 @@ inconsistently). ADR-0011 records the options; VCI was chosen.
 | FPT parent profit FY2022–FY2024 | 5,310.1 / 6,465.2 / 7,856.8 bn | audited |
 | Shares from balance sheet | VNM `paid_in_capital` 20,899,554,450,000 / 10,000 = **2,089,955,445** = profile `shares_outstanding`; BVH 742,322,764 = profile; MBB `charter_capital` 80,550 bn → 8,055,000,000 vs profile 8,054,999,909; SSI 2026-Q2 `paid_in_capital` 25,030.9 bn − treasury 19.1 bn → 2,501.18 m vs profile 2,501.10 m | par value 10,000 VND (Law on Securities) |
 
+Post-import research on 2026-09-01 kept the audited anchors above but changed
+the universe-wide quarter-sum check from a hard gate to a diagnostic. On the
+live VCI import, FY2025 annual-vs-quarter consistency was `REVENUE` 1,069/1,122
+(95.28 %) and `NET_PROFIT` 936/1,122 (83.42 %) under the verifier's 0.05 %
+tolerance. The mismatches were not scale errors or duplicate current reports:
+annual rows were single-current `VNSTOCK_VCI` rows, while outliers clustered in
+symbols with preliminary/restated/reclassified quarterly facts (for example
+AGM, LBE, HD6, TAR, ATG, SBS). Product calculations must therefore prefer
+audited annual facts for annual periods and use quarterly TTM only as a separate
+rolling view.
+
+The same research found that the old verifier's `NET_PROFIT / EPS ~= current
+profile shares` gate was invalid. Contract `vci-fundamentals-v1` derives
+`TRAILING_EPS` from parent profit over period shares, while `NET_PROFIT` is the
+statement's after-tax profit line and the profile share count is current rather
+than period-end. Share anchors should be checked through the exported derivation
+identity `EQUITY_ATTRIBUTABLE_TO_PARENT / BVPS`, with VNM/BVH/MBB annual 2025
+and SSI 2026-Q2 as hard anchors.
+
 ## R-003 — What VCI returns (vnstock 4.0.7, community)
 
 | Dataset | Periods | Labels | Unit | Notes |

@@ -23,7 +23,9 @@ và chính xác, nhưng cũng không nên dư thừa" — so:
 - **History depth: 2023 → 2019-01-01.** The own-history valuation percentile needs a full market
   cycle (2020 crash, 2021 bubble, 2022 bear) to mean anything; VCI serves ~8 rolling years in the
   same call, so the deeper window costs zero extra requests. 2019 (not the rolling 2018 window
-  edge) keeps the range re-fetchable for at least a year.
+  edge) keeps ~4 months of headroom before the rolling window (today 2018-09-01) passes
+  2019-01-01; after that a re-crawl simply starts at the window edge and the already-imported
+  older rows stay (nothing is ever deleted), so no history is lost.
 - **Provider tier: stays free** (owner decision); pacing already sized for it.
 
 ## Functional requirements

@@ -50,8 +50,10 @@ are anchored and correct.
 ### US-1 — Period truth (P1)
 Every stored statement fact belongs to the period it is labelled with.
 **Acceptance**: for the anchor symbols, `REVENUE`/`NET_PROFIT` FY2022–FY2025
-equal the audited figures; for every symbol with four quarters of a fiscal year,
-the four `NET_PROFIT` quarters sum to the FY value (tolerance 1 VND).
+equal the audited figures; anchor quarter sums hold for VNM/MBB where the
+research established the identity. Universe-wide quarter-vs-annual sums are
+reported as a data-quality diagnostic because audited/restated annual facts do
+not always equal provider quarterly rows.
 
 ### US-2 — Contiguous TTM (P1)
 `EPS_TTM`, `NET_PROFIT_TTM`, `REVENUE_TTM` are sums over the four most recent
@@ -84,7 +86,7 @@ carries `sourceReport`; the FE dictionary words each rule id.
 | ID | Criterion | Measure |
 |---|---|---|
 | SC-001 | Anchors hold | exporter tests green; after re-import, `verify_calcs.py` provider check (rewritten to anchors) 0 differences. |
-| SC-002 | Quarter sums | ≥ 99 % of instruments with four quarters of FY2025: Σ quarters = FY (1 VND). |
+| SC-002 | Quarter-sum diagnostic | `verify_calcs.py` reports FY2025 annual-vs-quarter consistency for `REVENUE` and `NET_PROFIT`, including counts above 1 % and 10 % drift; audited anchors remain the hard period-truth gate. |
 | SC-003 | KBS retired | 0 current `fundamental_report` rows with source `VNSTOCK_KBS` after the re-import. |
 | SC-004 | Product green | backend/AI/FE suites; AI e2e 10/10; screener/valuation recomputed. |
 

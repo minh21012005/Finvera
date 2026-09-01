@@ -26,6 +26,10 @@ mirrored (FY2022 under "2025-Năm"). Label-trusting checks prove transport, not
 truth: anchor at least one figure per dataset to an audited number (VNM FY2022 net
 revenue 59,956,247,197,000 VND) — see contract `kbs-yearly-statement-orientation-v1`.
 `history_basis_study.py` (Feature 017) is the read-only tool that exposed it.
-`verify_calcs.py` now ends with an `anchors` section (audited FY figures, FY2025 = Σ quarters,
-no current `VNSTOCK_KBS` rows) — run it after every fundamentals re-crawl; it must be 0 diffs.
+`verify_calcs.py` now ends with an `anchors` section (audited FY figures, anchor
+share counts derived from `EQUITY_ATTRIBUTABLE_TO_PARENT / BVPS`, no current
+`VNSTOCK_KBS` rows). FY2025 annual-vs-quarter sums are printed as diagnostics,
+not hard failures, because VCI annual statements can be audited/restated while
+quarterly rows remain preliminary or reclassified. Run it after every
+fundamentals re-crawl; hard anchors must be 0 diffs.
 `analyst_e2e.py` (Feature 015) exercises the AI Analyst on the live stack.

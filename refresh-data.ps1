@@ -87,7 +87,8 @@ $envRefreshFile = Join-Path $beDir ".env.refresh"
 # Feature 022 (2026-08-31): 2019-01-01 -- the own-history valuation percentile needs a full
 # market cycle (2020 crash, 2021 bubble, 2022 bear) to mean anything; VCI serves ~8 rolling years
 # in the same single call, so the deeper window costs no extra requests. 2019 (not the 2018 window
-# edge) so the range stays re-fetchable for at least a year as the provider window rolls.
+# edge) so there is ~4 months of headroom before the rolling window passes this start; after
+# that a re-crawl just begins at the window edge and previously imported rows remain.
 $historyStartDate = "2019-01-01"
 $historyEndDate = (Get-Date).ToString("yyyy-MM-dd")
 
@@ -331,13 +332,21 @@ Invoke-BackendStage -Name "Buoc 4/7: Nap phan loai nganh" `
     -TimeoutSec 300
 
 Set-StageFlags @("FINVERA_MARKET_IMPORT_ENABLED")
+# Feature 022 deepened index history to 2019-01-01. The first VCI import now
+# persists roughly 7.6k index snapshots and can run a little over 5 minutes
+# on a local PostgreSQL instance before emitting its completion marker.
 Invoke-BackendStage -Name "Buoc 5/7: Nap lich su chi so thi truong" `
     -WaitPatterns @("market_import status=") `
-    -TimeoutSec 300
+    -TimeoutSec 1800
 
-Set-StageFlags @("FINVERA_STOCK_IMPORT_DAILY_BAR_ENABLED", "FINVERA_STOCK_IMPORT_FUNDAMENTALS_ENABLED")
-Invoke-BackendStage -Name "Buoc 6/7: Nap gia + bao cao tai chinh moi" `
-    -WaitPatterns @("stock_import dataset=daily-bar total=", "stock_import dataset=fundamentals total=", "fundamental_source_retirement source=", "daily_bar_source_retirement primary=") `
+Set-StageFlags @("FINVERA_STOCK_IMPORT_DAILY_BAR_ENABLED")
+Invoke-BackendStage -Name "Buoc 6a/7: Nap gia moi" `
+    -WaitPatterns @("stock_import dataset=daily-bar total=", "daily_bar_source_retirement primary=") `
+    -TimeoutSec 21600
+
+Set-StageFlags @("FINVERA_STOCK_IMPORT_FUNDAMENTALS_ENABLED")
+Invoke-BackendStage -Name "Buoc 6b/7: Nap bao cao tai chinh moi" `
+    -WaitPatterns @("stock_import dataset=fundamentals total=", "fundamental_source_retirement source=") `
     -TimeoutSec 7200
 
 Set-StageFlags $WarmupStageFlags

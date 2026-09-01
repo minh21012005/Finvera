@@ -111,8 +111,10 @@ public class StockImportConfiguration {
             log.warn("stock_import dataset={} path={} matched no files", dataset, packagePath);
             return;
         }
+        log.info("stock_import dataset={} started total={}", dataset, files.size());
         int succeeded = 0;
         int failed = 0;
+        int processed = 0;
         for (Path file : files) {
             try {
                 importer.importOne(file);
@@ -121,6 +123,11 @@ public class StockImportConfiguration {
                 failed++;
                 log.warn("stock_import dataset={} file={} rejected: {}: {}",
                         dataset, file.getFileName(), e.getClass().getSimpleName(), e.getMessage());
+            }
+            processed++;
+            if (processed % 100 == 0 || processed == files.size()) {
+                log.info("stock_import dataset={} progress processed={} total={} succeeded={} failed={}",
+                        dataset, processed, files.size(), succeeded, failed);
             }
         }
         log.info("stock_import dataset={} total={} succeeded={} failed={}",
