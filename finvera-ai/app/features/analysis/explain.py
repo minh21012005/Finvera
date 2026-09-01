@@ -138,29 +138,44 @@ def verify_faithfulness(
     deterministic engine's figures, never introduce its own (Constitution I).
     Returns the factors actually referenced; never claims "all" when none were.
     """
-    allowed_codes = {f.factorCode.upper() for f in allowed_factors}
-    for f in allowed_factors:
-        for part in f.factorCode.upper().split("_"):
-            if part:
-                allowed_codes.add(part)
-
-    referenced_codes: List[str] = []
-
-    # Check which allowed codes are present
-    for f in allowed_factors:
-        code_pat = r"\b" + re.escape(f.factorCode) + r"\b"
-        if re.search(code_pat, generated_text, re.IGNORECASE) or f.description.lower() in generated_text.lower():
-            referenced_codes.append(f.factorCode)
-
     # Known standard indicator factor codes
-    all_standard_codes = {"RSI", "MACD", "MA20", "MA50", "SMA", "EMA", "PE", "PB", "ROE", "ROA", "DEBT_TO_EQUITY", "BETA", "VOLATILITY"}
-    forbidden_codes = all_standard_codes - allowed_codes
+    all_standard_codes = {
+        "RSI", "MACD", "MA20", "MA50", "SMA", "EMA", "PE", "PB", "PS", "ROE", "ROA",
+        "DEBT_TO_EQUITY", "BETA", "VOLATILITY", "ATR", "DRAWDOWN", "LIQUIDITY"
+    }
+
+    # An indicator code is allowed if it appears in any supplied factorCode or description
+    allowed_standard_codes = set()
+    for code in all_standard_codes:
+        for f in allowed_factors:
+            f_code_upper = f.factorCode.upper()
+            f_desc_upper = f.description.upper()
+            if code in f_code_upper or code in f_desc_upper:
+                allowed_standard_codes.add(code)
+                break
+
+    forbidden_codes = all_standard_codes - allowed_standard_codes
 
     for fcode in forbidden_codes:
         # If text mentions an unsupplied standard financial factor code as evidence
         if re.search(r"\b" + re.escape(fcode) + r"\b", generated_text, re.IGNORECASE):
             logger.warning(f"Faithfulness check failed: unsupplied factor '{fcode}' detected in explanation")
             return False, []
+
+    referenced_codes: List[str] = []
+
+    # Check which allowed codes are present
+    for f in allowed_factors:
+        code_pat = r"\b" + re.escape(f.factorCode) + r"\b"
+        tokens = re.findall(r"[A-Za-z]+|\d+", f.factorCode)
+        factor_mentioned = re.search(code_pat, generated_text, re.IGNORECASE) or f.description.lower() in generated_text.lower()
+        if not factor_mentioned:
+            for tok in tokens:
+                if len(tok) >= 3 and re.search(r"\b" + re.escape(tok) + r"\b", generated_text, re.IGNORECASE):
+                    factor_mentioned = True
+                    break
+        if factor_mentioned:
+            referenced_codes.append(f.factorCode)
 
     if not referenced_codes:
         logger.warning("Faithfulness check failed: explanation references none of the supplied factors")

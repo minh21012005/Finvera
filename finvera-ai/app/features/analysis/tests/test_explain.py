@@ -243,3 +243,26 @@ def test_weight_percentage_restatements_pass_faithfulness():
     ok, refs = verify_faithfulness(explanation, factors)
     assert ok is True
     assert set(refs) >= {"PE", "PB"}
+
+
+def test_signal_explain_subword_indicators_pass_faithfulness():
+    from app.features.analysis.explain import verify_faithfulness
+    factors = [
+        EvidenceFactor(factorCode="SIGNAL", description="Tín hiệu Động lượng — Mua (LONG); vùng vào 21.206,31–21.493,69, dừng lỗ 20.200,51, mục tiêu 23.648,98 / 24.798,47, lợi nhuận/rủi ro 2; mức rủi ro Rủi ro trung bình (điểm 38/100)"),
+        EvidenceFactor(factorCode="CONDITION_MACDHISTOGRAM", description="Điều kiện vào lệnh macdHistogram: 236.157629103096"),
+        EvidenceFactor(factorCode="CONDITION_RSI14", description="Điều kiện vào lệnh rsi14: 62.862132478922"),
+        EvidenceFactor(factorCode="VOLATILITY", description="Biến động giá (ATR/giá): 2,69 (điểm 9/100)"),
+        EvidenceFactor(factorCode="ATR", description="Biến động so với trung bình 250 phiên: 0,87 (điểm 16/100)"),
+        EvidenceFactor(factorCode="DRAWDOWN", description="Mức sụt giảm từ đỉnh 250 phiên: 29,26 (điểm 98/100)"),
+        EvidenceFactor(factorCode="LIQUIDITY", description="Thanh khoản (KL tương đối): 0,96 (điểm 54/100)"),
+        EvidenceFactor(factorCode="STOP_DISTANCE", description="Khoảng cách tới điểm dừng lỗ: 5,38 (điểm 20/100)"),
+        EvidenceFactor(factorCode="MARKET_REGIME", description="Trạng thái thị trường chung: 68 (điểm 32/100)"),
+    ]
+    explanation = (
+        "Tín hiệu Mua (LONG) được tạo dựa trên chỉ báo MACD (macdHistogram đạt 236,16) "
+        "kết hợp cùng chỉ số RSI (rsi14 đạt 62,86). "
+        "Điểm dừng lỗ tại 20.200,51 và mục tiêu 23.648,98."
+    )
+    ok, refs = verify_faithfulness(explanation, factors)
+    assert ok is True
+    assert set(refs) >= {"CONDITION_MACDHISTOGRAM", "CONDITION_RSI14"}
