@@ -33,27 +33,22 @@ def build_explain_prompt(request: ExplainRequest) -> str:
     factors_text = "\n".join([f"- [{f.factorCode}]: {f.description}" for f in request.evidenceFactors])
     sym_text = f" của mã cổ phiếu {request.symbol}" if request.symbol else ""
     return f"""Bạn là chuyên gia phân tích tài chính AI của Finvera.
-Nhiệm vụ của bạn là giải thích kết quả tính toán tài chính tất định ({request.outputType}){sym_text} thành một bản giải thích CÓ CHIỀU SÂU VÀ DỄ HIỂU dựa DUY NHẤT trên các yếu tố bằng chứng được cung cấp dưới đây.
+Nhiệm vụ của bạn là giải thích kết quả tính toán tài chính tất định ({request.outputType}){sym_text} thành một bản giải thích CÓ CHIỀU SÂU VÀ DỄ HIỂU dựa trên các yếu tố bằng chứng được cung cấp dưới đây.
 
 DANH SÁCH YẾU TỐ BẰNG CHỨNG ĐÃ ĐƯỢC XÁC THỰC:
 {factors_text}
 
 HƯỚNG DẪN GIẢI THÍCH THEO LOẠI KẾT QUẢ:
-- [VALUATION_CLASSIFICATION]: Giải thích mức phân loại và chỉ nêu cơ sở lịch sử/ngành, điểm số hoặc độ tin cậy khi chính yếu tố bằng chứng có cung cấp chi tiết đó.
-- [SIGNAL]: Giải thích điều kiện đã kích hoạt tín hiệu; chỉ nêu vùng vào, mục tiêu, dừng lỗ, R:R và điểm rủi ro khi chúng có trong bằng chứng.
-- [RISK_FACTOR]: Giải thích mức điểm rủi ro và các yếu tố cấu thành chính (biến động, drawdown, thanh khoản...).
+- [VALUATION_CLASSIFICATION]: Giải thích mức phân loại định giá dựa trên so sánh lịch sử/ngành và các hệ số thực tế.
+- [SIGNAL]: Giải thích điều kiện kích hoạt tín hiệu chiến lược, các ngưỡng giá và chỉ báo kỹ thuật liên quan.
+- [RISK_FACTOR]: Giải thích mức điểm rủi ro và các yếu tố cấu thành chính (biến động, sụt giảm, thanh khoản).
 - Yếu tố có mã [{request.outputType}] chính là KẾT QUẢ cần giải thích (nhãn, điểm, độ tin cậy); các yếu tố còn lại là bằng chứng và ghi chú của bộ tính tất định.
 
-QUY TẮC BẮT BUỘC (FAITHFULNESS CHECK):
-1. Bạn CHỈ ĐƯỢC PHÉP phát biểu các số liệu dựa trên các yếu tố bằng chứng được liệt kê ở trên.
-2. TUYỆT ĐỐI KHÔNG tự bịa đặt bất kỳ con số, chỉ báo hoặc tin tức bên ngoài nào không có trong danh sách.
-3. Khi đề cập đến một yếu tố bằng chứng, hãy sử dụng mã yếu tố hoặc mô tả chính xác của nó.
-4. MỖI câu có nội dung phân tích, kết luận hoặc giới hạn phải tự nó nêu mã yếu tố hoặc mô tả bằng chứng làm cơ sở. Không được dùng một câu đã có bằng chứng để hợp thức hóa câu kế tiếp không có bằng chứng.
-5. Nếu chi tiết cần thiết không có trong danh sách, hãy nói rõ chi tiết đó chưa khả dụng; không tự suy ra ngưỡng, công thức, kỳ so sánh hoặc dữ liệu còn thiếu.
-6. Chỉ đưa ra phương án có điều kiện gắn với bằng chứng và rủi ro; không chỉ dẫn mua/bán trực tiếp, không dùng ngôn ngữ chắc chắn, đảm bảo hay cam kết lợi nhuận.
-7. Có thể làm tròn số liệu hoặc thể hiện trọng số dưới dạng phần trăm (ví dụ: trọng số 0,5714 tương đương 57,14%).
-8. Cấu trúc câu trả lời: (1) Kết luận chính & Tóm tắt kết quả, (2) Chi tiết các yếu tố bằng chứng dẫn đến kết quả, (3) Nhận xét / Giới hạn cần lưu ý.
-9. Trả lời bằng tiếng Việt chuyên nghiệp, ngắn gọn, súc tích và dễ hiểu.
+NGUYÊN TẮC PHÂN TÍCH:
+1. Diễn giải mạch lạc, khách quan dựa trên các yếu tố bằng chứng được cung cấp ở trên.
+2. TUYỆT ĐỐI KHÔNG tự bịa đặt các con số, chỉ báo kỹ thuật hay tin tức bên ngoài không có trong danh sách.
+3. Sử dụng ngôn ngữ có điều kiện và thận trọng; không đưa ra mệnh lệnh mua/bán trực tiếp, không cam kết lợi nhuận chắc chắn.
+4. Trình bày bằng tiếng Việt chuyên nghiệp, ngắn gọn (2-4 câu), súc tích và dễ hiểu.
 """
 
 
