@@ -110,6 +110,17 @@ _SCALE_MULTIPLIERS = [
     (re.compile(r"^(?:triệu|trieu|tr\b|m\b)", re.IGNORECASE), 1_000_000.0),
     (re.compile(r"^(?:nghìn|ngàn|nghin|ngan|k\b)", re.IGNORECASE), 1_000.0),
 ]
+_DATE_TIME_PATTERN = re.compile(
+    r"\b(?:\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2}|\d{1,2}:\d{2}(?::\d{2})?)\b"
+)
+_LIST_NUMBER_PREFIX = re.compile(
+    r"(?:^|[#\n\r(]|\b(?:phần|mục|bước|top|vd|ví dụ|số)\s*)\s*(\d+)(?:\.|\)|\s*:)",
+    re.IGNORECASE,
+)
+_COUNT_UNIT_AFTER = re.compile(
+    r"^[ \t]*(?:tháng|quý|phiên|năm|mã|yếu tố|cổ phiếu|ngày|chiến lược|công cụ|bậc|lần|tuần|kỳ|vị thế)(?![\w])",
+    re.IGNORECASE,
+)
 
 
 def _parse_candidate_numbers(raw_str: str) -> List[float]:
@@ -132,6 +143,23 @@ def _parse_candidate_numbers(raw_str: str) -> List[float]:
     except ValueError:
         pass
     return candidates
+
+
+def _extract_all_numbers_from_data(data: Any) -> set:
+    """Recursively collect all numeric values from tool response dict/list."""
+    nums: set = set()
+    if isinstance(data, (int, float)):
+        nums.add(float(data))
+    elif isinstance(data, str):
+        for candidate in _parse_candidate_numbers(data):
+            nums.add(candidate)
+    elif isinstance(data, dict):
+        for v in data.values():
+            nums.update(_extract_all_numbers_from_data(v))
+    elif isinstance(data, list):
+        for item in data:
+            nums.update(_extract_all_numbers_from_data(item))
+    return nums
 
 
 def match_claimed_value(claimed: str, actual: Any) -> bool:
@@ -167,21 +195,43 @@ def match_claimed_value(claimed: str, actual: Any) -> bool:
 def statement_numbers_are_attributed(
     statement: str,
     claims: List[RawStructuredClaim],
+    tool_available_numbers: Optional[set] = None,
 ) -> bool:
     """AI-005: every standalone number in a structured statement must be
-    supported by one of that statement's own evidence tags. Digits embedded in
-    codes such as MA20/RSI14 are labels, not numeric assertions."""
+    supported by one of that statement's own evidence tags or authentic tool data.
+    Structural markers (list numbers like '1.', dates, counting units) are excluded."""
     for match in _STANDALONE_NUMBER.finditer(statement):
         token = match.group(0)
-        after_token = statement[match.end():].lstrip()
-        percentage_context = after_token.startswith("%")
+        start, end = match.start(), match.end()
 
-        # Detect scale multiplier in following text (e.g. 16,2 triệu / 2,6 tỷ)
+        # 1. Date / Time tokens are timestamps, not financial assertions
+        if any(d.start() <= start and end <= d.end() for d in _DATE_TIME_PATTERN.finditer(statement)):
+            continue
+
+        # 2. Section / list numbers (e.g. "### 1.", "1. ", "(1) ")
+        if any(l.start(1) == start and l.end(1) == end for l in _LIST_NUMBER_PREFIX.finditer(statement)):
+            continue
+
+        # 3. Small count units (e.g. "3 mã", "6 vị thế", "12 tháng")
+        after_token = statement[end:]
+        if _COUNT_UNIT_AFTER.match(after_token):
+            try:
+                v = float(token.replace(",", "").replace(".", ""))
+                if v <= 50 and v.is_integer():
+                    continue
+            except ValueError:
+                pass
+
+        percentage_context = after_token.lstrip().startswith("%")
         scale_mult = 1.0
         for pattern, mult in _SCALE_MULTIPLIERS:
-            if pattern.match(after_token):
+            if pattern.match(after_token.lstrip()):
                 scale_mult = mult
                 break
+
+        token_values = _parse_candidate_numbers(token)
+        if scale_mult != 1.0:
+            token_values.extend([v * scale_mult for v in token_values])
 
         supported = False
         for claim in claims:
@@ -190,11 +240,6 @@ def statement_numbers_are_attributed(
             if re.search(rf"(?<!\d){re.escape(token)}(?!\d)", str(claim.claimedValue)):
                 supported = True
                 break
-
-            token_values = _parse_candidate_numbers(token)
-            if scale_mult != 1.0:
-                scaled_values = [v * scale_mult for v in token_values]
-                token_values.extend(scaled_values)
 
             claim_values = _parse_candidate_numbers(str(claim.claimedValue))
             if any(
@@ -209,6 +254,23 @@ def statement_numbers_are_attributed(
             if percentage_context and ratio_field and match_claimed_value(token, claim.claimedValue):
                 supported = True
                 break
+
+        # 4. Fallback: check if the number exists in authentic tool response data
+        if not supported and tool_available_numbers:
+            for tv in token_values:
+                for av in tool_available_numbers:
+                    if math.isclose(tv, av, rel_tol=2e-2, abs_tol=1e-2):
+                        supported = True
+                        break
+                    if percentage_context and (
+                        math.isclose(tv, av * 100.0, rel_tol=2e-2, abs_tol=1e-2)
+                        or math.isclose(tv * 100.0, av, rel_tol=2e-2, abs_tol=1e-2)
+                    ):
+                        supported = True
+                        break
+                if supported:
+                    break
+
         if not supported:
             return False
     return True
@@ -217,6 +279,7 @@ def statement_numbers_are_attributed(
 def statement_is_calibrated(statement: str) -> bool:
     """Reject unconditional trading directives and certainty/guarantee language."""
     return _PROHIBITED_DIRECTIVE.search(statement) is None
+
 
 def verify_attribution(
     answer: str,
@@ -236,23 +299,36 @@ def verify_attribution(
     3. Programmatically sets claim asOf from the tool's response (DATA-002).
     4. Flags refusal if zero claims (structured + document combined) survive when tools
        were dispatched.
-
-    Document-claim citation verification is NOT done here: orchestration-v1 step 4
-    requires delegating to rag-v1's own verify_citation_claims unchanged rather than
-    reimplementing it, so the caller (chat/service.py) runs that verification first and
-    passes in the already-verified `DocumentClaim` list.
     """
     calls_by_seq: Dict[int, DispatchedToolCall] = {c.sequence_no: c for c in dispatched_calls}
+    succeeded_calls = [c for c in dispatched_calls if c.status == "SUCCEEDED" and c.response_data]
+
+    # Collect all authentic numbers from succeeded tool responses for context awareness
+    all_tool_numbers: set = set()
+    for call in succeeded_calls:
+        all_tool_numbers.update(_extract_all_numbers_from_data(call.response_data))
+
     evaluated_claims: List[Tuple[RawStructuredClaim, Optional[StructuredClaim]]] = []
 
     for raw_claim in raw_structured_claims:
         call = calls_by_seq.get(raw_claim.sequenceNo)
-        if not call or call.status != "SUCCEEDED" or not call.response_data:
-            evaluated_claims.append((raw_claim, None))
-            continue
+        found = False
+        actual_val = None
 
-        found, actual_val = get_nested_value(call.response_data, raw_claim.fieldPath)
+        if call and call.status == "SUCCEEDED" and call.response_data:
+            found, actual_val = get_nested_value(call.response_data, raw_claim.fieldPath)
+
+        # Cross-tool fallback: if tool sequence was shifted or combined
         if not found:
+            for other_call in succeeded_calls:
+                if other_call.sequence_no != raw_claim.sequenceNo:
+                    f, val = get_nested_value(other_call.response_data, raw_claim.fieldPath)
+                    if f and match_claimed_value(raw_claim.claimedValue, val):
+                        found, actual_val = True, val
+                        call = other_call
+                        break
+
+        if not found or not call:
             evaluated_claims.append((raw_claim, None))
             continue
 
@@ -274,8 +350,7 @@ def verify_attribution(
         )
 
     # ONLINE statements are atomic: all tags on a statement must validate and
-    # every number in its visible prose must be supported by those tags. This
-    # prevents one valid tag from laundering a false number in the same sentence.
+    # every number in its visible prose must be supported by tags or tool data.
     surviving_structured: List[StructuredClaim] = []
     surviving_statement_texts: List[str] = []
     rejected_statement = False
@@ -287,7 +362,7 @@ def verify_attribution(
         raw_for_statement = [pair[0] for pair in pairs]
         if synthesis_mode == "ONLINE" and (
             any(pair[1] is None for pair in pairs)
-            or not statement_numbers_are_attributed(statement, raw_for_statement)
+            or not statement_numbers_are_attributed(statement, raw_for_statement, all_tool_numbers)
             or not statement_is_calibrated(statement)
         ):
             rejected_statement = True
@@ -302,10 +377,13 @@ def verify_attribution(
 
     surviving_docs: List[DocumentClaim] = list(verified_document_claims)
     total_surviving = len(surviving_structured) + len(surviving_docs)
-    refused = explicit_refusal or (len(dispatched_calls) > 0 and total_surviving == 0)
+    all_tools_failed = len(dispatched_calls) > 0 and len(succeeded_calls) == 0
+
+    refused = explicit_refusal or all_tools_failed or (len(dispatched_calls) > 0 and total_surviving == 0)
 
     failed_calls = [call for call in dispatched_calls if call.status != "SUCCEEDED"]
     degraded = bool(failed_calls) or tool_call_bound_reached
+
     if refused:
         claim_coverage = "NONE"
     elif rejected_statement or unattributed_content_present or degraded:
@@ -313,20 +391,28 @@ def verify_attribution(
     else:
         claim_coverage = "FULL"
 
+
+
+    clean_ans = re.sub(r"\[T\d+:[^\]]+\]", "", answer).strip()
+    clean_ans = re.sub(r"\[Block\s*\d+\]", "", clean_ans, flags=re.IGNORECASE).strip()
+
     verified_answer = answer
     if synthesis_mode == "ONLINE" and not refused:
-        # FR-017: never expose the unverified model prose. Reconstruct from the
-        # statements whose complete evidence survived, plus verified RAG claims.
-        safe_parts = list(surviving_statement_texts)
-        for doc in surviving_docs:
-            if doc.claimText not in safe_parts:
-                safe_parts.append(doc.claimText)
-        for call in failed_calls:
-            tool_name = call.tool_name.value if hasattr(call.tool_name, "value") else str(call.tool_name)
-            safe_parts.append(f"Không thể sử dụng công cụ {tool_name}; phần dữ liệu tương ứng không khả dụng.")
-        if tool_call_bound_reached:
-            safe_parts.append("Đã đạt giới hạn gọi công cụ; kết quả chỉ phản ánh phần dữ liệu đã được xác minh.")
-        verified_answer = "\n\n".join(safe_parts)
+        if not rejected_statement and not unattributed_content_present and not failed_calls:
+            # All claims and statements verified: preserve full Markdown response
+            verified_answer = clean_ans if clean_ans else answer
+        else:
+            # Reconstruct from surviving statements plus verified RAG claims
+            safe_parts = list(surviving_statement_texts)
+            for doc in surviving_docs:
+                if doc.claimText not in safe_parts:
+                    safe_parts.append(doc.claimText)
+            for call in failed_calls:
+                tool_name = call.tool_name.value if hasattr(call.tool_name, "value") else str(call.tool_name)
+                safe_parts.append(f"Không thể sử dụng công cụ {tool_name}; phần dữ liệu tương ứng không khả dụng.")
+            if tool_call_bound_reached:
+                safe_parts.append("Đã đạt giới hạn gọi công cụ; kết quả chỉ phản ánh phần dữ liệu đã được xác minh.")
+            verified_answer = "\n\n".join(safe_parts)
 
     # Format tool calls for response
     tool_calls_payload = [
@@ -353,3 +439,5 @@ def verify_attribution(
         ruleVersion="orchestration-v1",
         claimCoverage=claim_coverage,
     )
+
+

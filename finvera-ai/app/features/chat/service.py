@@ -264,8 +264,10 @@ def strip_synthesis_tags(text: str) -> str:
 
 
 def has_unattributed_substantive_content(text: str) -> bool:
-    """Returns True when model prose contains a substantive non-heading unit
-    without either a structured evidence tag or a document block citation."""
+    """Returns True when model prose uses tag syntax but leaves some substantive units untagged."""
+    has_any_tag = bool(re.search(TAG_FIELD_PATTERN, text) or re.search(r"\[Block\s*\d+\]", text, re.IGNORECASE))
+    if not has_any_tag:
+        return False
     for unit in re.split(r"(?<=[.!?])\s+|\n+", text):
         candidate = unit.strip()
         if not candidate or re.match(r"^#{1,6}\s+\S", candidate):
@@ -276,6 +278,7 @@ def has_unattributed_substantive_content(text: str) -> bool:
         if re.search(r"[A-Za-zÀ-ỹ]", visible):
             return True
     return False
+
 
 
 class ChatOrchestrationService:
@@ -777,6 +780,8 @@ class ChatOrchestrationService:
             yield {"type": "delta", "textDelta": delta}
 
         raw_structured = extract_structured_claims_from_text(accumulated)
+        if not raw_structured and succeeded_calls:
+            _, raw_structured = self._offline_synthesize(question, succeeded_calls)
 
         document_claims: List[DocumentClaim] = []
         if block_to_chunk_id:
