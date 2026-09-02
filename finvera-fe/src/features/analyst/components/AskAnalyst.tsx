@@ -9,6 +9,117 @@ import { groupClaimsBySentence } from '../format/claim-grouping';
 import { LiteMarkdown } from '../format/lite-markdown';
 import { stripCitationTags } from '../format/citation-tags';
 
+interface ToolCapability {
+  name: string;
+  badge: string;
+  icon: string;
+  title: string;
+  desc: string;
+  exampleQ: string;
+  defaultSym?: string;
+  accent: string;
+  badgeColor: string;
+}
+
+const TOOL_CAPABILITIES: ToolCapability[] = [
+  {
+    name: 'MARKET',
+    badge: 'Thị trường',
+    icon: '🌐',
+    title: 'Tổng quan & Độ rộng VN-INDEX',
+    desc: 'Cung cấp điểm số chỉ số VN-INDEX, mức tăng giảm trong phiên, thống kê số mã tăng/giảm/tham chiếu và trạng thái thị trường (Regime).',
+    exampleQ: 'Tổng quan chỉ số VN-INDEX và độ rộng thị trường phiên hôm nay',
+    accent: 'border-blue-500/30 hover:border-blue-400/70 bg-blue-950/20 hover:bg-blue-900/30',
+    badgeColor: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+  },
+  {
+    name: 'STOCK',
+    badge: 'Khớp lệnh',
+    icon: '🏷️',
+    title: 'Giá & Khối lượng Thời gian thực',
+    desc: 'Cung cấp giá khớp lệnh hiện tại, % biến động tăng giảm và tình trạng dữ liệu của từng mã cổ phiếu.',
+    exampleQ: 'Giá cổ phiếu HPG hôm nay biến động thế nào?',
+    defaultSym: 'HPG',
+    accent: 'border-emerald-500/30 hover:border-emerald-400/70 bg-emerald-950/20 hover:bg-emerald-900/30',
+    badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+  },
+  {
+    name: 'TECHNICAL',
+    badge: 'Kỹ thuật',
+    icon: '📐',
+    title: 'Chỉ báo Kỹ thuật & Tín hiệu Chiến lược',
+    desc: 'Tính toán các đường trung bình MA20, MA50, chỉ số sức mạnh tương quan RSI14 và kiểm tra các tín hiệu chiến lược đang kích hoạt.',
+    exampleQ: 'Phân tích chỉ báo RSI, MA và tín hiệu kỹ thuật của SSI',
+    defaultSym: 'SSI',
+    accent: 'border-indigo-500/30 hover:border-indigo-400/70 bg-indigo-950/20 hover:bg-indigo-900/30',
+    badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
+  },
+  {
+    name: 'FUNDAMENTAL',
+    badge: 'Cơ bản',
+    icon: '🏢',
+    title: 'Tài chính Doanh nghiệp & Hiệu quả Sinh lời',
+    desc: 'Cung cấp EPS theo quý, EPS 12 tháng gần nhất (TTM), tỷ suất sinh lời trên vốn (ROE) và tốc độ tăng trưởng doanh thu & lợi nhuận.',
+    exampleQ: 'Chỉ số tài chính cơ bản, EPS và ROE của FPT',
+    defaultSym: 'FPT',
+    accent: 'border-cyan-500/30 hover:border-cyan-400/70 bg-cyan-950/20 hover:bg-cyan-900/30',
+    badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
+  },
+  {
+    name: 'VALUATION',
+    badge: 'Định giá',
+    icon: '⚖️',
+    title: 'Mô hình Định giá P/E & P/B',
+    desc: 'Tính toán hệ số định giá P/E, P/B và phân loại đắt/rẻ định lượng (Undervalued, Fair Value, Overvalued) theo chuẩn so sánh lịch sử.',
+    exampleQ: 'Định giá P/E và P/B của VCB hiện tại đắt hay rẻ so với lịch sử?',
+    defaultSym: 'VCB',
+    accent: 'border-violet-500/30 hover:border-violet-400/70 bg-violet-950/20 hover:bg-violet-900/30',
+    badgeColor: 'bg-violet-500/20 text-violet-300 border-violet-500/30',
+  },
+  {
+    name: 'PORTFOLIO',
+    badge: 'Danh mục',
+    icon: '💼',
+    title: 'Quản lý Danh mục & Phân bổ Tài sản',
+    desc: 'Cung cấp tổng giá trị tài sản, số dư tiền mặt, danh sách các vị thế nắm giữ, tỷ trọng phân bổ từng mã và lãi/lỗ chưa thực hiện.',
+    exampleQ: 'Đánh giá danh mục, tỷ trọng phân bổ tài sản và lãi lỗ vị thế',
+    accent: 'border-amber-500/30 hover:border-amber-400/70 bg-amber-950/20 hover:bg-amber-900/30',
+    badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+  },
+  {
+    name: 'SCREENING',
+    badge: 'Bộ lọc',
+    icon: '🔍',
+    title: 'Lọc Cổ phiếu theo Ngôn ngữ Tự nhiên',
+    desc: 'Bộ lọc tìm kiếm cổ phiếu theo tiêu chí linh hoạt: P/E < 12, ROE > 18%, RSI, vốn hoá thị trường hoặc điểm bứt phá kỹ thuật.',
+    exampleQ: 'Lọc các cổ phiếu có P/E dưới 12 và ROE trên 18%',
+    accent: 'border-pink-500/30 hover:border-pink-400/70 bg-pink-950/20 hover:bg-pink-900/30',
+    badgeColor: 'bg-pink-500/20 text-pink-300 border-pink-500/30',
+  },
+  {
+    name: 'NEWS',
+    badge: 'Tin tức',
+    icon: '📰',
+    title: 'Tin tức & Sự kiện Doanh nghiệp',
+    desc: 'Tổng hợp danh sách các bài báo tài chính, sự kiện công bố thông tin và diễn biến tin tức mới nhất của các doanh nghiệp trên thị trường.',
+    exampleQ: 'Cập nhật tin tức mới nhất về ngành thép và HPG',
+    defaultSym: 'HPG',
+    accent: 'border-orange-500/30 hover:border-orange-400/70 bg-orange-950/20 hover:bg-orange-900/30',
+    badgeColor: 'bg-orange-500/20 text-orange-300 border-orange-500/30',
+  },
+  {
+    name: 'RESEARCH_RAG',
+    badge: 'Kho BCTC',
+    icon: '📚',
+    title: 'Tra cứu Thuyết minh BCTC & Báo cáo PDF',
+    desc: 'Tra cứu sâu văn bản trong kho Báo cáo tài chính, Thuyết minh BCTC, Nghị quyết ĐHĐCĐ và các báo cáo phân tích chuyên sâu.',
+    exampleQ: 'Tìm trong báo cáo tài chính về kế hoạch kinh doanh và triển vọng của FPT',
+    defaultSym: 'FPT',
+    accent: 'border-teal-500/30 hover:border-teal-400/70 bg-teal-950/20 hover:bg-teal-900/30',
+    badgeColor: 'bg-teal-500/20 text-teal-300 border-teal-500/30',
+  },
+];
+
 export const AskAnalyst: React.FC = () => {
   const [question, setQuestion] = useState('');
   const [symbol, setSymbol] = useState('');
@@ -20,13 +131,7 @@ export const AskAnalyst: React.FC = () => {
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const responseEndRef = useRef<HTMLDivElement | null>(null);
-
-  const suggestedQuestions = [
-    { label: 'Giá và Kỹ thuật HPG', q: 'Phân tích giá và tín hiệu kỹ thuật của HPG hôm nay', sym: 'HPG' },
-    { label: 'Chỉ số VN-INDEX & Độ rộng', q: 'Tổng quan thị trường và chỉ số VN-INDEX hiện tại', sym: '' },
-    { label: 'Định giá P/E FPT', q: 'Định giá P/E và kết quả kinh doanh của FPT', sym: 'FPT' },
-    { label: 'Hiệu suất danh mục', q: 'Đánh giá danh mục và tỷ trọng phân bổ tài sản', sym: '' },
-  ];
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (isStreaming && responseEndRef.current) {
@@ -34,12 +139,16 @@ export const AskAnalyst: React.FC = () => {
     }
   }, [streamedText, toolCalls, isStreaming]);
 
-  const handleAsk = async (customQ?: string, customSym?: string) => {
-    const q = (customQ !== undefined ? customQ : question).trim();
-    if (!q || isStreaming) return;
+  // When user selects a template/card: populate input box for review/edit without auto-submitting
+  const handleSelectPrompt = (q: string, sym: string) => {
+    setQuestion(q);
+    setSymbol(sym);
+    inputRef.current?.focus();
+  };
 
-    if (customQ !== undefined) setQuestion(customQ);
-    if (customSym !== undefined) setSymbol(customSym);
+  const handleAsk = async () => {
+    const q = question.trim();
+    if (!q || isStreaming) return;
 
     setIsStreaming(true);
     setStreamedText('');
@@ -52,7 +161,7 @@ export const AskAnalyst: React.FC = () => {
 
     const req: AskAnalystRequest = {
       question: q,
-      symbol: (customSym !== undefined ? customSym : symbol).trim() || undefined,
+      symbol: symbol.trim() || undefined,
     };
 
     try {
@@ -60,9 +169,6 @@ export const AskAnalyst: React.FC = () => {
         req,
         {
           onToolCall: (tc) => {
-            // A tool call is reported twice — once "started", once with its terminal
-            // status — replace the existing card by sequenceNo rather than appending a
-            // second one for the same call.
             setToolCalls((prev) => {
               const idx = prev.findIndex((p) => p.sequenceNo === tc.sequenceNo);
               if (idx === -1) return [...prev, tc];
@@ -101,49 +207,77 @@ export const AskAnalyst: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full max-w-5xl mx-auto p-4 space-y-6">
+    <div className="flex flex-col h-full max-w-5xl mx-auto p-4 space-y-5">
       {/* Header */}
       <div className="flex flex-col space-y-1">
         <div className="flex items-center space-x-2">
-          <span className="inline-flex items-center justify-center p-2 rounded-lg bg-emerald-500/10 text-emerald-400 font-bold">
+          <span className="inline-flex items-center justify-center p-2 rounded-lg bg-emerald-500/10 text-emerald-400 font-bold text-sm">
             AI Analyst
           </span>
           <h1 className="text-xl font-bold text-slate-100">
             Trợ Lý Phân Tích Đa Công Cụ (Multi-Tool AI)
           </h1>
         </div>
-        <p className="text-sm text-slate-400">
-          Phân tích chuyên sâu dựa trên 9 công cụ dữ liệu tài chính thực tế và kiểm chứng số liệu minh bạch.
+        <p className="text-xs text-slate-400">
+          Hệ thống tích hợp 9 công cụ dữ liệu tài chính chuyên sâu với cơ chế kiểm chứng số liệu minh bạch và bảo mật.
         </p>
       </div>
 
-      {/* Suggested chips */}
-      <div className="flex flex-wrap gap-2">
-        {suggestedQuestions.map((s, idx) => (
-          <button
-            key={idx}
-            type="button"
-            disabled={isStreaming}
-            onClick={() => handleAsk(s.q, s.sym)}
-            className="text-xs px-3 py-1.5 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/60 transition"
-          >
-            {s.label}
-          </button>
-        ))}
-      </div>
-
       {/* Main Conversation / Output Area */}
-      <div className="flex-1 min-h-[350px] bg-slate-900/60 rounded-xl border border-slate-800/80 p-5 overflow-y-auto space-y-6">
-        {/* Empty state */}
+      <div className="flex-1 min-h-[420px] bg-slate-900/60 rounded-xl border border-slate-800/80 p-5 overflow-y-auto space-y-6">
+        {/* Empty state: 9 Capabilities Board */}
         {!isStreaming && !streamedText && !finalResult && !errorMsg && (
-          <div className="h-full flex flex-col items-center justify-center text-center text-slate-500 py-12">
-            <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center mb-3 text-slate-400">
-              📊
+          <div className="space-y-4 py-2">
+            <div className="text-center space-y-1 pb-2">
+              <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-slate-800 text-lg mb-1">
+                ⚡
+              </div>
+              <h2 className="text-sm font-semibold text-slate-200">
+                Bản Đồ 9 Công Cụ Dữ Liệu Sẵn Sàng Truy Vấn
+              </h2>
+              <p className="text-xs text-slate-400 max-w-xl mx-auto">
+                Nhấp vào bất kỳ công cụ nào bên dưới để chèn câu hỏi mẫu vào ô nhập liệu (bạn có thể chỉnh sửa trước khi bấm Gửi).
+              </p>
             </div>
-            <p className="font-medium text-slate-400">Chưa có câu hỏi nào được đưa ra</p>
-            <p className="text-xs max-w-sm mt-1">
-              Nhập câu hỏi về thị trường, cổ phiếu, chỉ số kỹ thuật hoặc danh mục để bắt đầu.
-            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              {TOOL_CAPABILITIES.map((cap) => {
+                const isSelected = question === cap.exampleQ;
+                return (
+                  <div
+                    key={cap.name}
+                    onClick={() => handleSelectPrompt(cap.exampleQ, cap.defaultSym || '')}
+                    className={`cursor-pointer text-left p-4 rounded-xl border transition flex flex-col justify-between group ${
+                      isSelected
+                        ? 'border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/40'
+                        : cap.accent
+                    }`}
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-lg">{cap.icon}</span>
+                        <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-mono font-medium border ${cap.badgeColor}`}>
+                          {cap.badge}
+                        </span>
+                      </div>
+                      <div className="text-xs font-semibold text-slate-100 group-hover:text-emerald-300 transition">
+                        {cap.title}
+                      </div>
+                      <p className="text-[11px] text-slate-300/80 leading-relaxed">
+                        {cap.desc}
+                      </p>
+                    </div>
+
+                    <div className="mt-3.5 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400 group-hover:text-emerald-400 transition">
+                      <span className="italic">
+                        "{cap.exampleQ}"
+                      </span>
+                      <span className="font-semibold text-xs ml-2 flex-shrink-0">→</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -173,43 +307,43 @@ export const AskAnalyst: React.FC = () => {
                       ? { card: 'bg-rose-950/20 border-rose-800/40', badge: 'bg-rose-500/20 text-rose-300', label: '[Thất bại]' }
                       : { card: 'bg-slate-800/20 border-slate-700/40', badge: 'bg-amber-500/20 text-amber-300', label: '[Đang xử lý…]' };
                 return (
-                <div
-                  key={tc.sequenceNo}
-                  className={`p-3 rounded-lg border text-xs flex flex-col justify-between ${statusStyle.card}`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono font-bold text-slate-200">
-                      #{tc.sequenceNo} {tc.toolName}
-                    </span>
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-semibold ${statusStyle.badge}`}
-                    >
-                      {statusStyle.label}
-                    </span>
-                  </div>
-                  {tc.toolName === 'SCREENING' && tc.arguments?.filters ? (
-                    <div className="mt-2 space-y-1">
-                      <div className="text-slate-300 font-sans text-[11px] font-medium">
-                        Bộ lọc đã chuyển đổi:
-                      </div>
-                      <div className="p-1.5 rounded bg-slate-950/60 font-mono text-[10px] text-indigo-300 overflow-x-auto">
-                        {JSON.stringify(tc.arguments.filters, null, 2)}
-                      </div>
-                      {Boolean(tc.arguments?.ambiguityNote) && (
-                        <div className="p-2 rounded bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px]">
-                          <strong>[Lưu ý mơ hồ]:</strong> {String(tc.arguments.ambiguityNote)}
+                  <div
+                    key={tc.sequenceNo}
+                    className={`p-3 rounded-lg border text-xs flex flex-col justify-between ${statusStyle.card}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono font-bold text-slate-200">
+                        #{tc.sequenceNo} {tc.toolName}
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-semibold ${statusStyle.badge}`}
+                      >
+                        {statusStyle.label}
+                      </span>
+                    </div>
+                    {tc.toolName === 'SCREENING' && tc.arguments?.filters ? (
+                      <div className="mt-2 space-y-1">
+                        <div className="text-slate-300 font-sans text-[11px] font-medium">
+                          Bộ lọc đã chuyển đổi:
                         </div>
-                      )}
+                        <div className="p-1.5 rounded bg-slate-950/60 font-mono text-[10px] text-indigo-300 overflow-x-auto">
+                          {JSON.stringify(tc.arguments.filters, null, 2)}
+                        </div>
+                        {Boolean(tc.arguments?.ambiguityNote) && (
+                          <div className="p-2 rounded bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px]">
+                            <strong>[Lưu ý mơ hồ]:</strong> {String(tc.arguments.ambiguityNote)}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="mt-2 text-slate-400 font-mono text-[11px] truncate">
+                        {JSON.stringify(tc.arguments)}
+                      </div>
+                    )}
+                    <div className="mt-1 text-[10px] text-slate-500 text-right">
+                      Độ trễ: {tc.latencyMs}ms
                     </div>
-                  ) : (
-                    <div className="mt-2 text-slate-400 font-mono text-[11px] truncate">
-                      {JSON.stringify(tc.arguments)}
-                    </div>
-                  )}
-                  <div className="mt-1 text-[10px] text-slate-500 text-right">
-                    Độ trễ: {tc.latencyMs}ms
                   </div>
-                </div>
                 );
               })}
             </div>
@@ -258,7 +392,7 @@ export const AskAnalyst: React.FC = () => {
               </div>
             )}
 
-            {/* Feature 015 / Q-51: degraded mode is disclosed, never served as a model answer */}
+            {/* Degraded mode notice */}
             {finalResult?.synthesisMode === 'OFFLINE_TEMPLATE' && !finalResult.refused && (
               <div role="status" className="p-2.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center space-x-2">
                 <span>[Chế độ suy giảm]</span>
@@ -302,7 +436,7 @@ export const AskAnalyst: React.FC = () => {
               </div>
             )}
 
-            {/* Document Claims Citations Badges (US2: P2) */}
+            {/* Document Claims Citations Badges */}
             {finalResult && finalResult.documentClaims && finalResult.documentClaims.length > 0 && (
               <div className="space-y-2 mt-3 pt-3 border-t border-slate-800/60">
                 <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center space-x-2">
@@ -360,6 +494,7 @@ export const AskAnalyst: React.FC = () => {
         </div>
         <div className="flex-1 flex gap-2">
           <input
+            ref={inputRef}
             type="text"
             placeholder="Hỏi trợ lý phân tích (ví dụ: Phân tích kỹ thuật và định giá HPG)..."
             value={question}
@@ -384,7 +519,7 @@ export const AskAnalyst: React.FC = () => {
           ) : (
             <button
               type="button"
-              onClick={() => handleAsk()}
+              onClick={handleAsk}
               disabled={!question.trim()}
               className="px-5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-600 text-white font-medium text-sm transition shadow-lg shadow-emerald-600/20"
             >
