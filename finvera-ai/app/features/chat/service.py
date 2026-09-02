@@ -781,7 +781,8 @@ class ChatOrchestrationService:
 
         raw_structured = extract_structured_claims_from_text(accumulated)
         if not raw_structured and succeeded_calls:
-            _, raw_structured = self._offline_synthesize(question, succeeded_calls)
+            _, raw_structured, _ = self._offline_synthesize(succeeded_calls)
+
 
         document_claims: List[DocumentClaim] = []
         if block_to_chunk_id:
