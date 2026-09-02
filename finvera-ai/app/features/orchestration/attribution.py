@@ -98,9 +98,32 @@ def get_nested_value(data: Any, field_path: str) -> Tuple[bool, Any]:
 _INDEXED_PART = __import__("re").compile(r"^([^\[\]]+)\[(\d+)\]$")
 
 
+def _parse_candidate_numbers(raw_str: str) -> List[float]:
+    s = raw_str.strip().rstrip("%").rstrip("đ").rstrip("₫").strip()
+    candidates = []
+    # 1. Plain / English float: "1,234.56" or "21050"
+    try:
+        candidates.append(float(s.replace(",", "")))
+    except ValueError:
+        pass
+    # 2. Vietnamese thousand dots & decimal comma: "21.050", "2.631.250", "12,5"
+    try:
+        cleaned_vn = s.replace(".", "").replace(",", ".")
+        candidates.append(float(cleaned_vn))
+    except ValueError:
+        pass
+    # 3. Direct without separators
+    try:
+        candidates.append(float(s.replace(" ", "")))
+    except ValueError:
+        pass
+    return candidates
+
+
 def match_claimed_value(claimed: str, actual: Any) -> bool:
     """
-    U-5: Exact match for strings/enums/booleans, rounding-tolerant for decimals/floats.
+    U-5: Exact match for strings/enums/booleans, rounding-tolerant for decimals/floats,
+    and supports Vietnamese thousand separators (dots) and decimal percentages.
     """
     if actual is None:
         return claimed.strip().lower() in ("none", "null", "n/a", "")
@@ -112,15 +135,17 @@ def match_claimed_value(claimed: str, actual: Any) -> bool:
     if claimed_str.lower() == actual_str.lower():
         return True
 
-    # Numeric comparison
-    try:
-        claimed_num = float(claimed_str.replace(",", "").replace("%", ""))
-        actual_num = float(actual_str.replace(",", "").replace("%", ""))
-
-        if math.isclose(claimed_num, actual_num, rel_tol=1e-2, abs_tol=1e-2):
-            return True
-    except (ValueError, TypeError):
-        pass
+    # Numeric comparison with Vietnamese format & percentage support
+    claimed_nums = _parse_candidate_numbers(claimed_str)
+    actual_nums = _parse_candidate_numbers(actual_str)
+    for c_num in claimed_nums:
+        for a_num in actual_nums:
+            if math.isclose(c_num, a_num, rel_tol=1e-2, abs_tol=1e-2):
+                return True
+            # Support percentage <-> decimal equivalence (e.g. 0.1278 <-> 12.78%)
+            if math.isclose(c_num, a_num * 100.0, rel_tol=1e-2, abs_tol=1e-2) or \
+               math.isclose(c_num * 100.0, a_num, rel_tol=1e-2, abs_tol=1e-2):
+                return True
 
     return False
 

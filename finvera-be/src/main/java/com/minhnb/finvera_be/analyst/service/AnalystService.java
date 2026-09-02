@@ -43,7 +43,18 @@ public class AnalystService {
             Map.entry("peRatio", "P/E"),
             Map.entry("pbRatio", "P/B"),
             Map.entry("classification", "Phân loại định giá"),
-            Map.entry("totalValue", "Tổng giá trị danh mục"));
+            Map.entry("totalValue", "Tổng giá trị danh mục"),
+            Map.entry("cashBalance", "Tiền mặt khả dụng"),
+            Map.entry("totalUnrealizedPL", "Tổng Lãi/Lỗ chưa chốt"),
+            Map.entry("totalUnrealizedPnlPercent", "% Lãi/Lỗ chưa chốt"),
+            Map.entry("returnSinceInception", "Lợi nhuận từ đầu"),
+            Map.entry("returnOverPeriod", "Lợi nhuận trong kỳ"),
+            Map.entry("marketValue", "Giá trị thị trường"),
+            Map.entry("averageCostBasis", "Giá vốn bình quân"),
+            Map.entry("currentPrice", "Giá hiện tại"),
+            Map.entry("unrealizedPL", "Lãi/Lỗ chưa thực hiện"),
+            Map.entry("unrealizedPnlPercent", "% Lãi/Lỗ chưa thực hiện"),
+            Map.entry("allocation", "Tỷ trọng phân bổ"));
 
     private final AnalystAiClient aiClient;
     private final AnalystQueryService queryService;
