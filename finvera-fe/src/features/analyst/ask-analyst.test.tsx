@@ -20,8 +20,8 @@ describe('AskAnalyst Component (User Story 1: P1)', () => {
     render(<AskAnalyst />);
     expect(screen.getByPlaceholderText(/Hỏi trợ lý phân tích/i)).toBeDefined();
     expect(screen.getByPlaceholderText(/Mã/i)).toBeDefined();
-    expect(screen.getByText(/Giá và Kỹ thuật HPG/i)).toBeDefined();
-    expect(screen.getByText(/Chưa có câu hỏi nào được đưa ra/i)).toBeDefined();
+    expect(screen.getByText(/Bản Đồ 9 Công Cụ Dữ Liệu Sẵn Sàng Truy Vấn/i)).toBeDefined();
+    expect(screen.getByText(/Tổng quan & Độ rộng VN-INDEX/i)).toBeDefined();
   });
 
   it('renders tool calls progress and verified structured claims on success', async () => {
@@ -58,7 +58,7 @@ describe('AskAnalyst Component (User Story 1: P1)', () => {
     const input = screen.getByPlaceholderText(/Hỏi trợ lý phân tích/i);
     fireEvent.change(input, { target: { value: 'Giá HPG bao nhiêu?' } });
 
-    const submitBtn = screen.getByText(/Gửi/i);
+    const submitBtn = screen.getByRole('button', { name: /Gửi/i });
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
@@ -86,7 +86,7 @@ describe('AskAnalyst Component (User Story 1: P1)', () => {
     render(<AskAnalyst />);
     const input = screen.getByPlaceholderText(/Hỏi trợ lý phân tích/i);
     fireEvent.change(input, { target: { value: 'Giá HPG bao nhiêu?' } });
-    fireEvent.click(screen.getByText(/Gửi/i));
+    fireEvent.click(screen.getByRole('button', { name: /Gửi/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/Đang xử lý/i)).toBeDefined();
@@ -116,7 +116,7 @@ describe('AskAnalyst Component (User Story 1: P1)', () => {
     render(<AskAnalyst />);
     const input = screen.getByPlaceholderText(/Hỏi trợ lý phân tích/i);
     fireEvent.change(input, { target: { value: 'Giá HPG bao nhiêu?' } });
-    fireEvent.click(screen.getByText(/Gửi/i));
+    fireEvent.click(screen.getByRole('button', { name: /Gửi/i }));
 
     await waitFor(() => {
       expect(screen.getAllByText(/#1 STOCK/i)).toHaveLength(1);
@@ -143,7 +143,7 @@ describe('AskAnalyst Component (User Story 1: P1)', () => {
     const input = screen.getByPlaceholderText(/Hỏi trợ lý phân tích/i);
     fireEvent.change(input, { target: { value: 'Phân tích tổng hợp' } });
 
-    const submitBtn = screen.getByText(/Gửi/i);
+    const submitBtn = screen.getByRole('button', { name: /Gửi/i });
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
@@ -186,7 +186,7 @@ describe('AskAnalyst Component (User Story 1: P1)', () => {
     const input = screen.getByPlaceholderText(/Hỏi trợ lý phân tích/i);
     fireEvent.change(input, { target: { value: 'Giá HPG và tài liệu BCTN 2025' } });
 
-    const submitBtn = screen.getByText(/Gửi/i);
+    const submitBtn = screen.getByRole('button', { name: /Gửi/i });
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
@@ -242,7 +242,7 @@ describe('AskAnalyst Component (User Story 1: P1)', () => {
     const input = screen.getByPlaceholderText(/Hỏi trợ lý phân tích/i);
     fireEvent.change(input, { target: { value: 'Tìm các mã P/E dưới 10 và ROE trên 15%' } });
 
-    const submitBtn = screen.getByText(/Gửi/i);
+    const submitBtn = screen.getByRole('button', { name: /Gửi/i });
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
@@ -270,7 +270,7 @@ describe('AskAnalyst Component (User Story 1: P1)', () => {
     });
     render(<AskAnalyst />);
     fireEvent.change(screen.getByPlaceholderText(/Hỏi trợ lý phân tích/i), { target: { value: 'Giá HPG?' } });
-    fireEvent.click(screen.getByText(/Gửi/i));
+    fireEvent.click(screen.getByRole('button', { name: /Gửi/i }));
     await waitFor(() => expect(screen.getByText(/Chế độ suy giảm/)).toBeDefined());
     expect(screen.getByText(/công cụ được chọn theo từ khoá/)).toBeDefined();
   });
@@ -292,7 +292,7 @@ describe('AskAnalyst Component (User Story 1: P1)', () => {
 
     render(<AskAnalyst />);
     fireEvent.change(screen.getByPlaceholderText(/Hỏi trợ lý phân tích/i), { target: { value: 'Phân tích FPT' } });
-    fireEvent.click(screen.getByText(/Gửi/i));
+    fireEvent.click(screen.getByRole('button', { name: /Gửi/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/Đã lược bỏ phần chưa đủ bằng chứng/i)).toBeDefined();
@@ -302,7 +302,7 @@ describe('AskAnalyst Component (User Story 1: P1)', () => {
 
   it.each([
     ['FULL', /Số liệu đã kiểm chứng đầy đủ/i],
-    ['NONE', /Chưa có nội dung được kiểm chứng/i],
+    ['NONE', /Câu trả lời chưa có số liệu được kiểm chứng/i],
   ] as const)('renders the %s evidence coverage state', async (claimCoverage, label) => {
     const mockStream = vi.mocked(analystApi.streamAskAnalyst);
     mockStream.mockImplementation(async (_req, callbacks) => {
@@ -320,7 +320,7 @@ describe('AskAnalyst Component (User Story 1: P1)', () => {
 
     render(<AskAnalyst />);
     fireEvent.change(screen.getByPlaceholderText(/Hỏi trợ lý phân tích/i), { target: { value: 'Phân tích FPT' } });
-    fireEvent.click(screen.getByText(/Gửi/i));
+    fireEvent.click(screen.getByRole('button', { name: /Gửi/i }));
 
     await waitFor(() => expect(screen.getByText(label)).toBeDefined());
   });
