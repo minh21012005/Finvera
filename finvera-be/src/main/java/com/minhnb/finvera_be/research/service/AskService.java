@@ -65,7 +65,7 @@ public class AskService {
         }
 
         UUID ownerId = ownerAccess.getAuthenticatedOwnerId();
-        SseEmitter emitter = new SseEmitter(60_000L); // 60 second timeout
+        SseEmitter emitter = new SseEmitter(180_000L); // 180 second timeout
 
         executorService.submit(() -> {
             try {

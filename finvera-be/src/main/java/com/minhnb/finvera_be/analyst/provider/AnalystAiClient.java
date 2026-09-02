@@ -24,7 +24,7 @@ public class AnalystAiClient {
     public AnalystAiClient(AnalystProperties properties) {
         var requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(Duration.ofSeconds(10));
-        requestFactory.setReadTimeout(Duration.ofSeconds(120));
+        requestFactory.setReadTimeout(Duration.ofSeconds(180));
 
         this.restClient = RestClient.builder()
                 .baseUrl(properties.aiServiceUrl())
@@ -43,9 +43,18 @@ public class AnalystAiClient {
                             new InputStreamReader(res.getBody(), StandardCharsets.UTF_8))) {
                         String line;
                         while ((line = reader.readLine()) != null) {
-                            sseLineConsumer.accept(line);
+                            try {
+                                sseLineConsumer.accept(line);
+                            } catch (IllegalStateException e) {
+                                log.info("SSE line consumer stopped: emitter already completed or client disconnected");
+                                break;
+                            }
                         }
                     } catch (Exception e) {
+                        if (e.getCause() instanceof IllegalStateException) {
+                            log.info("SSE stream interrupted: emitter already completed");
+                            return null;
+                        }
                         log.error("Error reading SSE stream from AI service", e);
                         throw new RuntimeException("AI service stream reading failed", e);
                     }

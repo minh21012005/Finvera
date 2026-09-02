@@ -118,7 +118,15 @@ public class AnalystService {
             throw new IllegalArgumentException("Question must not exceed 2000 characters");
         }
 
-        SseEmitter emitter = new SseEmitter(60_000L);
+        SseEmitter emitter = new SseEmitter(180_000L);
+        emitter.onTimeout(() -> {
+            log.warn("Analyst ask SseEmitter timed out");
+            try {
+                emitter.complete();
+            } catch (Exception ignored) {
+            }
+        });
+        emitter.onError(e -> log.debug("Analyst ask SseEmitter error: {}", e.getMessage()));
         executorService.submit(() -> processAskStream(ownerId, request, emitter));
         return emitter;
     }
@@ -267,10 +275,16 @@ public class AnalystService {
                 }
             });
 
-            emitter.complete();
+            try {
+                emitter.complete();
+            } catch (Exception ignored) {
+            }
         } catch (Exception e) {
             log.error("Error processing analyst ask stream for queryId {}", queryId, e);
-            emitter.completeWithError(e);
+            try {
+                emitter.completeWithError(e);
+            } catch (Exception ignored) {
+            }
         }
     }
 

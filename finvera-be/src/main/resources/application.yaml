@@ -11,6 +11,9 @@ spring:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+  mvc:
+    async:
+      request-timeout: 180s
   jackson:
     time-zone: UTC
 

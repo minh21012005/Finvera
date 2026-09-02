@@ -28,6 +28,11 @@ public class ProblemDetailsAdvice {
         return response(request, HttpStatus.UNAUTHORIZED, "AUTHENTICATION_FAILED", "Authentication failed");
     }
 
+    @ExceptionHandler(org.springframework.web.context.request.async.AsyncRequestTimeoutException.class)
+    void asyncRequestTimeout(HttpServletRequest request, Exception ex) {
+        log.warn("Async request timed out: correlationId={} path={}", correlationId(request), request.getRequestURI());
+    }
+
     @ExceptionHandler(LoginRateLimitedException.class)
     ResponseEntity<ProblemDetail> loginRateLimited(HttpServletRequest request) {
         return response(request, HttpStatus.TOO_MANY_REQUESTS, "LOGIN_RATE_LIMITED", "Try again later");
