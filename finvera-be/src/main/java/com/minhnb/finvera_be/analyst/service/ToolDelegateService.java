@@ -22,6 +22,8 @@ import com.minhnb.finvera_be.stock.service.TechnicalIndicatorService;
 import com.minhnb.finvera_be.stock.service.ValuationService;
 import com.minhnb.finvera_be.stock.service.screener.ScreenerService;
 import com.minhnb.finvera_be.stock.service.strategy.StrategySignalService;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.HashMap;
@@ -395,11 +397,31 @@ public class ToolDelegateService {
         UUID portfolioId = portfolios.getFirst().id();
         PositionsResponse positionsResponse = positionService.getPositions(portfolioId);
         List<PositionItemDto> items = positionsResponse.positions().stream()
-                .map(p -> new PositionItemDto(
-                        p.instrumentSymbol(),
-                        p.quantity(),
-                        p.currentPrice(),
-                        p.unrealizedPL()))
+                .map(p -> {
+                    String marketVal = null;
+                    String unplPct = null;
+                    try {
+                        BigDecimal qty = p.quantity() != null ? new BigDecimal(p.quantity()) : BigDecimal.ZERO;
+                        BigDecimal price = p.currentPrice() != null ? new BigDecimal(p.currentPrice()) : BigDecimal.ZERO;
+                        BigDecimal cost = p.averageCostBasis() != null ? new BigDecimal(p.averageCostBasis()) : BigDecimal.ZERO;
+                        BigDecimal mkt = qty.multiply(price);
+                        marketVal = mkt.toPlainString();
+                        if (cost.signum() > 0 && price.signum() > 0) {
+                            unplPct = price.subtract(cost).divide(cost, 4, RoundingMode.HALF_UP)
+                                    .multiply(BigDecimal.valueOf(100)).toPlainString();
+                        }
+                    } catch (Exception ignored) {
+                    }
+                    return new PositionItemDto(
+                            p.instrumentSymbol(),
+                            p.quantity(),
+                            p.averageCostBasis(),
+                            p.currentPrice(),
+                            marketVal,
+                            p.unrealizedPL(),
+                            unplPct,
+                            p.allocation());
+                })
                 .toList();
 
         return new PortfolioPositionsToolResponse(items, positionsResponse.asOf());
@@ -408,19 +430,26 @@ public class ToolDelegateService {
     public PortfolioAnalyticsToolResponse getPortfolioAnalytics(UUID ownerId) {
         List<PortfolioSummaryResponse> portfolios = portfolioService.listPortfolios();
         if (portfolios.isEmpty()) {
-            return new PortfolioAnalyticsToolResponse("0", "0", Instant.now(), Collections.emptyMap());
+            return new PortfolioAnalyticsToolResponse("0", "0", "0", "0", Instant.now(), Collections.emptyMap());
         }
 
-        UUID portfolioId = portfolios.getFirst().id();
+        PortfolioSummaryResponse summary = portfolios.getFirst();
+        UUID portfolioId = summary.id();
         PortfolioAnalyticsResponse analytics = portfolioAnalyticsService.getPortfolioAnalytics(portfolioId, null, null);
 
         Map<String, Object> raw = new HashMap<>();
         raw.put("riskExposure", analytics.riskExposure());
         raw.put("stockConcentration", analytics.stockConcentration());
+        raw.put("returnSinceInception", analytics.returnSinceInception());
+        raw.put("returnOverPeriod", analytics.returnOverPeriod());
+        raw.put("maxDrawdown", analytics.maxDrawdown());
+        raw.put("cashBalance", summary.cashBalance());
 
         return new PortfolioAnalyticsToolResponse(
+                summary.totalValue() != null ? summary.totalValue() : "0",
+                summary.cashBalance() != null ? summary.cashBalance() : "0",
+                summary.totalUnrealizedPL() != null ? summary.totalUnrealizedPL() : "0",
                 analytics.returnSinceInception() != null ? analytics.returnSinceInception() : "0",
-                analytics.returnOverPeriod() != null ? analytics.returnOverPeriod() : "0",
                 analytics.asOf(),
                 raw);
     }

@@ -137,8 +137,12 @@ public final class ToolResponseDtos {
     public record PositionItemDto(
             String symbol,
             String quantity,
+            String averageCostBasis,
+            String currentPrice,
             String marketValue,
-            String unrealizedPnlPercent) {
+            String unrealizedPL,
+            String unrealizedPnlPercent,
+            String allocation) {
     }
 
     public record PortfolioPositionsToolResponse(
@@ -148,6 +152,8 @@ public final class ToolResponseDtos {
 
     public record PortfolioAnalyticsToolResponse(
             String totalValue,
+            String cashBalance,
+            String totalUnrealizedPL,
             String totalUnrealizedPnlPercent,
             Instant asOf,
             Map<String, Object> raw) {
