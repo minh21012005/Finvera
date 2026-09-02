@@ -602,3 +602,32 @@ between the contract's design and what was built):
 **Explicitly not changed:** `priorTurns` is fully supported end-to-end (contract, both DTOs, orchestrator) but the frontend never populates it — left as-is since multi-turn conversation is out of MVP scope (SRS-JRN-01); this is inert plumbing, not a defect. The non-constant-time internal-API-key string comparison (`finvera-ai/app/core/auth.py`) is a pre-existing pattern shared with Feature 006, low risk in this private single-owner deployment, and out of this remediation's scope.
 
 **Final verification:** `finvera-ai` 79/79 tests pass; `finvera-be` 571 tests run, 570 pass — the one failure (`PortfolioSchemaMigrationTests`, a Feature 005 test fixture referencing a `base_currency` column that does not exist on `market_instrument`) is pre-existing, confirmed unrelated via `git blame`/scope, and untouched by this session; `finvera-fe` 113/113 tests pass, lint clean, production build clean, and the critical routing fix was independently confirmed in a live browser session (screenshotted).
+
+## Phase 9 — Evidence-Linked Expert Analysis Hardening (2026-09-02)
+
+**Goal**: Preserve expert implications and conditional options while ensuring
+the final answer contains only current-request evidence-linked statements; keep
+offline behavior deterministic and transparent.
+
+**Independent test**: Feed the online pipeline fluent untagged prose, mixed
+valid/invalid claims, and a valid tag attached to an extra false number; verify
+only fully supported statements survive, coverage is accurate, and a
+zero-survivor answer refuses. Replay a non-empty real-shape portfolio payload in
+offline mode without an exception or invented classification.
+
+- [ ] T051 [P] [US1] Add fail-closed online attribution and statement-coverage regression tests for FR-017, AI-005, NFR-005, and SC-009 in `finvera-ai/app/features/orchestration/tests/test_attribution.py` and `finvera-ai/app/features/chat/tests/test_llm_orchestration.py`
+- [ ] T052 [US1] Rebuild ONLINE answers from fully verified evidence-linked statements, reject unsupported numeric tokens, and derive coverage from statement retention/degradation in `finvera-ai/app/features/orchestration/attribution.py` and `finvera-ai/app/features/chat/service.py`
+- [ ] T053 [US1] Require evidence tags on facts, implications, limitations, and calibrated options; prohibit metadata-only NEWS impact claims and unconditional directives in `finvera-ai/app/features/chat/service.py`
+- [ ] T054 [P] [US1] Add non-empty string-valued portfolio fallback and no-hidden-threshold regression tests for DATA-004 in `finvera-ai/app/features/chat/tests/test_feature015_modes_and_templates.py`
+- [ ] T055 [US1] Remove hidden breadth/trend/ROE/concentration/cash-ratio policy from fallback and format contracted portfolio units safely in `finvera-ai/app/features/chat/service.py`
+- [ ] T056 [P] [US3] Add multi-sentence explanation grounding tests proving one valid factor cannot authorize unrelated prose in `finvera-ai/app/features/analysis/tests/test_explain.py`
+- [ ] T057 [US3] Enforce sentence-level supplied-factor grounding and restore evidence-only explanation instructions in `finvera-ai/app/features/analysis/explain.py`
+- [ ] T058 [P] [US1] Add backend response-enum and frontend FULL/PARTIAL/NONE presentation tests in `finvera-be/src/test/java/com/minhnb/finvera_be/analyst/AnalystServiceTests.java` and `finvera-fe/src/features/analyst/ask-analyst.test.tsx`
+- [ ] T059 [US1] Validate/forward the coverage enum and render accurate non-colour coverage states in `finvera-be/src/main/java/com/minhnb/finvera_be/analyst/dto/AskAnalystDto.java`, `finvera-be/src/main/java/com/minhnb/finvera_be/analyst/service/AnalystService.java`, `finvera-fe/src/features/analyst/api/analyst.ts`, and `finvera-fe/src/features/analyst/components/AskAnalyst.tsx`
+- [ ] T060 [US1] Extend adversarial/expert-analysis evaluation coverage, run AI/backend/frontend quality gates, and record exact evidence in `finvera-ai/app/features/orchestration/tests/test_analyst_eval.py`, `specs/007-ai-analyst/quickstart.md`, and `docs/REMEDIATION_PLAN.md`
+
+### Phase 9 dependencies
+
+`T051 -> T052 -> T053`; `T054 -> T055`; `T056 -> T057`; `T058 -> T059`.
+T060 depends on T052, T053, T055, T057, and T059. T051/T054/T056/T058 are
+parallel test-first tasks because they touch distinct test files/services.

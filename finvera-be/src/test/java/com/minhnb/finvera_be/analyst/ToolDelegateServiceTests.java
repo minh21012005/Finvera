@@ -23,6 +23,8 @@ import com.minhnb.finvera_be.market.service.MarketOverviewService;
 import com.minhnb.finvera_be.market.service.MarketOverviewService.MarketOverview;
 import com.minhnb.finvera_be.market.service.RegimeAssessmentService;
 import com.minhnb.finvera_be.portfolio.dto.PositionsResponse;
+import com.minhnb.finvera_be.portfolio.dto.PortfolioAnalyticsResponse;
+import com.minhnb.finvera_be.portfolio.dto.PortfolioSummaryResponse;
 import com.minhnb.finvera_be.portfolio.service.PortfolioAnalyticsService;
 import com.minhnb.finvera_be.portfolio.service.PortfolioService;
 import com.minhnb.finvera_be.portfolio.service.PositionService;
@@ -149,6 +151,26 @@ class ToolDelegateServiceTests {
         assertThat(response.decliners()).isEqualTo(120);
         assertThat(response.unchanged()).isEqualTo(50);
         assertThat(response.asOf()).isEqualTo(asOf);
+    }
+
+    @Test
+    void getPortfolioAnalytics_usesUnrealizedPnlPercentNotReturnSinceInception() {
+        UUID portfolioId = UUID.randomUUID();
+        Instant asOf = Instant.parse("2026-09-02T03:00:00Z");
+        var summary = new PortfolioSummaryResponse(
+                portfolioId, "Danh mục", asOf, "130", "0", "30", "0",
+                "CURRENT", List.of(), asOf);
+        var analytics = new PortfolioAnalyticsResponse(
+                null, null, false, "99", "88", null, null,
+                List.of(), List.of(), List.of(), null, null, asOf);
+        when(portfolioService.listPortfolios()).thenReturn(List.of(summary));
+        when(portfolioAnalyticsService.getPortfolioAnalytics(portfolioId, null, null)).thenReturn(analytics);
+
+        PortfolioAnalyticsToolResponse result = toolDelegateService.getPortfolioAnalytics(UUID.randomUUID());
+
+        assertThat(result.totalUnrealizedPL()).isEqualTo("30");
+        assertThat(result.totalUnrealizedPnlPercent()).isEqualTo("30");
+        assertThat(result.totalUnrealizedPnlPercent()).isNotEqualTo(analytics.returnSinceInception());
     }
 
     @Test

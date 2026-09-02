@@ -340,6 +340,18 @@ not be renumbered; removed requirements are deprecated with a reason.
 - **FR-015**: No question, tool call, or answer MUST access or reveal data
   belonging to any identity other than the single configured owner, reusing
   Features 005/006's owner-scoping enforcement rather than a new pattern.
+- **FR-016**: The system MUST support evidence-linked analytical statements
+  that explain implications, trade-offs, risks, and conditional options rather
+  than merely repeating tool fields; every such statement MUST reference at
+  least one verified tool value or document citation from the current request.
+- **FR-017**: The final online answer MUST be rebuilt only from statements whose
+  complete evidence references survive verification. A statement with a
+  missing, malformed, mismatched, or absent reference MUST be removed; answer
+  length or fluent wording MUST never substitute for evidence verification.
+- **FR-018**: AI-generated options and scenarios MUST use calibrated,
+  conditional decision-support language, disclose material missing evidence,
+  and MUST NOT issue an unconditional buy/sell directive, claim certainty, or
+  promise a return.
 
 ### Data and Financial Semantics
 
@@ -353,6 +365,11 @@ not be renumbered; removed requirements are deprecated with a reason.
 - **DATA-003**: When structured-tool data and retrieved-document content
   disagree on the same fact, the system MUST present both without silently
   reconciling, averaging, or preferring one without disclosure.
+- **DATA-004**: Any deterministic classification or derived portfolio/market
+  metric used as authoritative evidence MUST be produced by a versioned
+  deterministic engine and exposed by its tool contract. The AI service MAY
+  format a supplied value but MUST NOT introduce hidden financial thresholds,
+  ratios, scores, or classifications in prompts or fallback templates.
 
 ### Security and Privacy
 
@@ -390,6 +407,14 @@ not be renumbered; removed requirements are deprecated with a reason.
 - **AI-004**: When no allowlisted tool can supply information relevant to a
   question, the system MUST refuse or state the limitation rather than
   answering from the model's general knowledge alone.
+- **AI-005**: Every substantive sentence in an online synthesis MUST carry one
+  or more machine-verifiable evidence references. A sentence that cites a
+  structured tool MUST contain no numeric token unsupported by its cited tool
+  fields. The verifier MUST fail closed when zero supported statements remain.
+- **AI-006**: A deterministic-output explanation MUST ground every substantive
+  sentence in one or more supplied evidence factors; mentioning one valid
+  factor somewhere in the response MUST NOT authorize unrelated prose in other
+  sentences.
 
 ### Non-Functional Requirements
 
@@ -405,6 +430,12 @@ not be renumbered; removed requirements are deprecated with a reason.
   outcome (reached or not) MUST be observable in tool-call metadata (AI-002).
 - **NFR-004**: Attribution, citation, and degraded/limitation states MUST be
   understandable without relying on color alone.
+- **NFR-005**: `claimCoverage` MUST describe verification of the statements
+  actually returned: `FULL` when every generated substantive statement was
+  retained and verified, `PARTIAL` when unsupported statements were removed or
+  a dependency/bound degraded the answer, and `NONE` only when no statement
+  survived and the response is a refusal/limitation. It MUST NOT be inferred
+  from the number of tool calls.
 
 ### Key Entities
 
@@ -511,6 +542,14 @@ not be renumbered; removed requirements are deprecated with a reason.
   or export contains another owner's data, a credential, or a token.
 - **SC-008**: Accessibility review confirms 100% of attribution, citation,
   and degraded/limitation states have a non-color indicator.
+- **SC-009**: Across a versioned adversarial synthesis set containing fluent
+  but untagged prose, one-valid-tag-plus-one-false-number, unsupported
+  qualitative conclusions, and direct buy/sell language, 0 unsupported
+  statements appear in the final answer and 100% of zero-survivor cases refuse.
+- **SC-010**: Across a versioned expert-analysis fixture set, at least 90% of
+  answers contain an evidence-linked implication, material risk/limitation, or
+  conditional option beyond a raw field listing, while 100% remain compliant
+  with FR-018.
 
 ## Requirement Traceability *(mandatory)*
 
@@ -534,3 +573,7 @@ not be renumbered; removed requirements are deprecated with a reason.
 | FR-015 | Edge case (cross-owner access) | SC-007 |
 | NFR-001, NFR-002 | US1-US4 timing; edge cases | SC-006 |
 | NFR-004 | US1-US4 | SC-008 |
+| FR-016, FR-017, AI-005, NFR-005 | US1 / Scenario 1, 3 | SC-001, SC-009, SC-010 |
+| FR-018 | US1-US3 | SC-009, SC-010 |
+| DATA-004 | US1-US4 | SC-001, SC-009 |
+| AI-006 | US3 / Scenario 1, 2 | SC-009 |

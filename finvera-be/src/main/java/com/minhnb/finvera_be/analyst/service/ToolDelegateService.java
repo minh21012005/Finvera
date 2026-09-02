@@ -445,13 +445,38 @@ public class ToolDelegateService {
         raw.put("maxDrawdown", analytics.maxDrawdown());
         raw.put("cashBalance", summary.cashBalance());
 
+        String unrealizedPnlPercent = calculateUnrealizedPnlPercent(summary);
+
         return new PortfolioAnalyticsToolResponse(
                 summary.totalValue() != null ? summary.totalValue() : "0",
                 summary.cashBalance() != null ? summary.cashBalance() : "0",
                 summary.totalUnrealizedPL() != null ? summary.totalUnrealizedPL() : "0",
-                analytics.returnSinceInception() != null ? analytics.returnSinceInception() : "0",
+                unrealizedPnlPercent,
                 analytics.asOf(),
                 raw);
+    }
+
+    /**
+     * Contracted percentage-points value for unrealized P/L. Portfolio return since
+     * inception is a different metric and must never be relabelled as unrealized P/L.
+     */
+    private static String calculateUnrealizedPnlPercent(PortfolioSummaryResponse summary) {
+        try {
+            BigDecimal totalValue = new BigDecimal(summary.totalValue() != null ? summary.totalValue() : "0");
+            BigDecimal cashBalance = new BigDecimal(summary.cashBalance() != null ? summary.cashBalance() : "0");
+            BigDecimal unrealizedPnl = new BigDecimal(
+                    summary.totalUnrealizedPL() != null ? summary.totalUnrealizedPL() : "0");
+            BigDecimal openCostBasis = totalValue.subtract(cashBalance).subtract(unrealizedPnl);
+            if (openCostBasis.signum() <= 0) {
+                return "0";
+            }
+            return unrealizedPnl.multiply(BigDecimal.valueOf(100))
+                    .divide(openCostBasis, 6, RoundingMode.HALF_UP)
+                    .stripTrailingZeros()
+                    .toPlainString();
+        } catch (NumberFormatException ignored) {
+            return "0";
+        }
     }
 
     public NewsBrowseToolResponse getNewsArticles(UUID ownerId, String symbol, int limit) {

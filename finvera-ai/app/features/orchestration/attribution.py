@@ -1,5 +1,6 @@
 import math
-from typing import Any, Dict, List, Optional, Tuple, Union
+import re
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 import uuid
 from pydantic import BaseModel, Field
 
@@ -41,6 +42,8 @@ class VerifiedAttributionResult(BaseModel):
     # Feature 015: how the text and the plan were produced (contract internal-api FinalEvent).
     synthesisMode: Optional[str] = None   # ONLINE | OFFLINE_TEMPLATE
     plannerMode: Optional[str] = None     # MODEL | KEYWORD_FALLBACK
+    # Coverage of retained evidence-linked statements after verification.
+    claimCoverage: Literal["FULL", "PARTIAL", "NONE"] = "NONE"
 
 
 def get_nested_value(data: Any, field_path: str) -> Tuple[bool, Any]:
@@ -96,6 +99,12 @@ def get_nested_value(data: Any, field_path: str) -> Tuple[bool, Any]:
 
 
 _INDEXED_PART = __import__("re").compile(r"^([^\[\]]+)\[(\d+)\]$")
+_STANDALONE_NUMBER = re.compile(r"(?<![A-Za-z_])[-+]?\d+(?:[.,]\d+)*(?![A-Za-z_])")
+_PROHIBITED_DIRECTIVE = re.compile(
+    r"\b(?:nên|phải|hãy)\s+(?:mua|bán)\b|\b(?:mua|bán)\s+ngay\b|"
+    r"\b(?:chắc chắn|đảm bảo|cam kết)\b",
+    re.IGNORECASE,
+)
 
 
 def _parse_candidate_numbers(raw_str: str) -> List[float]:
@@ -150,6 +159,46 @@ def match_claimed_value(claimed: str, actual: Any) -> bool:
     return False
 
 
+def statement_numbers_are_attributed(
+    statement: str,
+    claims: List[RawStructuredClaim],
+) -> bool:
+    """AI-005: every standalone number in a structured statement must be
+    supported by one of that statement's own evidence tags. Digits embedded in
+    codes such as MA20/RSI14 are labels, not numeric assertions."""
+    for match in _STANDALONE_NUMBER.finditer(statement):
+        token = match.group(0)
+        percentage_context = statement[match.end():match.end() + 2].lstrip().startswith("%")
+        supported = False
+        for claim in claims:
+            # Date/count components can be supported by an exact component in a
+            # tagged ISO/string value even though the whole value is not numeric.
+            if re.search(rf"(?<!\d){re.escape(token)}(?!\d)", str(claim.claimedValue)):
+                supported = True
+                break
+            token_values = _parse_candidate_numbers(token)
+            claim_values = _parse_candidate_numbers(str(claim.claimedValue))
+            if any(
+                math.isclose(token_value, claim_value, rel_tol=1e-2, abs_tol=1e-2)
+                for token_value in token_values
+                for claim_value in claim_values
+            ):
+                supported = True
+                break
+            ratio_field = "percent" in claim.fieldPath.lower() or "allocation" in claim.fieldPath.lower()
+            if percentage_context and ratio_field and match_claimed_value(token, claim.claimedValue):
+                supported = True
+                break
+        if not supported:
+            return False
+    return True
+
+
+def statement_is_calibrated(statement: str) -> bool:
+    """Reject unconditional trading directives and certainty/guarantee language."""
+    return _PROHIBITED_DIRECTIVE.search(statement) is None
+
+
 def verify_attribution(
     answer: str,
     raw_structured_claims: List[RawStructuredClaim],
@@ -159,6 +208,7 @@ def verify_attribution(
     explicit_refusal: bool = False,
     synthesis_mode: Optional[str] = None,
     planner_mode: Optional[str] = None,
+    unattributed_content_present: bool = False,
 ) -> VerifiedAttributionResult:
     """
     U-5 & orchestration-v1 attribution verification pipeline:
@@ -174,36 +224,90 @@ def verify_attribution(
     passes in the already-verified `DocumentClaim` list.
     """
     calls_by_seq: Dict[int, DispatchedToolCall] = {c.sequence_no: c for c in dispatched_calls}
-    surviving_structured: List[StructuredClaim] = []
+    evaluated_claims: List[Tuple[RawStructuredClaim, Optional[StructuredClaim]]] = []
 
     for raw_claim in raw_structured_claims:
         call = calls_by_seq.get(raw_claim.sequenceNo)
         if not call or call.status != "SUCCEEDED" or not call.response_data:
+            evaluated_claims.append((raw_claim, None))
             continue
 
         found, actual_val = get_nested_value(call.response_data, raw_claim.fieldPath)
         if not found:
+            evaluated_claims.append((raw_claim, None))
             continue
 
         if not match_claimed_value(raw_claim.claimedValue, actual_val):
+            evaluated_claims.append((raw_claim, None))
             continue
 
         # Programmatically extract asOf from tool response, never trusting model
         tool_as_of = str(call.response_data.get("asOf") or call.called_at)
 
-        surviving_structured.append(
-            StructuredClaim(
+        evaluated_claims.append(
+            (raw_claim, StructuredClaim(
                 claimText=raw_claim.claimText,
                 sequenceNo=raw_claim.sequenceNo,
                 fieldPath=raw_claim.fieldPath,
                 claimedValue=str(actual_val),
                 asOf=tool_as_of,
-            )
+            ))
         )
+
+    # ONLINE statements are atomic: all tags on a statement must validate and
+    # every number in its visible prose must be supported by those tags. This
+    # prevents one valid tag from laundering a false number in the same sentence.
+    surviving_structured: List[StructuredClaim] = []
+    surviving_statement_texts: List[str] = []
+    rejected_statement = False
+    grouped: Dict[str, List[Tuple[RawStructuredClaim, Optional[StructuredClaim]]]] = {}
+    for pair in evaluated_claims:
+        grouped.setdefault(pair[0].claimText, []).append(pair)
+
+    for statement, pairs in grouped.items():
+        raw_for_statement = [pair[0] for pair in pairs]
+        if synthesis_mode == "ONLINE" and (
+            any(pair[1] is None for pair in pairs)
+            or not statement_numbers_are_attributed(statement, raw_for_statement)
+            or not statement_is_calibrated(statement)
+        ):
+            rejected_statement = True
+            continue
+        valid = [pair[1] for pair in pairs if pair[1] is not None]
+        if not valid:
+            rejected_statement = True
+            continue
+        surviving_structured.extend(valid)
+        if statement not in surviving_statement_texts:
+            surviving_statement_texts.append(statement)
 
     surviving_docs: List[DocumentClaim] = list(verified_document_claims)
     total_surviving = len(surviving_structured) + len(surviving_docs)
     refused = explicit_refusal or (len(dispatched_calls) > 0 and total_surviving == 0)
+
+    failed_calls = [call for call in dispatched_calls if call.status != "SUCCEEDED"]
+    degraded = bool(failed_calls) or tool_call_bound_reached
+    if refused:
+        claim_coverage = "NONE"
+    elif rejected_statement or unattributed_content_present or degraded:
+        claim_coverage = "PARTIAL"
+    else:
+        claim_coverage = "FULL"
+
+    verified_answer = answer
+    if synthesis_mode == "ONLINE" and not refused:
+        # FR-017: never expose the unverified model prose. Reconstruct from the
+        # statements whose complete evidence survived, plus verified RAG claims.
+        safe_parts = list(surviving_statement_texts)
+        for doc in surviving_docs:
+            if doc.claimText not in safe_parts:
+                safe_parts.append(doc.claimText)
+        for call in failed_calls:
+            tool_name = call.tool_name.value if hasattr(call.tool_name, "value") else str(call.tool_name)
+            safe_parts.append(f"Không thể sử dụng công cụ {tool_name}; phần dữ liệu tương ứng không khả dụng.")
+        if tool_call_bound_reached:
+            safe_parts.append("Đã đạt giới hạn gọi công cụ; kết quả chỉ phản ánh phần dữ liệu đã được xác minh.")
+        verified_answer = "\n\n".join(safe_parts)
 
     # Format tool calls for response
     tool_calls_payload = [
@@ -219,7 +323,7 @@ def verify_attribution(
     ]
 
     return VerifiedAttributionResult(
-        answer=answer if not refused else "Không đủ dữ liệu tin cậy hoặc thông tin ngoài phạm vi để trả lời.",
+        answer=verified_answer if not refused else "Không đủ dữ liệu tin cậy hoặc thông tin ngoài phạm vi để trả lời.",
         structuredClaims=surviving_structured if not refused else [],
         documentClaims=surviving_docs if not refused else [],
         synthesisMode=synthesis_mode,
@@ -228,4 +332,5 @@ def verify_attribution(
         toolCalls=tool_calls_payload,
         toolCallBoundReached=tool_call_bound_reached,
         ruleVersion="orchestration-v1",
+        claimCoverage=claim_coverage,
     )

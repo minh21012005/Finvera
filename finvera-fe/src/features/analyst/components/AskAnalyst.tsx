@@ -219,6 +219,30 @@ export const AskAnalyst: React.FC = () => {
         {/* Streaming / Final Answer Area */}
         {(streamedText || finalResult) && (
           <div className="space-y-4 pt-2">
+            {/* Header / Coverage badge */}
+            {finalResult && (
+              <div className="flex items-center justify-between pb-1">
+                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Kết quả phân tích AI
+                </span>
+                {finalResult.claimCoverage === 'FULL' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                    <span>✓</span> Số liệu đã kiểm chứng đầy đủ
+                  </span>
+                )}
+                {finalResult.claimCoverage === 'PARTIAL' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                    <span>⚠</span> Đã lược bỏ phần chưa đủ bằng chứng
+                  </span>
+                )}
+                {finalResult.claimCoverage === 'NONE' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-orange-500/15 text-orange-300 border border-orange-500/40">
+                    <span>⚠</span> Câu trả lời chưa có số liệu được kiểm chứng tự động
+                  </span>
+                )}
+              </div>
+            )}
+
             <div className="prose prose-invert max-w-none text-slate-200 text-sm leading-relaxed">
               <LiteMarkdown text={finalResult ? finalResult.answer : stripCitationTags(streamedText)} />
               {isStreaming && (

@@ -90,7 +90,7 @@ class AnalystServiceTests {
 
         String toolCallJson = "data: {\"type\":\"tool_call\",\"toolCall\":{\"sequenceNo\":1,\"toolName\":\"STOCK\",\"arguments\":{\"symbol\":\"HPG\"},\"status\":\"SUCCEEDED\",\"failureReason\":null,\"latencyMs\":120}}";
         String deltaJson = "data: {\"type\":\"delta\",\"textDelta\":\"Giá HPG là 28500\"}";
-        String finalJson = "data: {\"type\":\"final\",\"final\":{\"answer\":\"Giá HPG là 28500\",\"structuredClaims\":[{\"claimText\":\"Giá 28500\",\"sequenceNo\":1,\"fieldPath\":\"price\",\"claimedValue\":\"28500\",\"asOf\":\"2026-08-20T10:00:00Z\"}],\"documentClaims\":[],\"refused\":false,\"toolCalls\":[],\"toolCallBoundReached\":false,\"ruleVersion\":\"orchestration-v1\"}}";
+        String finalJson = "data: {\"type\":\"final\",\"final\":{\"answer\":\"Giá HPG là 28500\",\"structuredClaims\":[{\"claimText\":\"Giá 28500\",\"sequenceNo\":1,\"fieldPath\":\"price\",\"claimedValue\":\"28500\",\"asOf\":\"2026-08-20T10:00:00Z\"}],\"documentClaims\":[],\"refused\":false,\"toolCalls\":[],\"toolCallBoundReached\":false,\"ruleVersion\":\"orchestration-v1\",\"claimCoverage\":\"FULL\"}}";
 
         doAnswer(invocation -> {
             Consumer<String> consumer = invocation.getArgument(1);
@@ -125,6 +125,7 @@ class AnalystServiceTests {
         assertThat(claim.get("toolName").asString()).isEqualTo("STOCK");
         assertThat(claim.get("sourceField").asString()).isEqualTo("Giá");
         assertThat(claim.get("asOf").asString()).isEqualTo("2026-08-20T10:00:00Z");
+        assertThat(finalNode.get("claimCoverage").asText()).isEqualTo("FULL");
         assertThat(claim.has("fieldPath")).isFalse();
         assertThat(claim.has("claimedValue")).isFalse();
     }

@@ -407,3 +407,51 @@ Feature 001-006 data; this feature is read-only end to end.
 **Rationale**: Matches the existing API convention set exactly, extending
 Feature 006's own `/research/ask` SSE precedent rather than introducing a
 new response-shape convention.
+
+## R-014: Evidence-linked expert analysis and fail-closed rendering
+
+**Decision**: Online synthesis may create analytical implications,
+limitations, and conditional options, but every substantive sentence must carry
+one or more existing `[T<sequence>:<field>=<value>]` or `[Block <n>]`
+references. The AI service validates every structured reference, rejects a
+sentence when any of its references fails, rejects a structured sentence when
+it contains a numeric token not supported by one of its references, and builds
+the public answer only from the surviving sentence set. Fluent or long prose
+with zero surviving statements is a refusal; answer length is never a trust
+signal. `claimCoverage` measures generated-statement retention, not tool-count
+coverage.
+
+**Rationale**: A prompt can encourage expert reasoning but cannot guarantee
+grounding. Rebuilding the answer from surviving evidence-linked statements
+preserves room for useful interpretation while enforcing Constitution
+Principles I, II, and IV in code. It applies the fail-closed pattern already
+adopted for Feature 006 citation remediation (Q-20) to structured and analytical
+claims.
+
+**Alternatives considered**: Allowing untagged qualitative prose and showing a
+coverage badge was rejected because an assurance label cannot make an
+unsupported recommendation safe. Restricting output to deterministic templates
+was rejected because it cannot deliver FR-016's analytical value. A second
+claim-classification model was rejected because it creates another unverified
+model boundary; evidence tags plus deterministic reconstruction are sufficient.
+
+## R-015: Deterministic analysis policy remains outside the AI fallback
+
+**Decision**: The offline template is an honest data-preserving degraded mode,
+not a second analytics engine. It may format values and translate existing
+engine enums, but it does not calculate breadth bands, cash ratios, trend
+states, ROE quality bands, concentration flags, or valuation bases. Any such
+authoritative diagnostic must be added by its owning Spring deterministic
+module with explicit units, inputs, assumptions, and rule version before the AI
+can interpret it. Percentage strings in portfolio tool payloads keep their
+contracted units and are parsed with decimal-safe formatting only.
+
+**Rationale**: Hidden thresholds in `finvera-ai` would make the fallback an
+unversioned financial calculation engine and would drift from the product pages
+the tools mirror. This also removes binary-floating-point and unit-guessing
+failure modes from portfolio output.
+
+**Alternatives considered**: Keeping Python thresholds as presentation-only
+was rejected because labels such as 'ROE very high' and 'concentration risk'
+are financial classifications users can act on. Duplicating the rules in Spring
+and Python was rejected because it creates two authorities.

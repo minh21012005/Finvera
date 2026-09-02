@@ -203,3 +203,75 @@ async def test_sc005_explanation_faithfulness_and_unverified_fallback():
     assert is_unfaithful is False
     assert len(unfaithful_referenced) == 0
 
+
+def test_sc009_evidence_linked_conditional_analysis_survives():
+    """SC-009/SC-010: grounded analysis may add a calibrated option."""
+    statement = (
+        "FPT has a price of 130000; if this fits the user's risk constraints, "
+        "monitoring it is an option instead of acting immediately."
+    )
+    tool_calls = [
+        DispatchedToolCall(
+            sequence_no=1,
+            tool_name=ToolName.STOCK,
+            arguments={"symbol": "FPT"},
+            status="SUCCEEDED",
+            latency_ms=20,
+            response_data={"symbol": "FPT", "price": "130000", "asOf": "2026-09-02T03:00:00Z"},
+        )
+    ]
+
+    verified = verify_attribution(
+        answer=statement,
+        raw_structured_claims=[
+            RawStructuredClaim(
+                claimText=statement,
+                sequenceNo=1,
+                fieldPath="price",
+                claimedValue="130000",
+            )
+        ],
+        verified_document_claims=[],
+        dispatched_calls=tool_calls,
+        tool_call_bound_reached=False,
+        synthesis_mode="ONLINE",
+    )
+
+    assert verified.refused is False
+    assert verified.claimCoverage == "FULL"
+    assert verified.answer == statement
+
+
+def test_sc010_unconditional_buy_directive_is_rejected_even_when_tagged():
+    """FR-018: a valid fact tag cannot authorize a direct trading instruction."""
+    statement = "FPT có giá 130000, nên mua ngay."
+    tool_calls = [
+        DispatchedToolCall(
+            sequence_no=1,
+            tool_name=ToolName.STOCK,
+            arguments={"symbol": "FPT"},
+            status="SUCCEEDED",
+            latency_ms=20,
+            response_data={"symbol": "FPT", "price": "130000", "asOf": "2026-09-02T03:00:00Z"},
+        )
+    ]
+
+    verified = verify_attribution(
+        answer=statement,
+        raw_structured_claims=[
+            RawStructuredClaim(
+                claimText=statement,
+                sequenceNo=1,
+                fieldPath="price",
+                claimedValue="130000",
+            )
+        ],
+        verified_document_claims=[],
+        dispatched_calls=tool_calls,
+        tool_call_bound_reached=False,
+        synthesis_mode="ONLINE",
+    )
+
+    assert verified.refused is True
+    assert verified.claimCoverage == "NONE"
+    assert statement not in verified.answer

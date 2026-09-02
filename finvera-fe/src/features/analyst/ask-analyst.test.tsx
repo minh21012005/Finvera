@@ -274,4 +274,54 @@ describe('AskAnalyst Component (User Story 1: P1)', () => {
     await waitFor(() => expect(screen.getByText(/Chế độ suy giảm/)).toBeDefined());
     expect(screen.getByText(/công cụ được chọn theo từ khoá/)).toBeDefined();
   });
+
+  it('explains partial evidence coverage without overstating verification', async () => {
+    const mockStream = vi.mocked(analystApi.streamAskAnalyst);
+    mockStream.mockImplementation(async (_req, callbacks) => {
+      callbacks.onFinal?.({
+        answer: 'FPT đóng cửa ở 130.000 đồng.',
+        structuredClaims: [],
+        documentClaims: [],
+        refused: false,
+        toolCalls: [],
+        toolCallBoundReached: false,
+        ruleVersion: 'orchestration-v1',
+        claimCoverage: 'PARTIAL',
+      });
+    });
+
+    render(<AskAnalyst />);
+    fireEvent.change(screen.getByPlaceholderText(/Hỏi trợ lý phân tích/i), { target: { value: 'Phân tích FPT' } });
+    fireEvent.click(screen.getByText(/Gửi/i));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Đã lược bỏ phần chưa đủ bằng chứng/i)).toBeDefined();
+    });
+    expect(screen.queryByText(/kiểm chứng đầy đủ/i)).toBeNull();
+  });
+
+  it.each([
+    ['FULL', /Số liệu đã kiểm chứng đầy đủ/i],
+    ['NONE', /Chưa có nội dung được kiểm chứng/i],
+  ] as const)('renders the %s evidence coverage state', async (claimCoverage, label) => {
+    const mockStream = vi.mocked(analystApi.streamAskAnalyst);
+    mockStream.mockImplementation(async (_req, callbacks) => {
+      callbacks.onFinal?.({
+        answer: 'Evidence coverage result.',
+        structuredClaims: [],
+        documentClaims: [],
+        refused: claimCoverage === 'NONE',
+        toolCalls: [],
+        toolCallBoundReached: false,
+        ruleVersion: 'orchestration-v1',
+        claimCoverage,
+      });
+    });
+
+    render(<AskAnalyst />);
+    fireEvent.change(screen.getByPlaceholderText(/Hỏi trợ lý phân tích/i), { target: { value: 'Phân tích FPT' } });
+    fireEvent.click(screen.getByText(/Gửi/i));
+
+    await waitFor(() => expect(screen.getByText(label)).toBeDefined());
+  });
 });

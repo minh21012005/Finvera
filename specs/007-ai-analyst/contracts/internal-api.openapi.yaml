@@ -475,6 +475,10 @@ components:
           nullable: true
           enum: [MODEL, KEYWORD_FALLBACK]
           description: "Feature 015 - how the tool calls were chosen."
+        claimCoverage:
+          type: string
+          enum: [FULL, PARTIAL, NONE]
+          description: "Verification of returned statements: FULL when every generated substantive statement survived and dependencies were complete; PARTIAL when a safe answer remains after removal/degradation; NONE only with refusal. Never inferred from tool count."
 
     OrchestrationStreamEvent:
       type: object
@@ -656,7 +660,8 @@ components:
               symbol: { type: string }
               quantity: { type: string }
               marketValue: { type: string }
-              unrealizedPnlPercent: { type: string }
+              unrealizedPnlPercent: { type: string, description: "Percent points, e.g. 12.5 means 12.5%, never a 0..1 ratio." }
+              allocation: { type: string, description: "Portfolio allocation ratio in [0,1], e.g. 0.25 means 25%." }
         asOf: { type: string, format: date-time }
 
     PortfolioAnalyticsTool:
@@ -665,7 +670,9 @@ components:
       required: [totalValue, asOf]
       properties:
         totalValue: { type: string }
-        totalUnrealizedPnlPercent: { type: string, nullable: true }
+        cashBalance: { type: string, nullable: true }
+        totalUnrealizedPL: { type: string, nullable: true }
+        totalUnrealizedPnlPercent: { type: string, nullable: true, description: "Percent points, not a 0..1 ratio." }
         asOf: { type: string, format: date-time }
 
     NewsBrowseTool:

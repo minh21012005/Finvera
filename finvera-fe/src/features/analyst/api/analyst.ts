@@ -51,6 +51,8 @@ export interface AnalystFinalResult {
   synthesisMode?: 'ONLINE' | 'OFFLINE_TEMPLATE' | null;
   /** Feature 015: MODEL = native function-calling chose the tools; KEYWORD_FALLBACK = the deterministic heuristic did. */
   plannerMode?: 'MODEL' | 'KEYWORD_FALLBACK' | null;
+  /** Retained statement coverage after verification; PARTIAL means unsafe content was omitted. */
+  claimCoverage?: 'FULL' | 'PARTIAL' | 'NONE' | null;
 }
 
 export interface AskAnalystCallbacks {

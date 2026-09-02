@@ -121,6 +121,39 @@ async def test_online_synthesis_drops_misstated_structured_claim():
 
 
 @pytest.mark.asyncio
+async def test_online_stream_never_replays_unverified_model_prose():
+    async def fake_stream(prompt, system_instruction=None):
+        yield "FPT có giá 130000 [T1:price=130000]. Giá mục tiêu chắc chắn là 999999."
+
+    adapter = make_online_adapter()
+    adapter.generate_stream_raw.side_effect = fake_stream
+    adapter.propose_tool_calls.return_value = [
+        {"tool_name": "STOCK", "arguments": {"symbol": "FPT"}},
+    ]
+    mock_client = AsyncMock(spec=BackendToolClient)
+    mock_client.execute_tool.return_value = (
+        True,
+        {"symbol": "FPT", "price": "130000", "asOf": "2026-08-20T10:00:00Z"},
+        None,
+    )
+    service = ChatOrchestrationService(
+        dispatcher=OrchestrationDispatcher(tool_client=mock_client), llm_adapter=adapter,
+    )
+
+    events = [
+        event async for event in service.orchestrate_stream(
+            OrchestrateAskRequest(ownerId=uuid.uuid4(), question="Phân tích FPT", symbol="FPT")
+        )
+    ]
+    streamed = "".join(event["textDelta"] for event in events if event["type"] == "delta")
+    final = next(event for event in events if event["type"] == "final")["final"]
+
+    assert "130000" in streamed
+    assert "999999" not in streamed
+    assert final["claimCoverage"] == "PARTIAL"
+
+
+@pytest.mark.asyncio
 async def test_online_synthesis_delegates_document_citation_to_rag_v1_verification():
     """
     orchestration-v1 step 4: document claims must be verified via rag-v1's own

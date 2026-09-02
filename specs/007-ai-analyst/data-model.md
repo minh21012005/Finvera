@@ -97,3 +97,20 @@ Neither is persisted as reusable conversation/thread state (spec.md
 Assumptions, FR-013); `analyst_query`/`analyst_tool_call` are audit
 metadata only and are never read back to reconstruct context for a later
 request.
+
+## Evidence-linked statement (transient, 2026-09-02 hardening)
+
+`EvidenceLinkedStatement` is an in-memory verification concept, not a new
+database entity:
+
+| Field | Meaning / validation |
+|---|---|
+| `text` | One substantive generated statement after evidence tags are removed |
+| `structured_refs` | One or more `{sequenceNo, fieldPath, claimedValue}` references; every reference must resolve and match |
+| `document_refs` | Zero or more Feature 006 verified chunk citations; document and structured sourcing remain distinct |
+| `numeric_tokens` | Standalone numbers in `text`; for a structured statement each must match a cited value or a numeric component of that value |
+| `status` | `VERIFIED` or `REJECTED`; rejected text is never returned or persisted |
+
+`claimCoverage` is derived from the generated statement set and dependency
+outcomes: `FULL`, `PARTIAL`, or `NONE` per NFR-005. It is response metadata,
+not an authoritative financial measure and is not persisted.

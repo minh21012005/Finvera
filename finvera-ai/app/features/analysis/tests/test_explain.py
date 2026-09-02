@@ -274,3 +274,32 @@ def test_dates_and_prefix_units_pass_faithfulness():
     ok, refs = verify_faithfulness(explanation, factors)
     assert ok is True
     assert set(refs) >= {"SIGNAL", "CONDITION_RSI14"}
+
+
+def test_each_explanation_sentence_must_reference_supplied_evidence():
+    factors = [EvidenceFactor(factorCode="RSI_14", description="RSI 14 ở mức 58,2")]
+
+    faithful, referenced = verify_faithfulness(
+        "RSI_14 ở mức 58,2 cho thấy động lượng đang cân bằng.", factors,
+    )
+    assert faithful is True
+    assert referenced == ["RSI_14"]
+
+    unfaithful, referenced = verify_faithfulness(
+        "RSI_14 ở mức 58,2 cho thấy động lượng đang cân bằng. "
+        "Doanh nghiệp có lợi thế cạnh tranh bền vững và triển vọng lợi nhuận chắc chắn.",
+        factors,
+    )
+    assert unfaithful is False
+    assert referenced == []
+
+
+def test_explanation_rejects_directive_or_certainty_language():
+    factors = [EvidenceFactor(factorCode="RSI_14", description="RSI 14 ở mức 58,2")]
+
+    faithful, referenced = verify_faithfulness(
+        "RSI_14 ở mức 58,2 nên mua ngay vì lợi nhuận chắc chắn.", factors,
+    )
+
+    assert faithful is False
+    assert referenced == []

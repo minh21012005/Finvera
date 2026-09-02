@@ -45,6 +45,16 @@ SCREENING = {"matches": [{"symbol": "ABT", "matchedValues": {"pe": "4.79"}}, {"s
              "totalMatches": 2, "asOf": "2026-08-31T09:29:00Z"}
 PORTFOLIO_EMPTY = {"totalValue": "0", "totalUnrealizedPnlPercent": "0", "asOf": "2026-08-31T09:29:05Z", "raw": {}}
 PORTFOLIO_POSITIONS = {"positions": [], "asOf": "2026-08-31T09:29:05Z"}
+PORTFOLIO_NON_EMPTY = {
+    "positions": [{
+        "symbol": "FPT",
+        "quantity": "10",
+        "marketValue": "1300000",
+        "unrealizedPnlPercent": "12.5000",
+        "allocation": "0.250000000000",
+    }],
+    "asOf": "2026-09-02T03:00:00Z",
+}
 
 
 def test_offline_templates_yield_verifiable_claims_for_every_tool_type():
@@ -89,6 +99,42 @@ def test_fmt_vi_formats_for_vietnamese_readers():
     assert fmt_vi("-0.320000") == "-0,32"
     assert fmt_vi("20.220000") == "20,22"
     assert fmt_vi("abc") == "abc"
+
+
+def test_offline_portfolio_accepts_contracted_string_units_without_invented_risk_band():
+    svc = _service()
+    call = _call(1, ToolName.PORTFOLIO, PORTFOLIO_NON_EMPTY)
+    parts, raw_claims, _ = svc._offline_synthesize([call])
+    answer = " ".join(parts)
+    verified = verify_attribution(answer, raw_claims, [], [call], False)
+
+    assert verified.refused is False
+    assert "25%" in answer
+    assert "12,5%" in answer
+    assert "rủi ro tập trung" not in answer.lower()
+    assert {claim.fieldPath for claim in raw_claims} >= {
+        "positions[0].allocation", "positions[0].unrealizedPnlPercent",
+    }
+
+
+def test_offline_templates_do_not_create_hidden_threshold_classifications():
+    svc = _service()
+    calls = [
+        _call(1, ToolName.MARKET, {
+            "vnIndexValue": "1280", "vnIndexChangePercent": "1.2",
+            "advancers": 300, "decliners": 100, "asOf": "2026-09-02T03:00:00Z",
+        }),
+        _call(2, ToolName.FUNDAMENTAL, {
+            "symbol": "FPT", "period": "TTM", "roe": "22",
+            "asOf": "2026-09-02T03:00:00Z",
+        }),
+    ]
+    parts, _, _ = svc._offline_synthesize(calls)
+    answer = " ".join(parts).lower()
+
+    assert "phe tăng chiếm ưu thế" not in answer
+    assert "tăng tích cực" not in answer
+    assert "rất cao" not in answer
 
 
 def test_quota_retry_delay_only_for_bounded_429_hints():

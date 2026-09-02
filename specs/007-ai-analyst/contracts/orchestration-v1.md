@@ -116,15 +116,26 @@ retry a failed call automatically within the same request.
    same way `claimedValue` is verified rather than trusted.
 4. For every `documentClaims` entry, apply `rag-v1`'s own steps 3-5
    unchanged (delegated, not reimplemented).
-5. If, after steps 3-4, `answer` has zero surviving claims (structured and
-   document combined) and at least one tool was called, the response is
-   the refusal/limitation state (AI-004) rather than an unattributed
-   answer. If **no** tool was applicable to the question at all (the model
-   proposed zero calls), the response is the "outside current capability"
-   state (FR-005) rather than an unassisted general-knowledge answer.
-6. Every surviving claim's attribution (tool name + field, or document
-   citation) is included in the final response, distinct per claim
-   (FR-010) — never merged into one unattributed statement.
+5. For ONLINE synthesis, treat each substantive sentence as one
+   evidence-linked statement. Every such sentence MUST carry at least one
+   structured `[T<sequenceNo>:<fieldPath>=<claimedValue>]` tag or verified
+   `[Block <n>]` citation. All structured tags on the sentence MUST survive
+   steps 2-3, and every standalone number in a structured sentence MUST be
+   supported by one of that sentence's cited values. Otherwise the entire
+   sentence is removed (FR-016, FR-017, AI-005).
+6. Rebuild the ONLINE `answer` from the ordered, de-duplicated surviving
+   statement text; never return the model's unverified free-form answer. If zero
+   statements survive, return the refusal/limitation state regardless of answer
+   length. If no tool was applicable, return the outside-current-capability
+   state (FR-005).
+7. Include every surviving statement's structured attribution and/or document
+   citation distinctly (FR-010). `claimCoverage` is `FULL` only when no
+   substantive generated statement/reference was removed and no dependency or
+   tool-call bound degraded the result; `PARTIAL` when a safe non-empty answer
+   remains after any removal/degradation; `NONE` only with a refusal (NFR-005).
+8. OFFLINE_TEMPLATE output is deterministic degraded text built directly from
+   tool fields. It refuses when no claim survives and MUST NOT introduce hidden
+   financial thresholds, ratios, scores, or classifications (DATA-004).
 
 ## Deterministic-output explanation faithfulness check
 
@@ -133,13 +144,15 @@ retry a failed call automatically within the same request.
    a single, non-orchestrated generation call.
 2. Request a schema-validated response: `{explanation: str,
    factorsReferenced: list[str]}`.
-3. For every entry in `factorsReferenced`, verify it is a member of the
-   supplied input factor list (exact match). An entry that is not is
-   evidence of an invented factor.
-4. If every `factorsReferenced` entry passes step 3, return the
-   explanation. Otherwise, regenerate once with the same input; if the
-   retry also fails step 3, return a generic explanation-unavailable state
-   (FR-006) rather than an explanation citing an unsupplied factor.
+3. Every substantive explanation sentence MUST reference at least one supplied
+   evidence factor. One grounded sentence does not authorize unrelated prose in
+   another sentence (AI-006).
+4. For every entry in `factorsReferenced`, verify it is a member of the
+   supplied input factor list (exact match). An entry that is not is evidence of
+   an invented factor.
+5. Return the explanation only when steps 3-4 pass. Otherwise, regenerate once
+   with the same input; if the retry also fails, return a generic
+   explanation-unavailable state (FR-006).
 
 ## Natural-language screener-filter conversion
 

@@ -7,6 +7,12 @@ import java.util.UUID;
 
 public final class AskAnalystDto {
 
+    public enum ClaimCoverage {
+        FULL,
+        PARTIAL,
+        NONE
+    }
+
     private AskAnalystDto() {
     }
 
@@ -89,7 +95,9 @@ public final class AskAnalystDto {
             /** Feature 015: ONLINE | OFFLINE_TEMPLATE — how the answer text was produced. */
             String synthesisMode,
             /** Feature 015: MODEL | KEYWORD_FALLBACK — how the tool calls were chosen. */
-            String plannerMode) {
+            String plannerMode,
+            /** Coverage of retained evidence-linked statements after verification. */
+            ClaimCoverage claimCoverage) {
     }
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -102,11 +110,12 @@ public final class AskAnalystDto {
             boolean toolCallBoundReached,
             String ruleVersion,
             String synthesisMode,
-            String plannerMode) {
+            String plannerMode,
+            ClaimCoverage claimCoverage) {
         public PublicFinalEventDto(String answer, List<PublicStructuredClaimDto> structuredClaims,
                 List<PublicDocumentClaimDto> documentClaims, boolean refused, List<ToolCallEventDto> toolCalls,
                 boolean toolCallBoundReached, String ruleVersion) {
-            this(answer, structuredClaims, documentClaims, refused, toolCalls, toolCallBoundReached, ruleVersion, null, null);
+            this(answer, structuredClaims, documentClaims, refused, toolCalls, toolCallBoundReached, ruleVersion, null, null, null);
         }
     }
 

@@ -33,22 +33,27 @@ def build_explain_prompt(request: ExplainRequest) -> str:
     factors_text = "\n".join([f"- [{f.factorCode}]: {f.description}" for f in request.evidenceFactors])
     sym_text = f" của mã cổ phiếu {request.symbol}" if request.symbol else ""
     return f"""Bạn là chuyên gia phân tích tài chính AI của Finvera.
-Nhiệm vụ của bạn là giải thích kết quả tính toán tài chính tất định ({request.outputType}){sym_text} dựa DUY NHẤT trên các yếu tố bằng chứng được cung cấp dưới đây.
+Nhiệm vụ của bạn là giải thích kết quả tính toán tài chính tất định ({request.outputType}){sym_text} thành một bản giải thích CÓ CHIỀU SÂU VÀ DỄ HIỂU dựa DUY NHẤT trên các yếu tố bằng chứng được cung cấp dưới đây.
 
 DANH SÁCH YẾU TỐ BẰNG CHỨNG ĐÃ ĐƯỢC XÁC THỰC:
 {factors_text}
 
-Yếu tố có mã [{request.outputType}] (nếu có) chính là KẾT QUẢ cần giải thích (nhãn, điểm, độ tin cậy);
-các yếu tố còn lại là bằng chứng và ghi chú của bộ tính tất định. Hãy giải thích vì sao các bằng chứng
-dẫn tới kết quả đó; nếu có yếu tố ghi rằng bộ chỉ số bị thu hẹp hoặc một chỉ số không áp dụng, hãy nêu rõ
-giới hạn ấy. Nếu không có yếu tố kết quả, hãy nói rõ là chỉ mô tả bằng chứng.
+HƯỚNG DẪN GIẢI THÍCH THEO LOẠI KẾT QUẢ:
+- [VALUATION_CLASSIFICATION]: Giải thích mức phân loại và chỉ nêu cơ sở lịch sử/ngành, điểm số hoặc độ tin cậy khi chính yếu tố bằng chứng có cung cấp chi tiết đó.
+- [SIGNAL]: Giải thích điều kiện đã kích hoạt tín hiệu; chỉ nêu vùng vào, mục tiêu, dừng lỗ, R:R và điểm rủi ro khi chúng có trong bằng chứng.
+- [RISK_FACTOR]: Giải thích mức điểm rủi ro và các yếu tố cấu thành chính (biến động, drawdown, thanh khoản...).
+- Yếu tố có mã [{request.outputType}] chính là KẾT QUẢ cần giải thích (nhãn, điểm, độ tin cậy); các yếu tố còn lại là bằng chứng và ghi chú của bộ tính tất định.
 
 QUY TẮC BẮT BUỘC (FAITHFULNESS CHECK):
-1. Bạn CHỈ ĐƯỢC PHÉP giải thích dựa trên các yếu tố bằng chứng được liệt kê ở trên.
-2. TUYỆT ĐỐI KHÔNG tự bịa đặt, suy diễn hoặc đưa thêm bất kỳ chỉ báo, tin tức hay số liệu dự phóng bên ngoài nào không có trong danh sách.
+1. Bạn CHỈ ĐƯỢC PHÉP phát biểu các số liệu dựa trên các yếu tố bằng chứng được liệt kê ở trên.
+2. TUYỆT ĐỐI KHÔNG tự bịa đặt bất kỳ con số, chỉ báo hoặc tin tức bên ngoài nào không có trong danh sách.
 3. Khi đề cập đến một yếu tố bằng chứng, hãy sử dụng mã yếu tố hoặc mô tả chính xác của nó.
-4. Có thể làm tròn hoặc thể hiện trọng số dưới dạng phần trăm (ví dụ: trọng số 0,5714 tương đương 57,14%).
-5. Trả lời bằng tiếng Việt chuyên nghiệp, ngắn gọn, súc tích và dễ hiểu.
+4. MỖI câu có nội dung phân tích, kết luận hoặc giới hạn phải tự nó nêu mã yếu tố hoặc mô tả bằng chứng làm cơ sở. Không được dùng một câu đã có bằng chứng để hợp thức hóa câu kế tiếp không có bằng chứng.
+5. Nếu chi tiết cần thiết không có trong danh sách, hãy nói rõ chi tiết đó chưa khả dụng; không tự suy ra ngưỡng, công thức, kỳ so sánh hoặc dữ liệu còn thiếu.
+6. Chỉ đưa ra phương án có điều kiện gắn với bằng chứng và rủi ro; không chỉ dẫn mua/bán trực tiếp, không dùng ngôn ngữ chắc chắn, đảm bảo hay cam kết lợi nhuận.
+7. Có thể làm tròn số liệu hoặc thể hiện trọng số dưới dạng phần trăm (ví dụ: trọng số 0,5714 tương đương 57,14%).
+8. Cấu trúc câu trả lời: (1) Kết luận chính & Tóm tắt kết quả, (2) Chi tiết các yếu tố bằng chứng dẫn đến kết quả, (3) Nhận xét / Giới hạn cần lưu ý.
+9. Trả lời bằng tiếng Việt chuyên nghiệp, ngắn gọn, súc tích và dễ hiểu.
 """
 
 
@@ -151,6 +156,51 @@ _CODE_SEMANTIC_KEYWORDS: Dict[str, List[str]] = {
     "MARKET_REGIME": ["thị trường", "regime", "trạng thái"],
 }
 
+_PROHIBITED_DIRECTIVE = re.compile(
+    r"\b(?:nên|phải|hãy)\s+(?:mua|bán)\b|\b(?:mua|bán)\s+ngay\b|"
+    r"\b(?:chắc chắn|đảm bảo|cam kết)\b",
+    re.IGNORECASE,
+)
+
+
+def _referenced_factor_codes(text: str, allowed_factors: List[EvidenceFactor]) -> List[str]:
+    referenced_codes: List[str] = []
+    text_lower = text.lower()
+    for factor in allowed_factors:
+        code_pat = r"\b" + re.escape(factor.factorCode) + r"\b"
+        tokens = re.findall(r"[A-Za-z]+|\d+", factor.factorCode)
+        mentioned = bool(
+            re.search(code_pat, text, re.IGNORECASE)
+            or factor.description.lower() in text_lower
+        )
+        if not mentioned:
+            mentioned = any(
+                len(token) >= 3
+                and re.search(r"\b" + re.escape(token) + r"\b", text, re.IGNORECASE)
+                for token in tokens
+            )
+        if not mentioned:
+            mentioned = any(
+                keyword in text_lower
+                for keyword in _CODE_SEMANTIC_KEYWORDS.get(factor.factorCode.upper(), [])
+            )
+        if not mentioned:
+            mentioned = any(
+                len(phrase.strip()) >= 6 and phrase.strip().lower() in text_lower
+                for phrase in re.split(r"[—:;,\n]", factor.description)
+            )
+        if mentioned:
+            referenced_codes.append(factor.factorCode)
+    return referenced_codes
+
+
+def _substantive_sentences(text: str) -> List[str]:
+    return [
+        sentence.strip(" \t\r\n-*#")
+        for sentence in re.split(r"(?<=[.!?])\s+|\n+", text)
+        if re.search(r"[A-Za-zÀ-ỹ]", sentence)
+    ]
+
 
 def verify_faithfulness(
     generated_text: str,
@@ -190,39 +240,20 @@ def verify_faithfulness(
             logger.warning(f"Faithfulness check failed: unsupplied factor '{fcode}' detected in explanation")
             return False, []
 
-    referenced_codes: List[str] = []
-
-    # Check which allowed codes are present
-    for f in allowed_factors:
-        code_pat = r"\b" + re.escape(f.factorCode) + r"\b"
-        tokens = re.findall(r"[A-Za-z]+|\d+", f.factorCode)
-        factor_mentioned = re.search(code_pat, generated_text, re.IGNORECASE) or f.description.lower() in generated_text.lower()
-        if not factor_mentioned:
-            # Check meaningful sub-tokens of factorCode (e.g. MACD, RSI, VOLATILITY, DRAWDOWN)
-            for tok in tokens:
-                if len(tok) >= 3 and re.search(r"\b" + re.escape(tok) + r"\b", generated_text, re.IGNORECASE):
-                    factor_mentioned = True
-                    break
-        if not factor_mentioned:
-            # Check semantic keywords mapped for the code
-            keywords = _CODE_SEMANTIC_KEYWORDS.get(f.factorCode.upper(), [])
-            for kw in keywords:
-                if kw in generated_text.lower():
-                    factor_mentioned = True
-                    break
-        if not factor_mentioned:
-            # Check key phrases in description separated by punctuation
-            for phrase in re.split(r"[—:;,\n]", f.description):
-                phrase_clean = phrase.strip().lower()
-                if len(phrase_clean) >= 6 and phrase_clean in generated_text.lower():
-                    factor_mentioned = True
-                    break
-        if factor_mentioned:
-            referenced_codes.append(f.factorCode)
+    referenced_codes = _referenced_factor_codes(generated_text, allowed_factors)
 
     if not referenced_codes:
         logger.warning("Faithfulness check failed: explanation references none of the supplied factors")
         return False, []
+
+    if _PROHIBITED_DIRECTIVE.search(generated_text):
+        logger.warning("Faithfulness check failed: prohibited directive or certainty language")
+        return False, []
+
+    for sentence in _substantive_sentences(generated_text):
+        if not _referenced_factor_codes(sentence, allowed_factors):
+            logger.warning("Faithfulness check failed: sentence has no supplied evidence: %s", sentence)
+            return False, []
 
     evidence_text = " ".join(f"{f.factorCode} {f.description}" for f in allowed_factors)
     fabricated = fabricated_numbers(generated_text, evidence_text)

@@ -164,6 +164,11 @@ npm run dev
 | Out-of-capability fixture set | 100% stated-limitation response (SC-003). |
 | Unambiguous NL-screener fixture set | 100% identical results to direct Feature 003 execution (SC-004). |
 | Prompt-injection fixtures (via the Research/RAG tool) | 0% behavior deviation (SC-005). |
+| Fluent online answer with no evidence tags | Final response refuses; the prose is absent (FR-017, AI-005, SC-009). |
+| One valid tagged sentence plus an unsupported sentence or number | Only the fully supported sentence remains; `claimCoverage=PARTIAL` (NFR-005). |
+| Evidence-linked analytical implication or conditional option | Survives when all references validate; wording remains calibrated and contains no unconditional buy/sell directive (FR-016, FR-018). |
+| Multi-sentence deterministic explanation with one unrelated sentence | Explanation fails faithfulness verification rather than allowing the unrelated sentence (AI-006). |
+| Offline portfolio response with non-empty string-valued allocation/P&L fields | No exception; values retain contracted units and no concentration/cash-ratio classification is invented (DATA-004). |
 
 ## Release gates that remain open
 

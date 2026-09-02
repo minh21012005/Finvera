@@ -265,6 +265,11 @@ components:
           type: string
           nullable: true
           enum: [MODEL, KEYWORD_FALLBACK]
+        claimCoverage:
+          type: string
+          nullable: true
+          enum: [FULL, PARTIAL, NONE]
+          description: "Verification of returned statements: FULL when every generated substantive statement survived and dependencies were complete; PARTIAL when a safe answer remains after removal/degradation; NONE only with refusal. Never inferred from tool count."
 
     AnalystStreamEvent:
       type: object

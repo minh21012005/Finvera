@@ -478,6 +478,95 @@ existing Stock Detail page rather than duplicating its layout.
 | NFR-001, NFR-002 | research R-005/R-010 | Timing | Cross-cutting |
 | NFR-004 | Non-colour status contract | Component, Playwright, manual | Each story |
 
+## Evidence-Linked Expert Analysis Hardening (2026-09-02)
+
+### Objective and vertical slice
+
+Upgrade synthesis from field restatement to evidence-linked professional
+analysis without weakening the deterministic-finance boundary. This slice
+changes no database schema and adds no dependency. It hardens the existing ASK
+and EXPLAIN paths, the existing additive `claimCoverage` response field, and the
+degraded portfolio template.
+
+### Processing design
+
+1. Gemini may write facts, implications, limitations, and conditional options,
+   but every substantive sentence carries one or more structured or document
+   evidence tags.
+2. `finvera-ai` validates every tag against this request's successful tool
+   responses or Feature 006 citation verifier.
+3. A structured sentence is accepted only when every tag survives and every
+   standalone numeric token is supported by a cited value. Unsupported text is
+   never copied into the final answer.
+4. The final online answer is reconstructed from the ordered, de-duplicated
+   surviving sentences plus deterministic failure/bound disclosures. Zero
+   survivors is a refusal.
+5. `FULL` means no generated substantive statement was removed and no tool or
+   bound degraded the response; `PARTIAL` means the returned answer is safe but
+   at least one generated statement/dependency was dropped; `NONE` accompanies
+   a refusal only.
+6. EXPLAIN validates grounding sentence by sentence against supplied factors.
+7. The offline template performs formatting only. Hidden breadth, ROE, trend,
+   concentration, cash-ratio, and valuation-basis policies are removed.
+
+### Service ownership and compatibility
+
+- `finvera-be` remains the public/API authorization boundary and validates the
+  new coverage enum received from `finvera-ai`.
+- `finvera-ai` owns synthesis, evidence-tag extraction, sentence reconstruction,
+  and explanation faithfulness; it does not become a deterministic calculation
+  engine.
+- `finvera-fe` renders coverage with explicit non-colour language, including
+  `NONE`, and never equates the number of claims with completeness of all tool
+  fields.
+- OpenAPI changes are additive. Older `finvera-ai` instances may omit
+  `claimCoverage`; the backend/frontend retain nullable compatibility during a
+  rolling local deployment.
+
+### Precision, time, provenance, and privacy
+
+- Claimed values remain strings until verified; numeric comparison supports
+  display formatting only and does not create an authoritative value.
+- Portfolio percentage strings have explicit units in the internal contract;
+  fallback formatting uses decimal-safe parsing and no magnitude guessing.
+- Each surviving claim keeps the originating tool's `asOf` value. Document
+  claims retain Feature 006's resolved source and location.
+- No new prompt, answer, evidence, or conversation persistence is introduced.
+
+### Failure, observability, rollout, and rollback
+
+- Unsupported sentences are counted only in-memory to derive coverage; their
+  content is not logged.
+- Failed tools and tool-bound truncation produce deterministic limitation text
+  and `PARTIAL` when another statement survives.
+- Rollout is compatible across the existing internal/public response shape.
+  Rollback removes the new field presentation but MUST NOT restore the
+  length-based online bypass.
+
+### Test and evaluation mapping
+
+| Requirement | Verification |
+|---|---|
+| FR-017, AI-005, SC-009 | Unit + orchestration tests for zero-tag fluent prose, mixed valid/false sentences, a false number sharing a valid tag, and zero-survivor refusal |
+| FR-016, FR-018, SC-010 | Prompt contract tests and evidence-linked analytical sentence fixture with calibrated option language |
+| DATA-004 | Offline-template tests proving no hidden threshold classifications and real string portfolio payload support |
+| AI-006 | Multi-sentence EXPLAIN test where one grounded sentence cannot authorize an unsupported second sentence |
+| NFR-004, NFR-005 | Frontend component tests for FULL/PARTIAL/NONE wording independent of colour |
+
+### Constitution re-check
+
+- **I/II PASS**: authoritative calculations remain in deterministic tools; every
+  returned AI assertion has retrievable current-request evidence.
+- **III PASS**: no boundary or storage change.
+- **IV PASS**: calibrated options are permitted; directives/guarantees are
+  prohibited and unsupported prose is removed in code.
+- **V/VI PASS**: spec, research, contracts, tasks, regression tests, and eval
+  criteria are updated before implementation.
+- **VII/VIII PASS**: degraded templates remain available, no new service,
+  provider, framework, or persistence is introduced.
+
+**Post-design result**: PASS; no complexity exception or ADR required.
+
 ## Complexity Tracking
 
 | Addition | Why Required Now | Simpler Alternative Rejected | Approval/ADR | Removal or Review Trigger |
