@@ -200,3 +200,39 @@ def test_price_claim_cannot_support_unrelated_hundredfold_number():
     )
 
     assert result.refused is True
+
+
+def test_scale_multipliers_attribution_supports_vietnamese_units():
+    call = DispatchedToolCall(
+        sequence_no=1,
+        tool_name=ToolName.PORTFOLIO,
+        arguments={},
+        status="SUCCEEDED",
+        response_data={
+            "totalValue": 16205750,
+            "positions": [{"symbol": "MBB", "allocation": 0.3162, "unrealizedPnlPercent": 12.85}],
+            "asOf": "2026-09-02T10:00:00Z",
+        },
+    )
+    statement1 = "Danh mục có tổng giá trị 16,2 triệu đồng và MBB chiếm tỷ trọng 31,62%."
+    statement2 = "Vị thế MBB đang lãi 12,85% theo giá thị trường."
+
+    raw_claims = [
+        RawStructuredClaim(claimText=statement1, sequenceNo=1, fieldPath="totalValue", claimedValue="16205750"),
+        RawStructuredClaim(claimText=statement1, sequenceNo=1, fieldPath="positions[0].allocation", claimedValue="0.3162"),
+        RawStructuredClaim(claimText=statement2, sequenceNo=1, fieldPath="positions[0].unrealizedPnlPercent", claimedValue="12.85"),
+    ]
+
+    result = verify_attribution(
+        answer=f"{statement1}\n\n{statement2}",
+        raw_structured_claims=raw_claims,
+        verified_document_claims=[],
+        dispatched_calls=[call],
+        tool_call_bound_reached=False,
+        synthesis_mode="ONLINE",
+    )
+
+    assert result.refused is False
+    assert result.claimCoverage == "FULL"
+    assert len(result.structuredClaims) == 3
+

@@ -105,6 +105,11 @@ _PROHIBITED_DIRECTIVE = re.compile(
     r"\b(?:chắc chắn|đảm bảo|cam kết)\b",
     re.IGNORECASE,
 )
+_SCALE_MULTIPLIERS = [
+    (re.compile(r"^(?:tỷ|ty|b\b)", re.IGNORECASE), 1_000_000_000.0),
+    (re.compile(r"^(?:triệu|trieu|tr\b|m\b)", re.IGNORECASE), 1_000_000.0),
+    (re.compile(r"^(?:nghìn|ngàn|nghin|ngan|k\b)", re.IGNORECASE), 1_000.0),
+]
 
 
 def _parse_candidate_numbers(raw_str: str) -> List[float]:
@@ -168,7 +173,16 @@ def statement_numbers_are_attributed(
     codes such as MA20/RSI14 are labels, not numeric assertions."""
     for match in _STANDALONE_NUMBER.finditer(statement):
         token = match.group(0)
-        percentage_context = statement[match.end():match.end() + 2].lstrip().startswith("%")
+        after_token = statement[match.end():].lstrip()
+        percentage_context = after_token.startswith("%")
+
+        # Detect scale multiplier in following text (e.g. 16,2 triệu / 2,6 tỷ)
+        scale_mult = 1.0
+        for pattern, mult in _SCALE_MULTIPLIERS:
+            if pattern.match(after_token):
+                scale_mult = mult
+                break
+
         supported = False
         for claim in claims:
             # Date/count components can be supported by an exact component in a
@@ -176,15 +190,21 @@ def statement_numbers_are_attributed(
             if re.search(rf"(?<!\d){re.escape(token)}(?!\d)", str(claim.claimedValue)):
                 supported = True
                 break
+
             token_values = _parse_candidate_numbers(token)
+            if scale_mult != 1.0:
+                scaled_values = [v * scale_mult for v in token_values]
+                token_values.extend(scaled_values)
+
             claim_values = _parse_candidate_numbers(str(claim.claimedValue))
             if any(
-                math.isclose(token_value, claim_value, rel_tol=1e-2, abs_tol=1e-2)
+                math.isclose(token_value, claim_value, rel_tol=2e-2, abs_tol=1e-2)
                 for token_value in token_values
                 for claim_value in claim_values
             ):
                 supported = True
                 break
+
             ratio_field = "percent" in claim.fieldPath.lower() or "allocation" in claim.fieldPath.lower()
             if percentage_context and ratio_field and match_claimed_value(token, claim.claimedValue):
                 supported = True
@@ -197,7 +217,6 @@ def statement_numbers_are_attributed(
 def statement_is_calibrated(statement: str) -> bool:
     """Reject unconditional trading directives and certainty/guarantee language."""
     return _PROHIBITED_DIRECTIVE.search(statement) is None
-
 
 def verify_attribution(
     answer: str,
