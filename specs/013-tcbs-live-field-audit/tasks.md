@@ -14,6 +14,6 @@ Dependency order. `[P]` marks tasks with no shared file and no unmet prerequisit
 | T008 | DATA-006 | Pin the fixture from real captured frames | `finvera-be/src/test/resources/fixtures/market/tcbs/tcbs-frame-fixture.json` | 8 verbatim frames + the audited `tickerCommons` response; no `s|4` captured, recorded honestly — **done** |
 | T009 | DATA-006, SC-4 | Fixture test through the production mapper | `finvera-be/src/test/java/com/minhnb/finvera_be/market/provider/tcbs/TcbsThesisFrameFixtureTests.java` | 7/7 green: unit magnitude, mixed typing, index mapping, derived reference, absent `change`, REST band identity — **done** |
 | T010 | DATA-007, SC-5 | Live-vs-EOD reconciliation for 3 symbols | research.md | VNM/MBB exact on price **and** volume; ACV +0.24 % explained by the UPCoM 15:00 close (research R-011) — **done** |
-| T011 | SC-4 | Backend suite | `finvera-be` | **704/704 green, BUILD SUCCESS** (2026-09-04) |
+| T011 | SC-4 | Backend suite | `finvera-be` | **705/705 green, BUILD SUCCESS** (2026-09-04) |
 | T012 | SC-6 | Close P2-01 with evidence; changelog row | `docs/REMEDIATION_PLAN.md` | Status line names both evidence files and the new contract clauses — **done** |
 | T013 | — | Record the audit outcome in research.md (R-004…R-009) | `specs/013-tcbs-live-field-audit/research.md` | R-004…R-011 recorded with observed values and evidence files — **done** |
