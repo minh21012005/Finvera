@@ -33,3 +33,32 @@ not hard failures, because VCI annual statements can be audited/restated while
 quarterly rows remain preliminary or reclassified. Run it after every
 fundamentals re-crawl; hard anchors must be 0 diffs.
 `analyst_e2e.py` (Feature 015) exercises the AI Analyst on the live stack.
+
+## `tcbs_live_capture.py` — the live provider anchor (Feature 013 / P2-01)
+
+The only ingestion path that cannot be verified from a database dump is the TCBS
+Thesis stream: outside a trading session it sends nothing. This tool captures one
+session read-only and answers the question a code review cannot — *is the
+provider still sending what the contract says?*
+
+```powershell
+# during 09:00-11:30 or 13:00-14:45 Asia/Ho_Chi_Minh; asks for the owner's OTP
+uv run --project tools\market-data\provider-poc python tools\verification\tcbs_live_capture.py --symbols VNM,MBB,ACV --seconds 90
+uv run --project tools\market-data\provider-poc python tools\verification\tcbs_live_capture.py --symbols VNM --rest-only
+```
+
+It subscribes only to the two allowlisted channels, inventories every field of
+every frame type (JSON type, value range, samples), takes the `tickerCommons`
+REST snapshot on the same token, and compares each consumed number with **VCI** —
+an independent provider — so a unit change shows up as a ratio near 1000 instead
+of hiding behind the provider's own labels. Output goes to the gitignored
+`out/`; the committed record of a capture is the pinned fixture
+`finvera-be/src/test/resources/fixtures/market/tcbs/tcbs-frame-fixture.json`.
+
+Secrets: API key from `finvera-be/.env`, OTP via `getpass`, JWT memory-only;
+neither stdout nor the evidence file ever contains one.
+
+Two provider rules this tool learned the hard way, both now in the contract: the
+server closes the connection with 1002 if it receives an RFC WebSocket ping (only
+`d|p|||` counts as a heartbeat), and `s|4` reference frames are never replayed for
+a symbol subscribed mid-session.
