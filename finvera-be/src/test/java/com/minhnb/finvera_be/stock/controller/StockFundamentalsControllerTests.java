@@ -197,16 +197,16 @@ class StockFundamentalsControllerTests {
                 List.of(
                         new ValuationService.ValuationMetric("PE", new BigDecimal("15.123456789012"),
                                 MetricApplicability.DEFINED, new BigDecimal("48.250000"), null,
-                                new BigDecimal("0.571428571429"), null),
+                                new BigDecimal("0.571428571429"), null, "FISCAL_YEAR", new BigDecimal("16.400000000000")),
                         new ValuationService.ValuationMetric("PB", new BigDecimal("2.415000000000"),
                                 MetricApplicability.DEFINED, new BigDecimal("40.000000"), null,
-                                new BigDecimal("0.428571428571"), null),
+                                new BigDecimal("0.428571428571"), null, "LATEST_REPORT", new BigDecimal("2.415000000000")),
                         new ValuationService.ValuationMetric("EV_EBITDA", null,
-                                MetricApplicability.MISSING, null, null, null, "MISSING_INPUT"),
+                                MetricApplicability.MISSING, null, null, null, "MISSING_INPUT", null, null),
                         new ValuationService.ValuationMetric("PEG", null,
-                                MetricApplicability.MISSING, null, null, null, "MISSING_INPUT"),
+                                MetricApplicability.MISSING, null, null, null, "MISSING_INPUT", null, null),
                         new ValuationService.ValuationMetric("DIVIDEND_YIELD", new BigDecimal("2.890000000000"),
-                                MetricApplicability.DEFINED, null, null, null, null)
+                                MetricApplicability.DEFINED, null, null, null, null, null, null)
                 ),
                 DataStatus.CURRENT, List.of(), LocalDate.of(2026, 8, 14),
                 Instant.parse("2026-08-14T10:00:00Z"), "coh-valuation-1");

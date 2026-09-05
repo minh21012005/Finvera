@@ -85,6 +85,9 @@ class StockReplayDeterminismTests {
                 .priceDataStatus("CURRENT")
                 .fundamentalsDataStatus("CURRENT")
                 .sourceConflict(false)
+                // valuation-v3: Basis A ranks a flow metric's fiscal-year comparison value; this
+                // fixture models an annual-only company, whose comparison is its headline (DATA-003).
+                .ownHistoryComparisonFromHeadline()
                 .build();
 
         AssessmentResult firstRun = engine.classify(inputs);

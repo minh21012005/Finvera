@@ -10,6 +10,13 @@ bar's trading date are visible; EPS_TTM = sum of the 4 newest visible quarters, 
 newest visible annual EPS (ANNUAL_BASIS); BVPS = newest visible report carrying BVPS.
 
 Usage:  python tools/verification/history_basis_study.py [--symbols VNM,MBB,...] [--n 20]
+
+2026-09-05 (Feature 023, contract valuation-v3): the own-history percentile now ranks a
+fiscal-year-basis comparison value against a fiscal-year-basis series, so the FY-vs-TTM gap this
+tool measures no longer enters the rank. The gap is still worth knowing -- it is how far the
+percentile's denominator lags the headline's -- and the table stays as the record of why the
+basis was unified (specs/017 R-004/R-005). The "percentile shift if annual dropped" column
+describes the pre-v3 mixed comparison and is informational only.
 """
 from __future__ import annotations
 

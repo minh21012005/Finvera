@@ -47,9 +47,31 @@ public final class FundamentalSummaryCalculator {
             "DIVIDEND_YIELD", "PS", "TOTAL_ASSETS_GROWTH_PERCENT", "EQUITY_GROWTH_PERCENT");
     private static final BigDecimal ONE_HUNDRED = new BigDecimal("100");
 
+    /**
+     * Which reports feed the period aggregates (NET_PROFIT_TTM, EPS_TTM, REVENUE_TTM, EBITDA_TTM,
+     * DIVIDEND_PER_SHARE_TTM) and the growth metrics.
+     *
+     * <ul>
+     *   <li>{@link #PREFER_QUARTERS} — {@code fundamental-summary-v2}: the four newest quarters when
+     *       visible, else the latest annual report ({@code ANNUAL_BASIS}); growth from eight quarters
+     *       when visible, else annual over prior annual. The persisted summary always uses this.</li>
+     *   <li>{@link #FISCAL_YEAR} — contract {@code valuation-v3} (specs/023): the latest visible
+     *       annual report regardless of how many quarters are visible, growth annual over prior
+     *       annual, and no provider trailing-EPS fallback (a TTM figure). Used only to build the
+     *       own-history series and its comparison value on one basis; snapshot metrics are
+     *       unaffected.</li>
+     * </ul>
+     */
+    public enum AggregateBasis { PREFER_QUARTERS, FISCAL_YEAR }
+
     public SummaryResult calculate(List<ReportPeriod> reports, LocalDate asOfDate) {
+        return calculate(reports, asOfDate, AggregateBasis.PREFER_QUARTERS);
+    }
+
+    public SummaryResult calculate(List<ReportPeriod> reports, LocalDate asOfDate, AggregateBasis basis) {
         Objects.requireNonNull(reports, "reports");
         Objects.requireNonNull(asOfDate, "asOfDate");
+        Objects.requireNonNull(basis, "basis");
 
         if (reports.isEmpty()) {
             return new SummaryResult(
@@ -105,7 +127,12 @@ public final class FundamentalSummaryCalculator {
                 .toList();
         List<ReportPeriod> currentTtmPeriods;
         boolean ttmOnAnnualBasis = false;
-        if (quarterReports.size() >= 4) {
+        if (basis == AggregateBasis.FISCAL_YEAR) {
+            // valuation-v3: the latest visible annual report is the aggregate basis whatever the
+            // quarter count; with no annual report there is no fiscal-year aggregate at all.
+            currentTtmPeriods = annualReports.isEmpty() ? List.of() : List.of(annualReports.get(0));
+            ttmOnAnnualBasis = !annualReports.isEmpty();
+        } else if (quarterReports.size() >= 4) {
             currentTtmPeriods = quarterReports.subList(0, 4);
         } else if (!annualReports.isEmpty()) {
             // v2: fewer than four quarters visible -> latest annual report is the TTM basis.
@@ -127,7 +154,7 @@ public final class FundamentalSummaryCalculator {
         // TTM Metrics (4 quarters required or 1 annual report)
         int before = summaryMetrics.size();
         addTtmSumMetric(summaryMetrics, "NET_PROFIT", "NET_PROFIT_TTM", currentTtmPeriods);
-        addEpsTtmMetric(summaryMetrics, currentTtmPeriods, newest);
+        addEpsTtmMetric(summaryMetrics, currentTtmPeriods, newest, basis == AggregateBasis.PREFER_QUARTERS);
         addTtmSumMetric(summaryMetrics, "REVENUE", "REVENUE_TTM", currentTtmPeriods);
         addTtmSumMetric(summaryMetrics, "EBITDA", "EBITDA_TTM", currentTtmPeriods);
         addTtmSumMetric(summaryMetrics, "DIVIDEND_PER_SHARE", "DIVIDEND_PER_SHARE_TTM", currentTtmPeriods);
@@ -137,9 +164,9 @@ public final class FundamentalSummaryCalculator {
 
         // Growth: quarterly TTM vs prior TTM when eight quarters are visible; else annual YoY (v2).
         addGrowthMetric(summaryMetrics, contributingIds, "EPS", "EPS_GROWTH_PERCENT",
-                "NEGATIVE_OR_ZERO_PRIOR_EPS", quarterReports, currentTtmPeriods, annualReports);
+                "NEGATIVE_OR_ZERO_PRIOR_EPS", quarterReports, currentTtmPeriods, annualReports, basis);
         addGrowthMetric(summaryMetrics, contributingIds, "REVENUE", "REVENUE_GROWTH_PERCENT",
-                "NEGATIVE_OR_ZERO_PRIOR_REVENUE", quarterReports, currentTtmPeriods, annualReports);
+                "NEGATIVE_OR_ZERO_PRIOR_REVENUE", quarterReports, currentTtmPeriods, annualReports, basis);
 
         // Newest Report Snapshot Metrics
         addLatestMetric(summaryMetrics, "ROE", newest);
@@ -196,7 +223,8 @@ public final class FundamentalSummaryCalculator {
     private void addEpsTtmMetric(
             List<SummaryMetric> target,
             List<ReportPeriod> ttmPeriods,
-            ReportPeriod newest) {
+            ReportPeriod newest,
+            boolean allowProviderTrailingFallback) {
         if (!ttmPeriods.isEmpty() && (ttmPeriods.size() >= 4 || "ANNUAL".equals(ttmPeriods.get(0).periodType()))) {
             BigDecimal sum = getTtmSum("EPS", ttmPeriods);
             if (sum != null) {
@@ -204,8 +232,10 @@ public final class FundamentalSummaryCalculator {
                 return;
             }
         }
-        // Fallback to TRAILING_EPS from ratio snapshot (e.g. for banks / securities)
-        if (newest != null && newest.metrics() != null) {
+        // Fallback to TRAILING_EPS from ratio snapshot (e.g. for banks / securities). Not on the
+        // fiscal-year basis (valuation-v3): the provider's trailing figure is a TTM number and would
+        // re-mix the bases the fiscal-year series exists to keep apart.
+        if (allowProviderTrailingFallback && newest != null && newest.metrics() != null) {
             for (ReportMetric m : newest.metrics()) {
                 if ("TRAILING_EPS".equals(m.metricCode()) && m.applicability() == MetricApplicability.DEFINED && m.value() != null) {
                     // Disclosed (Constitution II): this figure is the provider's TTM EPS, not a sum of
@@ -252,9 +282,16 @@ public final class FundamentalSummaryCalculator {
             String notApplicableReason,
             List<ReportPeriod> quarterReports,
             List<ReportPeriod> currentTtmPeriods,
-            List<ReportPeriod> annualReports) {
+            List<ReportPeriod> annualReports,
+            AggregateBasis basis) {
         BigDecimal currentTtm = getTtmSum(sourceMetricCode, currentTtmPeriods);
-        if (quarterReports.size() < 8 && annualReports.size() >= 2) {
+        if (basis == AggregateBasis.FISCAL_YEAR && annualReports.size() < 2) {
+            // valuation-v3: growth on the fiscal-year basis needs two annual reports; quarters never
+            // substitute, so fewer than two is simply insufficient history.
+            summaryMetrics.add(new SummaryMetric(targetMetricCode, null, MetricApplicability.MISSING, "INSUFFICIENT_HISTORY"));
+            return;
+        }
+        if ((basis == AggregateBasis.FISCAL_YEAR || quarterReports.size() < 8) && annualReports.size() >= 2) {
             // v2 annual-over-prior-annual fallback (research R-005).
             List<ReportPeriod> latest = List.of(annualReports.get(0));
             List<ReportPeriod> prior = List.of(annualReports.get(1));

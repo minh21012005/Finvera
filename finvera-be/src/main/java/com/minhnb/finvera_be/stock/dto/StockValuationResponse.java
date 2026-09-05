@@ -72,7 +72,11 @@ public record StockValuationResponse(
             String ownHistoryPercentile,
             String sectorPercentile,
             String effectiveWeight,
-            String reasonCode) {
+            String reasonCode,
+            /** valuation-v3: basis of the own-history rank (FISCAL_YEAR / LATEST_REPORT) or null. */
+            String ownHistoryBasis,
+            /** valuation-v3: the value that was ranked, at the same display precision as {@code value}. */
+            String ownHistoryComparisonValue) {
 
         static MetricResponse from(ValuationMetric metric) {
             return new MetricResponse(
@@ -82,7 +86,9 @@ public record StockValuationResponse(
                     displayDecimal(metric.ownHistoryPercentile(), 2),
                     displayDecimal(metric.sectorPercentile(), 2),
                     metric.effectiveWeight() != null ? metric.effectiveWeight().toPlainString() : null,
-                    metric.reasonCode()
+                    metric.reasonCode(),
+                    metric.ownHistoryBasis(),
+                    displayDecimal(metric.ownHistoryComparisonValue(), 2)
             );
         }
     }

@@ -266,7 +266,7 @@ class ToolDelegateServiceTests {
         var withheld = new com.minhnb.finvera_be.stock.service.ValuationService.StockValuation(
                 "ABC", "valuation-v2", false, null, null, null, null, false, false, null, null, null, null, 120,
                 List.of(new com.minhnb.finvera_be.stock.service.ValuationService.ValuationMetric(
-                        "PE", new BigDecimal("5.200000"), MetricApplicability.DEFINED, null, null, null, null)),
+                        "PE", new BigDecimal("5.200000"), MetricApplicability.DEFINED, null, null, null, null, null, null)),
                 DataStatus.CURRENT, List.of("NO_COMPARISON_BASIS", "HISTORY_BASIS_INSUFFICIENT"),
                 LocalDate.of(2026, 8, 28), Instant.parse("2026-08-31T00:00:00Z"), "coh");
         when(valuationService.findBySymbol("ABC")).thenReturn(Optional.of(withheld));
@@ -287,9 +287,10 @@ class ToolDelegateServiceTests {
                 new BigDecimal("69.12"), 69, 87, true, true, "Ngân hàng", "KBS", "1", 24, 750,
                 List.of(new com.minhnb.finvera_be.stock.service.ValuationService.ValuationMetric(
                         "PB", new BigDecimal("1.270000"), MetricApplicability.DEFINED,
-                        new BigDecimal("99.05"), new BigDecimal("66.67"), new BigDecimal("0.428571428571"), null),
+                        new BigDecimal("99.05"), new BigDecimal("66.67"), new BigDecimal("0.428571428571"), null,
+                        "LATEST_REPORT", new BigDecimal("1.270000")),
                     new com.minhnb.finvera_be.stock.service.ValuationService.ValuationMetric(
-                        "PEG", null, MetricApplicability.NOT_APPLICABLE, null, null, null, "NEGATIVE_OR_ZERO_GROWTH")),
+                        "PEG", null, MetricApplicability.NOT_APPLICABLE, null, null, null, "NEGATIVE_OR_ZERO_GROWTH", null, null)),
                 DataStatus.CURRENT, List.of("HISTORY_SHARES_OUTSTANDING_HELD_CURRENT"),
                 LocalDate.of(2026, 8, 31), Instant.parse("2026-08-31T00:00:00Z"), "coh",
                 LocalDate.of(2026, 8, 28), java.util.Map.of("EPS_GROWTH_PERCENT", "ANNUAL_BASIS", "DIVIDEND_YIELD", "ANNUAL_BASIS"));

@@ -92,6 +92,8 @@ function mockValuation(overrides: Partial<StockValuationData> = {}): StockValuat
         sectorPercentile: null,
         effectiveWeight: "0.571428571429",
         reasonCode: null,
+        ownHistoryBasis: "FISCAL_YEAR",
+        ownHistoryComparisonValue: "16.40",
       },
       {
         metricCode: "PB",
@@ -101,6 +103,8 @@ function mockValuation(overrides: Partial<StockValuationData> = {}): StockValuat
         sectorPercentile: null,
         effectiveWeight: "0.428571428571",
         reasonCode: null,
+        ownHistoryBasis: "LATEST_REPORT",
+        ownHistoryComparisonValue: "2.42",
       },
     ],
     ...overrides,
@@ -157,6 +161,16 @@ describe("stock valuation section", () => {
   it("discloses the used comparison basis", () => {
     render(<StockValuation symbol="HPG" valuation={mockValuation()} />);
     expect(screen.getByText(/Lịch sử riêng|Own History/i)).toBeVisible();
+  });
+
+  it("shows the fiscal-year value a flow metric's history percentile was ranked on (valuation-v3)", () => {
+    render(<StockValuation symbol="HPG" valuation={mockValuation({ ruleVersion: "valuation-v3" })} />);
+    // P/E: headline 15,12 (quarter-TTM) but the percentile belongs to the fiscal-year value 16,40.
+    const peBasis = screen.getByText(/theo P\/E \(Giá \/ Thu nhập\) năm 16,4/);
+    expect(peBasis).toBeVisible();
+    expect(peBasis).toHaveAttribute("data-own-history-basis", "FISCAL_YEAR");
+    // P/B is point-in-time: ranked on its own value, so no basis note is added.
+    expect(screen.queryByText(/theo P\/B/)).toBeNull();
   });
 
   it("shows reason codes and never a guessed label when withheld", () => {

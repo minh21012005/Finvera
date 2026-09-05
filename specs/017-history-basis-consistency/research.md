@@ -60,3 +60,52 @@ and stable, or (b) `valuation-v3`: compute the own-history percentile of today's
 P/E **on the FY basis** (price / latest FY EPS, the same basis as the series),
 keeping quarter-TTM for the headline P/E. Either way the current mixed
 comparison is disclosed, never silent.
+
+## R-004 — Re-measured on the VCI universe (2026-09-05), the deferred measurement is now valid
+
+`history_basis_study.py` re-run after the from-scratch VCI crawl (Q-57's mirrored years gone;
+depth now 8 annual periods 2018-2025 and 8 quarters 2024-Q3-2026-Q2 per symbol, up from KBS's 4+4).
+Same 20 symbols, same method. Unlike the 2026-08-31 run — where only ~11 of 750 points were
+quarter-TTM and every gap was poisoned by Q-57 — a third of the window is now computable on both
+bases, so the basis question can finally be answered on its own terms.
+
+| Metric (20 symbols) | 2026-08-31 (KBS, poisoned) | 2026-09-05 (VCI) |
+|---|---|---|
+| annual-basis share, median | 99 % | **73 %** (65-83 % where quarters exist; 100 % otherwise) |
+| both-basis points per symbol | 0-11 | **0-260** (~35 % of the window) |
+| \|PE_annual / PE_quarter - 1\|, median | 19.8 % (meaningless) | **7.6 %** |
+| same, p90 / max | 116 % / 17,048 % | **31.1 % / 73.4 %** |
+| today's PE percentile shift if annual points dropped | ±93 pp (11 points left) | median -2.4 pp, **max \|58.3\| pp** |
+
+Worst percentile shifts: VCB -58.3 pp, GMD -48.0, PVT -47.0, VC9 -35.9, GAS -25.8, CLW +25.1.
+
+**The gap is real and not small.** A 7.6 % median difference between the two bases on the *same
+date* is already above the precision a valuation percentile pretends to have, and the tail (p90
+31 %, max 73 %) is wide enough to move the user-visible "cheap or expensive vs its own history"
+verdict by tens of percentiles. Option (a) — disclose and keep the mixed comparison — is therefore
+weakly supported by the numbers.
+
+## R-005 — The universe splits in two, and only one half has the defect
+
+Measured over all 1,522 current instruments: **1,054 (69.3 %) have at least one quarterly EPS row;
+468 (30.7 %) have none at all** — banks (MBB), brokers (SSI), and many industrials (PVS: 0 of 8
+quarterly reports carry EPS; HPG: 1 of 8).
+
+That split decides the shape of the fix:
+
+- For the **468 without quarterly EPS**, `fundamental-summary-v2` already falls back to annual EPS
+  for *today's* number too. Both sides of the comparison are annual, so there is **no mismatch** —
+  and no quarter-TTM percentile is even possible for them.
+- For the **1,054 with quarterly EPS**, today's headline is quarter-TTM while ~65-83 % of the
+  history points are annual. This is where the bias lives.
+
+A third option — shortening the percentile window to the span where quarter-TTM exists — is
+rejected on these numbers: it leaves ~260 sessions (~1 year), too short for a valuation percentile
+to mean anything, and it is impossible for 31 % of the universe.
+
+**Recommendation to the owner: option (b), `valuation-v3`.** Rank today's P/E against the own-history
+series **on the series' own basis** (price / latest visible FY EPS), keep the headline P/E on
+quarter-TTM where it exists, and disclose the percentile's basis. Besides removing the bias, it
+makes the percentile basis uniform across the whole universe instead of annual-vs-annual for a bank
+and TTM-vs-mostly-annual for VNM. Its cost, which must be disclosed rather than hidden: the
+annual EPS behind the percentile can be up to ~9 months stale (FY2025 while trading in Sep 2026).

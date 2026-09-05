@@ -68,6 +68,7 @@ class ValuationServiceTests {
     @Autowired ValuationService valuation;
     @Autowired ValuationAssessmentRepository assessments;
     @Autowired ValuationAssessmentInputRepository assessmentInputs;
+    @Autowired com.minhnb.finvera_be.stock.repository.ValuationMetricRepository valuationMetrics;
 
     @Test
     void unknownSymbolIsAbsentNotFabricated() {
@@ -182,6 +183,10 @@ class ValuationServiceTests {
         // (not STALE) freshness floor so the assessment can still publish.
         seedFourQuartersOfFundamentals("STV04", 2024, new BigDecimal("500.000000"));
         seedFourQuartersOfFundamentals("STV04", 2025, new BigDecimal("520.000000"));
+        // valuation-v3: the own-history series is built on the fiscal-year basis, so annual reports
+        // belong in any realistic fixture (every VCI-covered instrument has them).
+        seedAnnualReport("STV04", 2024, new BigDecimal("2000.000000"));
+        seedAnnualReport("STV04", 2025, new BigDecimal("2080.000000"));
         LocalDate historyStart = LocalDate.of(2025, 1, 30);
         LocalDate today = LocalDate.now();
         for (LocalDate d = historyStart; !d.isAfter(today); d = d.plusDays(1)) {
@@ -211,8 +216,74 @@ class ValuationServiceTests {
         assertThat(replay.classification().name()).isEqualTo(persisted.getClassification());
     }
 
+    /**
+     * Feature 023 (contract valuation-v3, SC-2): the headline P/E stays on quarter-TTM EPS while the
+     * own-history rank uses the fiscal-year value; both are persisted with the basis label so the
+     * percentile is reproducible from the row alone.
+     */
+    @Test
+    void persistsTheFiscalYearComparisonValueBesideTheQuarterTtmHeadline() {
+        UUID instrumentId = saveInstrument("STV05");
+        saveProfile(instrumentId, 1_000_000_000L);
+        seedFourQuartersOfFundamentals("STV05", 2024, new BigDecimal("500.000000"));
+        seedFourQuartersOfFundamentals("STV05", 2025, new BigDecimal("520.000000"));   // quarter-TTM EPS 2,080
+        seedAnnualReport("STV05", 2024, new BigDecimal("2000.000000"));
+        seedAnnualReport("STV05", 2025, new BigDecimal("2000.000000"));               // FY EPS 2,000: differs from the quarter sum
+        LocalDate historyStart = LocalDate.of(2025, 1, 30);
+        LocalDate today = LocalDate.now();
+        BigDecimal close = null;
+        for (LocalDate d = historyStart; !d.isAfter(today); d = d.plusDays(1)) {
+            long dayIndex = java.time.temporal.ChronoUnit.DAYS.between(historyStart, d);
+            close = new BigDecimal("50000.000000").add(BigDecimal.valueOf(dayIndex));
+            seedDailyBar("STV05", "FINVERA_FIXTURE", d, close);
+        }
+
+        var result = valuation.findBySymbol("STV05").orElseThrow();
+        assertThat(result.ruleVersion()).isEqualTo("valuation-v3");
+        assertThat(result.published()).isTrue();
+        assertThat(result.reasonCodes()).contains("HISTORY_FISCAL_YEAR_BASIS");
+
+        UUID assessmentId = assessments
+                .findFirstByInstrumentIdAndRuleVersionAndCurrentTrueOrderByAsOfTradingDateDesc(
+                        instrumentId, valuationRuleVersion())
+                .orElseThrow().getId();
+        var rows = valuationMetrics.findByAssessmentId(assessmentId).stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        com.minhnb.finvera_be.stock.entity.ValuationMetricEntity::getMetricCode, r -> r));
+
+        var pe = rows.get("PE");
+        assertThat(pe.getValue()).isEqualByComparingTo(
+                com.minhnb.finvera_be.stock.domain.model.DecimalMath.divide12(close, new BigDecimal("2080")));
+        assertThat(pe.getOwnHistoryComparisonValue()).isEqualByComparingTo(
+                com.minhnb.finvera_be.stock.domain.model.DecimalMath.divide12(close, new BigDecimal("2000")));
+        assertThat(pe.getOwnHistoryBasis()).isEqualTo("FISCAL_YEAR");
+        assertThat(pe.getOwnHistoryPercentile()).isNotNull();
+        var pb = rows.get("PB");
+        assertThat(pb.getOwnHistoryBasis()).isEqualTo("LATEST_REPORT");
+        assertThat(pb.getOwnHistoryComparisonValue()).isEqualByComparingTo(pb.getValue());
+    }
+
     private static String valuationRuleVersion() {
         return com.minhnb.finvera_be.stock.domain.valuation.ValuationV1.RULE_VERSION;
+    }
+
+    private void seedAnnualReport(String symbol, int fiscalYear, BigDecimal eps) {
+        List<MetricValue> metrics = List.of(
+                new MetricValue("REVENUE", new BigDecimal("40000000000.000000"), "DEFINED", null),
+                new MetricValue("NET_PROFIT", new BigDecimal("8000000000.000000"), "DEFINED", null),
+                new MetricValue("EPS", eps, "DEFINED", null),
+                new MetricValue("EQUITY_ATTRIBUTABLE_TO_PARENT", new BigDecimal("50000000000000.000000"), "DEFINED", null),
+                new MetricValue("TOTAL_DEBT", new BigDecimal("15000000000.000000"), "DEFINED", null),
+                new MetricValue("CASH_AND_EQUIVALENTS", new BigDecimal("8000000000.000000"), "DEFINED", null),
+                new MetricValue("EBITDA", new BigDecimal("12000000000.000000"), "DEFINED", null));
+        var incoming = new IncomingFundamentalReport("FINVERA_FIXTURE", symbol, "ANNUAL", fiscalYear, null,
+                LocalDate.of(fiscalYear, 1, 1), LocalDate.of(fiscalYear, 12, 31), "CONSOLIDATED", "AUDITED", "VND", 1,
+                "fundamental-metric-catalog-v1",
+                LocalDate.of(fiscalYear + 1, 3, 20).atStartOfDay(ZoneOffset.UTC).toInstant(), metrics, false, null);
+        var result = ingestion.ingestFundamentalReport(incoming);
+        if (result.status() != IngestionStatus.ACCEPTED) {
+            throw new IllegalStateException("Seed annual report rejected: " + result.reasonCode());
+        }
     }
 
     private UUID resolveInstrumentId(String symbol) {

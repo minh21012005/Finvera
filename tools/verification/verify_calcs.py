@@ -90,13 +90,22 @@ def technical_checks(sym, bars, stored):
         cmp("RELATIVE_VOLUME", "VALUE", vols[-1] / (sum(vols[-21:-1]) / 20), tol_abs=1e-4)
 
 # ---------------- fundamentals summary v2 (independent) ----------------
-def summary_v2(reports, as_of):
-    """reports: list of dict(period_type, fy, fq, period_end, observed_at, metrics{code:value})"""
+def summary_v2(reports, as_of, basis="PREFER_QUARTERS"):
+    """reports: list of dict(period_type, fy, fq, period_end, observed_at, metrics{code:value}).
+
+    basis="FISCAL_YEAR" is the valuation-v3 Basis A rule (specs/023): aggregates from the latest
+    annual report whatever the quarter count, growth annual-over-annual, no provider trailing EPS."""
     visible = [r for r in reports]  # caller pre-filters visibility
     quarters = sorted([r for r in visible if r["period_type"] == "QUARTER"], key=lambda r: r["period_end"], reverse=True)
     annuals = sorted([r for r in visible if r["period_type"] == "ANNUAL"], key=lambda r: r["period_end"], reverse=True)
+    fiscal_year = basis == "FISCAL_YEAR"
     out = {}
     def ttm(code):
+        if fiscal_year:
+            if annuals:
+                v = annuals[0]["metrics"].get(code)
+                return (v, "ANNUAL_BASIS") if v is not None else (None, None)
+            return (None, None)
         if len(quarters) >= 4:
             vals = [r["metrics"].get(code) for r in quarters[:4]]
             return (sum(vals), None) if all(v is not None for v in vals) else (None, None)
@@ -106,7 +115,7 @@ def summary_v2(reports, as_of):
         return (None, None)
     for code, tgt in (("EPS", "EPS_TTM"), ("NET_PROFIT", "NET_PROFIT_TTM"), ("REVENUE", "REVENUE_TTM"), ("DIVIDEND_PER_SHARE", "DIVIDEND_PER_SHARE_TTM")):
         out[tgt] = ttm(code)
-    if out["EPS_TTM"][0] is None:
+    if out["EPS_TTM"][0] is None and not fiscal_year:
         # fundamental-summary-v2: quarterly EPS absent (banks, securities, some industrials) ->
         # the provider's own trailing EPS from the newest report, disclosed as PROVIDER_TRAILING_EPS.
         # newest = period_end desc, QUARTER before ANNUAL on a tie (fundamental-summary-v2, Q-47)
@@ -114,7 +123,7 @@ def summary_v2(reports, as_of):
         if newest and newest[0]["metrics"].get("TRAILING_EPS") is not None:
             out["EPS_TTM"] = (newest[0]["metrics"]["TRAILING_EPS"], "PROVIDER_TRAILING_EPS")
     def growth(code):
-        if len(quarters) >= 8:
+        if len(quarters) >= 8 and not fiscal_year:
             cur = [r["metrics"].get(code) for r in quarters[:4]]; prior = [r["metrics"].get(code) for r in quarters[4:8]]
             if all(v is not None for v in cur + prior):
                 p = sum(prior); c = sum(cur)
@@ -161,12 +170,12 @@ def fundamentals_checks(sym, reports):
 # ---------------- valuation (independent) ----------------
 def valuation_checks(sym, bars, reports, shares):
     va = q(f"""select a.id, a.as_of_trading_date, a.classification, a.score, a.displayed_score, a.confidence, a.history_point_count, a.used_own_history, a.used_sector, a.reason_codes
-               from valuation_assessment a join market_instrument i on i.id=a.instrument_id where i.symbol='{sym}' and a.is_current and a.rule_version='valuation-v2'
+               from valuation_assessment a join market_instrument i on i.id=a.instrument_id where i.symbol='{sym}' and a.is_current and a.rule_version='valuation-v3'
                order by a.as_of_trading_date desc, a.calculated_at desc limit 1""")
     if not va:
-        note("valuation", True, f"{sym}: no v2 assessment"); return
+        note("valuation", True, f"{sym}: no valuation-v3 assessment yet (owner refresh pending)"); return
     a = va[0]
-    metrics = {r["metric_code"]: r for r in q(f"select metric_code, value, applicability, own_history_percentile, sector_percentile, effective_weight, quality_reason from valuation_metric where assessment_id='{a['id']}'")}
+    metrics = {r["metric_code"]: r for r in q(f"select metric_code, value, applicability, own_history_percentile, sector_percentile, effective_weight, quality_reason, own_history_basis, own_history_comparison_value from valuation_metric where assessment_id='{a['id']}'")}
     price = bars[-1]["c"]
     cur = summary_v2(reports, None)
     eps_ttm = cur["EPS_TTM"][0]; growth = cur["EPS_GROWTH_PERCENT"][0]
@@ -194,23 +203,41 @@ def valuation_checks(sym, bars, reports, shares):
     # market cap sanity via shares
     if shares:
         note("valuation", True, f"{sym}: marketCap = {price:.0f} x {shares} = {price*shares/1e9:,.0f} bn VND (informational)")
-    # own-history percentile of PE: rebuild series with visibility by observed_at
-    if a["used_own_history"] == "t" and pe is not None and metrics.get("PE", {}).get("own_history_percentile"):
-        series = []
-        for b in bars[-750:]:
-            boundary = datetime.combine(date.fromisoformat(b["d"]), datetime.max.time()).replace(tzinfo=timezone(timedelta(hours=7)))
-            vis = [r for r in reports if r["observed_at"] and datetime.fromisoformat(r["observed_at"].replace(" ", "T")) <= boundary]
-            if not vis: continue
-            e = summary_v2(vis, None)["EPS_TTM"][0]
-            if e is not None and e > 0:
-                series.append(b["c"] / e)
-        if len(series) >= 500:
-            less = sum(1 for x in series if x < pe); eq = sum(1 for x in series if x == pe)
-            pct = 100 * (less + 0.5 * eq) / len(series)
-            sp = f(metrics["PE"]["own_history_percentile"])
-            note("valuation", abs(sp - pct) <= 0.6, f"{sym} PE own-history percentile: mine={pct:.3f} (n={len(series)}) stored={sp} (hist_points={a['history_point_count']})")
+    # own-history percentile of PE (valuation-v3, specs/023): BOTH the series and the ranked value are
+    # on the fiscal-year basis; the headline PE checked above stays quarter-TTM. Rebuild the series
+    # with visibility by observed_at and the comparison value from every current report.
+    pe_row = metrics.get("PE", {})
+    if a["used_own_history"] == "t" and pe is not None:
+        eps_fy = summary_v2(reports, None, "FISCAL_YEAR")["EPS_TTM"][0]
+        pe_fy = None if eps_fy is None or eps_fy <= 0 else price / eps_fy
+        if pe_fy is None:
+            no_pct = pe_row.get("own_history_percentile") in (None, "")
+            note("valuation", no_pct and "HISTORY_COMPARISON_UNAVAILABLE" in (a["reason_codes"] or ""),
+                 f"{sym} PE: no fiscal-year comparison (FY EPS={eps_fy}); stored percentile={pe_row.get('own_history_percentile')} reasons={a['reason_codes']}")
         else:
-            note("valuation", True, f"{sym}: rebuilt PE history has {len(series)} points (<500) -- informational")
+            stored_cmp = f(pe_row.get("own_history_comparison_value"))
+            ok_cmp = stored_cmp is not None and abs(stored_cmp - pe_fy) <= 1e-4 and pe_row.get("own_history_basis") == "FISCAL_YEAR"
+            note("valuation", ok_cmp, f"{sym} PE own-history comparison: mine={pe_fy:.6f} (price / FY EPS {eps_fy}) stored={pe_row.get('own_history_comparison_value')} basis={pe_row.get('own_history_basis')}")
+            series = []
+            for b in bars[-750:]:
+                boundary = datetime.combine(date.fromisoformat(b["d"]), datetime.max.time()).replace(tzinfo=timezone(timedelta(hours=7)))
+                vis = [r for r in reports if r["observed_at"] and datetime.fromisoformat(r["observed_at"].replace(" ", "T")) <= boundary]
+                if not vis: continue
+                e = summary_v2(vis, None, "FISCAL_YEAR")["EPS_TTM"][0]
+                if e is not None and e > 0:
+                    series.append(b["c"] / e)
+            if len(series) >= 500 and pe_row.get("own_history_percentile"):
+                less = sum(1 for x in series if x < pe_fy); eq = sum(1 for x in series if x == pe_fy)
+                pct = 100 * (less + 0.5 * eq) / len(series)
+                sp = f(pe_row["own_history_percentile"])
+                note("valuation", abs(sp - pct) <= 0.6, f"{sym} PE own-history percentile (FY basis): mine={pct:.3f} (n={len(series)}) stored={sp} (hist_points={a['history_point_count']})")
+            else:
+                note("valuation", True, f"{sym}: rebuilt FY-basis PE history has {len(series)} points -- informational")
+    pb_row = metrics.get("PB", {})
+    if pb_row.get("own_history_percentile"):
+        # point-in-time metric: ranked on its own headline, labelled as such
+        note("valuation", pb_row.get("own_history_basis") == "LATEST_REPORT" and f(pb_row.get("own_history_comparison_value")) == f(pb_row.get("value")),
+             f"{sym} PB own-history basis={pb_row.get('own_history_basis')} comparison={pb_row.get('own_history_comparison_value')} value={pb_row.get('value')}")
     # score / band
     if a["classification"]:
         sc = f(a["score"]); band = "UNDER_VALUED" if sc < 35.5 else ("OVER_VALUED" if sc >= 64.5 else "FAIR_VALUED")

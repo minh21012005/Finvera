@@ -28,14 +28,38 @@ function valuation(overrides: Partial<StockValuation> = {}): StockValuation {
       sectorConstituentCount: null, historyPointCount: 750,
     },
     metrics: [
-      { metricCode: "PE", value: null, applicability: "NOT_APPLICABLE", ownHistoryPercentile: null, sectorPercentile: null, effectiveWeight: null, reasonCode: "NEGATIVE_OR_ZERO_EPS" },
-      { metricCode: "PB", value: "1.270000", applicability: "DEFINED", ownHistoryPercentile: "12.4", sectorPercentile: null, effectiveWeight: "1.000000000000", reasonCode: null },
-      { metricCode: "EV_EBITDA", value: null, applicability: "MISSING", ownHistoryPercentile: null, sectorPercentile: null, effectiveWeight: null, reasonCode: "MISSING_EBITDA" },
-      { metricCode: "DIVIDEND_YIELD", value: "1.190000", applicability: "DEFINED", ownHistoryPercentile: null, sectorPercentile: null, effectiveWeight: null, reasonCode: null },
+      { metricCode: "PE", value: null, applicability: "NOT_APPLICABLE", ownHistoryPercentile: null, sectorPercentile: null, effectiveWeight: null, reasonCode: "NEGATIVE_OR_ZERO_EPS", ownHistoryBasis: null, ownHistoryComparisonValue: null },
+      { metricCode: "PB", value: "1.270000", applicability: "DEFINED", ownHistoryPercentile: "12.4", sectorPercentile: null, effectiveWeight: "1.000000000000", reasonCode: null, ownHistoryBasis: "LATEST_REPORT", ownHistoryComparisonValue: "1.270000" },
+      { metricCode: "EV_EBITDA", value: null, applicability: "MISSING", ownHistoryPercentile: null, sectorPercentile: null, effectiveWeight: null, reasonCode: "MISSING_EBITDA", ownHistoryBasis: null, ownHistoryComparisonValue: null },
+      { metricCode: "DIVIDEND_YIELD", value: "1.190000", applicability: "DEFINED", ownHistoryPercentile: null, sectorPercentile: null, effectiveWeight: null, reasonCode: null, ownHistoryBasis: null, ownHistoryComparisonValue: null },
     ],
     ...overrides,
   } as StockValuation;
 }
+
+describe("explain evidence for valuation-v3 (specs/023)", () => {
+  it("attributes a fiscal-year-basis percentile to the value that was ranked, not to the headline", () => {
+    const factors = buildValuationEvidence(valuation({
+      ruleVersion: "valuation-v3",
+      metrics: [
+        { metricCode: "PE", value: "13.18", applicability: "DEFINED", ownHistoryPercentile: "69.83", sectorPercentile: null,
+          effectiveWeight: "1.000000000000", reasonCode: null, ownHistoryBasis: "FISCAL_YEAR", ownHistoryComparisonValue: "15.47" },
+      ],
+    }));
+    const byCode = Object.fromEntries(factors.map((f) => [f.factorCode, f.description]));
+    expect(byCode.PE).toContain("13,18");                 // the headline is still stated
+    expect(byCode.PE).toContain("phân vị lịch sử 69,83%");
+    expect(byCode.PE).toContain("năm 15,47");             // ...but the percentile belongs to the FY value
+    expect(byCode.PE).toContain("không phải 13,18");
+  });
+
+  it("adds no basis note for a point-in-time metric ranked on its own value", () => {
+    const factors = buildValuationEvidence(valuation({ ruleVersion: "valuation-v3" }));
+    const byCode = Object.fromEntries(factors.map((f) => [f.factorCode, f.description]));
+    expect(byCode.PB).toContain("phân vị lịch sử 12,4%");
+    expect(byCode.PB).not.toContain("năm");
+  });
+});
 
 describe("explain evidence for valuation (Q-43)", () => {
   it("leads with the classification, score and confidence the AI is asked to explain", () => {

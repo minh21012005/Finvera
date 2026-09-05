@@ -128,6 +128,11 @@ export const REASON_CODE_LABELS: Readonly<Record<string, string>> = {
   REDUCED_METRIC_SET:
     "Bộ chỉ số bị thu hẹp: một chỉ số lõi (P/E hoặc P/B) không áp dụng, kết luận dựa trên chỉ số lõi còn lại",
   HISTORY_SHARES_OUTSTANDING_HELD_CURRENT: "Lịch sử riêng được tính với số cổ phiếu lưu hành hiện tại",
+  // valuation-v3 (specs/023): own-history percentiles of flow metrics rank a fiscal-year value
+  HISTORY_FISCAL_YEAR_BASIS:
+    "Phân vị lịch sử của P/E, PEG, EV/EBITDA so giá trị tính trên số liệu năm tài chính với lịch sử cũng tính theo năm (giá trị được so hiển thị kèm)",
+  HISTORY_COMPARISON_UNAVAILABLE:
+    "Có chỉ số đang có giá trị hiện tại nhưng không tính được giá trị theo năm tài chính để so với lịch sử riêng, nên không có phân vị lịch sử cho chỉ số đó",
   MISSING_EPS: "Thiếu EPS",
   NEGATIVE_OR_ZERO_EPS: "EPS âm hoặc bằng 0",
   MISSING_BVPS: "Thiếu giá trị sổ sách trên cổ phiếu",

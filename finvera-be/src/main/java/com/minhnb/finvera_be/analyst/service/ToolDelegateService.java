@@ -350,7 +350,9 @@ public class ToolDelegateService {
                         m.applicability() != null ? m.applicability().name() : "MISSING", m.reasonCode(),
                         m.ownHistoryPercentile() != null ? m.ownHistoryPercentile().toPlainString() : null,
                         m.sectorPercentile() != null ? m.sectorPercentile().toPlainString() : null,
-                        m.effectiveWeight() != null ? m.effectiveWeight().toPlainString() : null));
+                        m.effectiveWeight() != null ? m.effectiveWeight().toPlainString() : null,
+                        m.ownHistoryBasis(),
+                        m.ownHistoryComparisonValue() != null ? m.ownHistoryComparisonValue().toPlainString() : null));
                 if (defined && "PE".equals(m.metricCode())) {
                     pe = value;
                 } else if (defined && "PB".equals(m.metricCode())) {

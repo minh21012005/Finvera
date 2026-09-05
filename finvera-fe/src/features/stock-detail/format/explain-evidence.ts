@@ -42,7 +42,12 @@ export function buildValuationEvidence(valuation: StockValuation): EvidenceFacto
     if (m.applicability === "DEFINED") {
       const parts = [`${label}: ${formatDecimal(m.value)}`];
       if (m.ownHistoryPercentile !== null) {
-        parts.push(`phân vị lịch sử ${formatDecimal(m.ownHistoryPercentile)}% (càng cao càng đắt so với chính mã)`);
+        // valuation-v3: the percentile of a flow metric belongs to its fiscal-year value, not to the
+        // headline just stated — hand the model the number that was actually ranked.
+        const rankedOn = m.ownHistoryBasis === "FISCAL_YEAR" && m.ownHistoryComparisonValue !== null
+          ? `; tính trên ${label} năm ${formatDecimal(m.ownHistoryComparisonValue)}, không phải ${formatDecimal(m.value)}`
+          : "";
+        parts.push(`phân vị lịch sử ${formatDecimal(m.ownHistoryPercentile)}% (càng cao càng đắt so với chính mã${rankedOn})`);
       }
       if (m.sectorPercentile !== null) {
         parts.push(`phân vị ngành ${formatDecimal(m.sectorPercentile)}%`);

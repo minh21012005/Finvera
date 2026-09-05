@@ -13,17 +13,30 @@ import java.util.Set;
 import java.util.Objects;
 
 /**
- * Normative implementation of specs/012 contracts/valuation-v2.md (which amends
- * specs/002 contracts/valuation-v1.md). Class name is historical; {@link #RULE_VERSION}
- * is the authority.
+ * Normative implementation of specs/023 contracts/valuation-v3.md (which amends
+ * specs/012 contracts/valuation-v2.md and specs/002 contracts/valuation-v1.md). Class name is
+ * historical; {@link #RULE_VERSION} is the authority.
  * Pure domain engine calculating relative expensiveness classification, score,
  * metric percentiles, and confidence.
  */
 public final class ValuationV1 {
 
-    public static final String RULE_VERSION = "valuation-v2";
+    public static final String RULE_VERSION = "valuation-v3";
     /** v2: a CORE metric (PE or PB) was NOT_APPLICABLE and excluded from the coverage denominator. */
     public static final String REDUCED_METRIC_SET = "REDUCED_METRIC_SET";
+    /** v3: Basis A ranked at least one flow metric's fiscal-year comparison value against a fiscal-year series. */
+    public static final String HISTORY_FISCAL_YEAR_BASIS = "HISTORY_FISCAL_YEAR_BASIS";
+    /** v3: a DEFINED headline metric with a qualifying series had no DEFINED fiscal-year comparison value. */
+    public static final String HISTORY_COMPARISON_UNAVAILABLE = "HISTORY_COMPARISON_UNAVAILABLE";
+    /** v3 own-history basis labels (contract: per-metric disclosure). */
+    public static final String BASIS_FISCAL_YEAR = "FISCAL_YEAR";
+    public static final String BASIS_LATEST_REPORT = "LATEST_REPORT";
+    /**
+     * v3: metrics built from period aggregates (EPS_TTM, EPS growth, EBITDA_TTM, REVENUE_TTM,
+     * dividend flows). Their own-history rank uses a fiscal-year comparison value; everything else
+     * (PB: balance-sheet snapshot) ranks its headline value.
+     */
+    public static final Set<String> FLOW_METRICS = Set.of("PE", "PEG", "EV_EBITDA", "PS", "DIVIDEND_YIELD");
     private static final Set<String> CORE_METRICS = Set.of("PE", "PB");
     private static final BigDecimal COVERAGE_FLOOR = new BigDecimal("0.50");
     /** EV/EBITDA cannot be formed without balance-sheet inputs the provider never supplies (research 012 R-003). */
@@ -119,18 +132,46 @@ public final class ValuationV1 {
         // Compute percentiles for each metric in each basis
         Map<String, BigDecimal> ownPercentiles = new HashMap<>();
         Map<String, BigDecimal> sectorPercentiles = new HashMap<>();
+        Map<String, String> ownBasis = new HashMap<>();
+        Map<String, BigDecimal> ownComparison = new HashMap<>();
+        boolean rankedOnFiscalYear = false;
+        boolean comparisonUnavailable = false;
 
         for (MetricValue mv : computed.allScored()) {
             if (mv.applicability() == MetricApplicability.DEFINED && mv.value() != null) {
                 List<BigDecimal> hSeries = historyByMetric.getOrDefault(mv.metricCode(), List.of());
                 if (hSeries.size() >= MIN_HISTORY_POINTS) {
-                    ownPercentiles.put(mv.metricCode(), percentileRank(mv.value(), hSeries));
+                    // valuation-v3 Basis A: the series is built on the fiscal-year basis, so a flow
+                    // metric ranks its fiscal-year comparison value, never its quarter-TTM headline.
+                    // A point-in-time metric (PB) has no aggregate basis and ranks its headline.
+                    if (FLOW_METRICS.contains(mv.metricCode())) {
+                        ownBasis.put(mv.metricCode(), BASIS_FISCAL_YEAR);
+                        MetricValue comparison = inputs.ownHistoryComparison().get(mv.metricCode());
+                        if (comparison != null && comparison.applicability() == MetricApplicability.DEFINED
+                                && comparison.value() != null) {
+                            ownComparison.put(mv.metricCode(), comparison.value());
+                            ownPercentiles.put(mv.metricCode(), percentileRank(comparison.value(), hSeries));
+                            rankedOnFiscalYear = true;
+                        } else {
+                            comparisonUnavailable = true; // disclosed, never defaulted to the headline
+                        }
+                    } else {
+                        ownBasis.put(mv.metricCode(), BASIS_LATEST_REPORT);
+                        ownComparison.put(mv.metricCode(), mv.value());
+                        ownPercentiles.put(mv.metricCode(), percentileRank(mv.value(), hSeries));
+                    }
                 }
                 List<BigDecimal> sSeries = sectorByMetric.getOrDefault(mv.metricCode(), List.of());
                 if (sSeries.size() >= MIN_SECTOR_CONSTITUENTS) {
                     sectorPercentiles.put(mv.metricCode(), percentileRank(mv.value(), sSeries));
                 }
             }
+        }
+        if (rankedOnFiscalYear) {
+            reasonCodes.add(HISTORY_FISCAL_YEAR_BASIS);
+        }
+        if (comparisonUnavailable) {
+            reasonCodes.add(HISTORY_COMPARISON_UNAVAILABLE);
         }
 
         // valuation-v2 publishability gate (contract valuation-v2.md): coverage is the qualifying
@@ -181,7 +222,7 @@ public final class ValuationV1 {
 
         if (isWithheld) {
             // Build metrics without effective weights/scores
-            List<MetricResult> metricResults = buildMetricResults(computed, ownPercentiles, sectorPercentiles, Map.of());
+            List<MetricResult> metricResults = buildMetricResults(computed, ownPercentiles, sectorPercentiles, ownBasis, ownComparison,Map.of());
             return new AssessmentResult(
                     RULE_VERSION,
                     false,
@@ -285,7 +326,7 @@ public final class ValuationV1 {
                         .add(CONFIDENCE_HISTORY_WEIGHT.multiply(historyDepth)));
         int confidence = confidenceRaw.setScale(0, RoundingMode.HALF_UP).intValue();
 
-        List<MetricResult> metricResults = buildMetricResults(computed, ownPercentiles, sectorPercentiles, effectiveWeights);
+        List<MetricResult> metricResults = buildMetricResults(computed, ownPercentiles, sectorPercentiles, ownBasis, ownComparison,effectiveWeights);
 
         return new AssessmentResult(
                 RULE_VERSION,
@@ -453,6 +494,8 @@ public final class ValuationV1 {
             ComputedMetrics computed,
             Map<String, BigDecimal> ownPct,
             Map<String, BigDecimal> secPct,
+            Map<String, String> ownBasis,
+            Map<String, BigDecimal> ownComparison,
             Map<String, BigDecimal> effWeights) {
         List<MetricResult> list = new ArrayList<>();
         for (MetricValue mv : List.of(computed.pe(), computed.pb(), computed.evEbitda(), computed.peg(), computed.dividendYield(), computed.ps())) {
@@ -464,7 +507,9 @@ public final class ValuationV1 {
                     ownPct.get(mv.metricCode()),
                     secPct.get(mv.metricCode()),
                     effW,
-                    mv.qualityReason()
+                    mv.qualityReason(),
+                    ownBasis.get(mv.metricCode()),
+                    ownComparison.get(mv.metricCode())
             ));
         }
         return list;
@@ -514,7 +559,11 @@ public final class ValuationV1 {
             BigDecimal ownHistoryPercentile,
             BigDecimal sectorPercentile,
             BigDecimal effectiveWeight,
-            String reasonCode
+            String reasonCode,
+            /** v3: {@link #BASIS_FISCAL_YEAR} / {@link #BASIS_LATEST_REPORT} when Basis A was evaluated for this row. */
+            String ownHistoryBasis,
+            /** v3: the value actually ranked against the own-history series; null when not DEFINED. */
+            BigDecimal ownHistoryComparisonValue
     ) {}
 
     public record AssessmentResult(
@@ -548,11 +597,22 @@ public final class ValuationV1 {
             BigDecimal dividendYield,
             BigDecimal revenueTtm,
             List<HistoryPoint> ownHistorySeries,
+            /**
+             * v3: per metric code, the metric computed on the fiscal-year basis at today's price —
+             * the value Basis A ranks for flow metrics. Empty means no comparison value is available
+             * (a flow metric then gets no own-history percentile, disclosed as
+             * {@link #HISTORY_COMPARISON_UNAVAILABLE}).
+             */
+            Map<String, MetricValue> ownHistoryComparison,
             List<SectorPoint> sectorSeries,
             String priceDataStatus,
             String fundamentalsDataStatus,
             boolean sourceConflict
     ) {
+        public Inputs {
+            ownHistoryComparison = ownHistoryComparison == null ? Map.of() : Map.copyOf(ownHistoryComparison);
+        }
+
         public static Builder builder() {
             return new Builder();
         }
@@ -571,6 +631,7 @@ public final class ValuationV1 {
             private BigDecimal dividendYield;
             private BigDecimal revenueTtm;
             private List<HistoryPoint> ownHistorySeries = List.of();
+            private Map<String, MetricValue> ownHistoryComparison = Map.of();
             private List<SectorPoint> sectorSeries = List.of();
             private String priceDataStatus = "CURRENT";
             private String fundamentalsDataStatus = "CURRENT";
@@ -589,6 +650,16 @@ public final class ValuationV1 {
             public Builder revenueTtm(BigDecimal r) { this.revenueTtm = r; return this; }
             public Builder dividendYield(BigDecimal dy) { this.dividendYield = dy; return this; }
             public Builder ownHistorySeries(List<HistoryPoint> h) { this.ownHistorySeries = h; return this; }
+            public Builder ownHistoryComparison(Map<String, MetricValue> c) { this.ownHistoryComparison = c; return this; }
+            /** Convenience for point-in-time-only or annual-only inputs: rank every metric on its headline value. */
+            public Builder ownHistoryComparisonFromHeadline() {
+                Map<String, MetricValue> map = new HashMap<>();
+                for (MetricValue mv : computeMetrics(build()).allScored()) {
+                    map.put(mv.metricCode(), mv);
+                }
+                this.ownHistoryComparison = map;
+                return this;
+            }
             public Builder sectorSeries(List<SectorPoint> s) { this.sectorSeries = s; return this; }
             public Builder priceDataStatus(String s) { this.priceDataStatus = s; return this; }
             public Builder fundamentalsDataStatus(String s) { this.fundamentalsDataStatus = s; return this; }
@@ -599,7 +670,7 @@ public final class ValuationV1 {
                         price, sharesOutstanding, epsTtm, epsGrowthPercent,
                         equityAttributableToParent, bvps, ebitdaTtm, totalDebt,
                         cashAndEquivalents, dividendPerShareTtm, dividendYield, revenueTtm,
-                        ownHistorySeries, sectorSeries, priceDataStatus,
+                        ownHistorySeries, ownHistoryComparison, sectorSeries, priceDataStatus,
                         fundamentalsDataStatus, sourceConflict
                 );
             }

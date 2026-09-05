@@ -149,6 +149,11 @@ export interface StockFundamentals {
 export type ValuationLabel = "UNDER_VALUED" | "FAIR_VALUED" | "OVER_VALUED";
 export type ValuationMetricCode = "PE" | "PB" | "EV_EBITDA" | "PEG" | "DIVIDEND_YIELD" | "PS";
 
+/** valuation-v3: which basis the own-history percentile was ranked on (null on valuation-v2 rows). */
+export type OwnHistoryBasis = "FISCAL_YEAR" | "LATEST_REPORT";
+export const VALUATION_RULE_VERSIONS = ["valuation-v2", "valuation-v3"] as const;
+export type ValuationRuleVersion = (typeof VALUATION_RULE_VERSIONS)[number];
+
 export interface ValuationMetricValue {
   metricCode: ValuationMetricCode;
   value: string | null;
@@ -157,6 +162,10 @@ export interface ValuationMetricValue {
   sectorPercentile: string | null;
   effectiveWeight: string | null;
   reasonCode: string | null;
+  /** valuation-v3: basis of ownHistoryPercentile; null when Basis A does not apply or on v2 rows. */
+  ownHistoryBasis: OwnHistoryBasis | null;
+  /** valuation-v3: the value that was ranked (for FISCAL_YEAR metrics it differs from `value`). */
+  ownHistoryComparisonValue: string | null;
 }
 
 export interface ValuationBasis {
@@ -171,7 +180,7 @@ export interface ValuationBasis {
 
 export interface StockValuation {
   meta: SectionMeta;
-  ruleVersion: "valuation-v2";
+  ruleVersion: ValuationRuleVersion;
   published: boolean;
   classification: ValuationLabel | null;
   score: string | null;
@@ -437,10 +446,12 @@ function parseFundamentalMetric(value: unknown): FundamentalMetricValue {
 
 export function parseStockValuation(value: unknown): StockValuation {
   const v = record(value, "stock valuation");
-  if (v.ruleVersion !== "valuation-v2") throw new Error("Unsupported valuation ruleVersion");
+  // valuation-v2 rows stay readable next to valuation-v3 ones (specs/023 contract: clients accept both).
+  const ruleVersion = VALUATION_RULE_VERSIONS.find((known) => known === v.ruleVersion);
+  if (ruleVersion === undefined) throw new Error("Unsupported valuation ruleVersion");
   return {
     meta: parseMeta(v.meta),
-    ruleVersion: "valuation-v2",
+    ruleVersion,
     published: typeof v.published === "boolean" ? v.published : false,
     classification: v.classification ? (text(v.classification, "valuation classification") as ValuationLabel) : null,
     score: decimal(v.score, "valuation score"),
@@ -475,7 +486,16 @@ function parseValuationMetric(value: unknown): ValuationMetricValue {
     sectorPercentile: decimal(m.sectorPercentile, "valuation metric sectorPercentile"),
     effectiveWeight: decimal(m.effectiveWeight, "valuation metric effectiveWeight"),
     reasonCode: nullableText(m.reasonCode, "valuation metric reasonCode"),
+    ownHistoryBasis: ownHistoryBasis(m.ownHistoryBasis),
+    ownHistoryComparisonValue: decimal(m.ownHistoryComparisonValue, "valuation metric ownHistoryComparisonValue"),
   };
+}
+
+function ownHistoryBasis(value: unknown): OwnHistoryBasis | null {
+  // Absent on valuation-v2 payloads; on v3 it is one of the contract's two labels or null.
+  if (value === undefined || value === null) return null;
+  if (value === "FISCAL_YEAR" || value === "LATEST_REPORT") return value;
+  throw new Error("Unsupported valuation metric ownHistoryBasis");
 }
 
 function parseSearchResult(value: unknown): StockSearchResult {

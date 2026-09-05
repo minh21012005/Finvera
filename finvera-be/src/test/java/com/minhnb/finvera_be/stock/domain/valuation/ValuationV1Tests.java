@@ -95,6 +95,7 @@ class ValuationV1Tests {
                 .dividendPerShareTtm(new BigDecimal("0.000000"))
                 .ownHistorySeries(List.of())
                 .sectorSeries(List.of())
+                .ownHistoryComparisonFromHeadline()  // v3: annual-only inputs rank their headline (DATA-003)
                 .build();
 
         var result = engine.classify(inputs);
@@ -132,6 +133,7 @@ class ValuationV1Tests {
                 .dividendPerShareTtm(new BigDecimal("2000.000000"))
                 .ownHistorySeries(buildMinimalHistory(600))  // 600 points >= 500 threshold
                 .sectorSeries(buildSectorSeries(7))          // 7 < N_min=8 → excluded
+                .ownHistoryComparisonFromHeadline()  // v3: annual-only inputs rank their headline (DATA-003)
                 .build();
 
         var result = engine.classify(inputs);
@@ -164,6 +166,7 @@ class ValuationV1Tests {
                 .dividendPerShareTtm(new BigDecimal("2000.000000"))
                 .ownHistorySeries(buildMinimalHistory(400)) // 400 < 500 → Basis A excluded
                 .sectorSeries(buildSectorSeries(5))          // 5 < 8 → Basis B excluded
+                .ownHistoryComparisonFromHeadline()  // v3: annual-only inputs rank their headline (DATA-003)
                 .build();
 
         var result = engine.classify(inputs);
@@ -200,6 +203,7 @@ class ValuationV1Tests {
                 .dividendPerShareTtm(new BigDecimal("2000.000000"))
                 .ownHistorySeries(buildMinimalHistory(600))
                 .sectorSeries(List.of())
+                .ownHistoryComparisonFromHeadline()  // v3: annual-only inputs rank their headline (DATA-003)
                 .build();
 
         var result = engine.classify(inputs);
@@ -236,6 +240,7 @@ class ValuationV1Tests {
                 .dividendPerShareTtm(null)
                 .ownHistorySeries(buildMinimalHistory(600))
                 .sectorSeries(List.of())
+                .ownHistoryComparisonFromHeadline()  // v3: annual-only inputs rank their headline (DATA-003)
                 .build();
 
         var result = engine.classify(inputs);
@@ -264,6 +269,7 @@ class ValuationV1Tests {
                 .dividendPerShareTtm(new BigDecimal("2000.000000"))
                 .ownHistorySeries(buildMinimalHistory(600))
                 .sectorSeries(List.of())
+                .ownHistoryComparisonFromHeadline()  // v3: annual-only inputs rank their headline (DATA-003)
                 .build();
 
         var result = engine.classify(inputs);
@@ -298,6 +304,7 @@ class ValuationV1Tests {
                 .dividendPerShareTtm(new BigDecimal("2.000000"))
                 .ownHistorySeries(historySeries)
                 .sectorSeries(List.of())
+                .ownHistoryComparisonFromHeadline()  // v3: annual-only inputs rank their headline (DATA-003)
                 .build();
 
         var result = engine.classify(inputs);
@@ -329,6 +336,7 @@ class ValuationV1Tests {
                 .ownHistorySeries(buildMinimalHistory(600))
                 .sectorSeries(List.of())
                 .fundamentalsDataStatus("STALE")            // R-010: 300d old → STALE
+                .ownHistoryComparisonFromHeadline()  // v3: annual-only inputs rank their headline (DATA-003)
                 .build();
 
         var result = engine.classify(inputs);
@@ -356,6 +364,7 @@ class ValuationV1Tests {
                 .ownHistorySeries(List.of())
                 .sectorSeries(List.of())
                 .fundamentalsDataStatus("UNAVAILABLE")
+                .ownHistoryComparisonFromHeadline()  // v3: annual-only inputs rank their headline (DATA-003)
                 .build();
 
         var result = engine.classify(inputs);
@@ -386,6 +395,7 @@ class ValuationV1Tests {
                 .ownHistorySeries(buildMinimalHistory(600))
                 .sectorSeries(List.of())
                 .priceDataStatus("STALE")
+                .ownHistoryComparisonFromHeadline()  // v3: annual-only inputs rank their headline (DATA-003)
                 .build();
 
         var result = engine.classify(inputs);
@@ -424,6 +434,7 @@ class ValuationV1Tests {
                 .dividendPerShareTtm(inputs.dividendPerShareTtm())
                 .ownHistorySeries(inputs.ownHistorySeries())
                 .sectorSeries(inputs.sectorSeries())
+                .ownHistoryComparisonFromHeadline()  // v3: annual-only inputs rank their headline (DATA-003)
                 .build();
         var result2 = engine.classify(restatementInputs);
         // Both assessments must carry a published state and the correct rule version
@@ -469,6 +480,7 @@ class ValuationV1Tests {
                 .dividendPerShareTtm(new BigDecimal("2000.000000"))
                 .ownHistorySeries(buildMinimalHistory(600))
                 .sectorSeries(buildSectorSeries(10))   // 10 >= 8 → sector basis available
+                .ownHistoryComparisonFromHeadline()  // v3: annual-only inputs rank their headline (DATA-003)
                 .build();
         var result = engine.classify(inputs);
         assertThat(result.published()).isTrue();
@@ -509,6 +521,7 @@ class ValuationV1Tests {
                 .dividendPerShareTtm(new BigDecimal("2000.000000"))
                 .ownHistorySeries(List.of())
                 .sectorSeries(List.of())
+                .ownHistoryComparisonFromHeadline()  // v3: annual-only inputs rank their headline (DATA-003)
                 .build();
 
         var result = engine.classify(inputs);
@@ -534,6 +547,7 @@ class ValuationV1Tests {
                 .dividendPerShareTtm(new BigDecimal("2000.000000"))
                 .ownHistorySeries(List.of())
                 .sectorSeries(List.of())
+                .ownHistoryComparisonFromHeadline()  // v3: annual-only inputs rank their headline (DATA-003)
                 .build();
 
         var result = engine.classify(inputs);
@@ -590,6 +604,7 @@ class ValuationV1Tests {
                 .equityAttributableToParent(new BigDecimal("42000000000000.000000"))
                 .ownHistorySeries(List.of())            // Basis A unavailable
                 .sectorSeries(buildSectorSeries(12))    // Basis B qualifies (>= 8)
+                .ownHistoryComparisonFromHeadline()  // v3: annual-only inputs rank their headline (DATA-003)
                 .build();
 
         var result = engine.classify(inputs);
@@ -601,6 +616,120 @@ class ValuationV1Tests {
         // PE 0.40 and PB 0.30 renormalize over 0.70 -> 0.571428571429 / 0.428571428571 at scale 12.
         assertThat(pe.effectiveWeight()).isEqualByComparingTo("0.571428571429");
         assertThat(pb.effectiveWeight()).isEqualByComparingTo("0.428571428571");
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // valuation-v3 (specs/023 contracts/valuation-v3.md): Basis A ranks a flow metric's
+    // fiscal-year comparison value against a fiscal-year series, and discloses both.
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    @Test
+    void v3GrowthCompanyRanksTheFiscalYearValueNotTheTtmHeadline() {
+        // VNM as stored 2026-08-28: TTM EPS 4,728 (four quarters), FY2025 EPS 4,028, close 62,300.
+        var comparison = comparisonOf(ValuationV1.Inputs.builder()
+                .price(new BigDecimal("62300")).sharesOutstanding(2_089_955_445L)
+                .epsTtm(new BigDecimal("4028"))                                   // fiscal-year EPS
+                .equityAttributableToParent(new BigDecimal("42000000000000"))
+                .build());
+        var inputs = ValuationV1.Inputs.builder()
+                .price(new BigDecimal("62300")).sharesOutstanding(2_089_955_445L)
+                .epsTtm(new BigDecimal("4728"))                                   // quarter-TTM headline
+                .equityAttributableToParent(new BigDecimal("42000000000000"))
+                .ownHistorySeries(buildMinimalHistory(600))
+                .ownHistoryComparison(comparison)
+                .sectorSeries(List.of())
+                .build();
+
+        var result = new ValuationV1().classify(inputs);
+
+        assertThat(result.ruleVersion()).isEqualTo("valuation-v3");
+        var pe = findMetric(result, "PE");
+        assertThat(pe.value()).isEqualByComparingTo("13.176818950931");            // headline unchanged from v2
+        assertThat(pe.ownHistoryBasis()).isEqualTo(ValuationV1.BASIS_FISCAL_YEAR);
+        assertThat(pe.ownHistoryComparisonValue()).isEqualByComparingTo("15.466732869911");
+        // buildMinimalHistory(600) is 5 + 15*i/600: 419 points lie below 15.4667 (69.833 %),
+        // whereas the TTM headline 13.1768 would have ranked at 54.667 % — the bias being removed.
+        assertThat(pe.ownHistoryPercentile()).isEqualByComparingTo("69.833333333333");
+        var pb = findMetric(result, "PB");
+        assertThat(pb.ownHistoryBasis()).isEqualTo(ValuationV1.BASIS_LATEST_REPORT);
+        assertThat(pb.ownHistoryComparisonValue()).isEqualByComparingTo(pb.value());
+        assertThat(result.reasonCodes()).contains(ValuationV1.HISTORY_FISCAL_YEAR_BASIS)
+                .doesNotContain(ValuationV1.HISTORY_COMPARISON_UNAVAILABLE);
+    }
+
+    @Test
+    void v3TurnaroundWithNegativeFiscalYearEpsGetsNoHistoryPercentileForPeAndSaysSo() {
+        var comparison = comparisonOf(ValuationV1.Inputs.builder()
+                .price(new BigDecimal("25000")).sharesOutstanding(1_000_000_000L)
+                .epsTtm(new BigDecimal("-500"))                                   // FY EPS <= 0: no FY-basis PE
+                .equityAttributableToParent(new BigDecimal("30000000000000"))
+                .build());
+        var inputs = ValuationV1.Inputs.builder()
+                .price(new BigDecimal("25000")).sharesOutstanding(1_000_000_000L)
+                .epsTtm(new BigDecimal("1000"))                                   // TTM EPS > 0: headline PE DEFINED
+                .equityAttributableToParent(new BigDecimal("30000000000000"))
+                .ownHistorySeries(buildMinimalHistory(600))
+                .ownHistoryComparison(comparison)
+                .sectorSeries(buildSectorSeries(10))                              // PE still qualifies through Basis B
+                .build();
+
+        var result = new ValuationV1().classify(inputs);
+
+        var pe = findMetric(result, "PE");
+        assertThat(pe.applicability()).isEqualTo(MetricApplicability.DEFINED);
+        assertThat(pe.ownHistoryPercentile()).isNull();                          // never defaulted to the headline
+        assertThat(pe.ownHistoryBasis()).isEqualTo(ValuationV1.BASIS_FISCAL_YEAR);
+        assertThat(pe.ownHistoryComparisonValue()).isNull();
+        assertThat(pe.sectorPercentile()).isNotNull();
+        assertThat(findMetric(result, "PB").ownHistoryPercentile()).isNotNull();
+        assertThat(result.reasonCodes()).contains(ValuationV1.HISTORY_COMPARISON_UNAVAILABLE);
+        assertThat(result.published()).isTrue();
+    }
+
+    @Test
+    void v3AnnualOnlyCompanyReproducesTheHeadlineRank() {
+        // No quarterly EPS (banks, brokers): the headline is already the annual figure, so the
+        // fiscal-year comparison value equals it and v3 ranks exactly what v2 ranked (DATA-003).
+        var inputs = ValuationV1.Inputs.builder()
+                .price(new BigDecimal("25000")).sharesOutstanding(1_000_000_000L)
+                .epsTtm(new BigDecimal("2000"))
+                .equityAttributableToParent(new BigDecimal("30000000000000"))
+                .ownHistorySeries(buildMinimalHistory(600))
+                .sectorSeries(List.of())
+                .ownHistoryComparisonFromHeadline()
+                .build();
+
+        var result = new ValuationV1().classify(inputs);
+
+        var pe = findMetric(result, "PE");
+        assertThat(pe.value()).isEqualByComparingTo("12.5");
+        assertThat(pe.ownHistoryComparisonValue()).isEqualByComparingTo(pe.value());
+        // 12.5 sits exactly on point i = 300 of 5 + 15*i/600: (300 + 0.5) * 100 / 600
+        assertThat(pe.ownHistoryPercentile()).isEqualByComparingTo("50.083333333333");
+    }
+
+    @Test
+    void v3ReplayReproducesBasisAndComparisonDecimalsExactly() {
+        var comparison = comparisonOf(ValuationV1.Inputs.builder()
+                .price(new BigDecimal("62300")).sharesOutstanding(2_089_955_445L)
+                .epsTtm(new BigDecimal("4028")).equityAttributableToParent(new BigDecimal("42000000000000")).build());
+        var inputs = ValuationV1.Inputs.builder()
+                .price(new BigDecimal("62300")).sharesOutstanding(2_089_955_445L)
+                .epsTtm(new BigDecimal("4728")).equityAttributableToParent(new BigDecimal("42000000000000"))
+                .ownHistorySeries(buildMinimalHistory(600)).ownHistoryComparison(comparison).sectorSeries(List.of())
+                .build();
+        var engine = new ValuationV1();
+        assertThat(engine.classify(inputs).metrics()).isEqualTo(engine.classify(inputs).metrics());
+        assertThat(engine.classify(inputs).score()).isEqualByComparingTo(engine.classify(inputs).score());
+    }
+
+    /** What ValuationService hands the engine: every metric computed on the fiscal-year inputs. */
+    private static java.util.Map<String, ValuationV1.MetricValue> comparisonOf(ValuationV1.Inputs fiscalYearInputs) {
+        var map = new java.util.HashMap<String, ValuationV1.MetricValue>();
+        for (var mv : ValuationV1.computeMetrics(fiscalYearInputs).allScored()) {
+            map.put(mv.metricCode(), mv);
+        }
+        return map;
     }
 
     private static List<ValuationV1.HistoryPoint> buildMinimalHistory(int size) {
@@ -653,6 +782,7 @@ class ValuationV1Tests {
                 .dividendPerShareTtm(new BigDecimal("2000.000000"))
                 .ownHistorySeries(buildMinimalHistory(600))
                 .sectorSeries(buildSectorSeries(10))
+                .ownHistoryComparisonFromHeadline()  // v3: annual-only inputs rank their headline (DATA-003)
                 .build();
     }
 
@@ -707,9 +837,10 @@ class ValuationV1Tests {
                 .totalDebt(null).cashAndEquivalents(null)
                 .ownHistorySeries(buildMinimalHistory(600))
                 .sectorSeries(List.of())
+                .ownHistoryComparisonFromHeadline()  // v3: annual-only inputs rank their headline (DATA-003)
                 .build();
         var result = engine.classify(inputs);
-        assertThat(result.ruleVersion()).isEqualTo("valuation-v2");
+        assertThat(result.ruleVersion()).isEqualTo(ValuationV1.RULE_VERSION);
         assertThat(result.published()).isTrue();
         assertThat(result.reasonCodes()).contains(ValuationV1.REDUCED_METRIC_SET)
                 .doesNotContain("INSUFFICIENT_METRIC_COVERAGE");
@@ -733,6 +864,7 @@ class ValuationV1Tests {
                 .totalDebt(null).cashAndEquivalents(null)
                 .ownHistorySeries(buildMinimalHistory(600))
                 .sectorSeries(List.of())
+                .ownHistoryComparisonFromHeadline()  // v3: annual-only inputs rank their headline (DATA-003)
                 .build();
         var result = engine.classify(inputs);
         // obtainable = PE 0.40 + PB 0.30 (PEG is NOT_APPLICABLE via PE_NOT_DEFINED, EV structural) -> 0.30/0.70 < 0.50
@@ -752,6 +884,7 @@ class ValuationV1Tests {
                 .ebitdaTtm(null).totalDebt(null).cashAndEquivalents(null)
                 .ownHistorySeries(buildMinimalHistory(600))
                 .sectorSeries(List.of())
+                .ownHistoryComparisonFromHeadline()  // v3: annual-only inputs rank their headline (DATA-003)
                 .build();
         var result = engine.classify(inputs);
         assertThat(result.published()).isTrue();
@@ -771,6 +904,7 @@ class ValuationV1Tests {
                 .sectorSeries(java.util.List.of())
                 .priceDataStatus("CURRENT")
                 .fundamentalsDataStatus("CURRENT")
+                .ownHistoryComparisonFromHeadline()  // v3: annual-only inputs rank their headline (DATA-003)
                 .build();
 
         var computed = ValuationV1.computeMetrics(inputs);
@@ -785,11 +919,13 @@ class ValuationV1Tests {
                 .price(new java.math.BigDecimal("20000")).sharesOutstanding(1_000_000L)
                 .revenueTtm(java.math.BigDecimal.ZERO)
                 .ownHistorySeries(java.util.List.of()).sectorSeries(java.util.List.of())
+                .ownHistoryComparisonFromHeadline()  // v3: annual-only inputs rank their headline (DATA-003)
                 .priceDataStatus("CURRENT").fundamentalsDataStatus("CURRENT").build();
         assertThat(ValuationV1.computeMetrics(zeroRevenue).ps().applicability().name()).isEqualTo("NOT_APPLICABLE");
         var noRevenue = ValuationV1.Inputs.builder()
                 .price(new java.math.BigDecimal("20000")).sharesOutstanding(1_000_000L)
                 .ownHistorySeries(java.util.List.of()).sectorSeries(java.util.List.of())
+                .ownHistoryComparisonFromHeadline()  // v3: annual-only inputs rank their headline (DATA-003)
                 .priceDataStatus("CURRENT").fundamentalsDataStatus("CURRENT").build();
         assertThat(ValuationV1.computeMetrics(noRevenue).ps().qualityReason()).isEqualTo("MISSING_REVENUE");
     }

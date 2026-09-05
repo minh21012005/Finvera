@@ -4,6 +4,7 @@ import com.minhnb.finvera_be.market.domain.model.MarketTypes.DataStatus;
 import com.minhnb.finvera_be.market.service.MarketReferenceDataService;
 import com.minhnb.finvera_be.market.service.MarketReferenceDataService.InstrumentReference;
 import com.minhnb.finvera_be.stock.domain.fundamentals.FundamentalSummaryCalculator;
+import com.minhnb.finvera_be.stock.domain.fundamentals.FundamentalSummaryCalculator.AggregateBasis;
 import com.minhnb.finvera_be.stock.domain.fundamentals.FundamentalSummaryCalculator.ReportPeriod;
 import com.minhnb.finvera_be.stock.domain.fundamentals.FundamentalSummaryCalculator.SummaryResult;
 import com.minhnb.finvera_be.stock.domain.model.StockTypes.MetricApplicability;
@@ -176,7 +177,12 @@ public class ValuationService {
 
         List<FundamentalReportEntity> acceptedReports =
                 reports.findAllByInstrumentIdAndCurrentTrueOrderByPeriodEndDesc(instrumentId);
-        List<HistoryPoint> historyPoints = buildOwnHistorySeries(ascendingBars, acceptedReports, sharesOutstanding);
+        List<ObservedReport> observedReports = observedReports(acceptedReports);
+        List<HistoryPoint> historyPoints = buildOwnHistorySeries(ascendingBars, observedReports, sharesOutstanding);
+        // valuation-v3 (specs/023): the value ranked against that series is computed on the same
+        // fiscal-year basis at today's price. The headline metrics below keep the quarter-TTM inputs.
+        Map<String, MetricValue> ownHistoryComparison =
+                buildOwnHistoryComparison(observedReports, currentPrice, sharesOutstanding, asOfDate);
 
         // DATA-010: a material cross-source conflict on any date this
         // assessment actually consumes (the current price bar or a bar inside
@@ -206,6 +212,7 @@ public class ValuationService {
                 .dividendYield(currentFundamentals.dividendYield())
                 .revenueTtm(currentFundamentals.revenueTtm())
                 .ownHistorySeries(historyPoints)
+                .ownHistoryComparison(ownHistoryComparison)
                 // T064: gated by finvera.stock.provider.sector-basis-enabled (default false —
                 // owner validates latency in non-production first, per tasks.md T064). Sector
                 // reference data itself (G-04) may be imported and populated regardless of this
@@ -259,7 +266,9 @@ public class ValuationService {
                         m.ownHistoryPercentile(),
                         m.sectorPercentile(),
                         m.effectiveWeight(),
-                        m.reasonCode()
+                        m.reasonCode(),
+                        m.ownHistoryBasis(),
+                        m.ownHistoryComparisonValue()
                 ))
                 .toList();
 
@@ -530,12 +539,32 @@ public class ValuationService {
         return freshnessPolicy.evaluateDailyBarSeries(sessionsBehind);
     }
 
+    private record ObservedReport(ReportPeriod period, Instant observedAt) {}
+
+    /** Every accepted report as a calculator period, with one bulk metric fetch (Q-28). */
+    private List<ObservedReport> observedReports(List<FundamentalReportEntity> acceptedReports) {
+        if (acceptedReports.isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, List<FundamentalReportMetricEntity>> metricsByReport = reportMetrics
+                .findByReportIdIn(acceptedReports.stream().map(FundamentalReportEntity::getId).toList())
+                .stream()
+                .collect(java.util.stream.Collectors.groupingBy(FundamentalReportMetricEntity::getReportId));
+        return acceptedReports.stream()
+                .map(r -> new ObservedReport(toReportPeriod(r, metricsByReport.getOrDefault(r.getId(), List.of())),
+                        r.getObservedAt()))
+                .toList();
+    }
+
     /**
-     * Basis A (own accepted ratio history), contracts/valuation-v1.md: PE, PB,
+     * Basis A (own accepted ratio history), contracts/valuation-v3.md: PE, PB,
      * EV_EBITDA, and PEG are each evaluated at every one of the last
      * {@value #MAX_HISTORY_BARS} accepted sessions, using that session's own
      * accepted close and the fundamental figures that were actually observed
-     * as of that session — not today's current EPS applied retroactively.
+     * as of that session — not today's current EPS applied retroactively — and,
+     * since valuation-v3, always on the <b>fiscal-year</b> aggregate basis so
+     * every point of the series shares one definition with the comparison value
+     * built by {@link #buildOwnHistoryComparison}.
      *
      * <p>{@code sharesOutstanding} is held at its current effective value for
      * every historical point: {@code EquityProfileRepository} exposes no
@@ -549,22 +578,11 @@ public class ValuationService {
      */
     private List<HistoryPoint> buildOwnHistorySeries(
             List<EquityDailyBarEntity> ascendingBars,
-            List<FundamentalReportEntity> acceptedReports,
+            List<ObservedReport> observedReports,
             Long sharesOutstanding) {
-        if (ascendingBars.isEmpty() || acceptedReports.isEmpty()) {
+        if (ascendingBars.isEmpty() || observedReports.isEmpty()) {
             return List.of();
         }
-
-        record ObservedReport(ReportPeriod period, Instant observedAt) {}
-        // Q-28: one bulk metric fetch for every accepted report instead of one query per report.
-        Map<UUID, List<FundamentalReportMetricEntity>> metricsByReport = reportMetrics
-                .findByReportIdIn(acceptedReports.stream().map(FundamentalReportEntity::getId).toList())
-                .stream()
-                .collect(java.util.stream.Collectors.groupingBy(FundamentalReportMetricEntity::getReportId));
-        List<ObservedReport> observedReports = acceptedReports.stream()
-                .map(r -> new ObservedReport(toReportPeriod(r, metricsByReport.getOrDefault(r.getId(), List.of())),
-                        r.getObservedAt()))
-                .toList();
 
         List<HistoryPoint> historyPoints = new ArrayList<>();
         int start = Math.max(0, ascendingBars.size() - MAX_HISTORY_BARS);
@@ -582,44 +600,10 @@ public class ValuationService {
                 continue;
             }
 
-            SummaryResult asOfSummary = historyCalculator.calculate(visiblePeriods, bar.getTradingDate());
-            BigDecimal histEpsTtm = null;
-            BigDecimal histEpsGrowth = null;
-            BigDecimal histEquityParent = null;
-            BigDecimal histBvps = null;
-            BigDecimal histEbitdaTtm = null;
-            BigDecimal histTotalDebt = null;
-            BigDecimal histCash = null;
-            BigDecimal histDividendYield = null;
-            for (var m : asOfSummary.metrics()) {
-                if (m.applicability() != MetricApplicability.DEFINED || m.value() == null) {
-                    continue;
-                }
-                switch (m.metricCode()) {
-                    case "EPS_TTM" -> histEpsTtm = m.value();
-                    case "EPS_GROWTH_PERCENT" -> histEpsGrowth = m.value();
-                    case "EQUITY_ATTRIBUTABLE_TO_PARENT" -> histEquityParent = m.value();
-                    case "BVPS" -> histBvps = m.value();
-                    case "EBITDA_TTM" -> histEbitdaTtm = m.value(); // never EV_EBITDA (a ratio)
-                    case "TOTAL_DEBT" -> histTotalDebt = m.value();
-                    case "CASH_AND_EQUIVALENTS" -> histCash = m.value();
-                    case "DIVIDEND_YIELD" -> histDividendYield = m.value();
-                    default -> { /* not a valuation input */ }
-                }
-            }
-
-            ComputedMetrics computed = ValuationV1.computeMetrics(Inputs.builder()
-                    .price(bar.getClosePrice())
-                    .sharesOutstanding(sharesOutstanding)
-                    .epsTtm(histEpsTtm)
-                    .epsGrowthPercent(histEpsGrowth)
-                    .equityAttributableToParent(histEquityParent)
-                    .bvps(histBvps)
-                    .ebitdaTtm(histEbitdaTtm)
-                    .totalDebt(histTotalDebt)
-                    .cashAndEquivalents(histCash)
-                    .dividendYield(histDividendYield)
-                    .build());
+            SummaryResult asOfSummary = historyCalculator.calculate(visiblePeriods, bar.getTradingDate(),
+                    AggregateBasis.FISCAL_YEAR);
+            ComputedMetrics computed = ValuationV1.computeMetrics(
+                    fiscalYearInputs(asOfSummary, bar.getClosePrice(), sharesOutstanding));
 
             for (MetricValue mv : computed.allScored()) {
                 if (mv.applicability() == MetricApplicability.DEFINED && mv.value() != null) {
@@ -628,6 +612,69 @@ public class ValuationService {
             }
         }
         return historyPoints;
+    }
+
+    /**
+     * valuation-v3 Basis A comparison value: every metric computed at today's price from the
+     * fiscal-year-basis summary of all currently accepted reports — the same definition every
+     * point of {@link #buildOwnHistorySeries} carries, so the rank compares like with like. Keyed
+     * by metric code; {@code ValuationV1} reads it for flow metrics only.
+     */
+    private Map<String, MetricValue> buildOwnHistoryComparison(
+            List<ObservedReport> observedReports, BigDecimal currentPrice, Long sharesOutstanding, LocalDate asOfDate) {
+        if (observedReports.isEmpty() || currentPrice == null) {
+            return Map.of();
+        }
+        SummaryResult fiscalYearSummary = historyCalculator.calculate(
+                observedReports.stream().map(ObservedReport::period).toList(), asOfDate, AggregateBasis.FISCAL_YEAR);
+        ComputedMetrics computed = ValuationV1.computeMetrics(
+                fiscalYearInputs(fiscalYearSummary, currentPrice, sharesOutstanding));
+        Map<String, MetricValue> byCode = new LinkedHashMap<>();
+        for (MetricValue mv : List.of(computed.pe(), computed.pb(), computed.evEbitda(), computed.peg(),
+                computed.dividendYield(), computed.ps())) {
+            byCode.put(mv.metricCode(), mv);
+        }
+        return byCode;
+    }
+
+    /** The valuation inputs a fiscal-year-basis summary supplies at a given price (series and comparison alike). */
+    private static Inputs fiscalYearInputs(SummaryResult summary, BigDecimal price, Long sharesOutstanding) {
+        BigDecimal epsTtm = null;
+        BigDecimal epsGrowth = null;
+        BigDecimal equityParent = null;
+        BigDecimal bvps = null;
+        BigDecimal ebitdaTtm = null;
+        BigDecimal totalDebt = null;
+        BigDecimal cash = null;
+        BigDecimal dividendYield = null;
+        for (var m : summary.metrics()) {
+            if (m.applicability() != MetricApplicability.DEFINED || m.value() == null) {
+                continue;
+            }
+            switch (m.metricCode()) {
+                case "EPS_TTM" -> epsTtm = m.value();
+                case "EPS_GROWTH_PERCENT" -> epsGrowth = m.value();
+                case "EQUITY_ATTRIBUTABLE_TO_PARENT" -> equityParent = m.value();
+                case "BVPS" -> bvps = m.value();
+                case "EBITDA_TTM" -> ebitdaTtm = m.value(); // never EV_EBITDA (a ratio)
+                case "TOTAL_DEBT" -> totalDebt = m.value();
+                case "CASH_AND_EQUIVALENTS" -> cash = m.value();
+                case "DIVIDEND_YIELD" -> dividendYield = m.value();
+                default -> { /* not a valuation input */ }
+            }
+        }
+        return Inputs.builder()
+                .price(price)
+                .sharesOutstanding(sharesOutstanding)
+                .epsTtm(epsTtm)
+                .epsGrowthPercent(epsGrowth)
+                .equityAttributableToParent(equityParent)
+                .bvps(bvps)
+                .ebitdaTtm(ebitdaTtm)
+                .totalDebt(totalDebt)
+                .cashAndEquivalents(cash)
+                .dividendYield(dividendYield)
+                .build();
     }
 
     private static ReportPeriod toReportPeriod(FundamentalReportEntity r, List<FundamentalReportMetricEntity> rMetrics) {
@@ -707,7 +754,7 @@ public class ValuationService {
             valuationMetrics.save(new ValuationMetricEntity(
                     assessmentId, metric.metricCode(), metric.value(), metric.applicability().name(),
                     metric.ownHistoryPercentile(), metric.sectorPercentile(), metric.effectiveWeight(),
-                    metric.reasonCode()));
+                    metric.reasonCode(), metric.ownHistoryBasis(), metric.ownHistoryComparisonValue()));
         }
 
         if (dailyBarId != null) {
@@ -809,6 +856,10 @@ public class ValuationService {
             BigDecimal ownHistoryPercentile,
             BigDecimal sectorPercentile,
             BigDecimal effectiveWeight,
-            String reasonCode
+            String reasonCode,
+            /** valuation-v3: FISCAL_YEAR / LATEST_REPORT when Basis A was evaluated for the metric. */
+            String ownHistoryBasis,
+            /** valuation-v3: the value ranked against the own-history series. */
+            BigDecimal ownHistoryComparisonValue
     ) {}
 }

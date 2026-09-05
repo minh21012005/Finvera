@@ -79,7 +79,16 @@ public final class ToolResponseDtos {
             String qualityReason,
             String ownHistoryPercentile,
             String sectorPercentile,
-            String effectiveWeight) {
+            String effectiveWeight,
+            /** valuation-v3: basis the own-history percentile was ranked on (FISCAL_YEAR / LATEST_REPORT), else null. */
+            String ownHistoryBasis,
+            /** valuation-v3: the value actually ranked — the number an explanation must attribute the percentile to. */
+            String ownHistoryComparisonValue) {
+        public MetricFactDto(String metricCode, String value, String applicability, String qualityReason,
+                String ownHistoryPercentile, String sectorPercentile, String effectiveWeight) {
+            this(metricCode, value, applicability, qualityReason, ownHistoryPercentile, sectorPercentile,
+                    effectiveWeight, null, null);
+        }
     }
 
     public record FundamentalsToolResponse(

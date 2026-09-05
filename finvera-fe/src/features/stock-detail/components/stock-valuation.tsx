@@ -97,6 +97,13 @@ export function StockValuation({ valuation, symbol }: { valuation: StockValuatio
                 {m.ownHistoryPercentile && (
                   <p className="percentile-label">
                     Vị thế lịch sử: Phân vị {formatDecimal(m.ownHistoryPercentile)}%
+                    {/* valuation-v3: a flow metric is ranked on its fiscal-year value, which can
+                        differ from the quarter-TTM headline above — show the number that was ranked. */}
+                    {m.ownHistoryBasis === "FISCAL_YEAR" && m.ownHistoryComparisonValue !== null && (
+                      <span className="percentile-basis" data-own-history-basis={m.ownHistoryBasis}>
+                        {" "}— theo {valuationMetricLabel(m.metricCode)} năm {formatDecimal(m.ownHistoryComparisonValue)}
+                      </span>
+                    )}
                   </p>
                 )}
                 {m.sectorPercentile && (

@@ -460,6 +460,90 @@ class FundamentalSummaryTests {
 
     // ── Helper factories ────────────────────────────────────────────────────────
 
+    // ── valuation-v3 (specs/023): the fiscal-year aggregate basis ─────────────
+
+    @Test
+    void fiscalYearBasisTakesAggregatesFromTheLatestAnnualReportEvenWhenFourQuartersAreVisible() {
+        var calculator = new FundamentalSummaryCalculator();
+        // VNM's real 2026-08-28 figures: quarters 1,084 / 1,224 / 1,051 / 1,369 (TTM 4,728), FY2025 4,028.
+        var reports = List.of(
+                quarterReport(UUID.randomUUID(), 2025, 3, LocalDate.of(2025, 7, 1), LocalDate.of(2025, 9, 30),
+                        metric("EPS", "1084"), metric("NET_PROFIT", "2000")),
+                quarterReport(UUID.randomUUID(), 2025, 4, LocalDate.of(2025, 10, 1), LocalDate.of(2025, 12, 31),
+                        metric("EPS", "1224"), metric("NET_PROFIT", "2000")),
+                quarterReport(UUID.randomUUID(), 2026, 1, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 3, 31),
+                        metric("EPS", "1051"), metric("NET_PROFIT", "2000")),
+                quarterReport(UUID.randomUUID(), 2026, 2, LocalDate.of(2026, 4, 1), LocalDate.of(2026, 6, 30),
+                        metric("EPS", "1369"), metric("NET_PROFIT", "2000")),
+                annualReport(2024, metric("EPS", "3632"), metric("NET_PROFIT", "7000")),
+                annualReport(2025, metric("EPS", "4028"), metric("NET_PROFIT", "8000")));
+
+        var quarters = calculator.calculate(reports, LocalDate.of(2026, 8, 28));
+        var fiscalYear = calculator.calculate(reports, LocalDate.of(2026, 8, 28),
+                FundamentalSummaryCalculator.AggregateBasis.FISCAL_YEAR);
+
+        // PREFER_QUARTERS (the persisted summary) is untouched: four quarters, no annual label.
+        assertThat(findSummaryMetric(quarters, "EPS_TTM").value()).isEqualByComparingTo("4728");
+        assertThat(findSummaryMetric(quarters, "EPS_TTM").qualityReason()).isNull();
+        // FISCAL_YEAR: the latest annual report, labelled, whatever the visible quarter count.
+        assertThat(findSummaryMetric(fiscalYear, "EPS_TTM").value()).isEqualByComparingTo("4028");
+        assertThat(findSummaryMetric(fiscalYear, "EPS_TTM").qualityReason())
+                .isEqualTo(FundamentalSummaryCalculator.ANNUAL_BASIS);
+        assertThat(findSummaryMetric(fiscalYear, "NET_PROFIT_TTM").value()).isEqualByComparingTo("8000");
+        // Growth: annual over prior annual, never a quarter-based figure.
+        var growth = findSummaryMetric(fiscalYear, "EPS_GROWTH_PERCENT");
+        assertThat(growth.qualityReason()).isEqualTo(FundamentalSummaryCalculator.ANNUAL_BASIS);
+        assertThat(growth.value()).isEqualByComparingTo(new BigDecimal("4028")
+                .divide(new BigDecimal("3632"), 12, java.math.RoundingMode.HALF_UP)
+                .subtract(BigDecimal.ONE).multiply(new BigDecimal("100")));
+        // Snapshot metrics are unaffected by the basis: the same newest report anchors both.
+        assertThat(fiscalYear.basisPeriodLabel()).isEqualTo(quarters.basisPeriodLabel());
+        assertThat(fiscalYear.ruleVersion()).isEqualTo(RULE_VERSION);
+    }
+
+    @Test
+    void fiscalYearBasisNeverUsesTheProviderTrailingEps() {
+        var calculator = new FundamentalSummaryCalculator();
+        // No EPS row anywhere; the newest report carries the provider's own trailing EPS.
+        var reports = List.of(
+                quarterReport(UUID.randomUUID(), 2026, 2, LocalDate.of(2026, 4, 1), LocalDate.of(2026, 6, 30),
+                        metric("NET_PROFIT", "2000"), metric("TRAILING_EPS", "3900")),
+                annualReport(2025, metric("NET_PROFIT", "8000")));
+
+        var quarters = calculator.calculate(reports, LocalDate.of(2026, 8, 28));
+        var fiscalYear = calculator.calculate(reports, LocalDate.of(2026, 8, 28),
+                FundamentalSummaryCalculator.AggregateBasis.FISCAL_YEAR);
+
+        assertThat(findSummaryMetric(quarters, "EPS_TTM").qualityReason())
+                .isEqualTo(FundamentalSummaryCalculator.PROVIDER_TRAILING_EPS);
+        // A TTM figure has no place in a fiscal-year series: missing stays missing.
+        assertThat(findSummaryMetric(fiscalYear, "EPS_TTM").applicability()).isEqualTo(MetricApplicability.MISSING);
+    }
+
+    @Test
+    void fiscalYearBasisGrowthNeedsTwoAnnualReportsAndIgnoresQuarters() {
+        var calculator = new FundamentalSummaryCalculator();
+        var reports = new java.util.ArrayList<FundamentalSummaryCalculator.ReportPeriod>();
+        // Eight quarters (enough for a quarter-based growth) but a single annual report.
+        for (int i = 0; i < 8; i++) {
+            LocalDate start = LocalDate.of(2024, 7, 1).plusMonths(3L * i);
+            int year = start.getYear();
+            int quarter = (start.getMonthValue() - 1) / 3 + 1;
+            reports.add(quarterReport(UUID.randomUUID(), year, quarter, start, start.plusMonths(3).minusDays(1),
+                    metric("EPS", String.valueOf(1000 + 50 * i))));
+        }
+        reports.add(annualReport(2025, metric("EPS", "4400")));
+
+        var quarters = calculator.calculate(reports, LocalDate.of(2026, 8, 28));
+        var fiscalYear = calculator.calculate(reports, LocalDate.of(2026, 8, 28),
+                FundamentalSummaryCalculator.AggregateBasis.FISCAL_YEAR);
+
+        assertThat(findSummaryMetric(quarters, "EPS_GROWTH_PERCENT").applicability()).isEqualTo(MetricApplicability.DEFINED);
+        var growth = findSummaryMetric(fiscalYear, "EPS_GROWTH_PERCENT");
+        assertThat(growth.applicability()).isEqualTo(MetricApplicability.MISSING);
+        assertThat(growth.qualityReason()).isEqualTo("INSUFFICIENT_HISTORY");
+    }
+
     private static FundamentalSummaryCalculator.ReportPeriod quarterReport(
             UUID reportId, int fiscalYear, int fiscalQuarter,
             LocalDate periodStart, LocalDate periodEnd,

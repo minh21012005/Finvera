@@ -1,0 +1,22 @@
+# Tasks: Feature 023 — Own-History Percentile on One Basis (`valuation-v3`)
+
+Dependency order. `[P]` = no shared file with the previous open task. Every task names its
+requirement ids and its verification.
+
+| ID | Req | Task | Path | Done when |
+|---|---|---|---|---|
+| T001 | — | Spec, research, contract, data model, plan, quickstart | `specs/023-valuation-v3-history-basis/**` | Written; constitution check passed — **done 2026-09-05** |
+| T002 | FR-001, DATA-004 | `AggregateBasis` enum + 3-arg `calculate`; FISCAL_YEAR forces annual aggregates and annual growth, disables trailing-EPS fallback; 2-arg delegates | `finvera-be/src/main/java/com/minhnb/finvera_be/stock/domain/fundamentals/FundamentalSummaryCalculator.java` | **done** — `FundamentalSummaryTests` 27/27: FISCAL_YEAR takes FY EPS 4,028 over the 4,728 quarter sum, annual growth, no trailing-EPS fallback, growth needs two annuals; PREFER_QUARTERS unchanged |
+| T003 | FR-001…FR-003, FR-005, NFR-001 | `ValuationV1`: `RULE_VERSION=valuation-v3`, `Inputs.ownHistoryComparison`, flow/point-in-time classes, rank on `C_A(m)`, `MetricResult` +basis +comparison, two reason codes | `.../stock/domain/valuation/ValuationV1.java` | **done** — `ValuationV1Tests` 33/33: growth company ranks 15.4667 not 13.1768 (69.833 vs 54.667), turnaround, annual-only regression, PB LATEST_REPORT, replay, rule version; legacy vectors use `ownHistoryComparisonFromHeadline()` |
+| T004 | DATA-001 | Migration V019 + entity columns + constructor invariant | `finvera-be/src/main/resources/db/migration/V019__valuation_metric_own_history_basis.sql`, `.../stock/entity/ValuationMetricEntity.java` | **done** — V019 applied in every Testcontainers run; constructor invariant in `ValuationMetricEntity` |
+| T005 | FR-001, FR-004, DATA-002 | `ValuationService`: FISCAL_YEAR history series, `buildOwnHistoryComparison`, persist new columns, `ValuationMetric` +2 fields | `.../stock/service/ValuationService.java` | **done** — `ValuationServiceTests` 6/6 incl. `persistsTheFiscalYearComparisonValueBesideTheQuarterTtmHeadline` (value = P/2,080, comparison = P/2,000, basis FISCAL_YEAR; PB LATEST_REPORT); replay vector green |
+| T006 | FR-004 | Public DTO +2 fields | `.../stock/dto/StockValuationResponse.java` | **done** — `StockFundamentalsControllerTests` 7/7 |
+| T007 | FR-007 | Analyst DTO + mapping | `.../analyst/dto/ToolResponseDtos.java`, `.../analyst/service/ToolDelegateService.java` | **done** — `ToolDelegateServiceTests` 11/11 |
+| T008 | FR-004, FR-006 | OpenAPI amendment (additive) | `specs/002-stock-detail-analysis/contracts/stock-detail.openapi.yaml` | **done** (also admits `PS`, which the DTO already emitted) |
+| T009 | FR-006 | FE parser accepts `valuation-v2` and `valuation-v3`, parses the two fields | `finvera-fe/src/features/stock-detail/api/stock-detail.ts` | **done** — `api/stock-detail.test.ts` (3 cases) |
+| T010 | FR-006 | FE rendering + explain wording + reason labels | `.../components/stock-valuation.tsx`, `.../format/explain-evidence.ts`, `finvera-fe/src/shared/format/reason-codes.ts` | **done** — vitest 158/158 (31 files); lint + build green |
+| T011 | NFR-002 | Verifier: FY-basis series + comparison, v3 rows | `tools/verification/verify_calcs.py` | **code done** — FY-basis series + comparison + PB basis checks; reports "no valuation-v3 assessment yet" until the owner's refresh |
+| T012 | — | `history_basis_study.py` header note | `tools/verification/history_basis_study.py` | **done** |
+| T013 | SC-4 | Backend full suite; AI service tests | `finvera-be`, `finvera-ai` | AI service `uv run pytest`: **152 passed, 1 skipped**; backend full `mvn test`: **713/713, BUILD SUCCESS** (clean surefire run, 133 classes) |
+| T014 | SC-6 | Docs: specs/017 closed with decision; REMEDIATION P2-05 + Basis B follow-up + changelog; ARCHITECTURE §10 row | `specs/017-history-basis-consistency/spec.md`, `docs/REMEDIATION_PLAN.md`, `docs/ARCHITECTURE.md` | **done** — specs/017 closed (decision + SC rows), P2-05 decided/implemented, **P2-11** opened for Basis B, changelog row. ARCHITECTURE §10 indexes ADRs only (no ADR here: a calculation-contract change, not a cross-feature decision) — no row, by design |
+| T015 | SC-5 | Post-refresh: verifier green, drift count recorded, P2-05 closed | research.md, REMEDIATION | Owner runs `.\refresh-data.ps1`; numbers recorded |

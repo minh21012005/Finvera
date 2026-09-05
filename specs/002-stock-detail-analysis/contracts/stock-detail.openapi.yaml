@@ -552,7 +552,13 @@ components:
       required: [meta, ruleVersion, published, metrics, basis]
       properties:
         meta: { $ref: "#/components/schemas/SectionMeta" }
-        ruleVersion: { type: string, const: "valuation-v2" }
+        ruleVersion:
+          type: string
+          enum: [valuation-v2, valuation-v3]
+          description: >-
+            valuation-v3 (specs/023, 2026-09-05) ranks flow metrics against the own-history
+            series on the fiscal-year basis and adds ownHistoryBasis /
+            ownHistoryComparisonValue to each metric. Clients accept both versions.
         published:
           type: boolean
           description: >-
@@ -596,13 +602,27 @@ components:
             additionalProperties: false
             required: [metricCode, applicability]
             properties:
-              metricCode: { type: string, enum: [PE, PB, EV_EBITDA, PEG, DIVIDEND_YIELD] }
+              metricCode: { type: string, enum: [PE, PB, EV_EBITDA, PEG, DIVIDEND_YIELD, PS] }
               value: { $ref: "#/components/schemas/NullableDecimal" }
               applicability: { $ref: "#/components/schemas/Applicability" }
               ownHistoryPercentile: { $ref: "#/components/schemas/NullableDecimal" }
               sectorPercentile: { $ref: "#/components/schemas/NullableDecimal" }
               effectiveWeight: { $ref: "#/components/schemas/NullableDecimal" }
               reasonCode: { type: [string, "null"] }
+              ownHistoryBasis:
+                type: [string, "null"]
+                enum: [FISCAL_YEAR, LATEST_REPORT, null]
+                description: >-
+                  valuation-v3: basis of the own-history percentile. FISCAL_YEAR for flow metrics
+                  (PE, PEG, EV_EBITDA, PS, DIVIDEND_YIELD), LATEST_REPORT for point-in-time metrics
+                  (PB). Present whenever Basis A was evaluated for the row; null on valuation-v2 rows.
+              ownHistoryComparisonValue:
+                allOf: [{ $ref: "#/components/schemas/NullableDecimal" }]
+                description: >-
+                  valuation-v3: the value that was ranked against the own-history series (for a flow
+                  metric, price over the latest fiscal-year aggregate; for PB, equal to value).
+                  Null when no comparison value was DEFINED; then ownHistoryPercentile is null too
+                  and meta.reasonCodes carries HISTORY_COMPARISON_UNAVAILABLE.
 
     ErrorResponse:
       type: object
