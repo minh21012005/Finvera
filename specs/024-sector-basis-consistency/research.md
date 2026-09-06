@@ -82,11 +82,16 @@ name in its sector) on a denominator of 3 VND per share would be a worse answer 
 fresh figure gives. A uniform fiscal-year rule buys internal consistency by throwing away the
 fresher and more informative number for the 51 % who have one.
 
-## R-004 Recommendation: option (a)
+## R-004 Recommendation: option (a) — and the owner's decision: no change at all
 
-Keep the freshest ruler per constituent; disclose the composition of the cross-section (how many
-constituents on each ruler) so the percentile can be read for what it is. Do **not** put Basis B on
-the fiscal-year basis.
+Recommended: keep the freshest ruler per constituent; disclose the composition of the
+cross-section (how many constituents on each ruler). Do **not** put Basis B on the fiscal-year
+basis.
+
+**Owner decision 2026-09-06**: (b) rejected as recommended, and the disclosure declined too — a
+line of extra text on every valuation is not worth its space when the effect it discloses has no
+direction and moves the score by under a point at the median. Basis B is left untouched. This is
+the outcome the measurement was for: it bought the certainty that nothing needed building.
 
 Consequence to state plainly, not hide: after Feature 023 a stock detail page carries two
 percentiles measured differently — own-history on the fiscal-year ruler (both sides consistent) and

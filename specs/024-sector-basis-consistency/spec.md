@@ -1,7 +1,7 @@
 # Feature Specification: Sector-basis consistency (research)
 
 **Feature Directory**: `024-sector-basis-consistency`
-**Created**: 2026-09-06 · **Status**: Research done — recommendation ready, owner decision pending
+**Created**: 2026-09-06 · **Status**: Closed 2026-09-06 — measured, owner decided **no change**
 **SRS References**: Section 10 (valuation) · **SRS Requirement IDs**: SRS-VAL-02
 **Input**: docs/REMEDIATION_PLAN.md **P2-11**, opened as the follow-up of Feature 023
 (specs/023 research R-009): Basis B ranks the subject's headline multiple against peers' headline
@@ -61,13 +61,25 @@ Basis B.** Three reasons, all from the numbers:
 - Basis A had no alternative: its history *was* mostly fiscal-year, so the subject had to meet it
   there. Basis B has both sides in the present and no such constraint.
 
-What (a) means concretely: expose per assessment how many constituents were priced on each ruler,
-so the sector percentile can be read for what it is. Deferred to implementation only if the owner
-accepts the recommendation.
+What (a) would mean concretely: expose per assessment how many constituents were priced on each
+ruler, so the sector percentile can be read for what it is.
+
+## Decision (owner, 2026-09-06): no change
+
+Option (b) is rejected on the numbers above. The disclosure half of option (a) was also declined:
+with no directional bias between the two groups and a median composite-score effect under one
+point, a line of extra UI text on every valuation buys the reader nothing they would act on, and
+the owner's standing rule is "đủ và chính xác, không dư thừa". **Basis B therefore stays exactly
+as it is; no code, no contract, no UI changes from this feature.**
+
+What would reopen it: `tools/verification/sector_basis_study.py` is kept for exactly that. If a
+provider change ever makes the mix *directional* — the two groups' mean percentiles pulling apart
+in R-002's table rather than sitting together — the argument that closed this changes, and the
+measurement is one command away.
 
 ## Success Criteria
 | ID | Criterion |
 |---|---|
 | SC-001 | Study run on the VCI universe with the table recorded in research.md — **met 2026-09-06** |
-| SC-002 | Decision (a) or (b) recorded with numbers; if (b), contract `valuation-v4` written before code — **pending owner** |
+| SC-002 | Decision (a) or (b) recorded with numbers; if (b), contract `valuation-v4` written before code — **met 2026-09-06**: neither; measured, no change made |
 | SC-003 | Any defect the measurement exposes is recorded with its own id and evidence — **met**: Q-60 |
