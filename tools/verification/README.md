@@ -2,7 +2,7 @@
 
 `verify_calcs.py` recomputes Finvera's stored results from raw database facts with
 plain textbook formulas — Wilder RSI/ATR, SMA-seeded EMA MACD, population-σ Bollinger,
-TTM sums / YoY growth (`fundamental-summary-v2` rules), PE/PB/PEG, mid-rank percentile
+TTM sums / YoY growth (`fundamental-summary-v3` rules, incl. quarter-window eligibility), PE/PB/PEG, mid-rank percentile
 over the rebuilt own-history series, advance/decline breadth — and compares them with
 `technical_indicator_value`, `fundamental_summary_metric`, `valuation_metric`,
 `breadth_snapshot`. It is deliberately independent of both the Java code and the
@@ -62,3 +62,28 @@ Two provider rules this tool learned the hard way, both now in the contract: the
 server closes the connection with 1002 if it receives an RFC WebSocket ping (only
 `d|p|||` counts as a heartbeat), and `s|4` reference frames are never replayed for
 a symbol subscribed mid-session.
+
+## `sector_basis_study.py` — is the peer cross-section measured with one ruler? (P2-11 / specs/024)
+
+Feature 023 fixed the ruler mismatch *between dates* (Basis A). This tool asks the same question
+*between companies*: Basis B ranks a stock's headline P/E against its peers' headline P/Es, and a
+headline is quarter-TTM for the 51 % with quarterly EPS and annual for the rest.
+
+```powershell
+python tools\verification\sector_basis_study.py --sectors 5 --json tools\verification\out\sector_basis.json
+```
+
+It rebuilds each sector's percentile twice — as served, and with the whole cross-section on the
+fiscal-year ruler — and reports the shift. The "as served" side reads `EPS_TTM` from the persisted
+`fundamental_summary`, the same row `ValuationService`'s Q-55 bulk path feeds into Basis B, so the
+comparison is against the number users actually see.
+
+Answer on 2026-09-06 (specs/024 research): median shift 6.56 pp, but **no tilt between the two
+groups** — so the recommendation is to keep the freshest ruler and disclose, *not* to rebuild
+Basis B. Recommendation only: the owner has not decided yet, and nothing in the engine changed. A
+measurement that says "do not build it" is the point of measuring first.
+
+The run also flags **Q-60**: constituents whose quarter-summed `EPS_TTM` is non-contiguous or older
+than their own newest annual report (60 LISTED instruments, up to seven years stale; fixed by
+Feature 025 / `fundamental-summary-v3`, so a run after the next refresh should flag none). Those are
+excluded from the clean aggregate and printed with a `[Q-60 …]` marker.

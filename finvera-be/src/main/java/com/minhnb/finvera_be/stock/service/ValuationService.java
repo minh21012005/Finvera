@@ -373,8 +373,10 @@ public class ValuationService {
         // each) and their fundamentals recomputed report-by-report — 8-18 s per valuation for a
         // 24-37 peer sector, past the AI tool timeout. Two bulk reads instead: the latest current
         // bar per peer, and each peer's persisted current fundamental summary — the same figures
-        // the calculator produced when that summary was (re)persisted (fundamental-summary-v2
-        // revision chain; a peer without a persisted summary falls back to the computing path).
+        // the calculator produced when that summary was (re)persisted (the current
+        // fundamental-summary rule version's revision chain -- FundamentalSummaryCalculator.RULE_VERSION,
+        // so a version bump repopulates it; a peer without a persisted summary falls back to the
+        // computing path).
         Map<UUID, EquityDailyBarEntity> latestBarByPeer = new java.util.HashMap<>();
         for (EquityDailyBarEntity bar : dailyBars.findLatestNCurrentByInstrumentIdIn(peerIds, 1)) {
             latestBarByPeer.merge(bar.getInstrumentId(), bar,

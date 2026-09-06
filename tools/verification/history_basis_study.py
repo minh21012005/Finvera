@@ -1,6 +1,6 @@
 """Feature 017 research (specs/017-history-basis-consistency): how much do own-history PE/PB
 points computed on the ANNUAL basis (fewer than four quarters visible at that date,
-fundamental-summary-v2) differ from what the quarterly-TTM basis would give, and how many of
+or an ineligible quarter window since `fundamental-summary-v3`) differ from what the quarterly-TTM basis would give, and how many of
 the 750 history points per symbol are annual-basis at all?
 
 Read-only against the local database (credentials from finvera-be/.env, never printed).

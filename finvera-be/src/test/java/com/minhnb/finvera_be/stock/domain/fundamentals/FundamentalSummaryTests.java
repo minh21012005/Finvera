@@ -460,6 +460,183 @@ class FundamentalSummaryTests {
 
     // ── Helper factories ────────────────────────────────────────────────────────
 
+    // ── fundamental-summary-v3 (specs/025, Q-60): quarter-window eligibility ──
+    //
+    // v2 chose the TTM window by counting quarterly reports. These vectors pin the two rules that
+    // must also hold: the quarters are consecutive, and no annual report we already hold covers a
+    // later period. Real cases from the live database (specs/025 research R-001) drive them.
+
+    @Test
+    void eligibleQuarterWindowIsUnchangedFromV2() {
+        // DATA-001: the 1,139 sound windows must produce exactly what v2 produced.
+        var calculator = new FundamentalSummaryCalculator();
+        var reports = List.of(
+                quarterReport(UUID.randomUUID(), 2025, 3, LocalDate.of(2025, 7, 1), LocalDate.of(2025, 9, 30),
+                        metric("EPS", "1084")),
+                quarterReport(UUID.randomUUID(), 2025, 4, LocalDate.of(2025, 10, 1), LocalDate.of(2025, 12, 31),
+                        metric("EPS", "1224")),
+                quarterReport(UUID.randomUUID(), 2026, 1, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 3, 31),
+                        metric("EPS", "1051")),
+                quarterReport(UUID.randomUUID(), 2026, 2, LocalDate.of(2026, 4, 1), LocalDate.of(2026, 6, 30),
+                        metric("EPS", "1369")),
+                annualReport(2025, metric("EPS", "4028")));
+
+        var result = calculator.calculate(reports, LocalDate.of(2026, 8, 28));
+
+        assertThat(result.ruleVersion()).isEqualTo("fundamental-summary-v3");
+        var eps = findSummaryMetric(result, "EPS_TTM");
+        assertThat(eps.value()).isEqualByComparingTo("4728");     // 1084+1224+1051+1369
+        assertThat(eps.qualityReason()).isNull();                 // a real quarter sum carries no basis label
+        assertThat(result.reasonCodes()).doesNotContain(FundamentalSummaryCalculator.QUARTER_WINDOW_INELIGIBLE);
+    }
+
+    @Test
+    void quartersOlderThanTheNewestAnnualReportAreRejected() {
+        // E-2, the SDY case: four consecutive 2018 quarters summing to a LOSS while the current
+        // FY2025 report shows a profit. v2 served -1,680 and withheld P/E as lossmaking.
+        var calculator = new FundamentalSummaryCalculator();
+        var reports = List.of(
+                quarterReport(UUID.randomUUID(), 2018, 1, LocalDate.of(2018, 1, 1), LocalDate.of(2018, 3, 31),
+                        metric("EPS", "-420")),
+                quarterReport(UUID.randomUUID(), 2018, 2, LocalDate.of(2018, 4, 1), LocalDate.of(2018, 6, 30),
+                        metric("EPS", "-420")),
+                quarterReport(UUID.randomUUID(), 2018, 3, LocalDate.of(2018, 7, 1), LocalDate.of(2018, 9, 30),
+                        metric("EPS", "-420")),
+                quarterReport(UUID.randomUUID(), 2018, 4, LocalDate.of(2018, 10, 1), LocalDate.of(2018, 12, 31),
+                        metric("EPS", "-420")),
+                annualReport(2024, metric("EPS", "900")),
+                annualReport(2025, metric("EPS", "1418")));
+
+        var result = calculator.calculate(reports, LocalDate.of(2026, 8, 28));
+
+        var eps = findSummaryMetric(result, "EPS_TTM");
+        assertThat(eps.value()).isEqualByComparingTo("1418");     // FY2025, not the 2018 sum of -1,680
+        assertThat(eps.qualityReason()).isEqualTo(FundamentalSummaryCalculator.ANNUAL_BASIS);
+        assertThat(result.reasonCodes()).contains(FundamentalSummaryCalculator.QUARTER_WINDOW_INELIGIBLE);
+    }
+
+    @Test
+    void nonConsecutiveQuartersAreRejectedEvenWhenRecent() {
+        // E-1: 2026-Q2, 2026-Q1, 2025-Q3, 2025-Q2 — 2025-Q4 never filed. Four reports, but not a
+        // twelve-month span, so their sum is not a TTM of anything.
+        var calculator = new FundamentalSummaryCalculator();
+        var reports = List.of(
+                quarterReport(UUID.randomUUID(), 2026, 2, LocalDate.of(2026, 4, 1), LocalDate.of(2026, 6, 30),
+                        metric("EPS", "300")),
+                quarterReport(UUID.randomUUID(), 2026, 1, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 3, 31),
+                        metric("EPS", "300")),
+                quarterReport(UUID.randomUUID(), 2025, 3, LocalDate.of(2025, 7, 1), LocalDate.of(2025, 9, 30),
+                        metric("EPS", "300")),
+                quarterReport(UUID.randomUUID(), 2025, 2, LocalDate.of(2025, 4, 1), LocalDate.of(2025, 6, 30),
+                        metric("EPS", "300")),
+                annualReport(2025, metric("EPS", "1000")));
+
+        var result = calculator.calculate(reports, LocalDate.of(2026, 8, 28));
+
+        var eps = findSummaryMetric(result, "EPS_TTM");
+        assertThat(eps.value()).isEqualByComparingTo("1000");
+        assertThat(eps.qualityReason()).isEqualTo(FundamentalSummaryCalculator.ANNUAL_BASIS);
+        assertThat(result.reasonCodes()).contains(FundamentalSummaryCalculator.QUARTER_WINDOW_INELIGIBLE);
+    }
+
+    @Test
+    void ineligibleWindowWithNoAnnualReportWithholdsTheAggregates() {
+        // FR-004, the PLO case: one quarter per year across four years, no annual report at all.
+        // Nothing legitimate can be built, so the aggregates are MISSING under that cause — never a
+        // sum of scattered quarters wearing a TTM label.
+        var calculator = new FundamentalSummaryCalculator();
+        var reports = List.of(
+                quarterReport(UUID.randomUUID(), 2022, 1, LocalDate.of(2022, 1, 1), LocalDate.of(2022, 3, 31),
+                        metric("EPS", "100"), metric("REVENUE", "1000"), metric("NET_PROFIT", "500")),
+                quarterReport(UUID.randomUUID(), 2023, 1, LocalDate.of(2023, 1, 1), LocalDate.of(2023, 3, 31),
+                        metric("EPS", "100"), metric("REVENUE", "1000"), metric("NET_PROFIT", "500")),
+                quarterReport(UUID.randomUUID(), 2024, 1, LocalDate.of(2024, 1, 1), LocalDate.of(2024, 3, 31),
+                        metric("EPS", "100"), metric("REVENUE", "1000"), metric("NET_PROFIT", "500")),
+                quarterReport(UUID.randomUUID(), 2025, 1, LocalDate.of(2025, 1, 1), LocalDate.of(2025, 3, 31),
+                        metric("EPS", "100"), metric("REVENUE", "1000"), metric("NET_PROFIT", "500")));
+
+        var result = calculator.calculate(reports, LocalDate.of(2026, 8, 28));
+
+        for (String code : List.of("EPS_TTM", "REVENUE_TTM", "NET_PROFIT_TTM")) {
+            var m = findSummaryMetric(result, code);
+            assertThat(m.applicability()).as(code).isEqualTo(MetricApplicability.MISSING);
+            assertThat(m.qualityReason()).as(code)
+                    .isEqualTo(FundamentalSummaryCalculator.QUARTER_WINDOW_INELIGIBLE);
+        }
+        assertThat(result.reasonCodes()).contains(FundamentalSummaryCalculator.QUARTER_WINDOW_INELIGIBLE);
+    }
+
+    @Test
+    void providerTrailingEpsStillRescuesEpsWhenTheWindowIsIneligible() {
+        // The v2 trailing-EPS fallback is orthogonal to eligibility: it reads the newest report's
+        // own figure rather than aggregating periods, so it survives — but only for EPS.
+        var calculator = new FundamentalSummaryCalculator();
+        var reports = List.of(
+                quarterReport(UUID.randomUUID(), 2026, 2, LocalDate.of(2026, 4, 1), LocalDate.of(2026, 6, 30),
+                        metric("REVENUE", "1000"), metric("TRAILING_EPS", "820")),
+                quarterReport(UUID.randomUUID(), 2025, 2, LocalDate.of(2025, 4, 1), LocalDate.of(2025, 6, 30),
+                        metric("REVENUE", "1000")),
+                quarterReport(UUID.randomUUID(), 2024, 2, LocalDate.of(2024, 4, 1), LocalDate.of(2024, 6, 30),
+                        metric("REVENUE", "1000")),
+                quarterReport(UUID.randomUUID(), 2023, 2, LocalDate.of(2023, 4, 1), LocalDate.of(2023, 6, 30),
+                        metric("REVENUE", "1000")));
+
+        var result = calculator.calculate(reports, LocalDate.of(2026, 8, 28));
+
+        var eps = findSummaryMetric(result, "EPS_TTM");
+        assertThat(eps.applicability()).isEqualTo(MetricApplicability.DEFINED);
+        assertThat(eps.value()).isEqualByComparingTo("820");
+        assertThat(eps.qualityReason()).isEqualTo(FundamentalSummaryCalculator.PROVIDER_TRAILING_EPS);
+        var revenue = findSummaryMetric(result, "REVENUE_TTM");
+        assertThat(revenue.applicability()).isEqualTo(MetricApplicability.MISSING);
+        assertThat(revenue.qualityReason()).isEqualTo(FundamentalSummaryCalculator.QUARTER_WINDOW_INELIGIBLE);
+    }
+
+    @Test
+    void growthFallsBackToAnnualWhenTheEightQuarterWindowHasAGap() {
+        // FR-006: the same rules guard the growth window, or the defect just moves there.
+        var calculator = new FundamentalSummaryCalculator();
+        var reports = new java.util.ArrayList<FundamentalSummaryCalculator.ReportPeriod>();
+        // Eight quarters, but 2025-Q1 is missing and an older quarter fills the slot.
+        int[][] quarters = {{2026, 2}, {2026, 1}, {2025, 4}, {2025, 3}, {2025, 2}, {2024, 4}, {2024, 3}, {2024, 2}};
+        for (int[] fq : quarters) {
+            LocalDate start = LocalDate.of(fq[0], (fq[1] - 1) * 3 + 1, 1);
+            reports.add(quarterReport(UUID.randomUUID(), fq[0], fq[1], start, start.plusMonths(3).minusDays(1),
+                    metric("EPS", "250")));
+        }
+        reports.add(annualReport(2024, metric("EPS", "800")));
+        reports.add(annualReport(2025, metric("EPS", "1000")));
+
+        var result = calculator.calculate(reports, LocalDate.of(2026, 8, 28));
+
+        var growth = findSummaryMetric(result, "EPS_GROWTH_PERCENT");
+        assertThat(growth.applicability()).isEqualTo(MetricApplicability.DEFINED);
+        assertThat(growth.qualityReason()).isEqualTo(FundamentalSummaryCalculator.ANNUAL_BASIS);
+        assertThat(growth.value()).isEqualByComparingTo("25");    // 1000 / 800 - 1
+    }
+
+    @Test
+    void snapshotMetricsAreUntouchedByWindowEligibility() {
+        // Balance-sheet snapshots never aggregated periods, so rejecting a window must not move them.
+        var calculator = new FundamentalSummaryCalculator();
+        var reports = List.of(
+                quarterReport(UUID.randomUUID(), 2018, 1, LocalDate.of(2018, 1, 1), LocalDate.of(2018, 3, 31),
+                        metric("EPS", "10")),
+                quarterReport(UUID.randomUUID(), 2018, 2, LocalDate.of(2018, 4, 1), LocalDate.of(2018, 6, 30),
+                        metric("EPS", "10")),
+                quarterReport(UUID.randomUUID(), 2018, 3, LocalDate.of(2018, 7, 1), LocalDate.of(2018, 9, 30),
+                        metric("EPS", "10")),
+                quarterReport(UUID.randomUUID(), 2018, 4, LocalDate.of(2018, 10, 1), LocalDate.of(2018, 12, 31),
+                        metric("EPS", "10")),
+                annualReport(2025, metric("EPS", "500"), metric("BVPS", "17500"), metric("ROE", "12.5")));
+
+        var result = calculator.calculate(reports, LocalDate.of(2026, 8, 28));
+
+        assertThat(findSummaryMetric(result, "BVPS").value()).isEqualByComparingTo("17500");
+        assertThat(findSummaryMetric(result, "BVPS").qualityReason()).isNull();
+        assertThat(findSummaryMetric(result, "ROE").value()).isEqualByComparingTo("12.5");
+    }
+
     // ── valuation-v3 (specs/023): the fiscal-year aggregate basis ─────────────
 
     @Test

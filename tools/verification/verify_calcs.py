@@ -99,6 +99,23 @@ def summary_v2(reports, as_of, basis="PREFER_QUARTERS"):
     quarters = sorted([r for r in visible if r["period_type"] == "QUARTER"], key=lambda r: r["period_end"], reverse=True)
     annuals = sorted([r for r in visible if r["period_type"] == "ANNUAL"], key=lambda r: r["period_end"], reverse=True)
     fiscal_year = basis == "FISCAL_YEAR"
+
+    def window_eligible(n):
+        """contract fundamental-summary-v3 (Q-60), recomputed independently of the Java:
+        the n newest quarters must be n CONSECUTIVE fiscal quarters (E-1) and no annual report may
+        end later than the newest of them (E-2)."""
+        if len(quarters) < n:
+            return False
+        window = quarters[:n]
+        try:
+            idx = [int(r["fy"]) * 4 + int(r["fq"]) for r in window]
+        except (TypeError, ValueError):
+            return False
+        if any(idx[i] - idx[i + 1] != 1 for i in range(len(idx) - 1)):
+            return False
+        newest_q = window[0]["period_end"]
+        return not any(a["period_end"] > newest_q for a in annuals)
+
     out = {}
     def ttm(code):
         if fiscal_year:
@@ -106,24 +123,24 @@ def summary_v2(reports, as_of, basis="PREFER_QUARTERS"):
                 v = annuals[0]["metrics"].get(code)
                 return (v, "ANNUAL_BASIS") if v is not None else (None, None)
             return (None, None)
-        if len(quarters) >= 4:
+        if window_eligible(4):
             vals = [r["metrics"].get(code) for r in quarters[:4]]
             return (sum(vals), None) if all(v is not None for v in vals) else (None, None)
         if annuals:
             v = annuals[0]["metrics"].get(code)
             return (v, "ANNUAL_BASIS") if v is not None else (None, None)
-        return (None, None)
+        return (None, None)  # v3: an ineligible window with no annual withholds the aggregate
     for code, tgt in (("EPS", "EPS_TTM"), ("NET_PROFIT", "NET_PROFIT_TTM"), ("REVENUE", "REVENUE_TTM"), ("DIVIDEND_PER_SHARE", "DIVIDEND_PER_SHARE_TTM")):
         out[tgt] = ttm(code)
     if out["EPS_TTM"][0] is None and not fiscal_year:
-        # fundamental-summary-v2: quarterly EPS absent (banks, securities, some industrials) ->
+        # fundamental-summary-v3: quarterly EPS absent (banks, securities, some industrials) ->
         # the provider's own trailing EPS from the newest report, disclosed as PROVIDER_TRAILING_EPS.
         # newest = period_end desc, QUARTER before ANNUAL on a tie (fundamental-summary-v2, Q-47)
         newest = sorted(visible, key=lambda r: (r["period_end"], 1 if r["period_type"] == "QUARTER" else 0), reverse=True)
         if newest and newest[0]["metrics"].get("TRAILING_EPS") is not None:
             out["EPS_TTM"] = (newest[0]["metrics"]["TRAILING_EPS"], "PROVIDER_TRAILING_EPS")
     def growth(code):
-        if len(quarters) >= 8 and not fiscal_year:
+        if window_eligible(8) and not fiscal_year:
             cur = [r["metrics"].get(code) for r in quarters[:4]]; prior = [r["metrics"].get(code) for r in quarters[4:8]]
             if all(v is not None for v in cur + prior):
                 p = sum(prior); c = sum(cur)
@@ -152,7 +169,7 @@ def load_reports(sym):
 def fundamentals_checks(sym, reports):
     stored = {r["metric_code"]: r for r in q(f"""select m.metric_code, m.value, m.applicability, m.quality_reason from fundamental_summary_metric m
         join fundamental_summary s on s.id=m.summary_id join market_instrument i on i.id=s.instrument_id
-        where i.symbol='{sym}' and s.rule_version='fundamental-summary-v2' and s.id=(select id from fundamental_summary s2 where s2.instrument_id=s.instrument_id and s2.rule_version='fundamental-summary-v2' order by as_of_trading_date desc, calculated_at desc limit 1)""")}
+        where i.symbol='{sym}' and s.rule_version='fundamental-summary-v3' and s.id=(select id from fundamental_summary s2 where s2.instrument_id=s.instrument_id and s2.rule_version='fundamental-summary-v3' order by as_of_trading_date desc, calculated_at desc limit 1)""")}
     mine = summary_v2(reports, None)
     for code, (val, basis) in mine.items():
         s = stored.get(code)

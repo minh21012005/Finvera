@@ -30,9 +30,11 @@ A metric is *flow* when at least one input is a period aggregate (`EPS_TTM`, `EP
 
 `FundamentalSummaryCalculator` gains an aggregate basis parameter:
 
-- `PREFER_QUARTERS` — today's behavior (`fundamental-summary-v2`): four newest quarters when
-  visible, else the latest annual report labelled `ANNUAL_BASIS`; growth from eight quarters when
-  visible, else annual over prior annual.
+- `PREFER_QUARTERS` — the persisted summary's own rule: the four newest quarters when visible,
+  else the latest annual report labelled `ANNUAL_BASIS`; growth from eight quarters when visible,
+  else annual over prior annual. (Since `fundamental-summary-v3`, specs/025, that window must
+  also be eligible — consecutive quarters, not superseded by an annual report. Whatever the
+  summary contract says at the time is what this mode means; it is not restated here.)
 - `FISCAL_YEAR` — the aggregate metrics (`NET_PROFIT_TTM`, `EPS_TTM`, `REVENUE_TTM`,
   `EBITDA_TTM`, `DIVIDEND_PER_SHARE_TTM`) come from the **latest visible ANNUAL report regardless of
   how many quarters are visible**, labelled `ANNUAL_BASIS`; growth metrics are **annual over prior
@@ -41,7 +43,9 @@ A metric is *flow* when at least one input is a period aggregate (`EPS_TTM`, `EP
   metrics are unaffected. Visibility (`observed_at` ≤ 23:59:59 VN of the as-of date), the
   newest-first ordering, freshness and every other rule are identical in both modes.
 
-The persisted fundamental summary keeps using `PREFER_QUARTERS`; its rule version is unchanged.
+The persisted fundamental summary keeps using `PREFER_QUARTERS`. Its rule version was unchanged by
+this feature; it later moved to `fundamental-summary-v3` for an unrelated defect (specs/025, Q-60),
+which does not affect anything specified here.
 
 ## Basis A — amended definition
 

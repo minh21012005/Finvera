@@ -41,8 +41,9 @@ count**, for the aggregate metrics only (`NET_PROFIT_TTM`, `EPS_TTM`, `REVENUE_T
 from the newest visible report as today — they carry no basis.
 
 Consequence for the persisted summary: none. `fundamental-summary-v2`'s output and rule version
-are untouched; the mode is a calculation service consumed only by `valuation-v3`, and it is
-specified there.
+are untouched by *this* feature; the mode is a calculation service consumed only by
+`valuation-v3`, and it is specified there. (The summary contract did move later, on 2026-09-06,
+for an unrelated defect — Q-60 / specs/025 `fundamental-summary-v3`.)
 
 ## R-004 The provider trailing-EPS fallback must stay out of the fiscal-year basis
 

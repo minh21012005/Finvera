@@ -48,7 +48,8 @@ metrics (0..1). A P/B-only assessment therefore publishes with
 
 Peer inputs for the sector basis are read from each peer's **persisted current
 fundamental summary** (`fundamental_summary` / `fundamental_summary_metric`,
-rule `fundamental-summary-v2`, latest `as_of_trading_date` then latest
+rule `FundamentalSummaryCalculator.RULE_VERSION` — `fundamental-summary-v2` when this contract
+was accepted, `fundamental-summary-v3` since specs/025 — latest `as_of_trading_date` then latest
 `calculated_at`; a tie between sibling revisions is resolved by the smallest id)
 and the peer's **latest current daily bar**, both fetched in bulk. The figures
 are identical to what the calculator would produce for that peer at the time the

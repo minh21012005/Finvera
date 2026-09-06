@@ -72,6 +72,9 @@ export const REASON_CODE_LABELS: Readonly<Record<string, string>> = {
   FUNDAMENTALS_DELAYED: "Báo cáo tài chính trễ một kỳ",
   FUNDAMENTALS_STALE: "Báo cáo tài chính đã cũ",
   ANNUAL_BASIS: "Tính trên số liệu năm (chưa đủ 4 quý)",
+  // fundamental-summary-v3 (specs/025, Q-60)
+  QUARTER_WINDOW_INELIGIBLE:
+    "Bốn quý gần nhất không liền mạch hoặc cũ hơn báo cáo năm đã có, nên không dùng để cộng 12 tháng; số liệu lấy từ báo cáo năm, hoặc bỏ trống nếu không có báo cáo năm",
   PROVIDER_TRAILING_EPS: "EPS 12 tháng lấy theo số trailing của nhà cung cấp (không có EPS quý)",
   NO_DATA: "Không có số liệu",
   NOT_REPORTED: "Báo cáo không công bố chỉ tiêu này",

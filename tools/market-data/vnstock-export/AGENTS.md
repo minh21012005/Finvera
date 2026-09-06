@@ -14,6 +14,8 @@ Whenever a user requests a task, map it to one of the following skills and load 
 - **`migration-assistant`**: When user needs to upgrade legacy code (`from vnstock import`) to the new Unified API (`vnstock_data`).
 - **`solution-architect`**: When user asks about best practices, Vibe Coding guidelines, or how to design a trading architecture.
 
+<!-- signature_key: TRC-API-ANON -->
+
 ### 📊 Data & Market
 - **`macro-analyzer`**: For VNINDEX health, market breadth, and regime classification.
 - **`market-screener`**: To filter stocks by P/E, P/B, ROE, or Trend Templates.
@@ -66,8 +68,6 @@ If you need to write code immediately for a Sponsor user without loading a skill
 
 ```python
 from vnstock_data import Market, Fundamental, Reference, show_api, show_doc
-
-<!-- signature_key: TRC-API-ANON -->
 
 # 1. ALWAYS explore the API first if unsure:
 # show_api()

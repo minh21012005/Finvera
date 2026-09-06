@@ -27,9 +27,21 @@ public final class FundamentalSummaryCalculator {
      * figures come from the latest annual report, and when fewer than eight quarters are
      * visible growth is annual-over-prior-annual; every such metric carries
      * {@code ANNUAL_BASIS}. Partial quarter sets are never mixed with annual figures.
+     *
+     * <p>v3 (Feature 025, contract fundamental-summary-v3, closes Q-60): a quarterly window is used
+     * only when it is <em>eligible</em> — four (or eight) consecutive fiscal quarters that no annual
+     * report already supersedes. See {@link #quarterWindowEligible}. v2 selected the window by
+     * counting alone, which served 60 instruments a "TTM" summed from non-contiguous or years-old
+     * quarters while a current annual report sat unused.
      */
-    public static final String RULE_VERSION = "fundamental-summary-v2";
+    public static final String RULE_VERSION = "fundamental-summary-v3";
     public static final String ANNUAL_BASIS = "ANNUAL_BASIS";
+    /**
+     * v3 (Q-60): the newest quarterly reports did not form a real trailing window — they were not
+     * consecutive fiscal quarters, or an annual report we already hold covers a later period. The
+     * aggregates came from the annual report instead, or are withheld when there is none.
+     */
+    public static final String QUARTER_WINDOW_INELIGIBLE = "QUARTER_WINDOW_INELIGIBLE";
     /** Newest report first: period end desc, then QUARTER before ANNUAL, then report id (total order). */
     static final Comparator<ReportPeriod> NEWEST_FIRST = Comparator
             .comparing(ReportPeriod::periodEnd, Comparator.reverseOrder())
@@ -52,9 +64,10 @@ public final class FundamentalSummaryCalculator {
      * DIVIDEND_PER_SHARE_TTM) and the growth metrics.
      *
      * <ul>
-     *   <li>{@link #PREFER_QUARTERS} — {@code fundamental-summary-v2}: the four newest quarters when
-     *       visible, else the latest annual report ({@code ANNUAL_BASIS}); growth from eight quarters
-     *       when visible, else annual over prior annual. The persisted summary always uses this.</li>
+     *   <li>{@link #PREFER_QUARTERS} — the four newest quarters when they form an ELIGIBLE window
+     *       ({@link #quarterWindowEligible}, contract {@code fundamental-summary-v3}), else the latest
+     *       annual report ({@code ANNUAL_BASIS}); growth from eight eligible quarters, else annual over
+     *       prior annual. The persisted summary always uses this.</li>
      *   <li>{@link #FISCAL_YEAR} — contract {@code valuation-v3} (specs/023): the latest visible
      *       annual report regardless of how many quarters are visible, growth annual over prior
      *       annual, and no provider trailing-EPS fallback (a TTM figure). Used only to build the
@@ -63,6 +76,46 @@ public final class FundamentalSummaryCalculator {
      * </ul>
      */
     public enum AggregateBasis { PREFER_QUARTERS, FISCAL_YEAR }
+
+    /**
+     * Contract {@code fundamental-summary-v3} (Q-60): a window of quarterly reports may only form a
+     * period aggregate when it is a real twelve- (or twenty-four-) month span.
+     *
+     * <ul>
+     *   <li><b>E-1 contiguity</b> — the quarter indices ({@code fiscalYear * 4 + fiscalQuarter}),
+     *       newest first, decrease by exactly one at every step. Decided on indices rather than day
+     *       spans because a company's fiscal quarters need not be calendar quarters (research
+     *       R-003).</li>
+     *   <li><b>E-2 not superseded</b> — no accepted annual report ends later than the newest
+     *       quarter in the window. A fresher annual figure is never passed over for staler
+     *       quarters.</li>
+     * </ul>
+     */
+    private static boolean quarterWindowEligible(List<ReportPeriod> window, List<ReportPeriod> annualReports) {
+        if (window.isEmpty()) {
+            return false;
+        }
+        for (int i = 0; i < window.size() - 1; i++) {
+            if (quarterIndex(window.get(i)) - quarterIndex(window.get(i + 1)) != 1) {
+                return false; // E-1
+            }
+        }
+        LocalDate newestQuarterEnd = window.get(0).periodEnd();
+        for (ReportPeriod annual : annualReports) {
+            if (annual.periodEnd() != null && newestQuarterEnd != null
+                    && annual.periodEnd().isAfter(newestQuarterEnd)) {
+                return false; // E-2
+            }
+        }
+        return true;
+    }
+
+    private static int quarterIndex(ReportPeriod period) {
+        Integer quarter = period.fiscalQuarter();
+        // A QUARTER report without a fiscal quarter cannot be placed in a sequence; treat the
+        // window as broken rather than guessing its position.
+        return quarter == null ? Integer.MIN_VALUE / 4 : period.fiscalYear() * 4 + quarter;
+    }
 
     public SummaryResult calculate(List<ReportPeriod> reports, LocalDate asOfDate) {
         return calculate(reports, asOfDate, AggregateBasis.PREFER_QUARTERS);
@@ -127,19 +180,34 @@ public final class FundamentalSummaryCalculator {
                 .toList();
         List<ReportPeriod> currentTtmPeriods;
         boolean ttmOnAnnualBasis = false;
+        // v3 (contract fundamental-summary-v3, Q-60): four quarterly reports are not automatically a
+        // twelve-month window. They must be four CONSECUTIVE fiscal quarters and must not be older
+        // than an annual report we already hold, or the "TTM" is a sum of scattered periods -- for
+        // 60 instruments it was years stale while a current annual report sat unused.
+        boolean quarterWindowRejected = false;
         if (basis == AggregateBasis.FISCAL_YEAR) {
             // valuation-v3: the latest visible annual report is the aggregate basis whatever the
             // quarter count; with no annual report there is no fiscal-year aggregate at all.
             currentTtmPeriods = annualReports.isEmpty() ? List.of() : List.of(annualReports.get(0));
             ttmOnAnnualBasis = !annualReports.isEmpty();
-        } else if (quarterReports.size() >= 4) {
+        } else if (quarterReports.size() >= 4 && quarterWindowEligible(quarterReports.subList(0, 4), annualReports)) {
             currentTtmPeriods = quarterReports.subList(0, 4);
         } else if (!annualReports.isEmpty()) {
             // v2: fewer than four quarters visible -> latest annual report is the TTM basis.
+            // v3: also when the four newest quarters are ineligible.
+            quarterWindowRejected = quarterReports.size() >= 4;
             currentTtmPeriods = List.of(annualReports.get(0));
             ttmOnAnnualBasis = true;
+        } else if (quarterReports.size() >= 4) {
+            // v3 FR-004: ineligible window and no annual report to fall back to. A sum of quarters
+            // from different years is not a twelve-month figure; withhold rather than mislabel.
+            quarterWindowRejected = true;
+            currentTtmPeriods = List.of();
         } else {
             currentTtmPeriods = quarterReports;
+        }
+        if (quarterWindowRejected) {
+            reasonCodes.add(QUARTER_WINDOW_INELIGIBLE);
         }
 
         for (ReportPeriod q : currentTtmPeriods) {
@@ -153,11 +221,17 @@ public final class FundamentalSummaryCalculator {
 
         // TTM Metrics (4 quarters required or 1 annual report)
         int before = summaryMetrics.size();
-        addTtmSumMetric(summaryMetrics, "NET_PROFIT", "NET_PROFIT_TTM", currentTtmPeriods);
-        addEpsTtmMetric(summaryMetrics, currentTtmPeriods, newest, basis == AggregateBasis.PREFER_QUARTERS);
-        addTtmSumMetric(summaryMetrics, "REVENUE", "REVENUE_TTM", currentTtmPeriods);
-        addTtmSumMetric(summaryMetrics, "EBITDA", "EBITDA_TTM", currentTtmPeriods);
-        addTtmSumMetric(summaryMetrics, "DIVIDEND_PER_SHARE", "DIVIDEND_PER_SHARE_TTM", currentTtmPeriods);
+        // v3: when the window was rejected outright (no annual to fall back to) the aggregates are
+        // withheld under that cause, not under the generic "not enough history".
+        String unavailableReason = quarterWindowRejected && currentTtmPeriods.isEmpty()
+                ? QUARTER_WINDOW_INELIGIBLE : "INSUFFICIENT_HISTORY";
+        addTtmSumMetric(summaryMetrics, "NET_PROFIT", "NET_PROFIT_TTM", currentTtmPeriods, unavailableReason);
+        addEpsTtmMetric(summaryMetrics, currentTtmPeriods, newest, basis == AggregateBasis.PREFER_QUARTERS,
+                unavailableReason);
+        addTtmSumMetric(summaryMetrics, "REVENUE", "REVENUE_TTM", currentTtmPeriods, unavailableReason);
+        addTtmSumMetric(summaryMetrics, "EBITDA", "EBITDA_TTM", currentTtmPeriods, unavailableReason);
+        addTtmSumMetric(summaryMetrics, "DIVIDEND_PER_SHARE", "DIVIDEND_PER_SHARE_TTM", currentTtmPeriods,
+                unavailableReason);
         if (ttmOnAnnualBasis) {
             labelAnnualBasis(summaryMetrics, before);
         }
@@ -224,7 +298,8 @@ public final class FundamentalSummaryCalculator {
             List<SummaryMetric> target,
             List<ReportPeriod> ttmPeriods,
             ReportPeriod newest,
-            boolean allowProviderTrailingFallback) {
+            boolean allowProviderTrailingFallback,
+            String unavailableReason) {
         if (!ttmPeriods.isEmpty() && (ttmPeriods.size() >= 4 || "ANNUAL".equals(ttmPeriods.get(0).periodType()))) {
             BigDecimal sum = getTtmSum("EPS", ttmPeriods);
             if (sum != null) {
@@ -246,7 +321,7 @@ public final class FundamentalSummaryCalculator {
             }
         }
         if (ttmPeriods.size() < 4 && (ttmPeriods.isEmpty() || !"ANNUAL".equals(ttmPeriods.get(0).periodType()))) {
-            target.add(new SummaryMetric("EPS_TTM", null, MetricApplicability.MISSING, "INSUFFICIENT_HISTORY"));
+            target.add(new SummaryMetric("EPS_TTM", null, MetricApplicability.MISSING, unavailableReason));
         } else {
             target.add(new SummaryMetric("EPS_TTM", null, MetricApplicability.MISSING, "NO_DATA"));
         }
@@ -256,9 +331,10 @@ public final class FundamentalSummaryCalculator {
             List<SummaryMetric> target,
             String sourceCode,
             String targetCode,
-            List<ReportPeriod> ttmPeriods) {
+            List<ReportPeriod> ttmPeriods,
+            String unavailableReason) {
         if (ttmPeriods.isEmpty() || (ttmPeriods.size() < 4 && !"ANNUAL".equals(ttmPeriods.get(0).periodType()))) {
-            target.add(new SummaryMetric(targetCode, null, MetricApplicability.MISSING, "INSUFFICIENT_HISTORY"));
+            target.add(new SummaryMetric(targetCode, null, MetricApplicability.MISSING, unavailableReason));
             return;
         }
         BigDecimal sum = getTtmSum(sourceCode, ttmPeriods);
@@ -291,7 +367,9 @@ public final class FundamentalSummaryCalculator {
             summaryMetrics.add(new SummaryMetric(targetMetricCode, null, MetricApplicability.MISSING, "INSUFFICIENT_HISTORY"));
             return;
         }
-        if ((basis == AggregateBasis.FISCAL_YEAR || quarterReports.size() < 8) && annualReports.size() >= 2) {
+        boolean eightQuarterWindowUsable = basis != AggregateBasis.FISCAL_YEAR && quarterReports.size() >= 8
+                && quarterWindowEligible(quarterReports.subList(0, 8), annualReports);
+        if (!eightQuarterWindowUsable && annualReports.size() >= 2) {
             // v2 annual-over-prior-annual fallback (research R-005).
             List<ReportPeriod> latest = List.of(annualReports.get(0));
             List<ReportPeriod> prior = List.of(annualReports.get(1));
@@ -312,7 +390,7 @@ public final class FundamentalSummaryCalculator {
             }
             return;
         }
-        if (quarterReports.size() >= 8) {
+        if (quarterReports.size() >= 8 && quarterWindowEligible(quarterReports.subList(0, 8), annualReports)) {
             List<ReportPeriod> priorTtmQuarters = quarterReports.subList(4, 8);
             for (ReportPeriod q : priorTtmQuarters) {
                 if (q.reportId() != null) {
