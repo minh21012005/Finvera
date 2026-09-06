@@ -80,10 +80,29 @@ comparison is against the number users actually see.
 
 Answer on 2026-09-06 (specs/024 research): median shift 6.56 pp, but **no tilt between the two
 groups** — so the recommendation is to keep the freshest ruler and disclose, *not* to rebuild
-Basis B. Recommendation only: the owner has not decided yet, and nothing in the engine changed. A
-measurement that says "do not build it" is the point of measuring first.
+Basis B. **Owner decided the same day: no change at all** — the disclosure was declined too, since the
+effect it would disclose has no direction. Nothing in the engine changed. A measurement that says
+"do not build it" is the point of measuring first; this tool stays as the reopen trigger.
 
 The run also flags **Q-60**: constituents whose quarter-summed `EPS_TTM` is non-contiguous or older
 than their own newest annual report (60 LISTED instruments, up to seven years stale; fixed by
 Feature 025 / `fundamental-summary-v3`, so a run after the next refresh should flag none). Those are
 excluded from the clean aggregate and printed with a `[Q-60 …]` marker.
+
+## `verify_quarter_window.py` — the population `fundamental-summary-v3` actually changed
+
+`verify_calcs.py` samples ~24 symbols. The instruments with an ineligible quarter window (Q-60) are
+a long tail of small caps and are essentially never in that sample, so the rule written for them
+would otherwise be covered by unit tests alone.
+
+```powershell
+python tools\verification\verify_quarter_window.py
+```
+
+It finds every instrument whose four newest quarterly reports are non-contiguous or older than an
+annual report already held, recomputes each served aggregate from the raw reports with the
+contract's own rule (E-1/E-2, the annual fallback, the withhold case, and the provider trailing-EPS
+exception), and compares. Run it after every crawl.
+
+First run 2026-09-06, after the refresh that adopted v3: **60 instruments, 300 served aggregates,
+0 mismatches.**

@@ -228,13 +228,21 @@ def valuation_checks(sym, bars, reports, shares):
         eps_fy = summary_v2(reports, None, "FISCAL_YEAR")["EPS_TTM"][0]
         pe_fy = None if eps_fy is None or eps_fy <= 0 else price / eps_fy
         if pe_fy is None:
+            # No FY comparison is computable. The contract only promises HISTORY_COMPARISON_UNAVAILABLE
+            # when Basis A was actually evaluated for PE (its own series >= 500 points); below that
+            # floor the metric simply has no Basis A and says nothing.
             no_pct = pe_row.get("own_history_percentile") in (None, "")
-            note("valuation", no_pct and "HISTORY_COMPARISON_UNAVAILABLE" in (a["reason_codes"] or ""),
-                 f"{sym} PE: no fiscal-year comparison (FY EPS={eps_fy}); stored percentile={pe_row.get('own_history_percentile')} reasons={a['reason_codes']}")
+            basis_evaluated = pe_row.get("own_history_basis") not in (None, "")
+            expected_code = (not basis_evaluated) or "HISTORY_COMPARISON_UNAVAILABLE" in (a["reason_codes"] or "")
+            note("valuation", no_pct and expected_code,
+                 f"{sym} PE: no fiscal-year comparison (FY EPS={eps_fy}); stored percentile={pe_row.get('own_history_percentile') or 'none'} "
+                 f"basis={pe_row.get('own_history_basis') or 'none'} reasons={a['reason_codes']}")
         else:
-            stored_cmp = f(pe_row.get("own_history_comparison_value"))
-            ok_cmp = stored_cmp is not None and abs(stored_cmp - pe_fy) <= 1e-4 and pe_row.get("own_history_basis") == "FISCAL_YEAR"
-            note("valuation", ok_cmp, f"{sym} PE own-history comparison: mine={pe_fy:.6f} (price / FY EPS {eps_fy}) stored={pe_row.get('own_history_comparison_value')} basis={pe_row.get('own_history_basis')}")
+            # Basis A is per METRIC, not per assessment: `used_own_history` can be true because PB
+            # cleared the 500-point floor while PE's own series did not (a company with loss years
+            # has no PE point on those dates). Rebuild PE's series FIRST and only then demand the
+            # stored basis/comparison -- the contract requires them exactly when Basis A was
+            # evaluated for PE, i.e. when this series qualifies.
             series = []
             for b in bars[-750:]:
                 boundary = datetime.combine(date.fromisoformat(b["d"]), datetime.max.time()).replace(tzinfo=timezone(timedelta(hours=7)))
@@ -243,13 +251,20 @@ def valuation_checks(sym, bars, reports, shares):
                 e = summary_v2(vis, None, "FISCAL_YEAR")["EPS_TTM"][0]
                 if e is not None and e > 0:
                     series.append(b["c"] / e)
-            if len(series) >= 500 and pe_row.get("own_history_percentile"):
-                less = sum(1 for x in series if x < pe_fy); eq = sum(1 for x in series if x == pe_fy)
-                pct = 100 * (less + 0.5 * eq) / len(series)
-                sp = f(pe_row["own_history_percentile"])
-                note("valuation", abs(sp - pct) <= 0.6, f"{sym} PE own-history percentile (FY basis): mine={pct:.3f} (n={len(series)}) stored={sp} (hist_points={a['history_point_count']})")
+            if len(series) < 500:
+                # Basis A does not apply to PE here; the row must carry neither a percentile nor a basis.
+                clean = pe_row.get("own_history_percentile") in (None, "") and pe_row.get("own_history_basis") in (None, "")
+                note("valuation", clean, f"{sym} PE: FY-basis series has {len(series)} points (<500), so no Basis A; "
+                                         f"stored percentile={pe_row.get('own_history_percentile') or 'none'} basis={pe_row.get('own_history_basis') or 'none'}")
             else:
-                note("valuation", True, f"{sym}: rebuilt FY-basis PE history has {len(series)} points -- informational")
+                stored_cmp = f(pe_row.get("own_history_comparison_value"))
+                ok_cmp = stored_cmp is not None and abs(stored_cmp - pe_fy) <= 1e-4 and pe_row.get("own_history_basis") == "FISCAL_YEAR"
+                note("valuation", ok_cmp, f"{sym} PE own-history comparison: mine={pe_fy:.6f} (price / FY EPS {eps_fy}) stored={pe_row.get('own_history_comparison_value')} basis={pe_row.get('own_history_basis')}")
+                if pe_row.get("own_history_percentile"):
+                    less = sum(1 for x in series if x < pe_fy); eq = sum(1 for x in series if x == pe_fy)
+                    pct = 100 * (less + 0.5 * eq) / len(series)
+                    sp = f(pe_row["own_history_percentile"])
+                    note("valuation", abs(sp - pct) <= 0.6, f"{sym} PE own-history percentile (FY basis): mine={pct:.3f} (n={len(series)}) stored={sp} (hist_points={a['history_point_count']})")
     pb_row = metrics.get("PB", {})
     if pb_row.get("own_history_percentile"):
         # point-in-time metric: ranked on its own headline, labelled as such
@@ -474,7 +489,13 @@ for sym in symbols:
         sh = q(f"select p.shares_outstanding from equity_profile p join market_instrument i on i.id=p.instrument_id where i.symbol='{sym}' and p.effective_to is null")
         valuation_checks(sym, bars, reports, int(sh[0]["shares_outstanding"]) if sh and sh[0]["shares_outstanding"] else None)
 
-breadth_check("2026-08-28")
+_latest_breadth = q("select max(trading_date) d from breadth_snapshot")
+if _latest_breadth and _latest_breadth[0]["d"]:
+    # Never hardcode the session: an older snapshot was computed from bars a later crawl may have
+    # revised, so recomputing it today compares two different input sets and always "differs".
+    breadth_check(_latest_breadth[0]["d"])
+else:
+    note("breadth", True, "no breadth snapshot to check")
 
 anchors_check()
 sector_coverage_check()

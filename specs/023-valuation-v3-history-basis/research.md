@@ -110,3 +110,36 @@ qualifies P/E, the assessment publishes; without it, the coverage gate can withh
 that ranked a positive TTM P/E inside a history whose loss-year points had no P/E at all — the very
 mixed comparison this feature removes. Recorded in the contract under "Known consequences"; the
 FE already renders both reason codes with wording.
+
+## R-011 Post-refresh verification (2026-09-06)
+
+The refresh recomputed every assessment under `valuation-v3`: **1,522 current, 1,076 published**.
+Contract invariant (`percentile ⇒ basis and comparison value`): **0 violations** across all rows.
+Field population matches the metric classes exactly — `PE` 925 rows on `FISCAL_YEAR` (914 with a
+percentile; the other 11 are the turnaround case), `PB` 1,154 on `LATEST_REPORT` (all with a
+percentile), `EV_EBITDA` 863, `PEG` 113; `DIVIDEND_YIELD` and `PS` carry no basis, as informational
+metrics outside the scored set should not.
+
+VNM makes the change concrete: headline P/E **13.09** (quarter-TTM, what the reader sees), value
+actually ranked **15.37** (fiscal-year), own-history percentile **14.2 → 66.1**. Under v2 the stock
+read as cheaper than 86 % of its own history; measured like-for-like it sits above the middle.
+
+Across the 899 instruments carrying a P/E own-history percentile under both rule versions:
+**median |shift| 7.93 pp, p90 46.2, max 96.1; 404 of them (45 %) moved more than 10 pp.** The
+largest moves are companies whose fiscal-year and quarter-TTM earnings differ sharply (VUA
+1.2 → 97.4, HHS 99.9 → 4.7). Caveat stated rather than buried: the v2 rows were computed on
+2026-09-01/02 prices and the v3 rows on 2026-09-04, so a few days of price movement is mixed into
+these figures — but four sessions cannot move a percentile by 96 points, so the basis change
+dominates by orders of magnitude.
+
+### The planned drift metric could not be computed, and why
+
+quickstart §5 asked for the count of instruments whose *classification* changed between v2 and v3.
+That number is not meaningful here: the surviving v2 rows come from the 2026-09-01/02 refresh, when
+prices were stale (`PRICE_STALE` on 1,473 of 1,524) and only **2** assessments published at all.
+Comparing 2 published v2 rows with 1,076 published v3 rows would measure the data refresh, not the
+rule change. The percentile comparison above replaces it: it uses the same metric on the same
+instruments and isolates the basis, which is what the criterion was actually after.
+
+`verify_calcs.py` (valuation section rebuilt on the fiscal-year basis): **229 valuation checks, 0
+failures** inside a run of 784 checks with none failing. SC-5 met.
