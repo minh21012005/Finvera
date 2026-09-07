@@ -1,7 +1,8 @@
 # Feature 026: Refresh that finishes by itself
 
-**Status**: Specified 2026-09-06 · **Amended 2026-09-07** (FR-007/SC-6, research R-008: a failure
-class that changes with time was being settled forever — Q-61)
+**Status**: Specified 2026-09-06 · **Amended 2026-09-07** (FR-007/SC-6 + FR-008/SC-7, research R-008/R-009: a failure
+class that changes with time was being settled forever — Q-61; and "finished" required a bar dated
+`--end`, which a stopped symbol can never have — Q-62)
 **Closes**: docs/REMEDIATION_PLAN.md **P2-12**; the owner's requirement that a refresh "must run
 through, or pick itself back up, without me restarting it"
 **SRS References**: SRS-NFR-07 (operability) · **Measured**: during the owner's 2026-09-06 refresh
@@ -74,6 +75,10 @@ the import/warmup logic in the backend, and P2-04's import incrementality (still
   statements yet, the symbol has not traded enough sessions yet — MUST be recorded under its own
   name and re-checked after a bounded window sized to that cause, never settled as permanent. A
   failure that no amount of waiting can change MUST still settle.
+- **FR-008** A dataset counts as covered for a run when it was **fetched for that run's window**,
+  evidenced by the package on disk, not by whether the market happened to trade that symbol on the
+  window's end date. A symbol that has stopped trading MUST therefore be able to reach a finished
+  state, so that re-running the same command converges instead of repeating work forever.
 
 ## Success criteria
 
@@ -92,6 +97,10 @@ the import/warmup logic in the backend, and P2-04's import incrementality (still
   name with the session count it actually had, is not `finished` once its window has passed, and is
   still `finished` inside it — proven by tests at the threshold boundary and at both ends of the
   window.
+- **SC-7** A symbol whose newest session predates the run's end date counts as covered once it has
+  been fetched for that window, while a package that does not carry the window, or carries no
+  sessions, still does not — and moving the end date still makes the entry stale. Proven by tests
+  and by replaying `is_finished` over the real checkpoint before and after.
 
 ## Acceptance scenarios
 
@@ -108,3 +117,6 @@ the import/warmup logic in the backend, and P2-04's import incrementality (still
    reaches it, **then** its dataset is recorded as "not enough sessions yet" with the count it had,
    the crawl continues, and a run after the re-check window asks the provider again — so the symbol
    joins the product on its own once it has traded enough, without anyone passing `--retry-failed`.
+6. **Given** a symbol that stopped trading years ago but whose package was fetched for this run's
+   window, **when** the same command is run again, **then** the symbol is reported as finished and
+   is not fetched a second time — and when the end date moves to a new day, it is fetched again.

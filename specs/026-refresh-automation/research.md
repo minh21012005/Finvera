@@ -132,3 +132,36 @@ satisfy the condition, so it is never finished, is re-fetched on every run (~1,2
 never come true. No stored data is wrong; this is convergence, not correctness. Left as Q-62 with a
 candidate fix (settle on "the provider was asked on `--end`", not "the symbol traded on `--end`")
 rather than folded into this change, so the two are verifiable separately.
+
+## R-009 The other half of R-008: "finished" also demanded that the symbol traded (2026-09-07)
+
+`daily_bars_current` required `latest_record_date >= args.end` — a bar dated on the run's end date.
+Measured over the packages on disk: **870 of 1,473** carry the current session, and **603 do not**,
+because the symbol is delisted, suspended or simply illiquid (ART `2022-11-18`, TTZ `2022-12-02`,
+NDF `2023-02-24`). Those 603 can never satisfy the condition, so they were never `is_finished`, were
+re-fetched on **every re-run of the same command**, and `Nothing left to do` was unreachable.
+
+The package already carries the honest answer. ART's file records `rangeEnd: 2026-09-07` beside a
+newest session of `2022-11-18`: the exporter *did* ask through today, and the provider's reply was
+"nothing since 2022". Coverage is a property of the ask, not of whether the market happened to trade
+that symbol that day — and `daily_bars_range[1] >= args.end` already states the ask. The fix drops
+the traded-on-`--end` condition and adds the package's own `rangeEnd` as the cross-check, so the
+file on disk still has to agree with the checkpoint rather than the checkpoint being believed alone.
+
+**The cost, stated rather than hidden.** Within one `--end`, a session the provider has not
+published yet is no longer picked up by a second run on the same day; the entry settles until
+`--end` moves. The next day's run makes it stale again and the 90-day lookback fetches the missed
+session, so the gap is bounded by one day and self-heals, and `--full-refresh` bypasses the check
+outright. This was weighed against the alternative — requiring two asks at different `--end` values
+to return the same newest session before settling, which removes even that one-day gap — and
+rejected as more state and more code for a bounded, self-healing difference. The rejected option is
+recorded here in case the same-day case ever turns out to matter.
+
+The test that encoded the old rule
+(`test_full_universe_checkpoint_does_not_skip_file_missing_requested_end_date`) was rewritten rather
+than deleted: it now asserts the new rule in both directions, including that a moved `--end` still
+re-fetches and that a checkpoint claiming a window the package does not carry is still not current.
+
+**Measured after the change**, replaying `is_finished` over the real 1,522-symbol checkpoint:
+`daily_bars_current` **870 → 1,473**, `is_finished` **889 → 1,168**; the 354 still outstanding are
+exactly the datasets `--retry-failed` had just re-opened and not yet re-crawled.

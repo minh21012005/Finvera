@@ -200,7 +200,21 @@ def daily_bars_current(symbol: str, entry: dict[str, Any], args: argparse.Namesp
     StockImportConfiguration's directory scan (and the owner) actually reads. A later --end (e.g.
     re-running tomorrow to pick up a new trading day) makes an old entry stale again rather than
     silently staying short a day forever -- export_daily_bars_for then only re-fetches the recent
-    lookback window plus the new gap, not the whole range (--full-refresh forces the whole range)."""
+    lookback window plus the new gap, not the whole range (--full-refresh forces the whole range).
+
+    Feature 026 R-009 (Q-62): coverage is what we *asked* for, never "the symbol traded on --end".
+    The old rule also required `latest_record_date >= args.end`, which a delisted, suspended or
+    illiquid symbol can never satisfy -- 603 of 1,522 symbols held a complete package whose newest
+    session predates --end (ART 2022-11-18, TTZ 2022-12-02), so they were never `is_finished`, were
+    re-fetched on every re-run of the same command, and the exporter's "nothing left to do" could
+    never be reached. `range_[1] >= args.end` already states that this file was fetched for this
+    end date; the provider returning nothing after 2022 is its answer, not a reason to ask again.
+
+    Consequence, stated rather than hidden: within one --end, a session that the provider has not
+    published yet is not picked up by a second run on the same day. The next day's run moves --end,
+    the entry goes stale again, and the 90-day lookback fetches the missed session -- so the gap is
+    bounded by one day and self-healing. `--full-refresh` bypasses this check entirely when the
+    owner wants the whole range re-pulled now."""
     path = args.output / export_daily_bars.output_filename(symbol)
     if not path.exists():
         return False
@@ -215,8 +229,11 @@ def daily_bars_current(symbol: str, entry: dict[str, Any], args: argparse.Namesp
             and range_ is not None
             and range_[0] <= args.start
             and range_[1] >= args.end
+            # The file must agree with the checkpoint about the window it was fetched for, and must
+            # actually hold sessions -- the checkpoint alone is never the evidence (Q-62).
+            and package.get("rangeEnd") is not None
+            and package.get("rangeEnd") >= args.end
             and latest_record_date is not None
-            and latest_record_date >= args.end
             and not args.full_refresh
             and package.get("toolVersion") == export_daily_bars.TOOL_VERSION)
 

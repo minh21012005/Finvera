@@ -102,17 +102,21 @@ def test_full_universe_checkpoint_does_not_skip_old_daily_bar_tool_version(tmp_p
     assert not export_all_symbols.daily_bars_current(symbol, entry, Args())
 
 
-def test_full_universe_checkpoint_does_not_skip_file_missing_requested_end_date(tmp_path):
-    symbol = "ADG"
-    path = tmp_path / export_daily_bars.output_filename(symbol)
-    path.write_text(json.dumps({
-        "toolVersion": export_daily_bars.TOOL_VERSION,
-        "rangeStart": "2024-01-01",
-        "rangeEnd": "2026-08-25",
-        "records": [{
-            "tradingDate": "2026-08-24",
-        }],
-    }), encoding="utf-8")
+def test_a_symbol_that_did_not_trade_on_the_end_date_still_counts_as_fetched(tmp_path):
+    """Feature 026 R-009 (Q-62): coverage is what was asked for, not whether the symbol traded.
+
+    This replaces `..._does_not_skip_file_missing_requested_end_date`, which required a bar dated
+    `--end`. A delisted or illiquid symbol can never produce one: 603 of 1,522 symbols held a
+    complete package whose newest session predates `--end` (ART 2022-11-18), so they were never
+    finished and were re-fetched on every re-run of the same command.
+    """
+    def write(symbol, range_end, latest):
+        path = tmp_path / export_daily_bars.output_filename(symbol)
+        path.write_text(json.dumps({
+            "toolVersion": export_daily_bars.TOOL_VERSION,
+            "rangeStart": "2024-01-01", "rangeEnd": range_end,
+            "records": [{"tradingDate": latest}],
+        }), encoding="utf-8")
 
     class Args:
         start = "2024-01-01"
@@ -120,12 +124,30 @@ def test_full_universe_checkpoint_does_not_skip_file_missing_requested_end_date(
         full_refresh = False
         output = tmp_path
 
-    entry = {
-        "daily_bars": "done",
-        "daily_bars_range": ["2024-01-01", "2026-08-25"],
-    }
+    def entry(range_end):
+        return {"daily_bars": "done", "daily_bars_range": ["2024-01-01", range_end]}
 
-    assert not export_all_symbols.daily_bars_current(symbol, entry, Args())
+    # Asked through 2026-08-25; the provider's newest session is older. That is its answer.
+    write("ADG", "2026-08-25", "2026-08-24")
+    assert export_all_symbols.daily_bars_current("ADG", entry("2026-08-25"), Args()) is True
+
+    # A symbol that stopped trading in 2022 settles for this --end instead of looping forever.
+    write("ART", "2026-08-25", "2022-11-18")
+    assert export_all_symbols.daily_bars_current("ART", entry("2026-08-25"), Args()) is True
+
+    # Freshness is unchanged: when --end moves on, the entry goes stale and is re-fetched.
+    write("ADG", "2026-08-24", "2026-08-24")
+    assert export_all_symbols.daily_bars_current("ADG", entry("2026-08-24"), Args()) is False
+
+    # The file, not the checkpoint, is the evidence: a checkpoint claiming a window the package on
+    # disk does not carry is not current, and neither is a package with no sessions at all.
+    write("ADG", "2026-08-24", "2026-08-24")
+    assert export_all_symbols.daily_bars_current("ADG", entry("2026-08-25"), Args()) is False
+    (tmp_path / export_daily_bars.output_filename("EMP")).write_text(json.dumps({
+        "toolVersion": export_daily_bars.TOOL_VERSION,
+        "rangeStart": "2024-01-01", "rangeEnd": "2026-08-25", "records": [],
+    }), encoding="utf-8")
+    assert export_all_symbols.daily_bars_current("EMP", entry("2026-08-25"), Args()) is False
 
 
 def test_full_universe_reexport_drops_records_from_old_daily_bar_tool_version(tmp_path, monkeypatch):
