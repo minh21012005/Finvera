@@ -84,3 +84,51 @@ it at that point costs minutes instead of the six-hour timeout.
   requests.
 - **Import incrementality** (P2-04 / Q-41) — still unmeasured, still conditional on measuring stage
   6/7 as slow.
+
+## R-008 "Finished" conflated two states the exporter cannot tell apart (2026-09-07)
+
+Reviewing the tail of the owner's crawl — `Checkpoint total attempted: 889/1522`, 275 symbols with a
+failed dataset — against the checkpoint and the packages on disk:
+
+| daily_bars | fundamentals | fundamentals_annual |
+|---|---|---|
+| 1,473 ok · 48 `failed:ValueError` · 1 `failed:RetryError` | 1,267 ok · 255 `failed:NoStatementsAvailable` | 1,516 ok · 6 `failed:NoStatementsAvailable` |
+
+Neither number explains `889/1522`. Two separate defects do.
+
+**(a) A newly listed symbol was settled as a permanent failure (Q-61 — fixed here).**
+`export_daily_bars.build_package` raised a bare `ValueError` below `MIN_RECORDS = 20`, so
+`classify_failure` recorded `failed:ValueError` and `settled_failure` treated it as final. Of the 48
+symbols holding that value, **42 were settled on 2026-09-01 and never asked again** — the version
+guard from Feature 018 R-008 does not help, because the failure *was* written by the current
+version. Twenty of the 48 have `fundamentals: done`: the company files statements but the product
+has no price series for it.
+
+Probing the provider directly settled what the exporter could not distinguish:
+
+- **DMX** exported cleanly — 20 sessions, `2026-08-06` → `2026-09-07` — *while its 2026-09-01
+  failure still stood*. It had healed itself and the pipeline would never have noticed.
+- **LPS** returned **12 sessions**: genuinely not exportable yet, and on course to be locked out the
+  same way once it crosses 20.
+
+This is the shape of fact the code already handles correctly one dataset over: `NoStatementsAvailable`
+is documented as "not a defect of the symbol but a state that changes when the company files" and is
+re-checked after 35 days. "Not enough sessions yet" is the same kind of state, on a shorter clock —
+20 sessions is about four trading weeks — so it gets its own class and a 7-day window. It is
+recorded rather than retried in-run: unlike a rate limit, waiting 65 seconds does not make a session
+appear.
+
+Rejected: bumping `export_daily_bars.TOOL_VERSION` to re-open the 48 already-settled entries. The
+version describes *package content*, and `daily_bars_current` compares it, so bumping it would force
+a re-export of all 1,473 healthy packages to fix 48 checkpoint entries. One `--retry-failed` run
+(~880 provider calls, ~22 min) does the same job without corrupting what the version means.
+
+**(b) `is_finished` demands a bar dated `--end` (Q-62 — measured here, not fixed).**
+`daily_bars_current` requires `latest_record_date >= args.end`. **603 of 1,522** symbols hold a
+complete package whose newest session predates `--end` (ART `2022-11-18`, TTZ `2022-12-02`, NDF
+`2023-02-24`), against 870 that carry the current session. A delisted or untraded symbol can never
+satisfy the condition, so it is never finished, is re-fetched on every run (~1,200 provider calls,
+~30 min), and the exporter's closing promise — *"it exits immediately once nothing is left"* — can
+never come true. No stored data is wrong; this is convergence, not correctness. Left as Q-62 with a
+candidate fix (settle on "the provider was asked on `--end`", not "the symbol traded on `--end`")
+rather than folded into this change, so the two are verifiable separately.

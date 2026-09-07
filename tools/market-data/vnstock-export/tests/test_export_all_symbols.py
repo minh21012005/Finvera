@@ -160,3 +160,37 @@ def test_failures_recorded_by_another_exporter_version_do_not_settle(tmp_path):
     assert mod.is_finished("X", current, args) is True
     stale_version = dict(current, fundamentals_failed_tool_version="0.7.0")
     assert mod.is_finished("X", stale_version, args) is False
+
+
+def test_newly_listed_symbols_are_rechecked_instead_of_settled_forever(tmp_path):
+    """Feature 026 R-008 (Q-61): `InsufficientSessions` is a state that changes with every session.
+
+    Before the fix it arrived as a bare ValueError and `settled_failure` treated it as permanent:
+    48 symbols on the 2026-09-07 checkpoint, 42 of them settled on 2026-09-01 and never asked
+    again -- including DMX, which was already exportable when this was measured.
+    """
+    import argparse
+    args = argparse.Namespace(start="2019-01-01", end="2026-09-07", period="quarter", output=tmp_path,
+                              full_refresh=False, retry_failed=False, lookback_days=90, unit_scale=1)
+    base = {"fundamentals": "failed:NoStatementsAvailable", "fundamentals_checked_at": "2026-09-07",
+            "fundamentals_annual": "failed:NoStatementsAvailable", "fundamentals_annual_checked_at": "2026-09-07",
+            "fundamentals_failed_tool_version": mod.FUNDAMENTALS_TOOL_VERSION,
+            "fundamentals_annual_failed_tool_version": mod.FUNDAMENTALS_TOOL_VERSION,
+            "daily_bars": "failed:InsufficientSessions",
+            "daily_bars_failed_tool_version": mod.export_daily_bars.TOOL_VERSION}
+
+    fresh = dict(base, daily_bars_checked_at="2026-09-06")       # 1 day old -> still settled
+    due = dict(base, daily_bars_checked_at="2026-08-31")         # 7 days old -> asked again
+    assert mod.is_finished("LPS", fresh, args) is True
+    assert mod.is_finished("DMX", due, args) is False
+
+    # Its own, shorter window -- 20 sessions is ~4 trading weeks, not a reporting cycle.
+    assert mod.recheck_days_for("failed:InsufficientSessions") == 7
+    assert mod.recheck_days_for("failed:NoStatementsAvailable") == 35
+    assert mod.is_unavailable_failure("failed:InsufficientSessions") is True
+    # A 30-day-old "no statements" is still settled on the same day the 7-day bars entry re-opens.
+    assert mod.recheck_due("2026-08-08", mod.date(2026, 9, 7), mod.recheck_days_for("failed:NoStatementsAvailable")) is False
+    assert mod.recheck_due("2026-08-31", mod.date(2026, 9, 7), mod.recheck_days_for("failed:InsufficientSessions")) is True
+
+    # It is recorded, not retried inside the run: nothing about waiting 65 s makes a session appear.
+    assert mod.is_transient_failure("failed:InsufficientSessions") is False

@@ -88,9 +88,21 @@ def package_records(rows: list[dict[str, Any]], symbol: str) -> list[dict[str, A
     return records
 
 
+class InsufficientSessions(ValueError):
+    """The provider served this symbol, but fewer than MIN_RECORDS completed sessions exist yet.
+
+    Feature 026 R-008 (Q-61): this is a newly listed symbol, not a symbol the provider cannot
+    serve -- the count grows on its own with every session. Raised as its own type (mirroring
+    `export_fundamentals_vci.NoStatementsAvailable`) so `export_all_symbols.classify_failure`
+    records it under its own name and re-checks it, instead of settling a bare `ValueError`
+    permanently. Subclasses ValueError so any existing caller catching that still catches this.
+    """
+
+
 def build_package(records: list[dict[str, Any]], symbol: str, start: str, end: str, tool_version: str) -> dict[str, Any]:
     if len(records) < MIN_RECORDS:
-        raise ValueError(f"at least {MIN_RECORDS} completed sessions are required")
+        raise InsufficientSessions(
+            f"{symbol.upper()}: {len(records)} completed sessions available, at least {MIN_RECORDS} are required")
     records = sorted(records, key=lambda item: item["tradingDate"])
     payload = {"records": records}
     payload_json = canonical_json(payload)

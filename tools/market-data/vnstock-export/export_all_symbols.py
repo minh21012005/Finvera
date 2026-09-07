@@ -295,8 +295,18 @@ NETWORK_RETRY_WAITS_SECONDS = provider_retry.NETWORK_RETRY_WAITS_SECONDS
 # statements for many small UPCoM names — A32, ACE, AGX, APT, BBH, BCP...) is not a defect of the
 # symbol but a state that changes when the company files: it is re-checked after this many days
 # instead of being settled forever like a genuine failure.
-UNAVAILABLE_FAILURE_NAMES = ("NoStatementsAvailable",)
 UNAVAILABLE_RECHECK_DAYS = 35
+# Feature 026 R-008 (Q-61): "the symbol has not traded enough sessions yet" is the same shape of
+# fact — a newly listed symbol crosses MIN_RECORDS on its own, so settling it forever locked it out
+# permanently (measured: 48 symbols, DMX already exportable while its 2026-09-01 failure still
+# stood). Its window is shorter because 20 sessions is ~4 trading weeks, so a handful of re-checks
+# covers the whole wait.
+INSUFFICIENT_SESSIONS_RECHECK_DAYS = 7
+RECHECK_DAYS_BY_FAILURE = {
+    "NoStatementsAvailable": UNAVAILABLE_RECHECK_DAYS,
+    "InsufficientSessions": INSUFFICIENT_SESSIONS_RECHECK_DAYS,
+}
+UNAVAILABLE_FAILURE_NAMES = tuple(RECHECK_DAYS_BY_FAILURE)
 MAX_QUOTA_WAIT_SECONDS = 65.0
 # Set in main() once the worker count is known; None keeps the serial behaviour exactly.
 CALL_BUCKET: "TokenBucket | None" = None
@@ -329,13 +339,21 @@ def is_unavailable_failure(value: str) -> bool:
     return any(value == f"failed:{name}" for name in UNAVAILABLE_FAILURE_NAMES)
 
 
-def recheck_due(checked_at: str, today: date) -> bool:
+def recheck_days_for(value: str) -> int:
+    """The re-check window of a recorded `failed:<Name>` value, by failure class."""
+    for name, days in RECHECK_DAYS_BY_FAILURE.items():
+        if value == f"failed:{name}":
+            return days
+    return UNAVAILABLE_RECHECK_DAYS
+
+
+def recheck_due(checked_at: str, today: date, days: int = UNAVAILABLE_RECHECK_DAYS) -> bool:
     """True when a provider-unavailable dataset should be tried again (no timestamp = due)."""
     try:
         checked = date.fromisoformat(checked_at)
     except ValueError:
         return True
-    return (today - checked).days >= UNAVAILABLE_RECHECK_DAYS
+    return (today - checked).days >= days
 
 
 is_network_failure = provider_retry.is_network_failure
@@ -398,7 +416,8 @@ def run_dataset(entry: dict[str, Any], key: str, label: str, action, on_success,
             entry[f"{key}_failed_tool_version"] = failure_tool_version(key)
             on_failure()
             if name in UNAVAILABLE_FAILURE_NAMES:
-                print(f"  {label}: UNAVAILABLE at provider ({name}); re-checked after {UNAVAILABLE_RECHECK_DAYS} days")
+                print(f"  {label}: UNAVAILABLE at provider ({name}); "
+                      f"re-checked after {RECHECK_DAYS_BY_FAILURE[name]} days")
             else:
                 print(f"  {label}: FAILED ({name})")
             return
@@ -450,7 +469,8 @@ def is_finished(symbol: str, entry: dict[str, Any], args: argparse.Namespace) ->
             return False
         # Feature 018: provider-unavailable statements are re-checked once the recheck window passed.
         if is_unavailable_failure(value):
-            return not recheck_due(str(entry.get(f"{key}_checked_at", "")), date.fromisoformat(args.end))
+            return not recheck_due(str(entry.get(f"{key}_checked_at", "")),
+                                   date.fromisoformat(args.end), recheck_days_for(value))
         return True
 
     daily_bars_settled = daily_bars_current(symbol, entry, args) or settled_failure("daily_bars")

@@ -31,8 +31,6 @@ Whenever a user requests a task, map it to one of the following skills and load 
 - **`strategy-tuner`**: To analyze past trades and suggest strategy improvements.
 - **`charting-expert`**: To draw interactive charts using `vnstock_ezchart` or `matplotlib`.
 
-<!-- signature_key: TRC-API-ANON -->
-
 > **How to load a skill (Internal API):**
 > ```python
 > from vnai.agents import load_skill
@@ -41,6 +39,8 @@ Whenever a user requests a task, map it to one of the following skills and load 
 > if content:
 >     print(content)
 > ```
+
+<!-- signature_key: TRC-API-ANON -->
 
 ---
 

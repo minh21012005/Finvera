@@ -1,6 +1,7 @@
 # Feature 026: Refresh that finishes by itself
 
-**Status**: Specified 2026-09-06
+**Status**: Specified 2026-09-06 · **Amended 2026-09-07** (FR-007/SC-6, research R-008: a failure
+class that changes with time was being settled forever — Q-61)
 **Closes**: docs/REMEDIATION_PLAN.md **P2-12**; the owner's requirement that a refresh "must run
 through, or pick itself back up, without me restarting it"
 **SRS References**: SRS-NFR-07 (operability) · **Measured**: during the owner's 2026-09-06 refresh
@@ -69,6 +70,10 @@ the import/warmup logic in the backend, and P2-04's import incrementality (still
   content, and a checkpoint that is never observed half-written.
 - **DATA-001** Retry and concurrency MUST NOT weaken the existing failure classification: a symbol
   whose dataset genuinely fails is still recorded as failed, scoped to the exporter version.
+- **FR-007** A failure whose cause is a **state that changes with time** — the provider has no
+  statements yet, the symbol has not traded enough sessions yet — MUST be recorded under its own
+  name and re-checked after a bounded window sized to that cause, never settled as permanent. A
+  failure that no amount of waiting can change MUST still settle.
 
 ## Success criteria
 
@@ -83,6 +88,10 @@ the import/warmup logic in the backend, and P2-04's import incrementality (still
   subset, and a measured call rate under the quota.
 - **SC-5** Exporter suite green; the crawl's own resilience tests cover a timeout that recovers and
   one that settles as failed.
+- **SC-6** A symbol below the daily-bar minimum-session threshold is recorded under its own failure
+  name with the session count it actually had, is not `finished` once its window has passed, and is
+  still `finished` inside it — proven by tests at the threshold boundary and at both ends of the
+  window.
 
 ## Acceptance scenarios
 
@@ -95,3 +104,7 @@ the import/warmup logic in the backend, and P2-04's import incrementality (still
    **then** stages 2–5 are reported skipped and the run begins at 6a.
 4. **Given** a backend that starts but emits nothing for the stall window, **when** its stage runs,
    **then** the stage fails at the stall window and is retried, not waited on for six hours.
+5. **Given** a symbol listed too recently to have the minimum number of sessions, **when** the crawl
+   reaches it, **then** its dataset is recorded as "not enough sessions yet" with the count it had,
+   the crawl continues, and a run after the re-check window asks the provider again — so the symbol
+   joins the product on its own once it has traded enough, without anyone passing `--retry-failed`.

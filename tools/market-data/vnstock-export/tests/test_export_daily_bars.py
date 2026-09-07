@@ -241,3 +241,33 @@ def test_earlier_start_than_existing_file_triggers_a_full_range_refetch(tmp_path
     package = json.loads((tmp_path / export_daily_bars.output_filename("VNM")).read_text(encoding="utf-8"))
     assert package["rangeStart"] == "2023-01-01"
     assert all(r["tradingDate"].startswith("2023-01") for r in package["records"])  # old 2024 rows not kept blindly
+
+
+def test_too_few_sessions_raises_its_own_recheckable_failure_class():
+    """Feature 026 R-008 (Q-61): a newly listed symbol is not a symbol the provider cannot serve.
+
+    Measured 2026-09-07: LPS and DMX both failed the MIN_RECORDS guard with a bare ValueError on
+    2026-09-01 and were settled permanently; DMX had crossed the threshold by 2026-09-07 (20
+    sessions, exportable) but the checkpoint would never have asked again.
+    """
+    import pytest
+
+    def bars(n):
+        return [{"time": f"2026-08-{d:02d} 00:00:00", "open": "1", "high": "1", "low": "1",
+                 "close": "1", "volume": "1"} for d in range(1, n + 1)]
+
+    short = export_daily_bars.package_records(bars(export_daily_bars.MIN_RECORDS - 1), "LPS")
+    with pytest.raises(export_daily_bars.InsufficientSessions) as raised:
+        export_daily_bars.build_package(short, "LPS", "2019-01-01", "2026-09-07", export_daily_bars.TOOL_VERSION)
+    assert "19 completed sessions" in str(raised.value)          # says how far short it is, not just "required"
+    assert isinstance(raised.value, ValueError)                  # existing callers catching ValueError still catch it
+
+    exact = export_daily_bars.package_records(bars(export_daily_bars.MIN_RECORDS), "DMX")
+    package = export_daily_bars.build_package(exact, "DMX", "2019-01-01", "2026-09-07",
+                                              export_daily_bars.TOOL_VERSION)
+    assert len(package["records"]) == export_daily_bars.MIN_RECORDS   # the boundary itself exports
+
+    # The classification the checkpoint records must be the new name, not a bare ValueError.
+    assert export_all_symbols.classify_failure(
+        export_daily_bars.InsufficientSessions("LPS: 19 completed sessions available, at least 20 are required")
+    ) == "InsufficientSessions"
