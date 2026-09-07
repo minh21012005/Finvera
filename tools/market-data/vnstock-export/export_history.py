@@ -14,6 +14,8 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+import provider_retry
+
 CONTRACT_VERSION = "vnstock-history-private-bootstrap-v1"
 MARKET_PACKAGE_CONTRACT_VERSION = "vnstock-market-private-package-v1"
 SOURCE = "VNSTOCK_VCI"  # ADR-0013 (Feature 021)
@@ -207,7 +209,9 @@ def incremental_market_index_records(
 def fetch_rows(symbol: str, start: str, end: str) -> list[dict[str, Any]]:
     from vnstock import Quote
 
-    frame = Quote(symbol=symbol, source="vci").history(start=start, end=padded_end(end), interval="1D")
+    frame = provider_retry.call(f"history {symbol}",
+                                lambda: Quote(symbol=symbol, source="vci").history(
+                                    start=start, end=padded_end(end), interval="1D"))
     required = {"time", "close"}
     if not required.issubset(frame.columns):
         raise ValueError("Vnstock OHLCV schema does not contain time and close")
@@ -217,7 +221,9 @@ def fetch_rows(symbol: str, start: str, end: str) -> list[dict[str, Any]]:
 def fetch_index_rows(symbol: str, start: str, end: str) -> list[dict[str, Any]]:
     from vnstock import Quote
 
-    frame = Quote(symbol=symbol, source="vci").history(start=start, end=padded_end(end), interval="1D")
+    frame = provider_retry.call(f"index history {symbol}",
+                                lambda: Quote(symbol=symbol, source="vci").history(
+                                    start=start, end=padded_end(end), interval="1D"))
     required = {"time", "close"}
     if not required.issubset(frame.columns):
         raise ValueError("Vnstock index OHLCV schema does not contain time and close")

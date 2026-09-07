@@ -32,6 +32,8 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+import provider_retry
+
 CONTRACT_VERSION = "vnstock-equity-profile-v1"
 SOURCE = "VNSTOCK_VCI"  # ADR-0013 (Feature 021)
 QUALITY_REASON = "SHARES_OUTSTANDING_UNAVAILABLE"
@@ -45,7 +47,8 @@ def canonical_json(value: dict[str, Any]) -> str:
 def fetch_universe():
     from vnstock import Listing
 
-    frame = Listing(source="vci").symbols_by_exchange()
+    frame = provider_retry.call("equity-profile universe symbols_by_exchange",
+                                lambda: Listing(source="vci").symbols_by_exchange())
     required = {"symbol", "type", "exchange", "organ_name"}
     if not required.issubset(frame.columns):
         raise ValueError("Vnstock symbols_by_exchange schema is missing an expected column")
@@ -56,7 +59,8 @@ def fetch_universe():
 def fetch_delisted():
     from vnstock import Listing
 
-    frame = Listing(source="vci").symbols_by_exchange()
+    frame = provider_retry.call("equity-profile delisted symbols_by_exchange",
+                                lambda: Listing(source="vci").symbols_by_exchange())
     required = {"symbol", "type", "exchange", "organ_name"}
     if not required.issubset(frame.columns):
         raise ValueError("Vnstock symbols_by_exchange schema is missing an expected column")

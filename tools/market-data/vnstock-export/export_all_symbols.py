@@ -33,9 +33,12 @@ Bounded test run first (recommended before letting it run unattended for hours):
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
+import itertools
 import json
-import re
+import os
 import sys
+import threading
 import time
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
@@ -44,6 +47,7 @@ from typing import Any
 import export_daily_bars
 import export_fundamentals
 import export_fundamentals_vci
+import provider_retry
 
 CHECKPOINT_FILE = "full-universe-checkpoint.json"
 DONE = "done"
@@ -55,9 +59,60 @@ def load_checkpoint(path: Path) -> dict[str, Any]:
     return {"generatedAt": None, "symbols": {}}
 
 
+# Feature 026: with workers running in parallel the checkpoint is the one shared mutable thing.
+# It is written after every symbol, so a crash mid-write used to be able to truncate hours of
+# progress even in the serial version; writing to a sibling temp file and replacing makes the file
+# either the old one or the new one, never half of either.
+CHECKPOINT_LOCK = threading.Lock()
+PRINT_LOCK = threading.Lock()
+
+
 def save_checkpoint(path: Path, checkpoint: dict[str, Any]) -> None:
-    checkpoint["generatedAt"] = datetime.now(UTC).isoformat().replace("+00:00", "Z")
-    path.write_text(json.dumps(checkpoint, ensure_ascii=False, indent=2), encoding="utf-8")
+    with CHECKPOINT_LOCK:
+        checkpoint["generatedAt"] = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+        payload = json.dumps(checkpoint, ensure_ascii=False, indent=2)
+        temp = path.with_name(path.name + ".tmp")
+        temp.write_text(payload, encoding="utf-8")
+        os.replace(temp, path)
+
+
+def say(message: str) -> None:
+    """Progress from several workers, one line at a time."""
+    with PRINT_LOCK:
+        print(message, flush=True)
+
+
+class TokenBucket:
+    """Our own cap on provider calls per minute.
+
+    vnai keeps its own usage counters, but they are plain lists mutated from any calling thread
+    while `wait_for_quota` reads them, so a filter-and-reassign racing an append can *under*-count --
+    the dangerous direction for a limit whose breach is charged to the owner's account (specs/026
+    research R-003). This bucket is the guarantee; `wait_for_quota` stays as the second line.
+    """
+
+    def __init__(self, calls_per_minute: float) -> None:
+        self.capacity = max(1.0, float(calls_per_minute))
+        self.tokens = self.capacity
+        self.refill_per_second = self.capacity / 60.0
+        self.updated = time.monotonic()
+        self.lock = threading.Lock()
+
+    def take(self, count: int = 1, sleep=time.sleep) -> float:
+        """Block until `count` tokens are available. Returns the seconds waited."""
+        waited = 0.0
+        while True:
+            with self.lock:
+                now = time.monotonic()
+                self.tokens = min(self.capacity, self.tokens + (now - self.updated) * self.refill_per_second)
+                self.updated = now
+                if self.tokens >= count:
+                    self.tokens -= count
+                    return waited
+                shortfall = count - self.tokens
+                pause = min(5.0, max(0.05, shortfall / self.refill_per_second))
+            sleep(pause)
+            waited += pause
 
 
 def fetch_symbol_universe() -> list[str]:
@@ -72,7 +127,8 @@ def fetch_symbol_universe() -> list[str]:
     to paper over here."""
     from vnstock import Listing
 
-    frame = Listing(source="vci").symbols_by_exchange()
+    frame = provider_retry.call("universe symbols_by_exchange",
+                                lambda: Listing(source="vci").symbols_by_exchange())
     required = {"symbol", "type", "exchange"}
     if not required.issubset(frame.columns):
         raise ValueError("Vnstock symbols_by_exchange schema is missing an expected column")
@@ -230,16 +286,11 @@ TRANSIENT_FAILURE_NAMES = ("RetryError", "RateLimitExceeded", "NetworkError")
 # Feature 018 R-008: a dropped connection ("Connection aborted", ConnectionResetError 10054, read timeout...) is
 # not a fact about the symbol. vnstock surfaces it as a ValueError, which used to settle the dataset
 # as failed forever; it is now retried in-run and, if still failing, recorded as transient.
-NETWORK_EXCEPTION_NAMES = frozenset({
-    "ConnectionError", "ConnectionResetError", "ConnectionAbortedError", "ConnectTimeout", "ReadTimeout",
-    "Timeout", "TimeoutError", "ChunkedEncodingError", "ProtocolError", "RemoteDisconnected", "SSLError",
-    "MaxRetryError", "NewConnectionError", "IncompleteRead",
-})
-NETWORK_MESSAGE_PATTERN = re.compile(
-    r"connection aborted|connection reset|forcibly closed|max retries exceeded|timed out|read timeout|"
-    r"remote end closed|temporarily unavailable|api request failed|bad gateway|gateway time-?out|"
-    r"service unavailable|name resolution|getaddrinfo", re.IGNORECASE)
-NETWORK_RETRY_WAITS_SECONDS = (5.0, 20.0)
+# Feature 026: the classification and the ladder now live in provider_retry so the four stage-1
+# exporters share this exact definition instead of having none at all.
+NETWORK_EXCEPTION_NAMES = provider_retry.NETWORK_EXCEPTION_NAMES
+NETWORK_MESSAGE_PATTERN = provider_retry.NETWORK_MESSAGE_PATTERN
+NETWORK_RETRY_WAITS_SECONDS = provider_retry.NETWORK_RETRY_WAITS_SECONDS
 # Feature 018: "the provider has no statements for this symbol and period" (VCI serves only annual
 # statements for many small UPCoM names — A32, ACE, AGX, APT, BBH, BCP...) is not a defect of the
 # symbol but a state that changes when the company files: it is re-checked after this many days
@@ -247,6 +298,8 @@ NETWORK_RETRY_WAITS_SECONDS = (5.0, 20.0)
 UNAVAILABLE_FAILURE_NAMES = ("NoStatementsAvailable",)
 UNAVAILABLE_RECHECK_DAYS = 35
 MAX_QUOTA_WAIT_SECONDS = 65.0
+# Set in main() once the worker count is known; None keeps the serial behaviour exactly.
+CALL_BUCKET: "TokenBucket | None" = None
 
 
 def quota_status() -> dict[str, Any] | None:
@@ -285,18 +338,7 @@ def recheck_due(checked_at: str, today: date) -> bool:
     return (today - checked).days >= UNAVAILABLE_RECHECK_DAYS
 
 
-def is_network_failure(exc: BaseException) -> bool:
-    """True when the exception, or anything in its cause/context chain, is a dropped connection."""
-    seen: set[int] = set()
-    current: BaseException | None = exc
-    while current is not None and id(current) not in seen and len(seen) < 8:
-        seen.add(id(current))
-        if type(current).__name__ in NETWORK_EXCEPTION_NAMES or isinstance(current, (ConnectionError, TimeoutError)):
-            return True
-        if NETWORK_MESSAGE_PATTERN.search(str(current)):
-            return True
-        current = current.__cause__ or current.__context__
-    return False
+is_network_failure = provider_retry.is_network_failure
 
 
 def classify_failure(exc: BaseException) -> str:
@@ -321,6 +363,8 @@ def run_dataset(entry: dict[str, Any], key: str, label: str, action, on_success,
     rate_limit_retried = False
     network_retries = 0
     while True:
+        if CALL_BUCKET is not None:
+            CALL_BUCKET.take(CALLS_PER_DATASET[key])
         wait_for_quota(CALLS_PER_DATASET[key])
         try:
             action()
@@ -417,6 +461,40 @@ def is_finished(symbol: str, entry: dict[str, Any], args: argparse.Namespace) ->
     return daily_bars_settled and fundamentals_settled and annual_settled
 
 
+def run_symbols(symbols, args, checkpoint, checkpoint_path, interval_seconds, label="") -> None:
+    """Process symbols, `--workers` at a time.
+
+    Concurrency changes when work happens, not what is written: each symbol reads and writes its own
+    package files, the checkpoint is keyed by symbol and guarded, and the end-of-run transient pass
+    iterates a list, so nothing depends on completion order (specs/026 research R-004).
+    `--workers 1` reproduces the previous serial order and, at default settings, its pacing --
+    see `--workers`'s own help text for the one narrow case where it does not.
+    """
+    total = len(symbols)
+    prefix = f"{label} " if label else ""
+    done = itertools.count(1)
+
+    def one(symbol: str) -> None:
+        index = next(done)
+        say(f"[{prefix}{index}/{total}] {symbol}")
+        process_symbol(symbol, args, checkpoint, checkpoint_path)
+
+    if args.workers <= 1:
+        for position, symbol in enumerate(symbols, start=1):
+            one(symbol)
+            if position < total:
+                time.sleep(interval_seconds)
+        return
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers,
+                                               thread_name_prefix="crawl") as pool:
+        futures = [pool.submit(one, symbol) for symbol in symbols]
+        for future in concurrent.futures.as_completed(futures):
+            # process_symbol records its own per-symbol failures; anything escaping it is a bug in
+            # this file, and must not be swallowed into a silently short crawl.
+            future.result()
+
+
 def main() -> int:
     # Line-buffer stdout even when redirected to a file (e.g. a background run) so progress is
     # visible while the run is still in progress, not only once it exits.
@@ -447,11 +525,26 @@ def main() -> int:
     parser.add_argument("--unit-scale", type=int, default=1)
     parser.add_argument("--requests-per-minute", type=float, default=30.0,
                          help="Pace between symbols (each symbol issues ~4 requests: 1 OHLCV + "
-                              "3 fundamentals calls, all back-to-back, then this pause).")
+                              "3 fundamentals calls, all back-to-back, then this pause). Only takes "
+                              "effect with --workers 1 -- with the default --workers 5, pacing comes "
+                              "entirely from --max-calls-per-minute's token bucket instead, and this "
+                              "flag is ignored.")
     parser.add_argument("--max-symbols", type=int, default=None,
                          help="Process at most this many remaining symbols this run -- do a small "
                               "bounded run first (e.g. 5) before letting this run unattended for hours.")
     parser.add_argument("--output", type=Path, default=Path("output"))
+    parser.add_argument("--workers", type=int, default=5,
+                        help="How many symbols to fetch at once (default 5). The run is latency-bound, "
+                             "not quota-bound: measured 2026-09-06 it used 7.3 of 60 allowed calls per "
+                             "minute. --workers 1 reproduces the old strictly-serial ORDER and pacing "
+                             "for default settings; note that --max-calls-per-minute's token bucket is "
+                             "created either way, so with --workers 1 plus an aggressively raised "
+                             "--requests-per-minute it now also caps at that ceiling, which the old code "
+                             "did not enforce in serial mode.")
+    parser.add_argument("--max-calls-per-minute", type=float, default=40.0,
+                        help="Our own ceiling on provider calls per minute across all workers, kept "
+                             "below the provider's 60 (specs/026 R-003: vnai's own counter can "
+                             "under-count under concurrency, so it cannot be the guarantee).")
     parser.add_argument("--retry-failed", action="store_true",
                          help="Clear previously recorded failures so this run retries them instead "
                               "of treating them as finished (use after a transient outage; a symbol "
@@ -488,11 +581,9 @@ def main() -> int:
         return 0
 
     interval_seconds = 60.0 / args.requests_per_minute
-    for index, symbol in enumerate(remaining, start=1):
-        print(f"[{index}/{len(remaining)}] {symbol}")
-        process_symbol(symbol, args, checkpoint, checkpoint_path)
-        if index < len(remaining):
-            time.sleep(interval_seconds)
+    global CALL_BUCKET
+    CALL_BUCKET = TokenBucket(args.max_calls_per_minute)
+    run_symbols(remaining, args, checkpoint, checkpoint_path, interval_seconds)
 
     # Q-39: one more pass over symbols whose only problem was the rate limit, so a run
     # normally finishes clean instead of leaving them for the next run.
@@ -502,15 +593,12 @@ def main() -> int:
         print()
         print(f"Retrying {len(transient)} rate-limited symbols after a full window...")
         time.sleep(MAX_QUOTA_WAIT_SECONDS)
-        for index, symbol in enumerate(transient, start=1):
+        for symbol in transient:
             entry = checkpoint["symbols"][symbol]
             for key in ("daily_bars", "fundamentals", "fundamentals_annual"):
                 if is_transient_failure(entry.get(key)):
                     del entry[key]
-            print(f"[retry {index}/{len(transient)}] {symbol}")
-            process_symbol(symbol, args, checkpoint, checkpoint_path)
-            if index < len(transient):
-                time.sleep(interval_seconds)
+        run_symbols(transient, args, checkpoint, checkpoint_path, interval_seconds, label="retry")
 
     done_count = sum(1 for s, e in checkpoint["symbols"].items() if is_finished(s, e, args))
     failed_count = sum(

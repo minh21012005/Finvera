@@ -25,6 +25,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import provider_retry
+
 CONTRACT_VERSION = "vnstock-sector-reference-v1"
 SOURCE = "VNSTOCK_VCI"
 SCHEME = "VCI_ICB_L3"
@@ -177,9 +179,14 @@ def fetch_frames():
     import vnstock
 
     listing = vnstock.Listing(source="vci")
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", FutureWarning)
-        return listing.symbols_by_industries(), listing.industries_icb(), listing.symbols_by_exchange()
+
+    def fetch():
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", FutureWarning)
+            return listing.symbols_by_industries(), listing.industries_icb(), listing.symbols_by_exchange()
+
+    # Three calls behind one retry: a blink on any of them used to end the whole refresh (Feature 026).
+    return provider_retry.call("sector-reference listing frames", fetch)
 
 
 def installed_vnstock_version() -> str:

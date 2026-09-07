@@ -26,6 +26,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import provider_retry
+
 CONTRACT_VERSION = "vnstock-instrument-reference-v1"
 SOURCE = "VNSTOCK_VCI"  # ADR-0013 (Feature 021)
 
@@ -37,7 +39,8 @@ def canonical_json(value: dict[str, Any]) -> str:
 def fetch_universe():
     from vnstock import Listing
 
-    frame = Listing(source="vci").symbols_by_exchange()
+    frame = provider_retry.call("instrument-reference symbols_by_exchange",
+                                lambda: Listing(source="vci").symbols_by_exchange())
     required = {"symbol", "type", "exchange"}
     if not required.issubset(frame.columns):
         raise ValueError("Vnstock symbols_by_exchange schema is missing an expected column")
