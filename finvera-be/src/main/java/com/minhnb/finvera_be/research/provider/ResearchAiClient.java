@@ -43,7 +43,7 @@ public class ResearchAiClient {
         this.properties = properties;
         var requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(Duration.ofSeconds(5));
-        requestFactory.setReadTimeout(Duration.ofSeconds(30));
+        requestFactory.setReadTimeout(Duration.ofSeconds(300));
 
         this.restClient = RestClient.builder()
                 .baseUrl(properties.aiServiceUrl())

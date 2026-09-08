@@ -129,7 +129,7 @@ public class AnalystService {
             throw new IllegalArgumentException("Question must not exceed 2000 characters");
         }
 
-        SseEmitter emitter = new SseEmitter(180_000L);
+        SseEmitter emitter = new SseEmitter(300_000L);
         emitter.onTimeout(() -> {
             log.warn("Analyst ask SseEmitter timed out");
             try {
