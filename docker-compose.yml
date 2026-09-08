@@ -1,0 +1,79 @@
+services:
+  # 1. AI Service (Python FastAPI & RAG)
+  finvera-ai:
+    build:
+      context: ./finvera-ai
+      dockerfile: Dockerfile
+    container_name: finvera-ai
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./finvera-ai/.env
+    environment:
+      - ENVIRONMENT=production
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - BACKEND_INTERNAL_API_URL=http://finvera-be:8080/internal/v1
+    depends_on:
+      - qdrant
+    networks:
+      - finvera-net
+
+  # 2. Vector Database (Qdrant for RAG)
+  qdrant:
+    image: qdrant/qdrant:v1.12.0
+    container_name: finvera-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - finvera-net
+
+  # 3. Core Backend (Java 21 Spring Boot)
+  finvera-be:
+    build:
+      context: ./finvera-be
+      dockerfile: Dockerfile
+    container_name: finvera-be
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    extra_hosts:
+      # Allows container to reach PostgreSQL on the Windows host machine
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - ./finvera-be/.env
+    environment:
+      - SERVER_ADDRESS=0.0.0.0
+      - FINVERA_DATABASE_URL=jdbc:postgresql://host.docker.internal:5432/finvera
+      - FINVERA_OWNER_PASSWORD_HASH=$$2a$$12$$KV/amMySA49xrnRylSWR7OcSY1sKtTiocoM3.FIAk8casEzMam/Ue
+      - FINVERA_RESEARCH_AI_SERVICE_URL=http://finvera-ai:8000/internal/v1
+      - FINVERA_ANALYST_AI_SERVICE_URL=http://finvera-ai:8000
+    depends_on:
+      - finvera-ai
+    networks:
+      - finvera-net
+
+  # 4. Frontend SPA (React 19 + Nginx Reverse Proxy)
+  finvera-fe:
+    build:
+      context: ./finvera-fe
+      dockerfile: Dockerfile
+    container_name: finvera-fe
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - finvera-be
+    networks:
+      - finvera-net
+
+networks:
+  finvera-net:
+    driver: bridge
+
+volumes:
+  qdrant_data:
