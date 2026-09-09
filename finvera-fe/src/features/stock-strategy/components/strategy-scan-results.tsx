@@ -19,10 +19,17 @@ export function StrategyScanResults({ result, onPageChange, loading = false }: S
   const endIdx = Math.min(offset + limit, total);
 
   return (
-    <section aria-labelledby="strategy-scan-results-heading" className="strategy-scan-results">
-      <h2 id="strategy-scan-results-heading">
-        Kết quả quét — {strategyLabel(result.strategyCode)} ({result.totalMatchCount} mã)
-      </h2>
+    <section aria-labelledby="strategy-scan-results-heading" className="strategy-scan-results-section">
+      <div className="strategy-results-header-bar">
+        <div>
+          <h2 id="strategy-scan-results-heading" className="strategy-results-h2">
+            Kết quả quét — {strategyLabel(result.strategyCode)} ({result.totalMatchCount} mã)
+          </h2>
+          <p className="strategy-results-sub">
+            Kịch bản tín hiệu kỹ thuật tất định tính toán dựa trên dữ liệu giao dịch thực tế sàn HSX, HNX
+          </p>
+        </div>
+      </div>
 
       {result.excludedForInsufficientHistoryCount > 0 && (
         <p role="status" className="unavailable-msg">
@@ -36,45 +43,80 @@ export function StrategyScanResults({ result, onPageChange, loading = false }: S
           Không có mã cổ phiếu nào đang kích hoạt chiến lược này.
         </p>
       ) : (
-        <>
-          <table>
-            <thead>
-              <tr>
-                <th scope="col">Mã CK</th>
-                <th scope="col">Công ty</th>
-                <th scope="col">Sàn</th>
-                <th scope="col">Vùng vào lệnh</th>
-                <th scope="col">Dừng lỗ</th>
-                <th scope="col">Rủi ro</th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.matches.map((match) => {
-                const risk = riskLevelDisplay(match.signal.riskLevel);
-                return (
-                  <tr key={match.symbol}>
-                    <th scope="row">
-                      <button type="button" className="symbol-link" onClick={() => navigate(`/stocks/${match.symbol}`)}>
-                        {match.symbol}
-                      </button>
-                    </th>
-                    <td>{match.companyName}</td>
-                    <td>{match.exchange}</td>
-                    <td>
-                      {formatDecimal(match.signal.entryLow)} – {formatDecimal(match.signal.entryHigh)}
-                    </td>
-                    <td>{formatDecimal(match.signal.stopLoss)}</td>
-                    <td>
-                      <span className={`risk-level-badge ${risk.className}`}>
-                        <span aria-hidden="true">{risk.icon}</span>
-                        <span>{risk.label}</span>
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div className="strategy-table-wrapper">
+          <div className="table-responsive-wrapper">
+            <table className="terminal-quant-table">
+              <thead>
+                <tr>
+                  <th scope="col">Mã CK</th>
+                  <th scope="col">Công ty</th>
+                  <th scope="col" className="text-center">Sàn</th>
+                  <th scope="col" className="text-right">Vùng vào lệnh</th>
+                  <th scope="col" className="text-right">Dừng lỗ</th>
+                  <th scope="col" className="text-right">Mục tiêu 1</th>
+                  <th scope="col" className="text-right">R/R</th>
+                  <th scope="col" className="text-center">Rủi ro</th>
+                  <th scope="col" className="text-center">Chi tiết</th>
+                </tr>
+              </thead>
+              <tbody>
+                {result.matches.map((match) => {
+                  const risk = riskLevelDisplay(match.signal.riskLevel);
+                  return (
+                    <tr
+                      key={match.symbol}
+                      className="quant-row"
+                    >
+                      <th scope="row">
+                        <button
+                          type="button"
+                          className="symbol-link quant-symbol-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/stocks/${match.symbol}`);
+                          }}
+                        >
+                          {match.symbol}
+                        </button>
+                      </th>
+                      <td className="company-cell font-semibold text-slate-200">{match.companyName}</td>
+                      <td className="text-center"><span className="venue-tag">{match.exchange}</span></td>
+                      <td className="text-right font-mono text-cyan-400 font-semibold">
+                        {formatDecimal(match.signal.entryLow)} – {formatDecimal(match.signal.entryHigh)}
+                      </td>
+                      <td className="text-right font-mono text-rose-400 font-semibold">
+                        {formatDecimal(match.signal.stopLoss)}
+                      </td>
+                      <td className="text-right font-mono text-emerald-400">
+                        {match.signal.target1 ? formatDecimal(match.signal.target1) : "—"}
+                      </td>
+                      <td className="text-right font-mono text-amber-400">
+                        {match.signal.riskReward ? formatDecimal(match.signal.riskReward) : "—"}
+                      </td>
+                      <td className="text-center">
+                        <span className={`risk-level-badge ${risk.className}`}>
+                          <span aria-hidden="true">{risk.icon}</span>
+                          <span>{risk.label}</span>
+                        </span>
+                      </td>
+                      <td className="text-center">
+                        <button
+                          type="button"
+                          className="btn-terminal-action text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/stocks/${match.symbol}`);
+                          }}
+                        >
+                          Xem biểu đồ →
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
 
           {total > limit && (
             <div className="pagination-bar" aria-label="Điều hướng phân trang">
@@ -106,12 +148,14 @@ export function StrategyScanResults({ result, onPageChange, loading = false }: S
               </div>
             </div>
           )}
-        </>
+        </div>
       )}
 
-      <p className="disclaimer" role="note">
-        Kết quả quét là kịch bản hỗ trợ ra quyết định định lượng, không phải khuyến nghị đầu tư hay đảm bảo kết quả.
-      </p>
+      <footer className="strategy-disclaimer mt-4">
+        <p className="text-xs text-muted" role="note">
+          Tín hiệu chiến lược là kết quả tính toán định lượng tất định, không phải khuyến nghị đầu tư hay cam kết lợi nhuận.
+        </p>
+      </footer>
     </section>
   );
 }

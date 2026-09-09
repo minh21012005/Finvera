@@ -73,12 +73,12 @@ export function MarketOverviewPage() {
   const isSessionOpen = state.overview.session.state === "OPEN";
 
   return (
-    <main className="app-shell">
+    <main className="app-shell quant-terminal-layout">
       <header className="page-header">
         <div className="market-header-top">
           <div>
-            <p className="eyebrow">FINVERA · MARKET OVERVIEW</p>
-            <h1>Tổng quan thị trường</h1>
+            <p className="eyebrow">FINVERA QUANT TERMINAL · MARKET AI RADAR</p>
+            <h1>Tổng quan thị trường & AI Radar</h1>
             <div className="meta-row">
               <span className="meta-item">
                 <span className={`pulse-dot ${isSessionOpen ? "open" : "closed"}`}></span>
@@ -97,11 +97,17 @@ export function MarketOverviewPage() {
         </div>
       </header>
 
+      {/* Top 4 Hero Index Cards */}
       <IndexOverview overview={state.overview} />
 
-      <div className="dashboard-split">
-        <BreadthOverview breadth={state.overview.breadth} />
-        <RegimeOverview regime={state.overview.regime} />
+      {/* Main Terminal Balanced Dashboard */}
+      <div className="terminal-dashboard-grid">
+        <div className="terminal-col-left">
+          <RegimeOverview regime={state.overview.regime} />
+        </div>
+        <div className="terminal-col-right">
+          <BreadthOverview breadth={state.overview.breadth} />
+        </div>
       </div>
 
       <footer className="provenance-footer">

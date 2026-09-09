@@ -39,16 +39,18 @@ export function StockStrategyPage() {
   }
 
   return (
-    <main className="app-shell" aria-labelledby="strategy-scan-page-heading">
-      <header className="page-header">
-        <button type="button" className="back-link" onClick={() => navigate("/")}>
-          ← Trang chủ
-        </button>
-        <p className="eyebrow">FINVERA · STRATEGIES</p>
-        <h1 id="strategy-scan-page-heading">Quét chiến lược giao dịch</h1>
-        <p style={{ color: "var(--text-secondary)", margin: 0, fontSize: "0.875rem" }}>
-          Đánh giá kịch bản tín hiệu kỹ thuật tất định theo các chiến lược Trend Following, Breakout, Pullback, Mean Reversion...
-        </p>
+    <main className="app-shell quant-terminal-layout" aria-labelledby="strategy-scan-page-heading">
+      <header className="page-header strategy-header">
+        <div className="strat-header-left">
+          <button type="button" className="back-link" onClick={() => navigate("/")}>
+            ← Trang chủ
+          </button>
+          <p className="eyebrow">FINVERA · STRATEGY SIGNALS</p>
+          <h1 id="strategy-scan-page-heading">Khuyến Nghị & Tín Hiệu AI</h1>
+          <p className="strategy-header-sub">
+            Mô hình định lượng phát hiện tín hiệu kỹ thuật tất định, kịch bản giao dịch và quản trị rủi ro theo quy tắc chuẩn.
+          </p>
+        </div>
       </header>
 
       <StrategyPicker onSubmit={handleSubmit} submitting={submitting} />

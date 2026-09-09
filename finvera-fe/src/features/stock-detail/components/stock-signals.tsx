@@ -1,5 +1,5 @@
 import type { StockSignals as StockSignalsData } from "../api/stock-signals";
-import { dataStatusLabel, formatDecimal } from "../format/stock-format";
+import { dataStatusLabel, formatDecimal, formatDate, formatAsOf } from "../format/stock-format";
 import {
   directionLabel,
   evaluationStatusLabel,
@@ -31,6 +31,7 @@ export function StockSignals({ signals, symbol }: { signals: StockSignalsData; s
           <h2 id="stock-signals-heading">Tín hiệu chiến lược giao dịch</h2>
           <p className="text-xs text-slate-400 mt-0.5">
             Hệ thống 8 chiến lược định lượng tự động quét và đánh giá rủi ro theo khung ATR
+            {signals.asOf ? ` · Cập nhật ${formatAsOf(signals.asOf)}` : ""}
           </p>
         </div>
         <span className={`status-pill ${signals.dataStatus.toLowerCase()}`}>
@@ -47,6 +48,7 @@ export function StockSignals({ signals, symbol }: { signals: StockSignalsData; s
                 <Zap size={14} className="text-amber-400" />
                 <span>
                   Đồng thuận: <strong>{activeEvaluations.length}/{signals.evaluations.length}</strong> chiến lược kích hoạt tín hiệu
+                  {primarySignal.asOfTradingDate ? ` · Phiên ${formatDate(primarySignal.asOfTradingDate)}` : ""}
                 </span>
               </span>
               <h3 className="signal-master-title">Kịch bản Giao dịch & Quản trị Rủi ro (ATR Framework)</h3>

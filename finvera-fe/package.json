@@ -8,7 +8,7 @@
     "build": "tsc --noEmit -p tsconfig.app.json && vite build",
     "preview": "vite preview",
     "lint": "eslint .",
-    "test": "vitest run",
+    "test": "vitest run --pool=forks --maxWorkers=4",
     "test:e2e": "playwright test"
   },
   "dependencies": {

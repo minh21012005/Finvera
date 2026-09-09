@@ -33,37 +33,52 @@ export function RegimeOverview({ regime }: { regime: MarketRegime }) {
 
         {canPresentAssessment ? (
           <>
-            <div className="regime-banner" style={{ margin: "0 0 16px 0" }}>
-              <div className="regime-label-box">
-                <span style={{ fontSize: "0.725rem", color: "var(--text-muted)", fontWeight: 700, letterSpacing: "0.08em" }}>
-                  MÔ HÌNH ĐỊNH LƯỢNG REGIME
-                </span>
-                <span className="eyebrow" style={{ fontSize: "0.875rem" }}>
-                  ĐÁNH GIÁ ĐỊNH TÍNH
-                </span>
+            {/* 3 thẻ chỉ số cốt lõi — Không lặp lại thông tin, cùng 1 hàng ngang */}
+            <dl className="regime-hero-grid">
+              {/* Thẻ 1: Phân loại xu hướng */}
+              <div className="regime-hero-card primary">
+                <dt>Phân loại xu hướng</dt>
+                <dd className="regime-tag font-bold">
+                  {regime.label}
+                </dd>
+                <span className="hero-card-sub">Chu kỳ thị trường định lượng</span>
               </div>
-              <div className="regime-score-box">
-                <div className="score-circle">
-                  <span className="score-num">{regime.score}</span>
-                  <span className="score-sub">/100</span>
-                </div>
-              </div>
-            </div>
 
-            <dl className="regime-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", margin: "14px 0" }}>
-              <div className="breadth-stat-card eligible">
-                <dt>Phân loại</dt>
-                <dd className="regime-tag" style={{ fontSize: "1.05rem" }}>{regime.label}</dd>
-              </div>
-              <div className="breadth-stat-card eligible">
+              {/* Thẻ 2: Điểm regime kèm mini arc gauge */}
+              <div className="regime-hero-card">
                 <dt>Điểm regime</dt>
-                <dd style={{ fontSize: "1.05rem" }}>{regime.score}/100</dd>
+                <div className="score-with-gauge">
+                  <svg width="28" height="28" viewBox="0 0 28 28" className="score-mini-arc" aria-hidden="true">
+                    <circle cx="14" cy="14" r="11" fill="none" stroke="#162438" strokeWidth="3" />
+                    <circle
+                      cx="14"
+                      cy="14"
+                      r="11"
+                      fill="none"
+                      stroke={regime.score! >= 60 ? "#00e599" : regime.score! >= 40 ? "#00d2e0" : "#f43f5e"}
+                      strokeWidth="3"
+                      strokeDasharray={69.115}
+                      strokeDashoffset={69.115 - (69.115 * (regime.score ?? 0)) / 100}
+                      strokeLinecap="round"
+                      transform="rotate(-90 14 14)"
+                    />
+                  </svg>
+                  <dd className="font-mono font-bold text-slate-100">
+                    {regime.score}/100
+                  </dd>
+                </div>
+                <span className="hero-card-sub font-mono">
+                  Trạng thái: {regime.score! >= 60 ? "TÍCH CỰC" : regime.score! >= 40 ? "TRUNG LẬP" : "THẬN TRỌNG"}
+                </span>
               </div>
-              <div className="breadth-stat-card eligible">
+
+              {/* Thẻ 3: Độ tin cậy */}
+              <div className="regime-hero-card">
                 <dt>Độ tin cậy</dt>
-                <dd style={{ fontSize: "1.05rem" }} aria-label={`Chất lượng đánh giá: ${regime.confidence}/100`}>
+                <dd className="font-mono font-bold text-slate-200" aria-label={`Chất lượng đánh giá: ${regime.confidence}/100`}>
                   {regime.confidence}/100
                 </dd>
+                <span className="hero-card-sub">Chất lượng đánh giá mô hình</span>
               </div>
             </dl>
 
@@ -101,7 +116,7 @@ function FactorList({ regime }: { regime: MarketRegime }) {
       <h3 style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", margin: "0 0 8px 0", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
         Các yếu tố thành phần
       </h3>
-      <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "6px" }}>
+      <ul className="factors-2col-grid">
         {regime.factors.map((factor) => {
           const borderAccent =
             factor.direction === "POSITIVE"

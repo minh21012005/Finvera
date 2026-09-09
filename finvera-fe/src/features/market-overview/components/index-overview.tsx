@@ -21,16 +21,20 @@ export function IndexOverview({ overview }: { overview: MarketOverview }) {
 function IndexCard({ index }: { index: MarketIndex }) {
   const direction = directionLabel(index.direction);
   const unavailable = index.dataStatus === "UNAVAILABLE";
+
   return (
     <article
-      className="index-card"
+      className="index-card quant-index-card"
       aria-label={`${index.displayName}: ${direction.label}; ${statusLabel(index.dataStatus)}`}
     >
-      <header>
-        <div>
-          <h3>{index.displayName}</h3>
-          <p>
-            {index.venue} · <span className={`status-pill ${index.dataStatus.toLowerCase()}`}>{statusLabel(index.dataStatus)}</span>
+      <header className="index-card-header">
+        <div className="index-title-group">
+          <div className="flex items-center gap-2">
+            <h3>{index.displayName}</h3>
+            <span className="venue-tag">{index.venue}</span>
+          </div>
+          <p className="index-status-row">
+            <span className={`status-pill ${index.dataStatus.toLowerCase()}`}>{statusLabel(index.dataStatus)}</span>
           </p>
         </div>
         <span className={`direction-badge ${direction.className}`} aria-label={direction.label}>
@@ -38,35 +42,38 @@ function IndexCard({ index }: { index: MarketIndex }) {
         </span>
       </header>
 
-      <p className="index-value">{formatDecimal(index.value)}</p>
+      <div className="index-price-row">
+        <div>
+          <p className="index-value font-mono">{formatDecimal(index.value)}</p>
+          {!unavailable && index.absoluteChange !== null && (
+            <p className="index-change-line font-mono" style={{ color: direction.color }}>
+              {index.direction === "UP" ? "+" : ""}{formatDecimal(index.absoluteChange)} ({index.direction === "UP" ? "+" : ""}{formatDecimal(index.percentageChange)}%)
+            </p>
+          )}
+        </div>
+      </div>
 
       {unavailable ? (
         <div className="unavailable-msg">
           <p role="status">Không có dữ liệu: <ReasonCodes codes={index.reasonCodes.length > 0 ? index.reasonCodes : ["MISSING_INDEX"]} /></p>
         </div>
       ) : (
-        <dl>
-          <div>
-            <dt>Thay đổi</dt>
-            <dd style={{ color: direction.color }}>
-              {formatDecimal(index.absoluteChange)} ({formatDecimal(index.percentageChange)}%)
-            </dd>
-          </div>
-          <div>
+        <dl className="index-metrics-grid">
+          <div className="index-metric-cell">
             <dt>Khối lượng khớp</dt>
-            <dd>{formatVolume(index.matchedVolume)}</dd>
+            <dd className="font-mono">{formatVolume(index.matchedVolume)}</dd>
           </div>
-          <div>
+          <div className="index-metric-cell">
             <dt>Giá trị khớp</dt>
-            <dd>{formatVnd(index.matchedValueVnd)}</dd>
+            <dd className="font-mono">{formatVnd(index.matchedValueVnd)}</dd>
           </div>
-          <div>
+          <div className="index-metric-cell">
             <dt>Cập nhật</dt>
-            <dd>{formatAsOf(index.asOf)}</dd>
+            <dd className="font-mono">{formatAsOf(index.asOf)}</dd>
           </div>
-          <div style={{ gridColumn: "span 2" }}>
+          <div className="index-metric-cell full">
             <dt>Nguồn</dt>
-            <dd>{index.source.provider}</dd>
+            <dd className="font-mono text-slate-400">{index.source.provider}</dd>
           </div>
         </dl>
       )}

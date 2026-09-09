@@ -69,6 +69,36 @@ export function StockValuation({ valuation, symbol }: { valuation: StockValuatio
             </div>
           </div>
 
+          {/* Thanh Thước Đo Định Giá Trực Quan (Valuation Spectrum Gauge) */}
+          {valuation.displayedScore !== null && (
+            <div className="valuation-spectrum-card" aria-label={`Thước đo định giá: ${valuation.displayedScore}/100`}>
+              <div className="spectrum-track">
+                <div className="spectrum-zone under">
+                  <span>VÙNG THẤP</span>
+                </div>
+                <div className="spectrum-zone fair">
+                  <span>CÂN BẰNG</span>
+                </div>
+                <div className="spectrum-zone over">
+                  <span>VÙNG CAO</span>
+                </div>
+                <div
+                  className="spectrum-marker"
+                  style={{ left: `${Math.min(97, Math.max(3, valuation.displayedScore))}%` }}
+                >
+                  <div className="marker-pin"></div>
+                  <span className="marker-val font-mono">{valuation.displayedScore}</span>
+                </div>
+              </div>
+              <div className="spectrum-legend">
+                <span>0 (Rất rẻ)</span>
+                <span>40</span>
+                <span>60</span>
+                <span>100 (Rất đắt)</span>
+              </div>
+            </div>
+          )}
+
           <div className="basis-disclosure">
             <p className="meta-item">
               Cơ sở so sánh đã sử dụng:{" "}

@@ -92,39 +92,32 @@ export function PortfolioDetailPage({ portfolioId }: PortfolioDetailPageProps) {
   }
 
   return (
-    <div className="portfolio-detail-container" style={{ maxWidth: "1200px", margin: "0 auto" }}>
+    <div className="app-shell quant-terminal-layout portfolio-page-layout">
       {/* Header */}
-      <header className="page-header" style={{ marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+      <header className="page-header portfolio-detail-header">
         <div>
           <button
             type="button"
             className="back-link"
             onClick={() => navigate("/portfolios")}
-            style={{ background: "transparent", border: "none", color: "var(--text-secondary)", cursor: "pointer", padding: 0, marginBottom: "8px" }}
           >
             ← Danh sách danh mục
           </button>
-          <h1 id="portfolio-detail-heading" style={{ fontSize: "1.75rem", fontWeight: 700, margin: 0 }}>
-            {portfolio?.name}
-          </h1>
-          <p style={{ color: "var(--text-secondary)", margin: "4px 0 0 0", fontSize: "0.9rem" }}>
-            Khởi tạo: {portfolio ? new Date(portfolio.createdAt).toLocaleDateString("vi-VN") : "—"}
+          <div className="portfolio-title-group">
+            <h1 id="portfolio-detail-heading">
+              {portfolio?.name}
+            </h1>
+          </div>
+          <p className="portfolio-meta-sub">
+            Khởi tạo: {portfolio ? new Date(portfolio.createdAt).toLocaleDateString("vi-VN") : "—"} • Định giá danh mục đa tài sản thời gian thực
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+        <div className="portfolio-header-actions">
           <button
             type="button"
             onClick={() => setShowTxForm((v) => !v)}
-            style={{
-              padding: "10px 18px",
-              background: showTxForm ? "var(--bg-card)" : "var(--color-accent)",
-              color: showTxForm ? "var(--text-primary)" : "#0a0e17",
-              fontWeight: 700,
-              border: "none",
-              borderRadius: "6px",
-              cursor: "pointer",
-            }}
+            className={`btn-tx-toggle ${showTxForm ? "active" : ""}`}
           >
             {showTxForm ? "Đóng biểu mẫu" : "+ Ghi nhận giao dịch"}
           </button>
@@ -132,14 +125,7 @@ export function PortfolioDetailPage({ portfolioId }: PortfolioDetailPageProps) {
             type="button"
             onClick={() => setReloadCount((c) => c + 1)}
             title="Làm mới dữ liệu"
-            style={{
-              padding: "10px 14px",
-              background: "var(--bg-card)",
-              border: "1px solid var(--border-color)",
-              color: "var(--text-secondary)",
-              borderRadius: "6px",
-              cursor: "pointer",
-            }}
+            className="btn-port-refresh"
           >
             ↻
           </button>
@@ -158,34 +144,18 @@ export function PortfolioDetailPage({ portfolioId }: PortfolioDetailPageProps) {
       )}
 
       {/* Tab bar */}
-      <div style={{ display: "flex", gap: "8px", borderBottom: "1px solid var(--border-color)", marginBottom: "24px" }}>
+      <div className="portfolio-nav-tabs">
         <button
           type="button"
           onClick={() => setActiveTab("holdings")}
-          style={{
-            padding: "10px 20px",
-            background: "transparent",
-            border: "none",
-            borderBottom: activeTab === "holdings" ? "2px solid var(--color-accent)" : "2px solid transparent",
-            color: activeTab === "holdings" ? "var(--text-primary)" : "var(--text-secondary)",
-            fontWeight: activeTab === "holdings" ? 700 : 500,
-            cursor: "pointer",
-          }}
+          className={`port-tab-btn ${activeTab === "holdings" ? "active" : ""}`}
         >
           Danh mục nắm giữ & Sổ cái
         </button>
         <button
           type="button"
           onClick={() => setActiveTab("analytics")}
-          style={{
-            padding: "10px 20px",
-            background: "transparent",
-            border: "none",
-            borderBottom: activeTab === "analytics" ? "2px solid var(--color-accent)" : "2px solid transparent",
-            color: activeTab === "analytics" ? "var(--text-primary)" : "var(--text-secondary)",
-            fontWeight: activeTab === "analytics" ? 700 : 500,
-            cursor: "pointer",
-          }}
+          className={`port-tab-btn ${activeTab === "analytics" ? "active" : ""}`}
         >
           Phân tích & Hiệu quả đầu tư
         </button>

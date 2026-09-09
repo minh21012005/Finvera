@@ -80,69 +80,101 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
   const isTcbsRenewal = pathname.startsWith("/tcbs-renewal");
 
   return (
-    <>
-      <nav className="top-nav">
-        <div className="nav-brand-group">
-          <NavLink href="/" active={isHome} className="brand-section">
-            <div className="brand-icon">F</div>
-            <span className="brand-logo">FINVERA</span>
-            <span className="brand-tag">TERMINAL</span>
-          </NavLink>
+    <div className="terminal-root">
+      <nav className="top-nav" aria-label="Thanh điều hướng chính">
+        <div className="nav-container">
+          {/* Tầng 1: Brand + Market Status + Quick Ticker + User */}
+          <div className="nav-top-row">
+            <div className="nav-brand-group">
+              <NavLink href="/" active={isHome} className="brand-section">
+                <div className="brand-icon">F</div>
+                <div className="brand-title-wrap">
+                  <div className="brand-logo-line">
+                    <span className="brand-logo">FINVERA</span>
+                    <span className="brand-sublogo">Invest AI</span>
+                  </div>
+                  <span className="brand-tagline">VIETNAM QUANT TERMINAL</span>
+                </div>
+              </NavLink>
+            </div>
 
-          <div className="nav-links">
-            <NavLink href="/" active={isHome}>
-              <BarChart3 className="nav-icon-svg" size={15} />
-              <span>Thị trường</span>
-            </NavLink>
-            <NavLink href="/screener" active={isScreener}>
-              <SlidersHorizontal className="nav-icon-svg" size={15} />
-              <span>Bộ lọc CP</span>
-            </NavLink>
-            <NavLink href="/strategies" active={isStrategies}>
-              <Zap className="nav-icon-svg" size={15} />
-              <span>Chiến lược</span>
-            </NavLink>
-            <NavLink href="/portfolios" active={isPortfolios}>
-              <Briefcase className="nav-icon-svg" size={15} />
-              <span>Danh mục</span>
-            </NavLink>
-            <NavLink href="/watchlists" active={isWatchlists}>
-              <Star className="nav-icon-svg" size={15} />
-              <span>Watchlist</span>
-            </NavLink>
-            <NavLink href="/research" active={isResearch}>
-              <BookOpen className="nav-icon-svg" size={15} />
-              <span>Nghiên cứu & RAG</span>
-            </NavLink>
-            <NavLink href="/analyst" active={isAnalyst} className="ai-nav-link">
-              <Bot className="nav-icon-svg" size={15} />
-              <span>AI Analyst</span>
-            </NavLink>
-            <NavLink href="/tcbs-renewal" active={isTcbsRenewal}>
-              <Radio className="nav-icon-svg" size={15} />
-              <span>Live data</span>
-            </NavLink>
+            <div className="nav-utility-group">
+              <header className="session-bar">
+                <span className="user-badge">
+                  <span>Phiên riêng tư: {state.session.username}</span>
+                </span>
+                <button
+                  type="button"
+                  className="btn-logout"
+                  onClick={() =>
+                    logoutOwner()
+                      .then(() => setState({ kind: "anonymous" }))
+                      .catch(() => setState({ kind: "error" }))
+                  }
+                >
+                  <LogOut size={13} style={{ marginRight: 4 }} />
+                  Đăng xuất
+                </button>
+              </header>
+            </div>
+          </div>
+
+          {/* Tầng 2: Menu Tabs Điều Hướng */}
+          <div className="nav-links-row">
+            <div className="nav-links" role="tablist">
+              <NavLink href="/" active={isHome}>
+                <BarChart3 className="nav-icon-svg" size={15} />
+                <span>Tổng quan thị trường & AI Radar</span>
+              </NavLink>
+              <NavLink href="/screener" active={isScreener}>
+                <SlidersHorizontal className="nav-icon-svg" size={15} />
+                <span>Bộ lọc & Phân tích chuyên sâu</span>
+              </NavLink>
+              <NavLink href="/strategies" active={isStrategies}>
+                <Zap className="nav-icon-svg" size={15} />
+                <span>Khuyến nghị & Tín hiệu AI</span>
+              </NavLink>
+              <NavLink href="/portfolios" active={isPortfolios}>
+                <Briefcase className="nav-icon-svg" size={15} />
+                <span>Quản trị danh mục & Rủi ro</span>
+              </NavLink>
+              <NavLink href="/watchlists" active={isWatchlists}>
+                <Star className="nav-icon-svg" size={15} />
+                <span>Theo dõi (Watchlist)</span>
+              </NavLink>
+              <NavLink href="/research" active={isResearch}>
+                <BookOpen className="nav-icon-svg" size={15} />
+                <span>Nghiên cứu & RAG</span>
+              </NavLink>
+              <NavLink href="/analyst" active={isAnalyst} className="ai-nav-link">
+                <Bot className="nav-icon-svg" size={15} />
+                <span>AI Analyst</span>
+              </NavLink>
+              <NavLink href="/tcbs-renewal" active={isTcbsRenewal}>
+                <Radio className="nav-icon-svg" size={15} />
+                <span>Live data</span>
+              </NavLink>
+            </div>
           </div>
         </div>
-
-        <header className="session-bar">
-          <span className="user-badge">Phiên riêng tư: {state.session.username}</span>
-          <button
-            type="button"
-            className="btn-logout"
-            onClick={() =>
-              logoutOwner()
-                .then(() => setState({ kind: "anonymous" }))
-                .catch(() => setState({ kind: "error" }))
-            }
-          >
-            <LogOut size={13} style={{ marginRight: 4 }} />
-            Đăng xuất
-          </button>
-        </header>
       </nav>
-      {children}
-    </>
+
+      <div className="terminal-content">
+        {children}
+      </div>
+
+      <footer className="terminal-status-bar" role="contentinfo">
+        <div className="status-bar-container">
+          <div className="status-item">
+            <span>Finvera Quant Terminal · Hệ thống hỗ trợ ra quyết định định lượng</span>
+          </div>
+          <div className="status-bar-spacer"></div>
+          <div className="status-copyright">
+            © 2026 Finvera. Quyền riêng tư & Bảo mật đa tầng.
+          </div>
+        </div>
+      </footer>
+    </div>
   );
 }
 

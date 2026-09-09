@@ -20,6 +20,7 @@ import { StockFundamentals } from "./components/stock-fundamentals";
 import { StockValuation } from "./components/stock-valuation";
 import { StockSignals } from "./components/stock-signals";
 import { SymbolSearch } from "./components/symbol-search";
+import { formatDecimal } from "../market-overview/format/market-format";
 import { navigate } from "../../router";
 
 type OverviewState =
@@ -171,80 +172,93 @@ export function StockDetailPage({ symbol }: { symbol: string }) {
         </div>
       )}
       {overviewState.kind === "ready" && (
-        <>
+        <div className="stock-terminal-page-content">
           <StockOverview overview={overviewState.overview} />
 
-          {chartState.kind === "loading" && <p aria-busy="true">Đang tải biểu đồ…</p>}
-          {chartState.kind === "unavailable" && (
-            <section aria-labelledby="stock-chart-heading" className="stock-chart-card">
-              <h2 id="stock-chart-heading">Biểu đồ giá</h2>
-              <p role="status">Biểu đồ tạm thời không có dữ liệu.</p>
-            </section>
-          )}
-          {chartState.kind === "ready" && (
-            <StockChart
-              chart={chartState.chart}
-              livePrice={overviewState.kind === "ready" ? overviewState.overview.price.last : null}
-              liveTradingDate={
-                overviewState.kind === "ready"
-                  ? (overviewState.overview.session.tradingDate || overviewState.overview.meta.tradingDate)
-                  : null
-              }
-              liveReferencePrice={
-                overviewState.kind === "ready" ? overviewState.overview.price.referencePrice : null
-              }
-              liveOpenPrice={
-                overviewState.kind === "ready" ? overviewState.overview.price.openPrice : null
-              }
-              liveHighPrice={
-                overviewState.kind === "ready" ? overviewState.overview.price.highPrice : null
-              }
-              liveLowPrice={
-                overviewState.kind === "ready" ? overviewState.overview.price.lowPrice : null
-              }
-              liveVolume={
-                overviewState.kind === "ready" ? overviewState.overview.price.volume : null
-              }
-            />
-          )}
+          {/* Institutional 2-Column Balanced Terminal Grid */}
+          <div className="stock-terminal-grid">
+            {/* Cột trái (62%): Biểu đồ, Kịch bản giao dịch ATR & Kỹ thuật */}
+            <div className="stock-col-main">
+              {chartState.kind === "loading" && <p aria-busy="true" className="loading-note">Đang tải biểu đồ…</p>}
+              {chartState.kind === "unavailable" && (
+                <section aria-labelledby="stock-chart-heading" className="stock-chart-card">
+                  <h2 id="stock-chart-heading">Biểu đồ giá</h2>
+                  <p role="status">Biểu đồ tạm thời không có dữ liệu.</p>
+                </section>
+              )}
+              {chartState.kind === "ready" && (
+                <StockChart
+                  chart={chartState.chart}
+                  livePrice={overviewState.kind === "ready" ? overviewState.overview.price.last : null}
+                  liveTradingDate={
+                    overviewState.kind === "ready"
+                      ? (overviewState.overview.session.tradingDate || overviewState.overview.meta.tradingDate)
+                      : null
+                  }
+                  liveReferencePrice={
+                    overviewState.kind === "ready" ? overviewState.overview.price.referencePrice : null
+                  }
+                  liveOpenPrice={
+                    overviewState.kind === "ready" ? overviewState.overview.price.openPrice : null
+                  }
+                  liveHighPrice={
+                    overviewState.kind === "ready" ? overviewState.overview.price.highPrice : null
+                  }
+                  liveLowPrice={
+                    overviewState.kind === "ready" ? overviewState.overview.price.lowPrice : null
+                  }
+                  liveVolume={
+                    overviewState.kind === "ready" ? overviewState.overview.price.volume : null
+                  }
+                />
+              )}
 
-          {technicalState.kind === "loading" && <p aria-busy="true">Đang tải chỉ báo kỹ thuật…</p>}
-          {technicalState.kind === "unavailable" && (
-            <section aria-labelledby="stock-technical-heading" className="stock-technical-card">
-              <h2 id="stock-technical-heading">Chỉ báo kỹ thuật</h2>
-              <p role="status">Chỉ báo kỹ thuật tạm thời không có dữ liệu.</p>
-            </section>
-          )}
-          {technicalState.kind === "ready" && <StockTechnical technical={technicalState.technical} />}
+              {/* Kịch bản Giao dịch & Tín hiệu Chiến lược (ATR Framework) */}
+              {signalsState.kind === "loading" && <p aria-busy="true" className="loading-note">Đang tải tín hiệu chiến lược…</p>}
+              {signalsState.kind === "unavailable" && (
+                <section aria-labelledby="stock-signals-heading" className="stock-signals-card">
+                  <h2 id="stock-signals-heading">Tín hiệu chiến lược giao dịch</h2>
+                  <p role="status">Tín hiệu chiến lược tạm thời không có dữ liệu.</p>
+                </section>
+              )}
+              {signalsState.kind === "ready" && <StockSignals signals={signalsState.signals} symbol={symbol} />}
 
-          {fundamentalsState.kind === "loading" && <p aria-busy="true">Đang tải chỉ số cơ bản…</p>}
-          {fundamentalsState.kind === "unavailable" && (
-            <section aria-labelledby="stock-fundamentals-heading" className="stock-fundamentals-card">
-              <h2 id="stock-fundamentals-heading">Chỉ số cơ bản</h2>
-              <p role="status">Chỉ số cơ bản tạm thời không có dữ liệu.</p>
-            </section>
-          )}
-          {fundamentalsState.kind === "ready" && <StockFundamentals fundamentals={fundamentalsState.fundamentals} />}
+              {/* Hệ thống Chỉ báo Kỹ thuật */}
+              {technicalState.kind === "loading" && <p aria-busy="true" className="loading-note">Đang tải chỉ báo kỹ thuật…</p>}
+              {technicalState.kind === "unavailable" && (
+                <section aria-labelledby="stock-technical-heading" className="stock-technical-card">
+                  <h2 id="stock-technical-heading">Chỉ báo kỹ thuật</h2>
+                  <p role="status">Chỉ báo kỹ thuật tạm thời không có dữ liệu.</p>
+                </section>
+              )}
+              {technicalState.kind === "ready" && <StockTechnical technical={technicalState.technical} />}
+            </div>
 
-          {valuationState.kind === "loading" && <p aria-busy="true">Đang tải định giá…</p>}
-          {valuationState.kind === "unavailable" && (
-            <section aria-labelledby="stock-valuation-heading" className="stock-valuation-card">
-              <h2 id="stock-valuation-heading">Định giá tương đối</h2>
-              <p role="status">Định giá tạm thời không có dữ liệu.</p>
-            </section>
-          )}
-          {valuationState.kind === "ready" && (
-            <StockValuation valuation={valuationState.valuation} symbol={symbol} />
-          )}
+            {/* Cột phải (38%): Định giá Valuation-v3 & Chỉ số cơ bản */}
+            <div className="stock-col-side">
+              {/* Định giá tương đối (Valuation-v3) */}
+              {valuationState.kind === "loading" && <p aria-busy="true" className="loading-note">Đang tải định giá…</p>}
+              {valuationState.kind === "unavailable" && (
+                <section aria-labelledby="stock-valuation-heading" className="stock-valuation-card">
+                  <h2 id="stock-valuation-heading">Định giá tương đối</h2>
+                  <p role="status">Định giá tạm thời không có dữ liệu.</p>
+                </section>
+              )}
+              {valuationState.kind === "ready" && (
+                <StockValuation valuation={valuationState.valuation} symbol={symbol} />
+              )}
 
-          {signalsState.kind === "loading" && <p aria-busy="true">Đang tải tín hiệu chiến lược…</p>}
-          {signalsState.kind === "unavailable" && (
-            <section aria-labelledby="stock-signals-heading" className="stock-signals-card">
-              <h2 id="stock-signals-heading">Tín hiệu chiến lược giao dịch</h2>
-              <p role="status">Tín hiệu chiến lược tạm thời không có dữ liệu.</p>
-            </section>
-          )}
-          {signalsState.kind === "ready" && <StockSignals signals={signalsState.signals} symbol={symbol} />}
+              {/* Chỉ số cơ bản */}
+              {fundamentalsState.kind === "loading" && <p aria-busy="true" className="loading-note">Đang tải chỉ số cơ bản…</p>}
+              {fundamentalsState.kind === "unavailable" && (
+                <section aria-labelledby="stock-fundamentals-heading" className="stock-fundamentals-card">
+                  <h2 id="stock-fundamentals-heading">Chỉ số cơ bản</h2>
+                  <p role="status">Chỉ số cơ bản tạm thời không có dữ liệu.</p>
+                </section>
+              )}
+              {fundamentalsState.kind === "ready" && <StockFundamentals fundamentals={fundamentalsState.fundamentals} />}
+            </div>
+          </div>
 
           <footer className="provenance-footer">
             <span>
@@ -253,7 +267,7 @@ export function StockDetailPage({ symbol }: { symbol: string }) {
             </span>
             <span>Finvera Quantitative Decision Support Engine</span>
           </footer>
-        </>
+        </div>
       )}
     </main>
   );

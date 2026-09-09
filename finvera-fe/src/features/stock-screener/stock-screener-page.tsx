@@ -28,15 +28,15 @@ export function StockScreenerPage() {
   }
 
   return (
-    <main className="app-shell" aria-labelledby="screener-page-heading">
-      <header className="page-header">
+    <main className="app-shell quant-terminal-layout" aria-labelledby="screener-page-heading">
+      <header className="page-header screener-header">
         <button type="button" className="back-link" onClick={() => navigate("/")}>
           ← Trang chủ
         </button>
-        <p className="eyebrow">FINVERA · SCREENER</p>
-        <h1 id="screener-page-heading">Sàng lọc cổ phiếu</h1>
-        <p style={{ color: "var(--text-secondary)", margin: 0, fontSize: "0.875rem" }}>
-          Bộ lọc định lượng phân tích toàn diện theo tiêu chuẩn kỹ thuật, định giá tương đối và khối lượng giao dịch.
+        <p className="eyebrow">FINVERA · QUANT RADAR & SCREENER</p>
+        <h1 id="screener-page-heading">Bộ Lọc & Phân Tích Chuyên Sâu</h1>
+        <p className="screener-header-sub">
+          Mô hình định lượng phát hiện các cổ phiếu dẫn dắt (Leaders), đột phá khối lượng và đạt chuẩn CANSLIM toàn thị trường.
         </p>
       </header>
 
