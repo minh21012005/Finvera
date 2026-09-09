@@ -91,7 +91,7 @@ export function ScreenerResults({ result }: { result: ScreenResponse }) {
             </tbody>
           </table>
 
-          <div className="screener-pagination-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+          <div className="screener-pagination-footer flex justify-between items-center flex-wrap gap-2">
             <span className="pagination-count-text">
               Hiển thị 1–{result.matches.length} trong tổng số {result.totalMatchCount} kết quả lọc
             </span>

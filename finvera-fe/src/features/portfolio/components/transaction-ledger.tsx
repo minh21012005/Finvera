@@ -69,72 +69,44 @@ export function TransactionLedger({
   );
 
   return (
-    <div className="transaction-ledger-section">
-      <h2 style={{ fontSize: "1.25rem", fontWeight: 700, marginBottom: "16px" }}>
-        Sổ cái giao dịch (Bất biến)
-      </h2>
+    <div className="transaction-ledger-section quant-terminal-card mt-6">
+      <div className="ledger-header-row">
+        <div className="ledger-title-group">
+          <h2 className="ledger-title">Sổ Cái Giao Dịch (Bất Biến)</h2>
+          <span className="ledger-sub-hint">
+            Hạch toán tuần tự FIFO thời gian thực — giao dịch đã xác nhận không thể sửa đổi
+          </span>
+        </div>
+        <span className="ledger-count-badge font-mono">
+          {transactions.length} bản ghi
+        </span>
+      </div>
 
       {error && (
-        <div
-          role="alert"
-          style={{
-            marginBottom: "16px",
-            padding: "10px 14px",
-            background: "var(--color-down-bg)",
-            border: "1px solid var(--color-down-border)",
-            borderRadius: "6px",
-            color: "var(--color-down)",
-            fontSize: "0.9rem",
-          }}
-        >
+        <div role="alert" className="ledger-error-banner">
           {error}
         </div>
       )}
 
       {transactions.length === 0 ? (
-        <div
-          style={{
-            padding: "24px",
-            textAlign: "center",
-            background: "var(--bg-card)",
-            border: "1px solid var(--border-color)",
-            borderRadius: "8px",
-            color: "var(--text-secondary)",
-          }}
-        >
+        <div className="ledger-empty-state">
           Chưa có giao dịch nào được ghi nhận trong sổ cái.
         </div>
       ) : (
-        <div style={{ overflowX: "auto" }}>
-          <table
-            className="data-table"
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              background: "var(--bg-card)",
-              border: "1px solid var(--border-color)",
-              borderRadius: "8px",
-              fontSize: "0.88rem",
-            }}
-          >
+        <div className="port-table-wrap ledger-table-wrap">
+          <table className="terminal-quant-table ledger-table">
             <thead>
-              <tr
-                style={{
-                  background: "var(--bg-header)",
-                  borderBottom: "1px solid var(--border-color)",
-                  textAlign: "left",
-                }}
-              >
-                <th style={{ padding: "10px 14px" }}>#</th>
-                <th style={{ padding: "10px 14px" }}>Thời gian khớp</th>
-                <th style={{ padding: "10px 14px" }}>Loại</th>
-                <th style={{ padding: "10px 14px" }}>Mã CK</th>
-                <th style={{ padding: "10px 14px", textAlign: "right" }}>Số lượng</th>
-                <th style={{ padding: "10px 14px", textAlign: "right" }}>Giá khớp</th>
-                <th style={{ padding: "10px 14px", textAlign: "right" }}>Phí</th>
-                <th style={{ padding: "10px 14px", textAlign: "right" }}>Số tiền</th>
-                <th style={{ padding: "10px 14px" }}>Trạng thái</th>
-                <th style={{ padding: "10px 14px", textAlign: "center" }}>Hành động</th>
+              <tr>
+                <th scope="col" className="text-center w-12">#</th>
+                <th scope="col">Thời gian khớp</th>
+                <th scope="col" className="text-center">Loại</th>
+                <th scope="col">Mã CK</th>
+                <th scope="col" className="text-right">Số lượng</th>
+                <th scope="col" className="text-right">Giá khớp</th>
+                <th scope="col" className="text-right">Phí</th>
+                <th scope="col" className="text-right">Số tiền</th>
+                <th scope="col" className="text-center">Trạng thái</th>
+                <th scope="col" className="text-center">Hành động</th>
               </tr>
             </thead>
             <tbody>
@@ -143,115 +115,88 @@ export function TransactionLedger({
                 const isTargetVoided = voidedTargetIds.has(tx.id);
                 const isActionable = !isVoid && !isTargetVoided;
 
-                const typeLabels: Record<string, { label: string; color: string }> = {
-                  BUY: { label: "MUA", color: "var(--color-up)" },
-                  SELL: { label: "BÁN", color: "var(--color-down)" },
-                  DEPOSIT: { label: "NẠP TIỀN", color: "var(--color-accent)" },
-                  WITHDRAW: { label: "RÚT TIỀN", color: "var(--color-unchanged)" },
-                  VOID: { label: "HỦY (VOID)", color: "var(--text-muted)" },
+                const typeLabels: Record<string, { label: string; className: string }> = {
+                  BUY: { label: "MUA", className: "tx-type-buy" },
+                  SELL: { label: "BÁN", className: "tx-type-sell" },
+                  DEPOSIT: { label: "NẠP TIỀN", className: "tx-type-deposit" },
+                  WITHDRAW: { label: "RÚT TIỀN", className: "tx-type-withdraw" },
+                  VOID: { label: "HỦY (VOID)", className: "tx-type-void" },
                 };
 
                 const typeInfo = typeLabels[tx.transactionType] || {
                   label: tx.transactionType,
-                  color: "inherit",
+                  className: "tx-type-other",
                 };
 
                 return (
                   <tr
                     key={tx.id}
-                    style={{
-                      borderBottom: "1px solid var(--border-color)",
-                      opacity: isTargetVoided ? 0.6 : 1,
-                      textDecoration: isTargetVoided ? "line-through" : "none",
-                    }}
+                    className={`quant-row ${isTargetVoided ? "row-voided" : ""}`}
                   >
-                    <td style={{ padding: "10px 14px", color: "var(--text-muted)" }}>
+                    <td className="text-center font-mono text-xs text-slate-500">
                       {tx.sequenceNo}
                     </td>
-                    <td style={{ padding: "10px 14px" }}>
+                    <td className="font-mono text-xs text-slate-300">
                       {new Date(tx.executedAt).toLocaleString("vi-VN")}
                     </td>
-                    <td style={{ padding: "10px 14px", fontWeight: 700, color: typeInfo.color }}>
-                      {typeInfo.label}
+                    <td className="text-center">
+                      <span className={`tx-badge ${typeInfo.className}`}>
+                        {typeInfo.label}
+                      </span>
                     </td>
-                    <td style={{ padding: "10px 14px", fontWeight: 600 }}>
-                      {tx.instrumentSymbol || "-"}
+                    <td>
+                      {tx.instrumentSymbol ? (
+                        <span className="font-mono font-bold text-slate-100">
+                          {tx.instrumentSymbol}
+                        </span>
+                      ) : (
+                        <span className="text-slate-600">—</span>
+                      )}
                     </td>
-                    <td style={{ padding: "10px 14px", textAlign: "right" }}>
-                      {tx.quantity ? Number(tx.quantity).toLocaleString("vi-VN") : "-"}
+                    <td className="text-right font-mono text-slate-200">
+                      {tx.quantity ? Number(tx.quantity).toLocaleString("vi-VN") : "—"}
                     </td>
-                    <td style={{ padding: "10px 14px", textAlign: "right" }}>
-                      {tx.price ? `${Number(tx.price).toLocaleString("vi-VN")} đ` : "-"}
+                    <td className="text-right font-mono text-slate-200">
+                      {tx.price ? `${Number(tx.price).toLocaleString("vi-VN")} đ` : "—"}
                     </td>
-                    <td style={{ padding: "10px 14px", textAlign: "right" }}>
-                      {tx.fee && tx.fee !== "0" ? `${Number(tx.fee).toLocaleString("vi-VN")} đ` : "-"}
+                    <td className="text-right font-mono text-slate-400 text-xs">
+                      {tx.fee && tx.fee !== "0" ? `${Number(tx.fee).toLocaleString("vi-VN")} đ` : "0 đ"}
                     </td>
-                    <td style={{ padding: "10px 14px", textAlign: "right" }}>
-                      {tx.amount ? `${Number(tx.amount).toLocaleString("vi-VN")} đ` : "-"}
+                    <td className="text-right font-mono font-semibold text-slate-100">
+                      {tx.amount ? `${Number(tx.amount).toLocaleString("vi-VN")} đ` : "—"}
                     </td>
-                    <td style={{ padding: "10px 14px" }}>
+                    <td className="text-center">
                       {isVoid ? (
-                        <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                        <span className="tx-void-reason-chip font-mono text-xs">
                           Hủy: {tx.voidReason}
                         </span>
                       ) : isTargetVoided ? (
-                        <span
-                          style={{
-                            fontSize: "0.75rem",
-                            padding: "2px 6px",
-                            borderRadius: "4px",
-                            background: "var(--color-down-bg)",
-                            color: "var(--color-down)",
-                          }}
-                        >
+                        <span className="status-pill status-pill-voided">
                           ĐÃ BỊ HỦY
                         </span>
                       ) : (
-                        <span
-                          style={{
-                            fontSize: "0.75rem",
-                            padding: "2px 6px",
-                            borderRadius: "4px",
-                            background: "var(--color-up-bg)",
-                            color: "var(--color-up)",
-                          }}
-                        >
+                        <span className="status-pill status-pill-valid">
                           HỢP LỆ
                         </span>
                       )}
                     </td>
-                    <td style={{ padding: "10px 14px", textAlign: "center" }}>
+                    <td className="text-center">
                       {isActionable && (
-                        <div>
+                        <div className="void-action-cell">
                           {voidingId === tx.id ? (
-                            <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                            <div className="void-confirm-bar">
                               <input
                                 type="text"
                                 placeholder="Lý do hủy..."
                                 value={reason}
                                 onChange={(e) => setReason(e.target.value)}
-                                style={{
-                                  padding: "4px 8px",
-                                  fontSize: "0.8rem",
-                                  background: "var(--bg-main)",
-                                  border: "1px solid var(--border-color)",
-                                  borderRadius: "4px",
-                                  color: "var(--text-primary)",
-                                }}
+                                className="void-reason-input"
                               />
                               <button
                                 type="button"
                                 disabled={submitting}
                                 onClick={() => handleConfirmVoid(tx.id)}
-                                style={{
-                                  padding: "4px 8px",
-                                  fontSize: "0.75rem",
-                                  background: "var(--color-down)",
-                                  color: "#fff",
-                                  border: "none",
-                                  borderRadius: "4px",
-                                  cursor: "pointer",
-                                }}
+                                className="btn-confirm-void"
                               >
                                 {submitting ? "..." : "Xác nhận"}
                               </button>
@@ -262,14 +207,7 @@ export function TransactionLedger({
                                   setReason("");
                                   setError(null);
                                 }}
-                                style={{
-                                  padding: "4px 8px",
-                                  fontSize: "0.75rem",
-                                  background: "transparent",
-                                  color: "var(--text-muted)",
-                                  border: "none",
-                                  cursor: "pointer",
-                                }}
+                                className="btn-cancel-void"
                               >
                                 Hủy
                               </button>
@@ -282,15 +220,7 @@ export function TransactionLedger({
                                 setReason("");
                                 setError(null);
                               }}
-                              style={{
-                                padding: "4px 10px",
-                                fontSize: "0.75rem",
-                                background: "transparent",
-                                color: "var(--text-muted)",
-                                border: "1px solid var(--border-color)",
-                                borderRadius: "4px",
-                                cursor: "pointer",
-                              }}
+                              className="btn-trigger-void"
                             >
                               Hủy GD (Void)
                             </button>

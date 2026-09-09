@@ -38,7 +38,7 @@ export function BreadthOverview({ breadth }: { breadth: MarketBreadth }) {
             {statusLabel(breadth.dataStatus)}
           </span>
         </div>
-        <p style={{ margin: "-8px 0 14px 0", fontSize: "0.75rem", color: "var(--text-muted)" }}>
+        <p className="text-xs text-slate-400 -mt-2 mb-3.5">
           {basis.label}: {basis.description}
         </p>
 
@@ -55,7 +55,7 @@ export function BreadthOverview({ breadth }: { breadth: MarketBreadth }) {
               </div>
 
               {total > 0 && (
-                <div className="breadth-bar-container" style={{ margin: "10px 0" }}>
+                <div className="breadth-bar-container my-2.5">
                   <div className="breadth-bar">
                     <div className="breadth-segment advancing" style={{ width: `${advPct}%` }} title={`Tăng: ${advPct}%`} />
                     <div className="breadth-segment unchanged" style={{ width: `${uncPct}%` }} title={`Không đổi: ${uncPct}%`} />
@@ -79,23 +79,23 @@ export function BreadthOverview({ breadth }: { breadth: MarketBreadth }) {
             <dl className="breadth-grid">
               <div className="breadth-stat-card up">
                 <dt>Tăng giá</dt>
-                <dd>{breadth.advancing}</dd>
+                <dd className="font-mono">{breadth.advancing}</dd>
               </div>
               <div className="breadth-stat-card down">
                 <dt>Giảm giá</dt>
-                <dd>{breadth.declining}</dd>
+                <dd className="font-mono">{breadth.declining}</dd>
               </div>
               <div className="breadth-stat-card unchanged">
                 <dt>Không đổi</dt>
-                <dd>{breadth.unchanged}</dd>
+                <dd className="font-mono">{breadth.unchanged}</dd>
               </div>
               <div className="breadth-stat-card eligible">
                 <dt>Tổng universe</dt>
-                <dd>{breadth.eligible}</dd>
+                <dd className="font-mono">{breadth.eligible}</dd>
               </div>
             </dl>
 
-            <p className="text-xs text-slate-400" style={{ margin: "10px 0 0 0" }}>
+            <p className="text-xs text-slate-400 font-mono mt-2.5">
               Đã phân loại: <strong className="text-slate-200">{classified}</strong> / {eligible}
               {unclassified > 0 ? (
                 <> · Chưa phân loại: <strong className="text-slate-200">{unclassified}</strong></>
@@ -103,7 +103,7 @@ export function BreadthOverview({ breadth }: { breadth: MarketBreadth }) {
             </p>
 
             {breadth.unclassified !== null && breadth.unclassified > 0 && (
-              <p role="status" className="unavailable-msg" style={{ margin: "12px 0 0 0" }}>
+              <p role="status" className="unavailable-msg mt-3">
                 {breadth.unclassified} mã chưa phân loại. <ReasonCodes prefix="Lý do: " codes={breadth.reasonCodes} />
               </p>
             )}
@@ -111,9 +111,15 @@ export function BreadthOverview({ breadth }: { breadth: MarketBreadth }) {
         )}
       </div>
 
-      <p style={{ margin: "16px 0 0 0", fontSize: "0.75rem", color: "var(--text-muted)" }}>
-        Universe: {breadth.universeVersion} · Basis: {breadth.calculationBasis ?? "N/A"} · Cập nhật: {formatAsOf(breadth.asOf)} · Nguồn: {breadth.source.provider}
-      </p>
+      <footer className="breadth-footer-strip font-mono">
+        <span>Universe: {breadth.universeVersion}</span>
+        <span className="strip-dot" aria-hidden="true">•</span>
+        <span>Basis: {breadth.calculationBasis ?? "N/A"}</span>
+        <span className="strip-dot" aria-hidden="true">•</span>
+        <span>Cập nhật: {formatAsOf(breadth.asOf)}</span>
+        <span className="strip-dot" aria-hidden="true">•</span>
+        <span>Nguồn: {breadth.source.provider}</span>
+      </footer>
     </section>
   );
 }

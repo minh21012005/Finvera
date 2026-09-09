@@ -56,8 +56,7 @@ export function MarketOverviewPage() {
           <p role="alert">{errorMessage(state.status)}</p>
           <button
             type="button"
-            className="btn-retry"
-            style={{ marginTop: "16px" }}
+            className="btn-retry mt-4"
             onClick={() => {
               setState({ kind: "loading" });
               setAttempt((value) => value + 1);

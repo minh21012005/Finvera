@@ -107,15 +107,13 @@ export function DocumentList({
         <div className="flex items-center gap-2.5 flex-nowrap sm:ml-auto">
           <input
             type="text"
-            className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1 text-xs text-slate-100 placeholder-slate-500 uppercase focus:outline-none focus:border-cyan-500 shrink-0"
-            style={{ width: "130px", height: "32px" }}
+            className="w-[130px] h-8 bg-slate-950 border border-slate-800 rounded-lg px-3 py-1 text-xs text-slate-100 placeholder-slate-500 uppercase focus:outline-none focus:border-cyan-500 shrink-0 font-mono"
             placeholder="MÃ CP (FPT...)"
             value={symbolFilter}
             onChange={(e) => onSymbolFilterChange(e.target.value)}
           />
           <select
-            className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1 text-xs text-slate-100 focus:outline-none focus:border-cyan-500 cursor-pointer shrink-0"
-            style={{ width: "auto", height: "32px" }}
+            className="h-8 bg-slate-950 border border-slate-800 rounded-lg px-3 py-1 text-xs text-slate-100 focus:outline-none focus:border-cyan-500 cursor-pointer shrink-0"
             value={typeFilter}
             onChange={(e) => onTypeFilterChange(e.target.value)}
           >
@@ -129,8 +127,7 @@ export function DocumentList({
           </select>
           <button
             type="button"
-            className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer font-medium shrink-0 whitespace-nowrap"
-            style={{ height: "32px" }}
+            className="h-8 px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer font-medium shrink-0 whitespace-nowrap"
             onClick={onRefresh}
           >
             <RotateCw size={13} />

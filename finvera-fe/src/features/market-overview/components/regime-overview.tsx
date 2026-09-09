@@ -27,7 +27,7 @@ export function RegimeOverview({ regime }: { regime: MarketRegime }) {
             {statusLabel(regime.dataStatus)}
           </span>
         </div>
-        <p style={{ margin: "-8px 0 14px 0", fontSize: "0.75rem", color: "var(--text-muted)" }}>
+        <p className="text-xs text-slate-400 -mt-2 mb-3.5">
           {basis.label}: {basis.description}
         </p>
 
@@ -91,17 +91,17 @@ export function RegimeOverview({ regime }: { regime: MarketRegime }) {
         )}
 
         {canPresentAssessment && regime.reasonCodes.length > 0 && (
-          <div className="unavailable-msg" style={{ margin: "12px 0 0 0" }}>
+          <div className="unavailable-msg mt-3">
             <p role="status"><ReasonCodes prefix="Lưu ý chất lượng: " codes={regime.reasonCodes} /></p>
           </div>
         )}
       </div>
 
-      <div style={{ marginTop: "16px" }}>
-        <p style={{ margin: "0 0 4px 0", fontSize: "0.75rem", color: "var(--text-muted)" }}>
+      <div className="mt-4 border-t border-slate-800/60 pt-3">
+        <p className="text-xs text-slate-500 font-mono mb-1">
           Phiên bản quy tắc: {regime.ruleVersion} · Basis: {regime.assessmentBasis ?? "N/A"} · Cập nhật: {formatAsOf(regime.asOf)} · Nguồn: {regime.source.provider}
         </p>
-        <p style={{ margin: "0", color: "var(--text-muted)" }}>
+        <p className="m-0 text-slate-500">
           <small><ReasonCode code={regime.disclaimerCode} /></small>
         </p>
       </div>
@@ -113,49 +113,25 @@ function FactorList({ regime }: { regime: MarketRegime }) {
   if (regime.factors.length === 0) return null;
   return (
     <div className="mt-3">
-      <h3 style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", margin: "0 0 8px 0", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
         Các yếu tố thành phần
       </h3>
       <ul className="factors-2col-grid">
         {regime.factors.map((factor) => {
-          const borderAccent =
+          const dirClass =
             factor.direction === "POSITIVE"
-              ? "var(--color-up)"
+              ? "factor-positive"
               : factor.direction === "NEGATIVE"
-              ? "var(--color-down)"
-              : "var(--color-unchanged)";
-          const badgeBg =
-            factor.direction === "POSITIVE"
-              ? "var(--color-up-bg)"
-              : factor.direction === "NEGATIVE"
-              ? "var(--color-down-bg)"
-              : "var(--color-unchanged-bg)";
+              ? "factor-negative"
+              : "factor-neutral";
           return (
             <li
               key={factor.code}
-              className="factor-item"
-              style={{
-                borderLeft: `3px solid ${borderAccent}`,
-                padding: "8px 12px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: "10px",
-                fontSize: "0.775rem",
-              }}
+              className={`factor-item ${dirClass}`}
             >
               <div className="flex items-center gap-2">
                 <strong className="text-slate-200">{factor.code}</strong>
-                <span
-                  style={{
-                    background: badgeBg,
-                    color: borderAccent,
-                    padding: "2px 6px",
-                    borderRadius: "4px",
-                    fontSize: "0.7rem",
-                    fontWeight: 700,
-                  }}
-                >
+                <span className={`factor-dir-badge ${dirClass}`}>
                   {factor.direction}
                 </span>
               </div>

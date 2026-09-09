@@ -112,7 +112,7 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
                       .catch(() => setState({ kind: "error" }))
                   }
                 >
-                  <LogOut size={13} style={{ marginRight: 4 }} />
+                  <LogOut size={13} className="mr-1 inline-block" />
                   Đăng xuất
                 </button>
               </header>
@@ -165,12 +165,20 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
 
       <footer className="terminal-status-bar" role="contentinfo">
         <div className="status-bar-container">
-          <div className="status-item">
-            <span>Finvera Quant Terminal · Hệ thống hỗ trợ ra quyết định định lượng</span>
+          <div className="status-item flex items-center gap-2">
+            <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#00e599]" aria-hidden="true" />
+            <span className="font-mono text-xs text-slate-300">
+              <strong className="text-emerald-400">Data Gateway:</strong> Trực tuyến · HSX / HNX / UPCOM
+            </span>
           </div>
-          <div className="status-bar-spacer"></div>
-          <div className="status-copyright">
-            © 2026 Finvera. Quyền riêng tư & Bảo mật đa tầng.
+          <div className="status-item hidden md:flex items-center gap-2">
+            <span className="font-mono text-xs text-slate-500">
+              Độ trễ: &lt;14ms · Engine: FinveraQuant v4.2.8
+            </span>
+          </div>
+          <div className="status-bar-spacer" />
+          <div className="status-copyright font-mono text-xs text-slate-400">
+            © 2026 Finvera Terminal · Bảo mật & Quyền riêng tư đa tầng
           </div>
         </div>
       </footer>

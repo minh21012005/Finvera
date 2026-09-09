@@ -102,7 +102,7 @@ export function StockOverview({ overview }: { overview: StockOverviewData }) {
               ? `${formatDecimal(price.ceilingPrice ?? null)} / ${formatDecimal(price.floorPrice ?? null)}`
               : "Không có dữ liệu"}
             {price.limitState && (
-              <span role="status" style={{ marginLeft: 6 }}>
+              <span role="status" className="ml-1.5">
                 ({price.limitState === "AT_CEILING" ? "▲ đang ở giá trần" : "▼ đang ở giá sàn"})
               </span>
             )}

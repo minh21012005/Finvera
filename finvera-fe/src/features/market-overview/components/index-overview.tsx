@@ -46,7 +46,7 @@ function IndexCard({ index }: { index: MarketIndex }) {
         <div>
           <p className="index-value font-mono">{formatDecimal(index.value)}</p>
           {!unavailable && index.absoluteChange !== null && (
-            <p className="index-change-line font-mono" style={{ color: direction.color }}>
+            <p className={`index-change-line font-mono ${direction.className}`}>
               {index.direction === "UP" ? "+" : ""}{formatDecimal(index.absoluteChange)} ({index.direction === "UP" ? "+" : ""}{formatDecimal(index.percentageChange)}%)
             </p>
           )}

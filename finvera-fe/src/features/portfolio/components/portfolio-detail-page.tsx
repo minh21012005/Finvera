@@ -70,20 +70,20 @@ export function PortfolioDetailPage({ portfolioId }: PortfolioDetailPageProps) {
 
   if (loading) {
     return (
-      <div style={{ padding: "40px", textAlign: "center", color: "var(--text-secondary)" }}>
-        Đang tải dữ liệu danh mục…
+      <div className="portfolio-loading-state">
+        <span className="text-slate-400 font-mono text-sm">Đang tải dữ liệu danh mục…</span>
       </div>
     );
   }
 
   if (error && !portfolio) {
     return (
-      <div style={{ padding: "40px", textAlign: "center" }}>
-        <p style={{ color: "var(--color-down)", marginBottom: "16px" }}>{error}</p>
+      <div className="portfolio-error-state">
+        <p className="error-text">{error}</p>
         <button
           type="button"
           onClick={() => navigate("/portfolios")}
-          style={{ padding: "8px 16px", background: "var(--bg-card)", border: "1px solid var(--border-color)", borderRadius: "6px", cursor: "pointer" }}
+          className="btn-back-portfolios"
         >
           ← Quay lại danh sách danh mục
         </button>

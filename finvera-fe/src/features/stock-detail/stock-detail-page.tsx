@@ -151,12 +151,11 @@ export function StockDetailPage({ symbol }: { symbol: string }) {
         <p role="alert">Không tìm thấy mã cổ phiếu "{symbol}" trong dữ liệu được hỗ trợ.</p>
       )}
       {overviewState.kind === "error" && (
-        <div className="error-card" style={{ marginTop: "16px" }}>
+        <div className="error-card mt-4">
           <p role="alert">{errorMessage(overviewState.status)}</p>
           <button
             type="button"
-            className="btn-retry"
-            style={{ marginTop: "12px" }}
+            className="btn-retry mt-3"
             onClick={() => {
               setOverviewState({ kind: "loading" });
               setChartState({ kind: "loading" });

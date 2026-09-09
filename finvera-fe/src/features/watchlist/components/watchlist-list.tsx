@@ -7,7 +7,7 @@ import {
   type WatchlistSummary,
 } from "../api/watchlist";
 import { navigate } from "../../../router";
-import { RotateCw, Plus } from "lucide-react";
+import { RotateCw, Plus, Trash2, ArrowRight, BookmarkCheck, Eye } from "lucide-react";
 
 export function WatchlistList() {
   const [watchlists, setWatchlists] = useState<WatchlistSummary[]>([]);
@@ -69,62 +69,45 @@ export function WatchlistList() {
   }
 
   return (
-    <div className="watchlist-list-container">
-      <header className="page-header" style={{ marginBottom: "24px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-          <div>
-            <button type="button" className="back-link" onClick={() => navigate("/")}>
-              ← Trang chủ
-            </button>
-            <h1 id="watchlist-page-heading" style={{ fontSize: "1.75rem", fontWeight: 700, margin: "8px 0" }}>
-              Danh sách theo dõi (Watchlist)
-            </h1>
-            <p style={{ color: "var(--text-secondary)", margin: 0 }}>
-              Theo dõi và so sánh các ứng viên đầu tư với dữ liệu thị trường và tín hiệu trực tiếp
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setReloadCount((c) => c + 1)}
-            title="Làm mới danh sách"
-            style={{
-              padding: "8px 14px",
-              background: "var(--bg-card)",
-              border: "1px solid var(--border-color)",
-              color: "var(--text-secondary)",
-              borderRadius: "6px",
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-            }}
-          >
-            <RotateCw size={13} />
-            <span>Làm mới</span>
+    <main className="app-shell quant-terminal-layout portfolio-list-wrapper">
+      <header className="page-header portfolio-list-header">
+        <div className="portfolio-header-left">
+          <button type="button" className="back-link" onClick={() => navigate("/")}>
+            ← Trang chủ
           </button>
+          <p className="eyebrow">FINVERA · WATCHLIST RESEARCH</p>
+          <h1 id="watchlist-page-heading">
+            Danh sách theo dõi (Watchlist)
+          </h1>
+          <p className="portfolio-header-sub">
+            Theo dõi và so sánh các ứng viên đầu tư với dữ liệu thị trường và tín hiệu trực tiếp
+          </p>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setReloadCount((c) => c + 1)}
+          title="Làm mới danh sách"
+          className="btn-engine-rescan"
+        >
+          <RotateCw size={13} />
+          <span>Làm mới</span>
+        </button>
       </header>
 
       {error && (
-        <div
-          role="alert"
-          style={{
-            marginBottom: "16px",
-            padding: "12px",
-            background: "var(--color-down-bg)",
-            border: "1px solid var(--color-down-border)",
-            borderRadius: "6px",
-            color: "var(--color-down)",
-          }}
-        >
+        <div role="alert" className="error-banner">
           {error}
         </div>
       )}
 
-      {/* Create form */}
-      <div className="card" style={{ padding: "20px", background: "var(--bg-card)", border: "1px solid var(--border-color)", borderRadius: "8px", marginBottom: "24px" }}>
-        <h2 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: "12px" }}>Tạo danh sách theo dõi mới</h2>
-        <form onSubmit={handleCreate} style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+      {/* Create Watchlist Card */}
+      <section className="portfolio-create-card" aria-labelledby="create-watchlist-heading">
+        <div className="create-card-header">
+          <BookmarkCheck size={16} className="text-cyan-400" />
+          <h2 id="create-watchlist-heading">Tạo danh sách theo dõi mới</h2>
+        </div>
+        <form onSubmit={handleCreate} className="portfolio-create-form">
           <input
             type="text"
             placeholder="Nhập tên danh sách theo dõi (VD: Cổ phiếu VN30, Ngành Thép, Bất động sản...)"
@@ -133,102 +116,75 @@ export function WatchlistList() {
             maxLength={120}
             required
             aria-label="Tên danh sách theo dõi mới"
-            style={{
-              flex: 1,
-              padding: "10px 14px",
-              background: "var(--bg-main)",
-              border: "1px solid var(--border-color)",
-              borderRadius: "6px",
-              color: "var(--text-primary)",
-            }}
+            className="portfolio-name-input font-mono"
           />
           <button
             type="submit"
             disabled={creating || !newName.trim()}
-            style={{
-              padding: "10px 20px",
-              background: "var(--color-accent)",
-              color: "#0a0e17",
-              fontWeight: 600,
-              border: "none",
-              borderRadius: "6px",
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-            }}
+            className="btn-quant-execute"
           >
             <Plus size={15} />
-            <span>{creating ? "Đang tạo..." : "Tạo danh sách"}</span>
+            <span>{creating ? "Đang tạo…" : "Tạo danh sách"}</span>
           </button>
         </form>
-      </div>
+      </section>
 
-      {/* Watchlist items */}
+      {/* Watchlist Items Grid */}
       {loading ? (
-        <div style={{ padding: "32px", textAlign: "center", color: "var(--text-secondary)" }}>
-          Đang tải danh sách theo dõi...
+        <div className="portfolio-loading-state font-mono">
+          Đang tải danh sách theo dõi…
         </div>
       ) : watchlists.length === 0 ? (
-        <div style={{ padding: "32px", textAlign: "center", background: "var(--bg-card)", border: "1px solid var(--border-color)", borderRadius: "8px" }}>
-          <p style={{ color: "var(--text-secondary)", marginBottom: "8px" }}>Bạn chưa có danh sách theo dõi nào.</p>
-          <p style={{ fontSize: "0.9rem", color: "var(--text-muted)", margin: 0 }}>Hãy tạo danh sách đầu tiên ở biểu mẫu phía trên để bắt đầu thêm cổ phiếu nghiên cứu.</p>
+        <div className="portfolio-empty-state">
+          <p className="empty-title">Bạn chưa có danh sách theo dõi nào.</p>
+          <p className="empty-sub">Hãy tạo danh sách đầu tiên ở biểu mẫu phía trên để bắt đầu thêm cổ phiếu nghiên cứu.</p>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "16px" }}>
+        <div className="portfolio-cards-grid">
           {watchlists.map((wl) => (
-            <div
+            <article
               key={wl.id}
               data-testid={`watchlist-card-${wl.id}`}
-              className="card"
-              style={{
-                padding: "20px",
-                background: "var(--bg-card)",
-                border: "1px solid var(--border-color)",
-                borderRadius: "8px",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-              }}
+              className="quant-portfolio-tile"
             >
               <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
-                  <h3 style={{ fontSize: "1.2rem", fontWeight: 700, margin: 0 }}>{wl.name}</h3>
+                <div className="tile-top-row">
+                  <h3 className="tile-portfolio-name">{wl.name}</h3>
                   <button
                     type="button"
                     onClick={() => handleDelete(wl.id, wl.name)}
                     aria-label={`Xóa danh sách ${wl.name}`}
-                    style={{ background: "transparent", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "0.85rem" }}
+                    className="btn-tile-delete"
+                    title="Xóa danh sách theo dõi này"
                   >
-                    Xóa
+                    <Trash2 size={13} />
+                    <span>Xóa</span>
                   </button>
                 </div>
-                <p style={{ fontSize: "0.9rem", color: "var(--text-secondary)", margin: "0 0 16px 0" }}>
-                  Số mã cổ phiếu: <strong>{wl.itemCount}</strong>
-                </p>
+
+                <div className="tile-metrics-grid single-col mb-5">
+                  <div className="tile-metric-cell">
+                    <span className="metric-lbl">Quy mô theo dõi</span>
+                    <span className="metric-val font-mono flex items-center gap-1.5">
+                      <Eye size={14} className="text-cyan-400" />
+                      <strong>{wl.itemCount}</strong> <span className="text-slate-400 text-xs">mã cổ phiếu</span>
+                    </span>
+                  </div>
+                </div>
               </div>
 
               <button
                 type="button"
                 onClick={() => navigate(`/watchlists/${wl.id}`)}
-                style={{
-                  width: "100%",
-                  padding: "10px",
-                  background: "var(--border-color)",
-                  color: "var(--text-primary)",
-                  fontWeight: 600,
-                  border: "none",
-                  borderRadius: "6px",
-                  cursor: "pointer",
-                  textAlign: "center",
-                }}
+                className="btn-tile-navigate"
               >
-                Mở danh sách theo dõi →
+                <span>Mở danh sách theo dõi</span>
+                <ArrowRight size={14} />
               </button>
-            </div>
+            </article>
           ))}
         </div>
       )}
-    </div>
+    </main>
   );
 }

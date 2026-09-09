@@ -113,20 +113,20 @@ export function WatchlistDetailPage({ watchlistId }: WatchlistDetailPageProps) {
 
   if (loading) {
     return (
-      <div style={{ padding: "40px", textAlign: "center", color: "var(--text-secondary)" }}>
-        Đang tải dữ liệu danh sách theo dõi…
+      <div className="portfolio-loading-state">
+        <span className="text-slate-400 font-mono text-sm">Đang tải dữ liệu danh sách theo dõi…</span>
       </div>
     );
   }
 
   if (error && !watchlist) {
     return (
-      <div style={{ padding: "40px", textAlign: "center" }}>
-        <p style={{ color: "var(--color-down)", marginBottom: "16px" }}>{error}</p>
+      <div className="portfolio-error-state">
+        <p className="error-text">{error}</p>
         <button
           type="button"
           onClick={() => navigate("/watchlists")}
-          style={{ padding: "8px 16px", background: "var(--bg-card)", border: "1px solid var(--border-color)", borderRadius: "6px", cursor: "pointer" }}
+          className="btn-back-portfolios"
         >
           ← Quay lại danh sách
         </button>
@@ -135,21 +135,20 @@ export function WatchlistDetailPage({ watchlistId }: WatchlistDetailPageProps) {
   }
 
   return (
-    <div className="watchlist-detail-container">
+    <main className="app-shell quant-terminal-layout watchlist-detail-layout">
       {/* Header */}
-      <header className="page-header" style={{ marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+      <header className="page-header watchlist-detail-header">
         <div>
           <button
             type="button"
             className="back-link"
             onClick={() => navigate("/watchlists")}
-            style={{ background: "transparent", border: "none", color: "var(--text-secondary)", cursor: "pointer", padding: 0, marginBottom: "8px" }}
           >
             ← Danh sách theo dõi
           </button>
 
           {isEditingName ? (
-            <form onSubmit={handleRename} style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            <form onSubmit={handleRename} className="watchlist-rename-form">
               <input
                 type="text"
                 value={editedName}
@@ -157,19 +156,11 @@ export function WatchlistDetailPage({ watchlistId }: WatchlistDetailPageProps) {
                 maxLength={120}
                 required
                 aria-label="Đổi tên danh sách"
-                style={{
-                  fontSize: "1.5rem",
-                  fontWeight: 700,
-                  padding: "4px 8px",
-                  background: "var(--bg-main)",
-                  border: "1px solid var(--border-color)",
-                  borderRadius: "6px",
-                  color: "var(--text-primary)",
-                }}
+                className="watchlist-rename-input font-mono"
               />
               <button
                 type="submit"
-                style={{ padding: "6px 12px", background: "var(--color-accent)", color: "#0a0e17", fontWeight: 600, border: "none", borderRadius: "6px", cursor: "pointer" }}
+                className="btn-rename-save"
               >
                 Lưu
               </button>
@@ -179,55 +170,44 @@ export function WatchlistDetailPage({ watchlistId }: WatchlistDetailPageProps) {
                   setIsEditingName(false);
                   setEditedName(watchlist?.name ?? "");
                 }}
-                style={{ padding: "6px 12px", background: "var(--bg-card)", border: "1px solid var(--border-color)", color: "var(--text-secondary)", borderRadius: "6px", cursor: "pointer" }}
+                className="btn-rename-cancel"
               >
                 Hủy
               </button>
             </form>
           ) : (
-            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <h1 id="watchlist-detail-heading" style={{ fontSize: "1.75rem", fontWeight: 700, margin: 0 }}>
+            <div className="watchlist-title-row">
+              <h1 id="watchlist-detail-heading" className="watchlist-detail-title">
                 {watchlist?.name}
               </h1>
               <button
                 type="button"
                 onClick={() => setIsEditingName(true)}
                 aria-label="Đổi tên"
-                style={{ background: "transparent", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "0.85rem" }}
+                className="btn-trigger-rename"
               >
                 ✎ Đổi tên
               </button>
             </div>
           )}
+          <p className="watchlist-meta-sub font-mono text-xs">
+            Theo dõi tín hiệu kỹ thuật thời gian thực & biến động giá cổ phiếu
+          </p>
         </div>
 
-        <div style={{ display: "flex", gap: "8px" }}>
+        <div className="watchlist-header-actions">
           <button
             type="button"
             onClick={() => setReloadCount((c) => c + 1)}
             title="Làm mới dữ liệu"
-            style={{
-              padding: "8px 14px",
-              background: "var(--bg-card)",
-              border: "1px solid var(--border-color)",
-              color: "var(--text-secondary)",
-              borderRadius: "6px",
-              cursor: "pointer",
-            }}
+            className="btn-wl-refresh"
           >
             ↻ Làm mới
           </button>
           <button
             type="button"
             onClick={handleDelete}
-            style={{
-              padding: "8px 14px",
-              background: "transparent",
-              border: "1px solid var(--color-down-border)",
-              color: "var(--color-down)",
-              borderRadius: "6px",
-              cursor: "pointer",
-            }}
+            className="btn-wl-delete"
           >
             Xóa danh sách
           </button>
@@ -235,54 +215,31 @@ export function WatchlistDetailPage({ watchlistId }: WatchlistDetailPageProps) {
       </header>
 
       {error && (
-        <div
-          role="alert"
-          style={{
-            marginBottom: "16px",
-            padding: "12px",
-            background: "var(--color-down-bg)",
-            border: "1px solid var(--color-down-border)",
-            borderRadius: "6px",
-            color: "var(--color-down)",
-          }}
-        >
+        <div role="alert" className="ledger-error-banner">
           {error}
         </div>
       )}
 
       {/* Add symbol form */}
-      <div className="card" style={{ padding: "16px 20px", background: "var(--bg-card)", border: "1px solid var(--border-color)", borderRadius: "8px", marginBottom: "24px" }}>
-        <form onSubmit={handleAddSymbol} style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-          <input
-            type="text"
-            placeholder="Nhập mã cổ phiếu (VD: FPT, VNM, HPG...)"
-            value={newSymbol}
-            onChange={(e) => setNewSymbol(e.target.value)}
-            pattern="^[a-zA-Z0-9]{3,10}$"
-            required
-            aria-label="Mã cổ phiếu cần thêm"
-            style={{
-              width: "300px",
-              padding: "8px 12px",
-              background: "var(--bg-main)",
-              border: "1px solid var(--border-color)",
-              borderRadius: "6px",
-              color: "var(--text-primary)",
-              textTransform: "uppercase",
-            }}
-          />
+      <div className="watchlist-add-bar quant-terminal-card">
+        <form onSubmit={handleAddSymbol} className="watchlist-add-form">
+          <div className="watchlist-add-input-wrap">
+            <span className="add-symbol-icon text-slate-500 font-mono text-xs">MÃ CP:</span>
+            <input
+              type="text"
+              placeholder="Nhập mã cổ phiếu (VD: FPT, VNM, HPG...)"
+              value={newSymbol}
+              onChange={(e) => setNewSymbol(e.target.value)}
+              pattern="^[a-zA-Z0-9]{3,10}$"
+              required
+              aria-label="Mã cổ phiếu cần thêm"
+              className="watchlist-add-input font-mono uppercase"
+            />
+          </div>
           <button
             type="submit"
             disabled={adding || !newSymbol.trim()}
-            style={{
-              padding: "8px 16px",
-              background: "var(--color-accent)",
-              color: "#0a0e17",
-              fontWeight: 600,
-              border: "none",
-              borderRadius: "6px",
-              cursor: "pointer",
-            }}
+            className="btn-add-symbol-submit"
           >
             {adding ? "Đang thêm..." : "+ Thêm vào danh sách"}
           </button>
@@ -294,6 +251,6 @@ export function WatchlistDetailPage({ watchlistId }: WatchlistDetailPageProps) {
         items={watchlist?.items ?? []}
         onRemove={handleRemoveSymbol}
       />
-    </div>
+    </main>
   );
 }

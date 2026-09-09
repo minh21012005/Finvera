@@ -107,18 +107,21 @@ export function TransactionForm({ portfolioId, onSuccess }: TransactionFormProps
   }
 
   return (
-    <div className="transaction-form-card card" style={{ padding: "20px", background: "var(--bg-card)", border: "1px solid var(--border-color)", borderRadius: "8px", marginBottom: "32px" }}>
-      <h2 style={{ fontSize: "1.15rem", fontWeight: 700, marginBottom: "16px" }}>Ghi nhận giao dịch mới</h2>
+    <div className="transaction-form-card quant-terminal-card">
+      <div className="tx-form-header">
+        <h2 className="tx-form-title">Ghi nhận giao dịch mới</h2>
+        <span className="tx-form-hint">Dữ liệu được lưu trữ trực tiếp vào sổ cái bất biến FIFO</span>
+      </div>
 
       {error && (
-        <div role="alert" style={{ marginBottom: "16px", padding: "10px 14px", background: "var(--color-down-bg)", border: "1px solid var(--color-down-border)", borderRadius: "6px", color: "var(--color-down)", fontSize: "0.9rem" }}>
+        <div role="alert" className="tx-form-error-banner">
           {error}
         </div>
       )}
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="tx-form-body">
         {/* Type tabs */}
-        <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+        <div className="tx-type-tabs" role="tablist" aria-label="Loại giao dịch">
           {(["BUY", "SELL", "DEPOSIT", "WITHDRAW"] as const).map((t) => {
             const labels = {
               BUY: "MUA CỔ PHIẾU",
@@ -135,16 +138,7 @@ export function TransactionForm({ portfolioId, onSuccess }: TransactionFormProps
                   setType(t);
                   setError(null);
                 }}
-                style={{
-                  padding: "8px 16px",
-                  borderRadius: "6px",
-                  border: active ? "1px solid var(--color-accent)" : "1px solid var(--border-color)",
-                  background: active ? "var(--color-accent-bg)" : "transparent",
-                  color: active ? "var(--color-accent)" : "var(--text-secondary)",
-                  fontWeight: active ? 700 : 500,
-                  cursor: "pointer",
-                  fontSize: "0.85rem",
-                }}
+                className={`tx-type-tab-btn ${t.toLowerCase()} ${active ? "active" : ""}`}
               >
                 {labels[t]}
               </button>
@@ -152,24 +146,26 @@ export function TransactionForm({ portfolioId, onSuccess }: TransactionFormProps
           })}
         </div>
 
-        {/* Inputs */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px", marginBottom: "16px" }}>
+        {/* Inputs Grid */}
+        <div className="tx-inputs-grid">
           {(type === "BUY" || type === "SELL") && (
             <>
-              <div>
-                <label style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>Mã cổ phiếu</label>
+              <div className="tx-field-group">
+                <label htmlFor="tx-input-symbol" className="tx-field-lbl">Mã cổ phiếu</label>
                 <input
+                  id="tx-input-symbol"
                   type="text"
                   placeholder="VD: FPT, VNM, HPG"
                   value={symbol}
                   onChange={(e) => setSymbol(e.target.value.toUpperCase())}
                   required
-                  style={{ width: "100%", padding: "8px 12px", background: "var(--bg-main)", border: "1px solid var(--border-color)", borderRadius: "6px", color: "var(--text-primary)" }}
+                  className="tx-field-input font-mono uppercase"
                 />
               </div>
-              <div>
-                <label style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>Khối lượng</label>
+              <div className="tx-field-group">
+                <label htmlFor="tx-input-quantity" className="tx-field-lbl">Khối lượng</label>
                 <input
+                  id="tx-input-quantity"
                   type="number"
                   placeholder="Số lượng"
                   value={quantity}
@@ -177,78 +173,76 @@ export function TransactionForm({ portfolioId, onSuccess }: TransactionFormProps
                   min="1"
                   step="1"
                   required
-                  style={{ width: "100%", padding: "8px 12px", background: "var(--bg-main)", border: "1px solid var(--border-color)", borderRadius: "6px", color: "var(--text-primary)" }}
+                  className="tx-field-input font-mono"
                 />
               </div>
-              <div>
-                <label style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>Giá khớp (VNĐ)</label>
+              <div className="tx-field-group">
+                <label htmlFor="tx-input-price" className="tx-field-lbl">Giá khớp (VNĐ)</label>
                 <input
+                  id="tx-input-price"
                   type="number"
-                  placeholder="Giá"
+                  placeholder="Giá khớp"
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
                   min="0"
                   step="100"
                   required
-                  style={{ width: "100%", padding: "8px 12px", background: "var(--bg-main)", border: "1px solid var(--border-color)", borderRadius: "6px", color: "var(--text-primary)" }}
+                  className="tx-field-input font-mono"
                 />
               </div>
-              <div>
-                <label style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>Phí giao dịch (VNĐ)</label>
+              <div className="tx-field-group">
+                <label htmlFor="tx-input-fee" className="tx-field-lbl">Phí giao dịch (VNĐ)</label>
                 <input
+                  id="tx-input-fee"
                   type="number"
-                  placeholder="Phí"
+                  placeholder="Phí giao dịch"
                   value={fee}
                   onChange={(e) => setFee(e.target.value)}
                   min="0"
-                  style={{ width: "100%", padding: "8px 12px", background: "var(--bg-main)", border: "1px solid var(--border-color)", borderRadius: "6px", color: "var(--text-primary)" }}
+                  className="tx-field-input font-mono"
                 />
               </div>
             </>
           )}
 
           {(type === "DEPOSIT" || type === "WITHDRAW") && (
-            <div>
-              <label style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>Số tiền (VNĐ)</label>
+            <div className="tx-field-group">
+              <label htmlFor="tx-input-amount" className="tx-field-lbl">Số tiền (VNĐ)</label>
               <input
+                id="tx-input-amount"
                 type="number"
-                placeholder="Nhập số tiền"
+                placeholder="Nhập số tiền giao dịch"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 min="1"
                 required
-                style={{ width: "100%", padding: "8px 12px", background: "var(--bg-main)", border: "1px solid var(--border-color)", borderRadius: "6px", color: "var(--text-primary)" }}
+                className="tx-field-input font-mono"
               />
             </div>
           )}
 
-          <div>
-            <label style={{ fontSize: "0.8rem", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>Thời gian khớp lệnh</label>
+          <div className="tx-field-group">
+            <label htmlFor="tx-input-executed-at" className="tx-field-lbl">Thời gian khớp lệnh</label>
             <input
+              id="tx-input-executed-at"
               type="datetime-local"
               value={executedAt}
               onChange={(e) => setExecutedAt(e.target.value)}
               required
-              style={{ width: "100%", padding: "8px 12px", background: "var(--bg-main)", border: "1px solid var(--border-color)", borderRadius: "6px", color: "var(--text-primary)" }}
+              className="tx-field-input font-mono"
             />
           </div>
         </div>
 
-        <button
-          type="submit"
-          disabled={submitting}
-          style={{
-            padding: "10px 24px",
-            background: type === "BUY" || type === "DEPOSIT" ? "var(--color-up)" : "var(--color-accent)",
-            color: "#0a0e17",
-            fontWeight: 700,
-            border: "none",
-            borderRadius: "6px",
-            cursor: "pointer",
-          }}
-        >
-          {submitting ? "Đang ghi nhận..." : `Xác nhận ${type === "BUY" ? "Mua" : type === "SELL" ? "Bán" : type === "DEPOSIT" ? "Nạp tiền" : "Rút tiền"}`}
-        </button>
+        <div className="tx-form-footer">
+          <button
+            type="submit"
+            disabled={submitting}
+            className={`btn-tx-submit ${type.toLowerCase()}`}
+          >
+            {submitting ? "Đang ghi nhận..." : `Xác nhận ${type === "BUY" ? "Mua" : type === "SELL" ? "Bán" : type === "DEPOSIT" ? "Nạp tiền" : "Rút tiền"}`}
+          </button>
+        </div>
       </form>
     </div>
   );

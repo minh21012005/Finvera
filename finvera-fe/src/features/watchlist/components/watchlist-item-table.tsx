@@ -9,9 +9,9 @@ interface WatchlistItemTableProps {
 export function WatchlistItemTable({ items, onRemove }: WatchlistItemTableProps) {
   if (items.length === 0) {
     return (
-      <div style={{ padding: "32px", textAlign: "center", background: "var(--bg-card)", border: "1px solid var(--border-color)", borderRadius: "8px" }}>
-        <p style={{ color: "var(--text-secondary)", marginBottom: "8px" }}>Danh sách này chưa có mã cổ phiếu nào.</p>
-        <p style={{ fontSize: "0.9rem", color: "var(--text-muted)", margin: 0 }}>Hãy nhập mã cổ phiếu vào ô phía trên để bắt đầu theo dõi.</p>
+      <div className="portfolio-empty-state">
+        <p className="empty-title">Danh sách này chưa có mã cổ phiếu nào.</p>
+        <p className="empty-sub">Hãy nhập mã cổ phiếu vào ô phía trên để bắt đầu theo dõi.</p>
       </div>
     );
   }
@@ -34,23 +34,23 @@ export function WatchlistItemTable({ items, onRemove }: WatchlistItemTableProps)
 
   function renderTrend(trend: string | null, reasonCode: string | null) {
     if (reasonCode === "INSUFFICIENT_HISTORY" || !trend) {
-      return <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>Chưa đủ dữ liệu</span>;
+      return <span className="text-slate-500 text-xs font-mono">Chưa đủ dữ liệu</span>;
     }
     if (trend === "BULLISH") {
-      return <span style={{ color: "var(--color-up)", fontWeight: 600 }}>Tăng (Bullish)</span>;
+      return <span className="trend-tag trend-bullish font-semibold">Tăng (Bullish)</span>;
     }
     if (trend === "BEARISH") {
-      return <span style={{ color: "var(--color-down)", fontWeight: 600 }}>Giảm (Bearish)</span>;
+      return <span className="trend-tag trend-bearish font-semibold">Giảm (Bearish)</span>;
     }
-    return <span>{trend}</span>;
+    return <span className="font-mono text-xs">{trend}</span>;
   }
 
   function renderVolume(vol: string | null) {
-    if (!vol) return <span style={{ color: "var(--text-muted)" }}>—</span>;
-    if (vol === "NORMAL") return <span>Bình thường</span>;
-    if (vol === "HIGH_VOLUME") return <span style={{ fontWeight: 600 }}>Đột biến cao</span>;
-    if (vol === "LOW_VOLUME") return <span style={{ color: "var(--text-muted)" }}>Thấp</span>;
-    return <span>{vol}</span>;
+    if (!vol) return <span className="text-slate-600">—</span>;
+    if (vol === "NORMAL") return <span className="text-slate-300">Bình thường</span>;
+    if (vol === "HIGH_VOLUME") return <span className="vol-high font-bold text-amber-400">Đột biến cao</span>;
+    if (vol === "LOW_VOLUME") return <span className="vol-low text-slate-500">Thấp</span>;
+    return <span className="font-mono">{vol}</span>;
   }
 
   function renderSignal(hasSignal: boolean, dir: string | null, risk: string | null) {
@@ -58,39 +58,24 @@ export function WatchlistItemTable({ items, onRemove }: WatchlistItemTableProps)
       return (
         <span
           data-testid="no-signal-badge"
-          style={{
-            fontSize: "0.8rem",
-            padding: "3px 8px",
-            background: "var(--bg-main)",
-            border: "1px solid var(--border-color)",
-            borderRadius: "4px",
-            color: "var(--text-muted)",
-          }}
+          className="no-signal-badge"
         >
           Không có tín hiệu
         </span>
       );
     }
 
-    const dirColor = dir === "BULLISH" || dir === "BUY" ? "var(--color-up)" : "var(--color-down)";
-    const riskBadgeColor =
-      risk === "LOW" ? "var(--color-up)" : risk === "HIGH" ? "var(--color-down)" : "var(--color-warn)";
+    const dirClass = dir === "BULLISH" || dir === "BUY" ? "text-emerald-400" : "text-rose-400";
+    const riskClass =
+      risk === "LOW" ? "risk-low" : risk === "HIGH" ? "risk-high" : "risk-warn";
 
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-        <span style={{ color: dirColor, fontWeight: 700, fontSize: "0.9rem" }}>{dir}</span>
+      <div className="flex flex-col gap-1">
+        <span className={`font-mono font-extrabold text-sm ${dirClass}`}>{dir}</span>
         {risk && (
           <span
             data-testid="risk-badge"
-            style={{
-              fontSize: "0.75rem",
-              color: riskBadgeColor,
-              border: `1px solid ${riskBadgeColor}`,
-              borderRadius: "4px",
-              padding: "1px 6px",
-              display: "inline-block",
-              width: "fit-content",
-            }}
+            className={`risk-badge font-mono ${riskClass}`}
           >
             Rủi ro: {risk}
           </span>
@@ -100,28 +85,18 @@ export function WatchlistItemTable({ items, onRemove }: WatchlistItemTableProps)
   }
 
   return (
-    <div className="table-responsive" style={{ overflowX: "auto" }}>
-      <table
-        className="data-table"
-        style={{
-          width: "100%",
-          borderCollapse: "collapse",
-          fontSize: "0.95rem",
-          background: "var(--bg-card)",
-          border: "1px solid var(--border-color)",
-          borderRadius: "8px",
-        }}
-      >
+    <div className="port-table-wrap watchlist-table-wrap quant-terminal-card">
+      <table className="terminal-quant-table watchlist-table">
         <thead>
-          <tr style={{ borderBottom: "2px solid var(--border-color)", textAlign: "left" }}>
-            <th style={{ padding: "12px 16px" }}>Mã CK</th>
-            <th style={{ padding: "12px 16px" }}>Tên công ty</th>
-            <th style={{ padding: "12px 16px", textAlign: "right" }}>Giá hiện tại</th>
-            <th style={{ padding: "12px 16px", textAlign: "right" }}>Thay đổi</th>
-            <th style={{ padding: "12px 16px" }}>Xu hướng</th>
-            <th style={{ padding: "12px 16px" }}>Khối lượng</th>
-            <th style={{ padding: "12px 16px" }}>Tín hiệu & Rủi ro</th>
-            <th style={{ padding: "12px 16px", textAlign: "center" }}>Hành động</th>
+          <tr>
+            <th scope="col">Mã CK</th>
+            <th scope="col">Tên công ty</th>
+            <th scope="col" className="text-right">Giá hiện tại</th>
+            <th scope="col" className="text-right">Thay đổi</th>
+            <th scope="col">Xu hướng</th>
+            <th scope="col">Khối lượng</th>
+            <th scope="col">Tín hiệu & Rủi ro</th>
+            <th scope="col" className="text-center">Hành động</th>
           </tr>
         </thead>
         <tbody>
@@ -131,56 +106,35 @@ export function WatchlistItemTable({ items, onRemove }: WatchlistItemTableProps)
               <tr
                 key={item.symbol}
                 data-testid={`watchlist-row-${item.symbol}`}
-                style={{ borderBottom: "1px solid var(--border-color)" }}
+                className="quant-row"
               >
-                <td style={{ padding: "12px 16px", fontWeight: 700 }}>
+                <td>
                   <button
                     type="button"
                     onClick={() => navigate(`/stocks/${item.symbol}`)}
-                    style={{
-                      background: "transparent",
-                      border: "none",
-                      color: "var(--color-accent)",
-                      fontWeight: 700,
-                      cursor: "pointer",
-                      fontSize: "1rem",
-                      padding: 0,
-                    }}
+                    className="symbol-link font-mono font-extrabold text-cyan-400 hover:underline cursor-pointer"
                   >
                     {item.symbol}
                   </button>
                 </td>
-                <td style={{ padding: "12px 16px", color: "var(--text-secondary)" }}>{item.companyName}</td>
-                <td style={{ padding: "12px 16px", textAlign: "right", fontWeight: 600 }}>
+                <td className="company-name-cell font-semibold text-slate-200">{item.companyName}</td>
+                <td className="text-right font-mono font-bold text-slate-100">
                   {formatPrice(item.currentPrice)}
                 </td>
                 <td
-                  style={{
-                    padding: "12px 16px",
-                    textAlign: "right",
-                    fontWeight: 600,
-                    color: chg.sign === "up" ? "var(--color-up)" : chg.sign === "down" ? "var(--color-down)" : "inherit",
-                  }}
+                  className={`text-right font-mono font-bold ${chg.sign === "up" ? "text-emerald-400" : chg.sign === "down" ? "text-rose-400" : "text-slate-300"}`}
                 >
                   {chg.text}
                 </td>
-                <td style={{ padding: "12px 16px" }}>{renderTrend(item.technicalTrend, item.reasonCode)}</td>
-                <td style={{ padding: "12px 16px" }}>{renderVolume(item.volumeCondition)}</td>
-                <td style={{ padding: "12px 16px" }}>{renderSignal(item.hasCurrentSignal, item.signalDirection, item.riskLevel)}</td>
-                <td style={{ padding: "12px 16px", textAlign: "center" }}>
+                <td>{renderTrend(item.technicalTrend, item.reasonCode)}</td>
+                <td className="font-mono text-xs">{renderVolume(item.volumeCondition)}</td>
+                <td>{renderSignal(item.hasCurrentSignal, item.signalDirection, item.riskLevel)}</td>
+                <td className="text-center">
                   <button
                     type="button"
                     onClick={() => onRemove(item.symbol)}
                     aria-label={`Xóa ${item.symbol} khỏi danh sách`}
-                    style={{
-                      padding: "4px 10px",
-                      background: "transparent",
-                      border: "1px solid var(--border-color)",
-                      color: "var(--text-muted)",
-                      borderRadius: "4px",
-                      cursor: "pointer",
-                      fontSize: "0.8rem",
-                    }}
+                    className="btn-wl-remove-symbol"
                   >
                     Xóa
                   </button>
