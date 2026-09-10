@@ -34,8 +34,10 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures
+import heapq
 import itertools
 import json
+import math
 import os
 import sys
 import threading
@@ -43,6 +45,7 @@ import time
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import export_daily_bars
 import export_fundamentals
@@ -80,39 +83,6 @@ def say(message: str) -> None:
     """Progress from several workers, one line at a time."""
     with PRINT_LOCK:
         print(message, flush=True)
-
-
-class TokenBucket:
-    """Our own cap on provider calls per minute.
-
-    vnai keeps its own usage counters, but they are plain lists mutated from any calling thread
-    while `wait_for_quota` reads them, so a filter-and-reassign racing an append can *under*-count --
-    the dangerous direction for a limit whose breach is charged to the owner's account (specs/026
-    research R-003). This bucket is the guarantee; `wait_for_quota` stays as the second line.
-    """
-
-    def __init__(self, calls_per_minute: float) -> None:
-        self.capacity = max(1.0, float(calls_per_minute))
-        self.tokens = self.capacity
-        self.refill_per_second = self.capacity / 60.0
-        self.updated = time.monotonic()
-        self.lock = threading.Lock()
-
-    def take(self, count: int = 1, sleep=time.sleep) -> float:
-        """Block until `count` tokens are available. Returns the seconds waited."""
-        waited = 0.0
-        while True:
-            with self.lock:
-                now = time.monotonic()
-                self.tokens = min(self.capacity, self.tokens + (now - self.updated) * self.refill_per_second)
-                self.updated = now
-                if self.tokens >= count:
-                    self.tokens -= count
-                    return waited
-                shortfall = count - self.tokens
-                pause = min(5.0, max(0.05, shortfall / self.refill_per_second))
-            sleep(pause)
-            waited += pause
 
 
 def fetch_symbol_universe() -> list[str]:
@@ -290,15 +260,6 @@ def fundamentals_current(symbol: str, entry: dict[str, Any], args: argparse.Name
 
 
 # ── Provider quota pacing (Q-39) ─────────────────────────────────────────────
-# One symbol costs several provider calls. VCI statements (Feature 018) are three calls per
-# period (income statement, balance sheet, cash flow; 2-3 s each, no per-minute cap observed
-# on 2026-08-31), the KBS daily-bar pass is paced by vnai's 60/min window.
-# A fixed per-symbol sleep therefore cannot keep the run under the limit; vnai's own
-# retry (2 attempts, 1-2 s back-off) cannot either, and an exhausted retry surfaces as a
-# tenacity RetryError that used to be recorded as a permanent failure. We read vnai's
-# usage counters directly and wait for room BEFORE each dataset, and treat a rate-limit
-# failure as transient (retried after the window resets, and again on the next run).
-CALLS_PER_DATASET = {"daily_bars": 2, "fundamentals": 3, "fundamentals_annual": 3}
 TRANSIENT_FAILURE_NAMES = ("RetryError", "RateLimitExceeded", "NetworkError")
 # Feature 018 R-008: a dropped connection ("Connection aborted", ConnectionResetError 10054, read timeout...) is
 # not a fact about the symbol. vnstock surfaces it as a ValueError, which used to settle the dataset
@@ -324,34 +285,6 @@ RECHECK_DAYS_BY_FAILURE = {
     "InsufficientSessions": INSUFFICIENT_SESSIONS_RECHECK_DAYS,
 }
 UNAVAILABLE_FAILURE_NAMES = tuple(RECHECK_DAYS_BY_FAILURE)
-MAX_QUOTA_WAIT_SECONDS = 65.0
-# Set in main() once the worker count is known; None keeps the serial behaviour exactly.
-CALL_BUCKET: "TokenBucket | None" = None
-
-
-def quota_status() -> dict[str, Any] | None:
-    """vnai's minute window {usage, limit, remaining, reset_in_seconds}, or None when unavailable."""
-    try:
-        from vnai.beam.quota import guardian
-        return guardian.get_limit_status().get("minute_limit")
-    except Exception:  # noqa: BLE001 -- pacing must never break the export
-        return None
-
-
-def wait_for_quota(needed: int, status=quota_status, sleep=time.sleep, log=print) -> float:
-    """Block until the provider minute window has room for `needed` calls. Returns seconds waited."""
-    waited = 0.0
-    while True:
-        window = status()
-        if window is None or window.get("remaining", needed) >= needed:
-            return waited
-        pause = min(MAX_QUOTA_WAIT_SECONDS, max(1.0, float(window.get("reset_in_seconds", 5)) + 0.5))
-        if waited == 0.0:
-            log(f"  quota: {window.get('usage')}/{window.get('limit')} used, need {needed}; waiting {pause:.0f}s")
-        sleep(pause)
-        waited += pause
-
-
 def is_unavailable_failure(value: str) -> bool:
     return any(value == f"failed:{name}" for name in UNAVAILABLE_FAILURE_NAMES)
 
@@ -394,142 +327,200 @@ def is_transient_failure(value: Any) -> bool:
 
 
 def run_dataset(entry: dict[str, Any], key: str, label: str, action, on_success, on_failure) -> None:
-    """Run one dataset export with quota pacing; a rate-limit failure is retried once after the window resets."""
-    rate_limit_retried = False
-    network_retries = 0
-    while True:
-        if CALL_BUCKET is not None:
-            CALL_BUCKET.take(CALLS_PER_DATASET[key])
-        wait_for_quota(CALLS_PER_DATASET[key])
-        try:
-            action()
-            on_success()
-            entry.pop(f"{key}_failed_tool_version", None)
-            print(f"  {label}: OK")
-            return
-        except (Exception, SystemExit) as exc:  # noqa: BLE001 -- one bad symbol must not stop the batch
-            # vnai ends its rate-limit handling with sys.exit("Rate limit exceeded ..."), which is a
-            # SystemExit (not an Exception) and would otherwise terminate the whole export.
-            if isinstance(exc, SystemExit) and "rate limit" not in str(exc).lower():
-                raise
-            name = classify_failure(exc)
-            if name == "NetworkError" and network_retries < len(NETWORK_RETRY_WAITS_SECONDS):
-                pause = NETWORK_RETRY_WAITS_SECONDS[network_retries]
-                network_retries += 1
-                print(f"  {label}: connection dropped ({type(exc).__name__}), retrying in {pause:.0f}s")
-                time.sleep(pause)
-                continue
-            if name in TRANSIENT_FAILURE_NAMES and name != "NetworkError" and not rate_limit_retried:
-                # The provider enforces the limit server-side; the local counter can lag it, so
-                # wait a full window (not just the remainder of this one) before the retry.
-                rate_limit_retried = True
-                print(f"  {label}: rate-limited, retrying in {MAX_QUOTA_WAIT_SECONDS:.0f}s")
-                time.sleep(MAX_QUOTA_WAIT_SECONDS)
-                continue
-            entry[key] = f"failed:{name}"
-            entry[f"{key}_checked_at"] = date.today().isoformat()
-            # Feature 018 R-008: a settled failure belongs to the exporter version that produced it; a failure
-            # recorded by an older version (or before this field existed) is retried once.
-            entry[f"{key}_failed_tool_version"] = failure_tool_version(key)
-            on_failure()
-            if name in UNAVAILABLE_FAILURE_NAMES:
-                print(f"  {label}: UNAVAILABLE at provider ({name}); "
-                      f"re-checked after {RECHECK_DAYS_BY_FAILURE[name]} days")
-            else:
-                print(f"  {label}: FAILED ({name})")
-            return
+    """Gọi dataset một lượt; SDK không retry lồng, queue tối đa ba lượt."""
+    try:
+        action()
+    except (Exception, SystemExit) as exc:
+        if isinstance(exc, SystemExit) and "rate limit" not in str(exc).lower():
+            raise
+        if (isinstance(exc, OSError) and not is_network_failure(exc)
+                and not provider_retry.is_provider_http_failure(exc)):
+            raise  # Lỗi ghi đĩa không phải dữ liệu thiếu.
+        name = classify_failure(exc)
+        entry[key] = f"failed:{name}"
+        entry[f"{key}_checked_at"] = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")).date().isoformat()
+        entry[f"{key}_failed_tool_version"] = failure_tool_version(key)
+        on_failure()
+        if is_transient_failure(entry[key]):
+            attempt = entry.get(f"{key}_retry_attempts", 0) + 1
+            entry[f"{key}_retry_attempts"] = attempt
+            if attempt >= provider_retry.MAX_DATASET_ATTEMPTS:
+                entry.pop(f"{key}_next_retry_at", None)
+                say(f"{label}: EXHAUSTED reason={name} rounds={attempt}; retry_next_refresh=true")
+                return
+            entry[f"{key}_next_retry_at"] = time.time() + provider_retry.RETRY_WAIT_SECONDS
+            say(f"{label}: WAITING reason={name} round={attempt} retry_at={entry[f'{key}_next_retry_at']:.0f}")
+        else:
+            entry.pop(f"{key}_next_retry_at", None)
+            say(f"{label}: {'UNAVAILABLE' if name in UNAVAILABLE_FAILURE_NAMES else 'FAILED'} reason={name}")
+        return
+    on_success()
+    for suffix in ("failed_tool_version", "retry_attempts", "next_retry_at", "retry_window", "checked_at"):
+        entry.pop(f"{key}_{suffix}", None)
+    say(f"{label}: OK")
 
 
-def process_symbol(
-    symbol: str, args: argparse.Namespace, checkpoint: dict[str, Any], checkpoint_path: Path
-) -> None:
-    entry = checkpoint["symbols"].setdefault(symbol, {})
+DATASETS = ("daily_bars", "fundamentals", "fundamentals_annual")
 
-    if not daily_bars_current(symbol, entry, args):
-        def bars_ok():
-            entry["daily_bars"] = DONE
+
+def settled_failure(entry, key, args):
+    """Một quy tắc chung cho skip và hoàn tất, kể cả dataset thiếu dữ liệu."""
+    value = str(entry.get(key, ""))
+    if not value.startswith("failed") or is_transient_failure(value):
+        return False
+    if entry.get(f"{key}_failed_tool_version") != failure_tool_version(key):
+        return False
+    if is_unavailable_failure(value):
+        return not recheck_due(str(entry.get(f"{key}_checked_at", "")),
+                               date.fromisoformat(args.end), recheck_days_for(value))
+    return True
+
+
+def dataset_current(symbol, entry, key, args):
+    if key == "fundamentals_annual" and args.period == ANNUAL_PERIOD:
+        return True
+    current = {"daily_bars": daily_bars_current, "fundamentals": fundamentals_current,
+               "fundamentals_annual": fundamentals_annual_current}[key]
+    return current(symbol, entry, args) or settled_failure(entry, key, args)
+
+
+def process_dataset(symbol, key, entry, args):
+    """Worker chỉ sửa bản sao dataset; luồng điều phối ghi checkpoint."""
+    if key == "daily_bars":
+        def success():
+            entry[key] = DONE
             entry["daily_bars_range"] = [args.start, args.end]
-        run_dataset(entry, "daily_bars", "daily_bars",
-                    lambda: export_daily_bars_for(symbol, args.start, args.end, args.output, args.lookback_days, args.full_refresh),
-                    bars_ok, lambda: entry.pop("daily_bars_range", None))
-        save_checkpoint(checkpoint_path, checkpoint)
+        action = lambda: export_daily_bars_for(symbol, args.start, args.end, args.output,
+                                               args.lookback_days, args.full_refresh)
+        failure = lambda: entry.pop("daily_bars_range", None)
+    else:
+        period = ANNUAL_PERIOD if key == "fundamentals_annual" else args.period
+        action = lambda: export_fundamentals_for(symbol, period, args.unit_scale, args.output)
+        def success():
+            entry[key] = DONE
+            if key == "fundamentals":
+                entry["fundamentals_period"] = args.period
+        failure = lambda: entry.pop("fundamentals_period", None) if key == "fundamentals" else None
+    run_dataset(entry, key, f"symbol={symbol} dataset={key}", action, success, failure)
+    return entry
 
-    if not fundamentals_current(symbol, entry, args):
-        def fundamentals_ok():
-            entry["fundamentals"] = DONE
-            entry["fundamentals_period"] = args.period
-        run_dataset(entry, "fundamentals", "fundamentals",
-                    lambda: export_fundamentals_for(symbol, args.period, args.unit_scale, args.output),
-                    fundamentals_ok, lambda: entry.pop("fundamentals_period", None))
-        save_checkpoint(checkpoint_path, checkpoint)
 
-    if args.period != ANNUAL_PERIOD and not fundamentals_annual_current(symbol, entry, args):
-        run_dataset(entry, "fundamentals_annual", "fundamentals(annual)",
-                    lambda: export_fundamentals_for(symbol, ANNUAL_PERIOD, args.unit_scale, args.output),
-                    lambda: entry.__setitem__("fundamentals_annual", DONE), lambda: None)
+def run_queue(symbols, args, checkpoint, checkpoint_path, clock=None, sleep=None, worker=None):
+    """Queue hữu hạn; lỗi hết ngân sách vẫn giữ transient cho đợt sau."""
+    clock, sleep = clock or time.time, sleep or time.sleep
+    worker = worker or process_dataset
+    window = [args.start, args.end, args.period, bool(args.full_refresh),
+              args.lookback_days, args.unit_scale]
+    resuming = checkpoint.get("runWindow") == window and checkpoint.get("status") in {"RUNNING", "WAITING"}
+    checkpoint["runWindow"] = window
+    queue, sequence = [], itertools.count()
+    counts = {"done": 0, "unavailable": 0, "failed": 0}
+    for symbol in symbols:
+        entry = checkpoint["symbols"].setdefault(symbol, {})
+        for key in DATASETS:
+            if key == "fundamentals_annual" and args.period == ANNUAL_PERIOD:
+                continue
+            if dataset_current(symbol, entry, key, args) or (resuming and acknowledged(symbol, key, entry, args, window)):
+                state = entry.get(key)
+                counts["done" if state == DONE else "unavailable" if is_unavailable_failure(state) else "failed"] += 1
+                continue
+            if not resuming or entry.get(f"{key}_retry_window") != window:
+                entry.pop(f"{key}_next_retry_at", None)
+                entry.pop(f"{key}_retry_attempts", None)
+            if is_transient_failure(entry.get(key)) and entry.get(f"{key}_retry_attempts", 0) >= provider_retry.MAX_DATASET_ATTEMPTS:
+                entry.pop(f"{key}_next_retry_at", None)
+                counts["failed"] += 1
+                continue
+            # Không giữ cooldown dài của bản cũ sau khi nâng sang lịch 2 phút.
+            due = min(entry.get(f"{key}_next_retry_at", 0), clock() + provider_retry.RETRY_WAIT_SECONDS)
+            if f"{key}_next_retry_at" in entry:
+                entry[f"{key}_next_retry_at"] = due
+            heapq.heappush(queue, (due, next(sequence), symbol, key))
+    running = {}
+    total_symbols = len(set(symbols))
+
+    def progress():
+        # Mã chỉ xong khi không còn dataset chạy hoặc đang chờ retry.
+        remaining = {item[2] for item in queue} | {symbol for symbol, _ in running.values()}
+        completed = sum(counts.values())
+        total_datasets = completed + len(queue) + len(running)
+        return (f"symbols={total_symbols - len(remaining)}/{total_symbols} "
+                f"symbols_remaining={len(remaining)} datasets={completed}/{total_datasets}")
+
+    last_heartbeat = -float("inf")
+    pool = concurrent.futures.ThreadPoolExecutor(max_workers=args.workers, thread_name_prefix="dataset")
+    try:
+        while queue or running:
+            while queue and len(running) < args.workers and queue[0][0] <= clock():
+                _, _, symbol, key = heapq.heappop(queue)
+                entry = dict(checkpoint["symbols"][symbol])
+                entry[f"{key}_retry_window"] = window
+                future = pool.submit(worker, symbol, key, entry, args)
+                running[future] = (symbol, key)
+            finished = [f for f in running if f.done()]
+            for future in finished:
+                symbol, key = running.pop(future)
+                result = future.result()
+                entry = checkpoint["symbols"][symbol]
+                # Chỉ merge namespace dataset: hai worker cùng mã không ghi đè nhau.
+                for field in list(entry):
+                    if field == key or field.startswith(key + "_"):
+                        if key == "fundamentals" and field.startswith("fundamentals_annual"):
+                            continue
+                        del entry[field]
+                for field, value in result.items():
+                    if field == key or field.startswith(key + "_"):
+                        if key == "fundamentals" and field.startswith("fundamentals_annual"):
+                            continue
+                        entry[field] = value
+                state = entry.get(key)
+                if is_transient_failure(state) and entry.get(f"{key}_retry_attempts", 0) < provider_retry.MAX_DATASET_ATTEMPTS:
+                    heapq.heappush(queue, (entry[f"{key}_next_retry_at"], next(sequence), symbol, key))
+                else:
+                    entry.pop(f"{key}_next_retry_at", None)
+                    entry[f"{key}_completed_window"] = window
+                    counts["done" if state == DONE else "unavailable" if is_unavailable_failure(state) else "failed"] += 1
+                checkpoint["status"] = "RUNNING"
+                save_checkpoint(checkpoint_path, checkpoint)
+            if clock() - last_heartbeat >= 30:
+                checkpoint["status"] = "RUNNING" if running else "WAITING"
+                say(f"status={checkpoint['status']} {progress()} done={counts['done']} unavailable={counts['unavailable']} "
+                    f"failed={counts['failed']} running={len(running)} pending={len(queue)} "
+                    f"next_retry_at={queue[0][0] if queue else 0:.0f}")
+                save_checkpoint(checkpoint_path, checkpoint)
+                last_heartbeat = clock()
+            if running:
+                concurrent.futures.wait(running, timeout=0.2, return_when=concurrent.futures.FIRST_COMPLETED)
+            elif queue:
+                sleep(min(30, max(0.01, queue[0][0] - clock())))
+        checkpoint["status"] = "PARTIAL" if counts["unavailable"] or counts["failed"] else "COMPLETE"
+        checkpoint["summary"] = counts
         save_checkpoint(checkpoint_path, checkpoint)
+        say(f"status={checkpoint['status']} {progress()} done={counts['done']} unavailable={counts['unavailable']} failed={counts['failed']} pending=0")
+    finally:
+        pool.shutdown(wait=True, cancel_futures=True)
+
+
+def acknowledged(symbol, key, entry, args, window):
+    """Resume cùng đợt: full-refresh/BCTC cũ đã fetch không cần tải lần nữa."""
+    if entry.get(key) != DONE or entry.get(f"{key}_completed_window") != window:
+        return False
+    name = (export_daily_bars.output_filename(symbol) if key == "daily_bars" else
+            export_fundamentals.output_filename(symbol, ANNUAL_PERIOD if key == "fundamentals_annual" else args.period))
+    try:
+        package = json.loads((args.output / name).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    if not package.get("records") or package.get("toolVersion") != failure_tool_version(key):
+        return False
+    if key == "daily_bars":
+        return package.get("rangeStart", "9999") <= args.start and package.get("rangeEnd", "") >= args.end
+    return True
 
 
 def is_finished(symbol: str, entry: dict[str, Any], args: argparse.Namespace) -> bool:
-    """A symbol counts as finished once each dataset is current for this run's parameters, or has
-    failed -- failures are recorded, not silently retried forever (without --retry-failed), so the
-    run still terminates on symbols Vnstock genuinely cannot serve (e.g. some banks' fundamentals
-    shape differs, per research.md G-01), rather than retrying them every single run."""
-    def settled_failure(key: str) -> bool:
-        value = str(entry.get(key, ""))
-        # Q-39: a rate-limit failure is transient and is always retried on the next run.
-        if not value.startswith("failed") or is_transient_failure(value):
-            return False
-        # Feature 018 R-008: a failure recorded by an older exporter version (or before the version was recorded)
-        # is not evidence about this version -- retry it once, then it settles with the version.
-        if entry.get(f"{key}_failed_tool_version") != failure_tool_version(key):
-            return False
-        # Feature 018: provider-unavailable statements are re-checked once the recheck window passed.
-        if is_unavailable_failure(value):
-            return not recheck_due(str(entry.get(f"{key}_checked_at", "")),
-                                   date.fromisoformat(args.end), recheck_days_for(value))
-        return True
-
-    daily_bars_settled = daily_bars_current(symbol, entry, args) or settled_failure("daily_bars")
-    fundamentals_settled = fundamentals_current(symbol, entry, args) or settled_failure("fundamentals")
-    annual_settled = (args.period == ANNUAL_PERIOD
-                      or fundamentals_annual_current(symbol, entry, args)
-                      or settled_failure("fundamentals_annual"))
-    return daily_bars_settled and fundamentals_settled and annual_settled
-
-
-def run_symbols(symbols, args, checkpoint, checkpoint_path, interval_seconds, label="") -> None:
-    """Process symbols, `--workers` at a time.
-
-    Concurrency changes when work happens, not what is written: each symbol reads and writes its own
-    package files, the checkpoint is keyed by symbol and guarded, and the end-of-run transient pass
-    iterates a list, so nothing depends on completion order (specs/026 research R-004).
-    `--workers 1` reproduces the previous serial order and, at default settings, its pacing --
-    see `--workers`'s own help text for the one narrow case where it does not.
-    """
-    total = len(symbols)
-    prefix = f"{label} " if label else ""
-    done = itertools.count(1)
-
-    def one(symbol: str) -> None:
-        index = next(done)
-        say(f"[{prefix}{index}/{total}] {symbol}")
-        process_symbol(symbol, args, checkpoint, checkpoint_path)
-
-    if args.workers <= 1:
-        for position, symbol in enumerate(symbols, start=1):
-            one(symbol)
-            if position < total:
-                time.sleep(interval_seconds)
-        return
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers,
-                                               thread_name_prefix="crawl") as pool:
-        futures = [pool.submit(one, symbol) for symbol in symbols]
-        for future in concurrent.futures.as_completed(futures):
-            # process_symbol records its own per-symbol failures; anything escaping it is a bug in
-            # this file, and must not be swallowed into a silently short crawl.
-            future.result()
+    """Hoàn tất khi từng dataset có kết quả hoặc thiếu dữ liệu đã được ghi rõ."""
+    return all(dataset_current(symbol, entry, key, args) for key in DATASETS)
 
 
 def main() -> int:
@@ -561,27 +552,15 @@ def main() -> int:
     parser.add_argument("--period", choices=("year", "quarter"), default="quarter")
     parser.add_argument("--unit-scale", type=int, default=1)
     parser.add_argument("--requests-per-minute", type=float, default=30.0,
-                         help="Pace between symbols (each symbol issues ~4 requests: 1 OHLCV + "
-                              "3 fundamentals calls, all back-to-back, then this pause). Only takes "
-                              "effect with --workers 1 -- with the default --workers 5, pacing comes "
-                              "entirely from --max-calls-per-minute's token bucket instead, and this "
-                              "flag is ignored.")
+                        help="Legacy option; HTTP pacing uses --max-calls-per-minute.")
     parser.add_argument("--max-symbols", type=int, default=None,
                          help="Process at most this many remaining symbols this run -- do a small "
                               "bounded run first (e.g. 5) before letting this run unattended for hours.")
     parser.add_argument("--output", type=Path, default=Path("output"))
     parser.add_argument("--workers", type=int, default=5,
-                        help="How many symbols to fetch at once (default 5). The run is latency-bound, "
-                             "not quota-bound: measured 2026-09-06 it used 7.3 of 60 allowed calls per "
-                             "minute. --workers 1 reproduces the old strictly-serial ORDER and pacing "
-                             "for default settings; note that --max-calls-per-minute's token bucket is "
-                             "created either way, so with --workers 1 plus an aggressively raised "
-                             "--requests-per-minute it now also caps at that ceiling, which the old code "
-                             "did not enforce in serial mode.")
+                        help="Maximum concurrent datasets (default 5).")
     parser.add_argument("--max-calls-per-minute", type=float, default=40.0,
-                        help="Our own ceiling on provider calls per minute across all workers, kept "
-                             "below the provider's 60 (specs/026 R-003: vnai's own counter can "
-                             "under-count under concurrency, so it cannot be the guarantee).")
+                        help="Pacing attempts SDK, gồm retry; không phải số HTTP chính xác (mặc định 40).")
     parser.add_argument("--retry-failed", action="store_true",
                          help="Clear previously recorded failures so this run retries them instead "
                               "of treating them as finished (use after a transient outage; a symbol "
@@ -589,8 +568,16 @@ def main() -> int:
                               "shape, will just fail again).")
     args = parser.parse_args()
     if args.end is None:
-        args.end = datetime.now().date().isoformat()
+        args.end = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")).date().isoformat()
 
+    if args.workers < 1 or any(not math.isfinite(n) or n <= 0 for n in
+                              (args.max_calls_per_minute, args.requests_per_minute)):
+        parser.error("workers và tốc độ phải dương")
+    if args.max_symbols is not None and args.max_symbols < 1:
+        parser.error("max-symbols phải dương")
+    if date.fromisoformat(args.start) > date.fromisoformat(args.end) or args.lookback_days < 0:
+        parser.error("cửa sổ ngày/lookback không hợp lệ")
+    provider_retry.install(args.max_calls_per_minute)
     args.output.mkdir(parents=True, exist_ok=True)
     checkpoint_path = args.output / CHECKPOINT_FILE
     checkpoint = load_checkpoint(checkpoint_path)
@@ -612,40 +599,9 @@ def main() -> int:
     if args.max_symbols is not None:
         remaining = remaining[: args.max_symbols]
         print(f"Bounded to {len(remaining)} symbols this run (--max-symbols).")
+    scope = universe if args.max_symbols is None else remaining
+    run_queue(scope, args, checkpoint, checkpoint_path)
 
-    if not remaining:
-        print("Nothing left to do -- every symbol already has a recorded outcome. Stopping.")
-        return 0
-
-    interval_seconds = 60.0 / args.requests_per_minute
-    global CALL_BUCKET
-    CALL_BUCKET = TokenBucket(args.max_calls_per_minute)
-    run_symbols(remaining, args, checkpoint, checkpoint_path, interval_seconds)
-
-    # Q-39: one more pass over symbols whose only problem was the rate limit, so a run
-    # normally finishes clean instead of leaving them for the next run.
-    transient = [s for s in remaining if any(is_transient_failure(checkpoint["symbols"].get(s, {}).get(k))
-                                             for k in ("daily_bars", "fundamentals", "fundamentals_annual"))]
-    if transient:
-        print()
-        print(f"Retrying {len(transient)} rate-limited symbols after a full window...")
-        time.sleep(MAX_QUOTA_WAIT_SECONDS)
-        for symbol in transient:
-            entry = checkpoint["symbols"][symbol]
-            for key in ("daily_bars", "fundamentals", "fundamentals_annual"):
-                if is_transient_failure(entry.get(key)):
-                    del entry[key]
-        run_symbols(transient, args, checkpoint, checkpoint_path, interval_seconds, label="retry")
-
-    done_count = sum(1 for s, e in checkpoint["symbols"].items() if is_finished(s, e, args))
-    failed_count = sum(
-        1 for e in checkpoint["symbols"].values()
-        if str(e.get("daily_bars", "")).startswith("failed") or str(e.get("fundamentals", "")).startswith("failed")
-    )
-    print(f"\nDone this run. Checkpoint total attempted: {done_count}/{len(universe)}. "
-          f"Symbols with at least one failed dataset: {failed_count} (see {checkpoint_path}).")
-    print("Run the exact same command again to resume/retry remaining or failed symbols; "
-          "it exits immediately once nothing is left.")
     return 0
 
 

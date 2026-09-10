@@ -1,5 +1,86 @@
 # Feature 026: Refresh that finishes by itself
 
+## Ngày kết thúc do người chạy chọn — đã duyệt
+
+FR-021: `refresh-data.ps1 -EndDate YYYY-MM-DD` nhận ngày kết thúc để truyền
+cùng giá trị xuống `--end` của giá cổ phiếu và chỉ số. Không truyền cờ thì
+giữ mặc định hôm nay theo giờ Việt Nam. Ngày sai định dạng/không tồn tại hoặc
+trước 2019-01-01 bị từ chối trước crawl. Resume dùng ngày hiệu lực này.
+Không tự đổi cuối tuần/ngày nghỉ hay kiểm tra dữ liệu final của provider.
+Các đề xuất FR-017–020/DATA-002/NFR-006 bị hủy theo yêu cầu chủ sở hữu;
+không triển khai calendar, grace, publication pending hoặc đối soát tự động.
+Nghiệm thu: ngày rõ ràng đến đúng hai exporter; bỏ cờ giữ mặc định; ngày
+khác làm runKey khác; cùng ngày giữ skip/resume hiện tại.
+
+FR-016: heartbeat crawl hiển thị số mã đã xử lý/tổng mã trong phạm vi đợt,
+số mã còn lại và tiến độ dataset. Mã còn dataset chạy/chờ retry chưa tính
+xử lý xong; mã hết ngân sách được tính xong nhưng giữ thống kê thiếu/lỗi.
+
+## Sửa sau rà soát được duyệt — 2026-09-10
+
+FR-009/FR-014: HTTP 4xx không retry (trừ 408/429) phải được ghi nhận riêng
+cho dataset, không làm dừng queue; lỗi filesystem vẫn phải báo thất bại.
+FR-015: tuổi cache shares tính từ lúc fetch thành công từng mã, không từ lúc
+đóng gói lại; thiếu provenance thì fetch lại một lần. Không đổi hợp đồng import.
+NFR-005: hồ sơ mặc định 5 worker, giới hạn theo --workers; dùng pacing SDK, không sleep
+riêng từng mã. Mỗi mã tối đa 3 lượt; không tạo task trùng cho mã trùng universe.
+Nghiệm thu: 403/404 không dừng mã khác; PermissionError vẫn thoát; đóng gói
+lại không gia hạn cache; kiểm tra overlap worker và không vượt số worker.
+
+## Giới hạn thời gian chờ được duyệt — 2026-09-10
+
+Thay thế yêu cầu chờ tới khi phục hồi ở FR-009/FR-014: mỗi dataset tối đa
+3 lượt trong một đợt (lượt đầu + 2 lượt quay lại, nghỉ 120 giây). Theo yêu cầu
+mới nhất, SDK chỉ gọi 1 lần mỗi lượt, không retry lồng thành 6 lần.
+Hết ngân sách ghi lỗi transient còn thiếu, kết thúc
+PARTIAL và chuyển import phần có sẵn; không biến lỗi mạng thành lỗi vĩnh viễn.
+Đợt refresh kế tiếp tự mở ngân sách mới, không cần --retry-failed. Resume
+đợt bị gián đoạn giữ số lượt đã dùng. Bootstrap bắt buộc cũng tối đa 3 lượt;
+không lấy được prerequisite thì báo thất bại rõ ràng, không import giả thành công.
+Hồ sơ công ty từng mã hết ngân sách được đánh dấu thiếu và tiếp tục mã khác.
+Nghiệm thu: outage vĩnh viễn kết thúc, đúng 3 lượt, giữ file cũ, lần refresh
+sau tự thử lại; bootstrap và profile không chờ vô hạn.
+
+## Thu gọn được chủ sở hữu duyệt — 2026-09-10
+
+Thay thế phần thiết kế phức tạp bên dưới: giữ queue/checkpoint cấp dataset,
+skip phần thành công, ngày cố định và bootstrap tự chờ. Mỗi lời gọi adapter
+SDK chỉ tối đa hai attempts, không retry nhanh thêm ở exporter. Phần lỗi tự
+thử lại sau 2 phút; không backoff 30 phút, circuit hay request thăm dò.
+**FR-011 được rút khỏi phạm vi**. **FR-010** dùng lịch cố định 2 phút.
+**NFR-004 được sửa** thành pacing attempts tại adapter SDK và giữ quota vnai;
+không tuyên bố giới hạn chính xác số HTTP request (constructor SDK có gọi phụ).
+Không thay requests.Session, timeout, redirects hoặc xử lý response của SDK.
+
+## Bổ sung được chủ sở hữu duyệt — 2026-09-10
+
+Các yêu cầu dưới đây thay thế hành vi dừng sau lỗi mạng tại FR-002,
+SC-1/SC-5 và kịch bản 1–2 cũ. Không thay đổi hợp đồng dữ liệu.
+
+- **FR-009** Refresh MUST tự chờ và thử lại dataset lỗi mạng/429/5xx cho đến
+  khi nguồn phục hồi hoặc người vận hành hủy; không yêu cầu chạy lại lệnh.
+- **FR-010** Mỗi request đọc MUST có tối đa hai lần thử thực tế trong một lượt;
+  hết lượt thì nhường công việc khác và lên lịch lại 2/5/15/30 phút, có jitter.
+- **FR-011** Endpoint lỗi hàng loạt MUST có cooldown và chỉ một request thăm dò
+  khi hết cooldown; process vẫn sống và công việc độc lập vẫn tiến triển.
+- **FR-012** Một quy tắc cấp dataset MUST quyết định cả skip và hoàn tất: không
+  gọi lại phần đã thành công trong đợt, kể cả full refresh, hoặc lỗi chưa đến
+  hạn kiểm tra lại. Schema lỗi được ghi nhận riêng, không retry vô hạn.
+- **FR-013** Checkpoint MUST lưu lịch thử lại, số lượt, kết quả theo mã/dataset
+  và cửa sổ ngày cố định. Chạy qua nửa đêm không đổi ngày kết thúc đợt.
+- **FR-014** MUST báo heartbeat, số dataset thành công/chờ/thiếu/lỗi và chỉ
+  chuyển sang import khi không còn lỗi mạng tồn đọng trong phạm vi đã chọn.
+- **NFR-004** MUST giới hạn HTTP request thực tế, gồm handshake và retry,
+  đồng thời giữ nguyên kiểm tra quota của SDK.
+
+Kịch bản nghiệm thu: một mã timeout không chặn mã khác; nguồn lỗi hơn hai
+lượt rồi phục hồi tự hoàn tất; một probe duy nhất sau cooldown; restart đọc
+đúng lịch retry; full refresh không tải lại phần đã thành công trong retry;
+BCTC thiếu còn hạn không bị gọi lại khi giá cũ; ngày kết thúc giữ nguyên qua
+nửa đêm; bootstrap endpoint lỗi rồi phục hồi không làm mất process refresh.
+Không hứa thời gian hoàn tất nếu provider không phục hồi. Lỗi ổ đĩa, cấu hình,
+schema bootstrap hoặc lỗi lập trình vẫn phải được báo thay vì lặp vô hạn.
+
 **Status**: Specified 2026-09-06 · **Amended 2026-09-07** (FR-007/SC-6 + FR-008/SC-7, research R-008/R-009: a failure
 class that changes with time was being settled forever — Q-61; and "finished" required a bar dated
 `--end`, which a stopped symbol can never have — Q-62)

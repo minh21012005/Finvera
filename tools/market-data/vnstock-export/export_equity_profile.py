@@ -26,11 +26,13 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
+import os
 import re
-import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import provider_retry
 
@@ -116,6 +118,8 @@ def fetch_overview(symbol: str) -> dict[str, Any] | None:
     except (Exception, SystemExit) as exc:  # noqa: BLE001 -- one symbol's overview failure must not stop the batch
         if isinstance(exc, SystemExit) and "rate limit" not in str(exc).lower():
             raise
+        if provider_retry.ACTIVE and provider_retry.is_transient(exc):
+            raise
         return None
 
 
@@ -153,10 +157,39 @@ TOOL_VERSION = "1.0.0"  # 1.0.0: VCI source (ADR-0013); issue_share + market-cap
 DEFAULT_MAX_AGE_DAYS = 30
 
 
+SHARE_CACHE_FILE = "profile-fetch-cache.json"
+
+
+def load_share_cache(output: Path) -> dict:
+    """Provenance local tách khỏi package import; thiếu/hỏng thì fetch lại."""
+    try:
+        cache = json.loads((output / SHARE_CACHE_FILE).read_text(encoding="utf-8"))
+        if cache.get("toolVersion") == TOOL_VERSION and isinstance(cache.get("symbols"), dict):
+            return cache["symbols"]
+    except (OSError, ValueError, AttributeError):
+        pass
+    return {}
+
+
+def save_share_cache(output: Path, records: list[dict], reused: dict, previous: dict, fetched_at=None) -> None:
+    """Chỉ dữ liệu fetch mới được nhận timestamp mới; reuse giữ nguyên tuổi."""
+    now = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    symbols = {}
+    for record in records:
+        symbol = record["symbol"]
+        if record.get("sharesOutstanding") is None:
+            continue
+        symbols[symbol] = (previous[symbol] if symbol in reused else {
+            "sharesOutstanding": record["sharesOutstanding"],
+            "qualityReason": record.get("qualityReason"), "fetchedAt": (fetched_at or {}).get(symbol, now)})
+    path = output / SHARE_CACHE_FILE
+    temp = path.with_suffix(".json.tmp")
+    temp.write_text(json.dumps({"toolVersion": TOOL_VERSION, "symbols": symbols}), encoding="utf-8")
+    os.replace(temp, path)
+
+
 def reusable_share_facts(output: Path, max_age_days: int, full_refresh: bool) -> dict[str, tuple[int | None, str | None]]:
-    """{symbol: (shares, reason)} from the package already on disk when it was produced by this tool
-    version within `max_age_days`. Share counts change only on corporate actions, so re-calling the
-    provider ~1,500 times per refresh is waste; new listings are still fetched because they are absent."""
+    """Reuse dữ liệu khớp package và có tuổi fetch thực chưa quá max_age_days."""
     if full_refresh:
         return {}
     path = output / "equity-profile.json"
@@ -168,13 +201,21 @@ def reusable_share_facts(output: Path, max_age_days: int, full_refresh: bool) ->
         return {}
     if package.get("toolVersion") != TOOL_VERSION:
         return {}
-    try:
-        generated = datetime.fromisoformat(str(package.get("generatedAt", "")).replace("Z", "+00:00"))
-    except ValueError:
-        return {}
-    if datetime.now(UTC) - generated > timedelta(days=max_age_days):
-        return {}
-    return {r["symbol"]: (r.get("sharesOutstanding"), r.get("qualityReason")) for r in package.get("records", [])}
+    cache, reusable = load_share_cache(output), {}
+    for record in package.get("records", []):
+        symbol = record["symbol"]
+        fact = cache.get(symbol)
+        if record.get("sharesOutstanding") is None or not isinstance(fact, dict):
+            continue
+        try:
+            fetched = datetime.fromisoformat(str(fact.get("fetchedAt", "")).replace("Z", "+00:00"))
+            age = datetime.now(UTC) - fetched
+        except (ValueError, TypeError):
+            continue
+        if (timedelta(0) <= age <= timedelta(days=max_age_days)
+                and all(record.get(key) == fact.get(key) for key in ("sharesOutstanding", "qualityReason"))):
+            reusable[symbol] = (fact["sharesOutstanding"], fact.get("qualityReason"))
+    return reusable
 
 
 def build_records(frame, effective_from: str, overview_lookup=fetch_overview, share_lookup=None) -> list[dict[str, Any]]:
@@ -231,34 +272,37 @@ def main() -> None:
                         help="Pacing for the per-symbol overview calls (Community tier ~60/min).")
     parser.add_argument("--full-refresh", action="store_true",
                         help="Re-fetch every symbol's overview even when a recent package exists.")
+    parser.add_argument("--workers", type=int, default=5,
+                        help="Số hồ sơ xử lý đồng thời, mặc định 5; dùng pacing SDK chung.")
     parser.add_argument("--max-age-days", type=int, default=DEFAULT_MAX_AGE_DAYS,
-                        help="Reuse share counts from an existing package younger than this (default 30).")
+                        help="Tuổi dữ liệu tính từ lần fetch thành công, mặc định 30 ngày.")
     args = parser.parse_args()
+    if args.workers < 1 or not math.isfinite(args.requests_per_minute) or args.requests_per_minute <= 0 or args.max_age_days < 0:
+        parser.error("workers/tốc độ phải dương, tuổi cache không âm")
+    provider_retry.install(args.requests_per_minute)
+    previous = load_share_cache(args.output)
     reusable = reusable_share_facts(args.output, args.max_age_days, args.full_refresh)
-    effective_from = datetime.now().date().isoformat()
-    interval_seconds = 60.0 / max(1, args.requests_per_minute)
-    progress = {"n": 0}
+    effective_from = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")).date().isoformat()
 
     def paced_overview(symbol: str):
-        if progress["n"]:
-            time.sleep(interval_seconds)
-        progress["n"] += 1
         overview = fetch_overview(symbol)
         shares, reason = share_fields(overview)
         outcome = f"shares={shares:,}" if shares is not None else "no shares"
         if reason:
             outcome += f" ({reason})"
-        print(f"[{progress['n']}/{progress['total']}] {symbol}: {outcome}", flush=True)
-        return overview
+        print(f"symbol={symbol} dataset=equity-profile {outcome}", flush=True)
+        return overview, datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
     universe = fetch_universe()
-    symbols = [str(r["symbol"]).upper() for _, r in universe.iterrows()]
+    symbols = list(dict.fromkeys(str(r["symbol"]).upper() for _, r in universe.iterrows()))
     to_fetch = [s for s in symbols if s not in reusable]
-    progress["total"] = len(to_fetch)
     print(f"Universe: {len(symbols)} stocks; {len(symbols) - len(to_fetch)} reused from the existing package, "
           f"{len(to_fetch)} overview calls at {args.requests_per_minute:g}/min "
-          f"(~{len(to_fetch) / max(1.0, args.requests_per_minute):.0f} min).", flush=True)
-    records = build_records(universe, effective_from, paced_overview, share_lookup=reusable.get)
+          f"(pacing ~{len(to_fetch) / args.requests_per_minute:.0f} phút, chưa tính latency/retry).", flush=True)
+    fetched = provider_retry.collect_available(to_fetch, paced_overview, workers=args.workers)
+    overviews = {symbol: value[0] if value is not None else None for symbol, value in fetched.items()}
+    fetched_at = {symbol: value[1] for symbol, value in fetched.items() if value is not None}
+    records = build_records(universe, effective_from, overviews.get, share_lookup=reusable.get)
     listed_symbols = {r["symbol"] for r in records}
     delisted = [r for r in build_delisted_records(fetch_delisted(), effective_from) if r["symbol"] not in listed_symbols]
     records = records + delisted
@@ -269,6 +313,7 @@ def main() -> None:
     args.output.mkdir(parents=True, exist_ok=True)
     path = args.output / "equity-profile.json"
     path.write_text(json.dumps(package, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    save_share_cache(args.output, records, reusable, previous, fetched_at)
     print(f"Wrote canonical package: {path} ({len(records)} symbols)")
     print(f"Package SHA-256: {package['packageSha256']}")
 

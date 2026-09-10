@@ -4,6 +4,15 @@
 **Opened**: 2026-08-30
 **Applies to**: `finvera-be`, `finvera-fe`, `finvera-ai`, `tools/market-data`
 
+**Refresh 2026-09-10 — Feature 026 R-014/T022–024:** đã sửa HTTP 403/404
+thoát nhầm như lỗi filesystem; cache hồ sơ có timestamp fetch riêng từng mã
+trong sidecar local, không gia hạn khi đóng gói lại; hồ sơ mặc định 5 worker
+với pacing SDK chung 30/phút, vẫn tối đa 3 lượt. 118 tests exporter đạt và
+harness crawl contract PASS. Package cũ thiếu provenance cần fetch lại lần
+đầu. Chưa benchmark live; request phụ/việc gọi lại báo cáo BCTC còn cần đo
+trước khi tối ưu tiếp. Các mô tả retry SDK 2 attempts bên dưới là lịch sử;
+hiện tại SDK 1 attempt mỗi lượt queue (R-013).
+
 ## What this document is
 
 A tracked backlog of defects and gaps found in the 2026-08-30 full-system
@@ -585,6 +594,40 @@ server-side ownership checks, but the input should be typed properly.
 | **Q-62** | `DONE` (found and fixed 2026-09-07 alongside Q-61; specs/026 R-009, T013) | Medium | `MEASURED` (2026-09-07 checkpoint + scan of every `daily-bars-*.json` on disk) | `daily_bars_current` required `latest_record_date >= args.end`: the symbol had to have a bar **on the run's end date**. A delisted, suspended or simply untraded symbol can never satisfy that, so it was never `is_finished`. **603 of 1,522** symbols held a complete `done` daily-bar package whose newest session predates `--end` - ART 2022-11-18, TTZ 2022-12-02, NDF 2023-02-24, TTB 2023-07-06 - against 870 packages carrying the current session. Consequences: the run reported `Checkpoint total attempted: 889/1522` instead of converging; **every** re-run of the same command re-fetched those 603 symbols (~1,200 provider calls, ~30 min at the 40/min ceiling); and the exporter's own closing line "it exits immediately once nothing is left" could never become true - contradicting Feature 026's stated goal. Worse than the wasted time: `889/1522` and `275 symbols with at least one failed dataset` became permanent noise, which is exactly what hid Q-61 underneath them. No stored data was wrong; this was a completeness/convergence defect. **Fix**: coverage is what was *asked for*, not whether the market traded that symbol - ART's own package already records `rangeEnd: 2026-09-07` beside a newest session of `2022-11-18`, i.e. the provider was asked through today and answered "nothing since 2022". `daily_bars_range[1] >= args.end` already states the ask, so the traded-on-`--end` condition is dropped and the package's own `rangeEnd` is added as the cross-check, keeping the original "the file on disk, not the checkpoint, is the evidence" intent. **Accepted cost, not hidden**: within one `--end`, a session the provider has not published yet is no longer picked up by a *second run on the same day*; the next day's run moves `--end`, the entry goes stale and the 90-day lookback fetches it, so the gap is bounded by one day and self-healing, and `--full-refresh` bypasses the check. The alternative (settle only after two asks at different `--end` values return the same newest session) was weighed and rejected as more state for a bounded difference - recorded in R-009 in case it ever matters. **Verification**: exporter suite **94/94**; the test that encoded the old rule was rewritten rather than deleted, asserting both directions (a moved `--end` still re-fetches; a package short of the window or with no sessions is still not current). Replayed over the real 1,522-symbol checkpoint: `daily_bars_current` **870 -> 1,473**, `is_finished` **889 -> 1,168** (the 354 outstanding are exactly the datasets `--retry-failed` had just re-opened). |
 
 ---
+
+## Bổ sung vận hành refresh 2026-09-10 — Feature 026 R-010
+
+**R-012 hiện hành:** sửa quyết định retry queue vô hạn ở R-010/R-011 theo
+chủ sở hữu: mỗi dataset tối đa 3 lượt/đợt, SDK 2 attempts/lời gọi. Hết ngân
+sách ghi PARTIAL, import phần có sẵn; đợt sau tự mở lại transient. Bootstrap
+bắt buộc cũng hữu hạn và báo lỗi nếu thiếu prerequisite, profile từng mã
+được ghi thiếu rồi tiếp tục. Kiểm chứng outage vĩnh viễn, resume, file cũ và
+đợt kế tiếp: **110 test passed**. Không tuyên bố benchmark tốc độ live.
+
+**Điều chỉnh hiện hành R-011, chủ sở hữu duyệt:** bỏ circuit, hook HTTP và
+cooldown tăng dần. Chỉ cấu hình adapter SDK tối đa 2 attempts/lời gọi; lỗi
+dataset tự quay lại sau 2 phút. Giữ queue/checkpoint/skip/ngày cố định và
+bootstrap tự chờ. Pacing đếm attempts SDK, không còn tuyên bố số HTTP chính
+xác. `provider_runtime.py` và test circuit đã xóa; logic gom vào
+`provider_retry.py`. **106 test passed**; vẫn chưa benchmark tốc độ live.
+Các mô tả circuit bên dưới là lịch sử bản trước, đã được thay thế.
+
+- **Q-63 — DONE (fault/contract tests; live throughput chưa đo):** outage
+  VCI giá bị khuếch đại bởi 3×3 retry (9 calls/mã), không circuit và chỉ một
+  pass retry cuối. Log 09/09 có 323 timeout trong ~37 phút. Chủ sở hữu yêu cầu
+  process tự chờ, không dừng để chạy lại. Đã thay bằng queue cấp dataset,
+  tối đa hai HTTP attempts/lượt, lịch 2/5/15/30 phút có jitter, circuit một
+  probe theo host, pacing HTTP thật gồm request khởi tạo; giữ quota vnai.
+  Bootstrap cũng tự chờ, ngày --end cố định, status phân biệt COMPLETE/PARTIAL
+  với RUNNING/WAITING. Không đổi nguồn, SDK version hoặc schema dữ liệu.
+- **Q-64 — DONE:** quy tắc settled_failure chỉ được dùng ở cấp symbol;
+  khi giá cũ, BCTC NoStatementsAvailable chưa hết 35 ngày vẫn bị gọi lại.
+  Queue nay dùng cùng predicate cấp dataset; kết quả thành công không được
+  thêm lại trong retry hoặc full-refresh resume cùng đợt có package hợp lệ.
+- Kiểm chứng: exporter **112 passed**, ba PowerShell harness PASS. Kết quả
+  mới thay thế nhận định P2-12 rằng concurrency loại bỏ chi phí retry và mốc
+  ~1,5 giờ chưa được đo. Lỗi phía provider/IP/đường mạng vẫn chưa phân định;
+  phần sửa này xử lý khả năng tự phục hồi, không tuyên bố sửa server VCI.
 
 ## Independent recomputation 2026-08-31 (owner request: "data must be clean before anything else")
 

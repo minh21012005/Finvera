@@ -5,6 +5,11 @@
     technical-indicator and valuation gaps -- all in one command.
 
 .DESCRIPTION
+    Tu 2026-09-10: crawl giu process song khi provider loi mang, xep dataset vao
+    hang doi retry sau 2 phut va tu tiep tuc. Moi loi goi adapter SDK toi da
+    1 attempt, toi da 3 luot/dataset moi dot; het ngan sach thi bao PARTIAL va
+    import phan co san. Bootstrap bat buoc het 3 luot thi bao loi, khong cho vo han.
+    Ngay --end co dinh theo Viet Nam cho ca dot. Ctrl+C van huy duoc.
     Runs the exact sequence documented in docs/runbooks/go-live-setup.md 3.7/6.3, automated:
       1. Crawl (export_all_symbols.py + the instrument-reference/equity-profile exporters).
          Fundamentals come from VCI statements (Feature 018 / ADR-0011); the first pass after the
@@ -49,6 +54,10 @@
     Incremental refresh window. On normal runs, re-fetch this many days before the
     latest existing package/checkpoint and merge with older local files.
 
+.PARAMETER EndDate
+    Ngay ket thuc crawl gia va chi so, dinh dang yyyy-MM-dd (tu 2019-01-01).
+    Bo qua co nay thi dung ngay hom nay theo gio Viet Nam. Khong tu doi ngay nghi.
+
 .PARAMETER Cleanup
     Run conservative retention cleanup after step 7. This removes old audit rows,
     stale live observations, and non-current derived revisions only; it does not
@@ -70,6 +79,8 @@
 
 .EXAMPLE
     .\refresh-data.ps1
+.EXAMPLE
+    .\refresh-data.ps1 -EndDate 2026-09-09
 #>
 param(
     [switch]$SkipCrawl,
@@ -78,7 +89,9 @@ param(
     [switch]$CleanupOnly,
     [switch]$WarmupOnly,
     [switch]$ForceWarmup,
-    [int]$LookbackDays = 90
+    [int]$LookbackDays = 90,
+    [ValidateNotNullOrEmpty()]
+    [string]$EndDate
 )
 
 $ErrorActionPreference = "Stop"
@@ -97,7 +110,23 @@ $envRefreshFile = Join-Path $beDir ".env.refresh"
 # edge) so there is ~4 months of headroom before the rolling window passes this start; after
 # that a re-crawl just begins at the window edge and previously imported rows remain.
 $historyStartDate = "2019-01-01"
-$historyEndDate = (Get-Date).ToString("yyyy-MM-dd")
+function Resolve-HistoryEndDate([string]$RequestedEnd, [string]$StartDate) {
+    if ([string]::IsNullOrEmpty($RequestedEnd)) {
+        $marketTimeZone = [TimeZoneInfo]::FindSystemTimeZoneById("SE Asia Standard Time")
+        return [TimeZoneInfo]::ConvertTimeFromUtc([DateTime]::UtcNow, $marketTimeZone).ToString("yyyy-MM-dd")
+    }
+    $parsedEnd = [DateTime]::MinValue
+    if (-not [DateTime]::TryParseExact($RequestedEnd, "yyyy-MM-dd",
+            [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::None,
+            [ref]$parsedEnd)) {
+        throw "EndDate phai la ngay hop le theo dinh dang yyyy-MM-dd."
+    }
+    if ($parsedEnd -lt [DateTime]::ParseExact($StartDate, "yyyy-MM-dd", [Globalization.CultureInfo]::InvariantCulture)) {
+        throw "EndDate khong duoc truoc $StartDate."
+    }
+    return $RequestedEnd
+}
+$historyEndDate = Resolve-HistoryEndDate $EndDate $historyStartDate
 
 $ManagedRuntimeFlags = @(
     "FINVERA_MARKET_IMPORT_ENABLED",
@@ -412,17 +441,17 @@ if ((-not $SkipCrawl) -and ($script:RefreshState.completed -contains "1-crawl"))
     Write-Host "== Buoc 1/7: Crawl gia + danh sach ma moi + index history tu Vnstock ==" -ForegroundColor Cyan
     Push-Location $exportDir
     try {
-        uv run --project ../provider-poc python export_instrument_reference.py
+        uv run --project ../provider-poc python refresh_export.py export_instrument_reference.py
         Assert-NativeSuccess "Instrument-reference export"
         # Feature 020 / ADR-0012: sector reference from VCI ICB level 3 (all exchanges, 3 calls).
-        uv run --project ../provider-poc python export_sector_reference_vci.py
+        uv run --project ../provider-poc python refresh_export.py export_sector_reference_vci.py
         Assert-NativeSuccess "Sector-reference (VCI ICB) export"
-        $profileArgs = @("run", "--project", "../provider-poc", "python", "export_equity_profile.py")
+        $profileArgs = @("run", "--project", "../provider-poc", "python", "refresh_export.py", "export_equity_profile.py")
         if ($FullRefresh) { $profileArgs += "--full-refresh" }
         & uv @profileArgs
         Assert-NativeSuccess "Equity-profile export"
         $marketOverviewArgs = @(
-            "run", "--project", "../provider-poc", "python", "export_history.py",
+            "run", "--project", "../provider-poc", "python", "refresh_export.py", "export_history.py",
             "--market-overview", "--start", $historyStartDate, "--end", $historyEndDate,
             "--lookback-days", "$LookbackDays"
         )
@@ -430,8 +459,8 @@ if ((-not $SkipCrawl) -and ($script:RefreshState.completed -contains "1-crawl"))
         & uv @marketOverviewArgs
         Assert-NativeSuccess "Market-overview index export"
         $allSymbolsArgs = @(
-            "run", "--project", "../provider-poc", "python", "export_all_symbols.py",
-            "--start", $historyStartDate, "--lookback-days", "$LookbackDays"
+            "run", "--project", "../provider-poc", "python", "refresh_export.py", "export_all_symbols.py",
+            "--start", $historyStartDate, "--end", $historyEndDate, "--lookback-days", "$LookbackDays"
         )
         if ($FullRefresh) { $allSymbolsArgs += "--full-refresh" }
         & uv @allSymbolsArgs

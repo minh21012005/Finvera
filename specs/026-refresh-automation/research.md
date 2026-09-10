@@ -1,5 +1,81 @@
 # Research: Feature 026 — Refresh that finishes by itself
 
+## R-015 — Kế hoạch EOD theo phiên đã hủy
+
+Chọn resolver local versioned để không phụ thuộc backend trước crawl. Seed
+V018 thiếu31/08/2026 theo thông báo HNX, nên evidence lịch phải hoàn tất trước
+code resolver. Nguồn: https://stoxvn.hnx.vn/vi-vn/chi-tiet-lich-nghi-gd-60023268.html?_page=1
+(search index đọc được nội dung, open timeout; cần bản thông báo để lưu fixture).
+FAQ HNX xác nhận UPCoM tới15:00 nhưng không đủ kiểm chứng mọi quy tắc HOSE.
+
+Chủ sở hữu hủy toàn bộ đề xuất này để chủ động chọn ngày kết thúc. Phát hiện
+lịch ở trên chỉ còn là ghi nhận, không kéo theo migration trong thay đổi này.
+
+## R-016 — Đưa cờ ngày có sẵn ra PowerShell
+
+Python đã có --end; hai lời gọi giá/chỉ số và runKey PowerShell đều dùng
+historyEndDate. Chỉ cần -EndDate xác thực yyyy-MM-dd và đặt biến này;
+không truyền thì giữ hôm nay giờ Việt Nam. Không thêm lớp tự chọn phiên hoặc
+đối soát. Cùng ngày đã done vẫn skip như cũ, có thể dùng -FullRefresh để
+fetch lại. Cờ giới hạn request, không rollback DB về một snapshot quá khứ.
+
+## R-014 — Rà soát sau giảm retry
+
+Tái hiện ngoại tuyến: builtin ConnectionError HTTP 403 thuộc OSError bị ném
+khỏi run_dataset trước khi ghi failure. Cache dùng generatedAt của package
+có thể reuse giá trị gốc 60 ngày nếu đóng gói lại mỗi 20 ngày. Profile chạy
+tuần tự và sleep cộng latency, trong khi crawl giá/BCTC đã có worker.
+Sửa được duyệt: phân biệt HTTP với filesystem; sidecar fetch timestamp từng
+mã (không dùng glob equity-profile*.json của StockImportConfiguration);
+queue profile 5 worker có pacing chung và 3 lượt. Không sửa provider nội bộ.
+SDK Finance còn handshake/phân loại công ty và nhiều method trong dataset;
+do đó giới hạn adapter không đồng nghĩa số HTTP. Tối ưu request BCTC cần
+đo riêng, chưa thuộc thay đổi này. Không có benchmark provider live.
+
+## R-013 — Bỏ retry lồng tại SDK
+
+Chủ sở hữu yêu cầu tổng 3 lần thay vì 6: giữ 3 lượt queue, mỗi lời gọi SDK
+chỉ thực hiện một lần trong mỗi lượt. Không thay timeout/quota hay thêm cơ chế.
+Giới hạn này áp dụng cho lời gọi lỗi liên tục; dataset có thể gồm nhiều method
+SDK khác nhau, không đồng nghĩa cả dataset chỉ phát sinh 3 HTTP request.
+
+## R-012 — Không chờ vô hạn
+
+Chủ sở hữu làm rõ tự động nghĩa là tự đi hết đợt, không phải lấy đủ mọi mã
+bằng mọi giá. R-010/R-011 giữ retry queue vô hạn là quyết định sai mục tiêu.
+Giới hạn 3 lượt/dataset, giữ lỗi transient để đợt sau tự thử. Không hứa tổng
+thời gian cố định vì còn phụ thuộc số dataset và latency, nhưng số lượt hữu hạn.
+
+## R-011 — Thu gọn sau phản hồi chủ sở hữu (2026-09-10)
+
+Các test của R-010 chứng minh fault paths, chưa chứng minh hiệu quả tốc độ
+circuit/hook HTTP. Cooldown dài có thể giữ dữ liệu chờ sau khi nguồn đã hồi
+phục; hook tăng phụ thuộc internals SDK. Quyết định: bỏ cả hai, chỉ cấu hình
+retry adapter hiện có tối đa 2 attempts và tự thử dataset lỗi sau 120 giây.
+Giữ pacing adapter và quota vnai, công khai rằng đó không phải số HTTP chính
+xác. Giữ queue/checkpoint để đáp ứng chạy không cần chủ sở hữu can thiệp.
+
+## R-010 — Điều chỉnh sau sự cố 09/09, chủ sở hữu duyệt 10/09
+
+Log 22:43–23:20 có 323 read timeout; 32 daily-bars OK và 32 NetworkError.
+Process chạy incremental với 5 worker. Probe trên máy: priceboard và OHLC
+ACB timeout sau ~12 s; IQ income ACB HTTP 200 trong 0,64 s. Chưa phân biệt
+được sự cố server với IP/đường mạng; không kết luận quota hay tier.
+
+Đọc bản cài vnstock 4.0.7: api/quote.py dùng tenacity Config.RETRIES=3,
+không phải hai lượt vnai như R-007 cũ. Mock tái hiện 9 lần gọi do 3×3 retry.
+Finance còn handshake và tải listing trong constructor; đếm token theo
+dataset không bảo đảm quota HTTP. process_symbol bỏ qua settled_failure,
+nên gọi lại NoStatementsAvailable còn trong cửa sổ 35 ngày nếu giá cũ.
+
+Quyết định mới thay thế R-003/R-007: tối đa 2 HTTP attempts/lượt, bỏ retry
+tenacity lồng nhau trong process exporter (giữ vnai quota), xếp lịch lại vô
+hạn với cooldown tối đa 30 phút và hủy được. Mỗi lượt mạng vẫn hữu hạn,
+phù hợp Constitution VII; lịch công việc dài hạn không phải retry nóng vô hạn.
+Hook giới hạn trong process owner-run, chỉ endpoint đọc VCI đã có trong SDK;
+không sửa site-packages, không thay schema hay nâng dependency. Kiểm thử
+contract bằng requests giả qua adapter thật, không gây tải live provider.
+
 Date: 2026-09-06. Measured against the owner's live refresh and by reading the pipeline end to end
 (`refresh-data.ps1`, the five exporters, the backend stage runner).
 

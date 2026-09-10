@@ -1,5 +1,78 @@
 # Tasks: Feature 026 — Refresh that finishes by itself
 
+## Bổ sung 2026-09-10
+
+### Ngày kết thúc do người chạy chọn
+
+T026–T030 bị hủy theo yêu cầu chủ sở hữu, thay bằng FR-021; không còn lịch
+tự động, resolver phiên, đối soát hoặc migration lịch trong phạm vi này.
+
+- [x] T031 FR-021: `refresh-data.ps1` nhận -EndDate; kiểm tra ngày, truyền
+  giá trị qua historyEndDate đến hai exporter và runKey. Cập nhật README,
+  kiểm chứng `tools/refresh-tests/test-crawl-contract.ps1` ngoại tuyến: PASS
+  ngày chỉ định/mặc định/ngày sai, cả hai exporter và runKey; diff --check đạt.
+
+### Các sửa đổi đã thực hiện
+
+- [x] T025 FR-016: `export_all_symbols.py` thêm tiến độ mã/dataset vào log;
+  `tests/test_refresh_queue.py` xác nhận mã chờ retry chưa được tính xong.
+  Kiểm thử queue: **19 passed**, provider giả; git diff --check đạt.
+
+- [x] T022 FR-009/FR-014: `provider_retry.py`, `export_all_symbols.py` phân biệt
+  HTTP/filesystem; test trong `tests/test_refresh_queue.py`.
+- [x] T023 FR-015: `export_equity_profile.py` sidecar tuổi dữ liệu thực;
+  test trong `tests/test_export_equity_profile.py` cache hết hạn/thiếu/mismatch.
+- [x] T024 NFR-005, phụ thuộc T022/T023: `provider_retry.py` queue hồ sơ mặc định
+  5 worker; `export_equity_profile.py`, `refresh_export.py` dùng chung pacing;
+  tests queue/concurrency và CLI, cập nhật README; **118 passed** toàn suite
+  exporter qua uv offline; harness crawl contract PASS, git diff --check đạt.
+
+- [x] T021 FR-009/FR-014, phụ thuộc T020: `provider_retry.py` bỏ retry SDK;
+  `tests/test_sdk_retry.py` kiểm tra 1 attempt và queue cộng SDK tối đa 3 lần.
+  Cập nhật README/PowerShell; suite exporter **111 passed**, harness crawl
+  contract **PASS**. Provider giả xác nhận đúng 3 lần ở giây 0/120/240.
+
+- [x] T020 FR-009/FR-014 sửa đổi, phụ thuộc T019: giới hạn 3 lượt/dataset
+  tại `export_all_symbols.py` và `provider_retry.py`, kể cả bootstrap/profile.
+  Giữ transient và file cũ, PARTIAL khi hết ngân sách; reset ở đợt kế tiếp,
+  giữ ngân sách khi resume. Bỏ cache profile thiếu trong `export_equity_profile.py`.
+  `tests/test_refresh_queue.py` kiểm thử outage vĩnh viễn, resume ngân sách,
+  lần chạy kế tiếp và file cũ. Suite hiện hành **110 passed** qua uv offline;
+  các kết quả bên dưới là lịch sử, yêu cầu retry vô hạn đã bị thay thế.
+
+- [x] T019 FR-009/FR-010/FR-012–014, NFR-004 sửa đổi; phụ thuộc T018:
+  thu gọn theo chủ sở hữu duyệt. Xóa `provider_runtime.py` và test circuit;
+  gom retry SDK vào `provider_retry.py`, sửa exporter/launcher và tài liệu.
+  `tests/test_sdk_retry.py` kiểm chứng 2 attempts qua adapter thật, schema/403
+  không retry và không thay HTTP; giữ fault/resume/CLI tests.
+  Kết quả hiện hành: **106 passed** qua uv (HTTP giả). Các kết quả 112 test
+  bên dưới là lịch sử của bản có circuit; T015 đã được T019 thay thế.
+
+Kết quả: `uv run --offline --frozen --project ../provider-poc python -m pytest
+tests -q -p no:cacheprovider` từ thư mục exporter: **112 passed**.
+`tools/refresh-tests/test-resume-state.ps1`, `test-stage-runner.ps1` và
+`test-crawl-contract.ps1`: đều PASS (backend/HTTP giả, không tác động DB).
+`git diff --check`: PASS. Sandbox Windows chặn thư mục tạm pytest; suite
+đã chạy thành công ngoài sandbox theo cơ chế approval. Không thay lockfile.
+SC-4 về tốc độ full crawl live vẫn chưa được đo lại; không suy diễn thời gian
+hoàn tất từ các fault test. P1 tái sử dụng response BCTC/metadata để giảm request
+không nằm trong đợt sửa P0 này.
+
+- [x] T014 FR-009–FR-014/NFR-004: thiết kế và bằng chứng tại `spec.md`,
+  `research.md`, `plan.md` (trước T015).
+- [x] T015 FR-010/FR-011/NFR-004: `tools/market-data/vnstock-export/provider_runtime.py`
+  và `tests/test_provider_runtime.py`: HTTP contract, 2 attempts, circuit,
+  quota thật, không retry 4xx; phụ thuộc T014.
+- [x] T016 FR-009/FR-012/FR-013/FR-014: `export_all_symbols.py` và
+  `tests/test_refresh_queue.py`: queue, resume, thiếu dữ liệu, full refresh,
+  recovery tự hoàn tất; phụ thuộc T015.
+- [x] T017 FR-009/FR-013: `provider_retry.py`, `refresh_export.py`,
+  `refresh-data.ps1`, `tools/refresh-tests/test-crawl-contract.ps1`:
+  bootstrap tự chờ, end cố định, import chỉ sau queue; phụ thuộc T016.
+- [x] T018 FR-009–FR-014/NFR-004: chạy toàn bộ exporter pytest và PowerShell
+  harness; cập nhật `README.md`, `docs/REMEDIATION_PLAN.md` và kết quả ở đây;
+  phụ thuộc T015–T017.
+
 | ID | Req | Task | Path | Done when |
 |---|---|---|---|---|
 | T001 | — | Spec, research (measurements), plan | `specs/026-refresh-automation/**` | Written; constitution check passed — **done 2026-09-06** |

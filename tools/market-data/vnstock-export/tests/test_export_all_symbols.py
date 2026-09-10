@@ -31,17 +31,6 @@ def test_empty_package_is_always_stale():
     assert mod.fundamentals_package_stale({"records": []}, date(2026, 8, 30), "quarter") is True
 
 
-def test_wait_for_quota_blocks_until_the_minute_window_has_room():
-    windows = iter([
-        {"usage": 58, "limit": 60, "remaining": 2, "reset_in_seconds": 12.0},
-        {"usage": 0, "limit": 60, "remaining": 60, "reset_in_seconds": 59.0},
-    ])
-    slept = []
-    waited = mod.wait_for_quota(10, status=lambda: next(windows), sleep=slept.append, log=lambda *_: None)
-    assert slept == [12.5] and waited == 12.5
-    assert mod.wait_for_quota(10, status=lambda: None, sleep=slept.append) == 0.0   # vnai absent -> no pacing
-
-
 def test_rate_limit_failures_are_transient_and_retried_next_run():
     args = type("A", (), {"period": "quarter", "output": __import__("pathlib").Path("nonexistent"), "start": "2023-01-01", "end": "2026-08-30", "full_refresh": False})()
     assert mod.is_transient_failure("failed:RetryError") is True
@@ -54,10 +43,8 @@ def test_rate_limit_failures_are_transient_and_retried_next_run():
     assert mod.is_finished("X", settled, args) is True
 
 
-def test_run_dataset_retries_once_after_a_rate_limit_then_records_success(monkeypatch):
-    monkeypatch.setattr(mod, "wait_for_quota", lambda *_a, **_k: 0.0)
+def test_run_dataset_schedules_rate_limit_without_inline_retry(monkeypatch):
     monkeypatch.setattr(mod.time, "sleep", lambda *_: None)
-    monkeypatch.setattr(mod, "quota_status", lambda: {"reset_in_seconds": 1})
     calls = {"n": 0}
 
     class RetryError(Exception):
@@ -70,11 +57,11 @@ def test_run_dataset_retries_once_after_a_rate_limit_then_records_success(monkey
 
     entry = {}
     mod.run_dataset(entry, "daily_bars", "daily_bars", action, lambda: entry.__setitem__("daily_bars", "done"), lambda: None)
-    assert calls["n"] == 2 and entry["daily_bars"] == "done"
+    assert calls["n"] == 1 and entry["daily_bars"] == "failed:RetryError"
+    assert entry["daily_bars_next_retry_at"] > 0
 
 
 def test_vnai_rate_limit_system_exit_does_not_terminate_the_export(monkeypatch):
-    monkeypatch.setattr(mod, "wait_for_quota", lambda *_a, **_k: 0.0)
     monkeypatch.setattr(mod.time, "sleep", lambda *_: None)
     calls = {"n": 0}
 
@@ -84,7 +71,7 @@ def test_vnai_rate_limit_system_exit_does_not_terminate_the_export(monkeypatch):
 
     entry = {}
     mod.run_dataset(entry, "fundamentals", "fundamentals", action, lambda: None, lambda: None)
-    assert calls["n"] == 2                                   # retried once after a full window
+    assert calls["n"] == 1  # Queue owns the next attempt.
     assert entry["fundamentals"] == "failed:RateLimitExceeded"  # transient -> retried at end of run / next run
     assert mod.is_transient_failure(entry["fundamentals"])
 
@@ -123,7 +110,6 @@ def test_dropped_connections_are_transient_and_retried_in_run(monkeypatch):
     assert mod.is_transient_failure("failed:NetworkError") is True
 
     monkeypatch.setattr(mod, "NETWORK_RETRY_WAITS_SECONDS", (0.0, 0.0))
-    monkeypatch.setattr(mod, "wait_for_quota", lambda calls: None)
     monkeypatch.setattr(mod.time, "sleep", lambda seconds: None)
     calls = {"n": 0}
 
@@ -134,7 +120,8 @@ def test_dropped_connections_are_transient_and_retried_in_run(monkeypatch):
 
     entry = {}
     mod.run_dataset(entry, "daily_bars", "daily_bars", flaky, lambda: entry.__setitem__("daily_bars", "done"), lambda: None)
-    assert calls["n"] == 3 and entry["daily_bars"] == "done"
+    assert calls["n"] == 1 and entry["daily_bars"] == "failed:NetworkError"
+    assert entry["daily_bars_retry_attempts"] == 1
 
     def always_down():
         raise wrapped
