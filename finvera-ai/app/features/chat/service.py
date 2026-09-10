@@ -780,9 +780,10 @@ class ChatOrchestrationService:
             yield {"type": "delta", "textDelta": delta}
 
         raw_structured = extract_structured_claims_from_text(accumulated)
+        synthetic_claims = False
         if not raw_structured and succeeded_calls:
             _, raw_structured, _ = self._offline_synthesize(succeeded_calls)
-
+            synthetic_claims = True
 
         document_claims: List[DocumentClaim] = []
         if block_to_chunk_id:
@@ -803,6 +804,7 @@ class ChatOrchestrationService:
             "raw_structured_claims": raw_structured,
             "document_claims": document_claims,
             "unattributed_content_present": has_unattributed_substantive_content(accumulated),
+            "synthetic_claims": synthetic_claims,
         }
 
     async def orchestrate_stream(
@@ -924,6 +926,7 @@ class ChatOrchestrationService:
                         raw_claims = event["raw_structured_claims"]
                         document_claims = event["document_claims"]
                         unattributed_content_present = event["unattributed_content_present"]
+                        synthetic_claims = event.get("synthetic_claims", False)
                 online_succeeded = True
             except Exception as e:
                 logger.warning(f"Online synthesis failed, falling back to offline templates: {e}")
@@ -956,6 +959,7 @@ class ChatOrchestrationService:
             synthesis_mode="ONLINE" if online_succeeded else "OFFLINE_TEMPLATE",
             planner_mode=planner_mode,
             unattributed_content_present=unattributed_content_present,
+            synthetic_claims=synthetic_claims if online_succeeded else False,
         )
 
         # Preserve the SSE delta contract, but replay only the verified/rebuilt

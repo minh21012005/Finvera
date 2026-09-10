@@ -99,7 +99,7 @@ def get_nested_value(data: Any, field_path: str) -> Tuple[bool, Any]:
 
 
 _INDEXED_PART = __import__("re").compile(r"^([^\[\]]+)\[(\d+)\]$")
-_STANDALONE_NUMBER = re.compile(r"(?<![A-Za-z_])[-+]?\d+(?:[.,]\d+)*(?![A-Za-z_])")
+_STANDALONE_NUMBER = re.compile(r"(?<!\w)[-+]?\d+(?:[.,]\d+)*(?!\w)")
 _PROHIBITED_DIRECTIVE = re.compile(
     r"\b(?:nên|phải|hãy)\s+(?:mua|bán)\b|\b(?:mua|bán)\s+ngay\b|"
     r"\b(?:chắc chắn|đảm bảo|cam kết)\b",
@@ -291,6 +291,7 @@ def verify_attribution(
     synthesis_mode: Optional[str] = None,
     planner_mode: Optional[str] = None,
     unattributed_content_present: bool = False,
+    synthetic_claims: bool = False,
 ) -> VerifiedAttributionResult:
     """
     U-5 & orchestration-v1 attribution verification pipeline:
@@ -391,14 +392,25 @@ def verify_attribution(
     else:
         claim_coverage = "FULL"
 
-
-
     clean_ans = re.sub(r"\[T\d+:[^\]]+\]", "", answer).strip()
     clean_ans = re.sub(r"\[Block\s*\d+\]", "", clean_ans, flags=re.IGNORECASE).strip()
 
     verified_answer = answer
     if synthesis_mode == "ONLINE" and not refused:
-        if not rejected_statement and not unattributed_content_present and not failed_calls:
+        if synthetic_claims:
+            # Claims are background evidence metrics from tools, not sentences in answer prose.
+            # Never destroy the model's prose by replacing it with raw synthetic metric labels.
+            verified_answer = clean_ans if clean_ans else answer
+            if failed_calls or tool_call_bound_reached:
+                notes = []
+                for call in failed_calls:
+                    tool_name = call.tool_name.value if hasattr(call.tool_name, "value") else str(call.tool_name)
+                    notes.append(f"*(Không thể sử dụng công cụ {tool_name}; phần dữ liệu tương ứng không khả dụng)*")
+                if tool_call_bound_reached:
+                    notes.append("*(Đã đạt giới hạn gọi công cụ; kết quả chỉ phản ánh phần dữ liệu đã được xác minh)*")
+                if notes:
+                    verified_answer = verified_answer + "\n\n" + "\n".join(notes)
+        elif not rejected_statement and not unattributed_content_present and not failed_calls:
             # All claims and statements verified: preserve full Markdown response
             verified_answer = clean_ans if clean_ans else answer
         else:
@@ -413,6 +425,7 @@ def verify_attribution(
             if tool_call_bound_reached:
                 safe_parts.append("Đã đạt giới hạn gọi công cụ; kết quả chỉ phản ánh phần dữ liệu đã được xác minh.")
             verified_answer = "\n\n".join(safe_parts)
+
 
     # Format tool calls for response
     tool_calls_payload = [

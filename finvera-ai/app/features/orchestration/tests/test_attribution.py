@@ -236,3 +236,65 @@ def test_scale_multipliers_attribution_supports_vietnamese_units():
     assert result.claimCoverage == "FULL"
     assert len(result.structuredClaims) == 3
 
+
+def test_technical_indicator_names_with_numbers_do_not_extract_phantom_digits():
+    call = DispatchedToolCall(
+        sequence_no=1,
+        tool_name=ToolName.TECHNICAL,
+        arguments={"symbol": "STB"},
+        status="SUCCEEDED",
+        response_data={
+            "indicators": {
+                "MA20": {"applicability": "DEFINED", "components": [{"value": 74.785}]},
+                "MA50": {"applicability": "DEFINED", "components": [{"value": 73.140}]},
+            },
+            "asOf": "2026-09-10T10:22:25Z",
+        },
+    )
+    raw_claims = [
+        RawStructuredClaim(claimText="MA20 74.785", sequenceNo=1, fieldPath="indicators.MA20.components[0].value", claimedValue="74.785"),
+        RawStructuredClaim(claimText="MA50 73.140", sequenceNo=1, fieldPath="indicators.MA50.components[0].value", claimedValue="73.140"),
+    ]
+    result = verify_attribution(
+        answer="Chỉ báo kỹ thuật STB: MA20 74.785, MA50 73.140.",
+        raw_structured_claims=raw_claims,
+        verified_document_claims=[],
+        dispatched_calls=[call],
+        tool_call_bound_reached=False,
+        synthesis_mode="ONLINE",
+    )
+    assert result.refused is False
+    assert result.claimCoverage == "FULL"
+    assert len(result.structuredClaims) == 2
+
+
+def test_online_mode_with_synthetic_claims_preserves_full_model_analysis():
+    call = DispatchedToolCall(
+        sequence_no=1,
+        tool_name=ToolName.STOCK,
+        arguments={"symbol": "STB"},
+        status="SUCCEEDED",
+        response_data={"symbol": "STB", "price": 76700.0, "asOf": "2026-09-10T10:22:24Z"},
+    )
+    raw_claims = [
+        RawStructuredClaim(claimText="Giá 76700.0", sequenceNo=1, fieldPath="price", claimedValue="76700.0"),
+    ]
+    model_analysis = (
+        "### 1. Tóm tắt tổng quan:\nCổ phiếu STB đang ở vùng giá 76.700 đ.\n\n"
+        "### 2. Phân tích chi tiết:\nNhà đầu tư nên kiên nhẫn theo dõi diễn biến cung cầu."
+    )
+    result = verify_attribution(
+        answer=model_analysis,
+        raw_structured_claims=raw_claims,
+        verified_document_claims=[],
+        dispatched_calls=[call],
+        tool_call_bound_reached=False,
+        synthesis_mode="ONLINE",
+        synthetic_claims=True,
+    )
+    assert result.refused is False
+    assert result.claimCoverage == "FULL"
+    assert result.answer == model_analysis
+    assert len(result.structuredClaims) == 1
+
+
