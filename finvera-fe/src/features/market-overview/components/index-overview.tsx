@@ -71,7 +71,7 @@ function IndexCard({ index }: { index: MarketIndex }) {
             <dt>Cập nhật</dt>
             <dd className="font-mono">{formatAsOf(index.asOf)}</dd>
           </div>
-          <div className="index-metric-cell full">
+          <div className="index-metric-cell">
             <dt>Nguồn</dt>
             <dd className="font-mono text-slate-400">{index.source.provider}</dd>
           </div>
