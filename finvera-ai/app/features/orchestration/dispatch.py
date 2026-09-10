@@ -105,6 +105,25 @@ class BackendToolClient:
                         json=body,
                         headers=headers,
                     )
+                elif tool_name == ToolName.STRATEGY_SCAN:
+                    scan_params = dict(params)
+                    strategy_code = arguments.get("strategy_code") or arguments.get("strategyCode") or "MOMENTUM"
+                    scan_params["strategyCode"] = str(strategy_code).upper()
+                    if arguments.get("limit"):
+                        scan_params["limit"] = str(arguments["limit"])
+                    resp = await client.post(
+                        f"{self.base_url}/tools/strategies/scan",
+                        params=scan_params,
+                        headers=headers,
+                    )
+                elif tool_name == ToolName.COMPARE:
+                    symbols = arguments.get("symbols", [])
+                    resp = await client.post(
+                        f"{self.base_url}/tools/stocks/compare",
+                        params=params,
+                        json={"symbols": symbols},
+                        headers=headers,
+                    )
                 else:
                     return False, None, f"Unsupported tool: {tool_name}"
 

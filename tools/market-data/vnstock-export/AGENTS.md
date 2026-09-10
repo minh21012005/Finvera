@@ -40,13 +40,13 @@ Whenever a user requests a task, map it to one of the following skills and load 
 >     print(content)
 > ```
 
-<!-- signature_key: TRC-API-ANON -->
-
 ---
 
 ## 2. CORE VIBE CODING PRINCIPLES
 
 While waiting to load a specific skill, please adhere to these universal principles:
+
+<!-- signature_key: TRC-API-ANON -->
 
 1. **User Tier Check & Onboarding 2.0**:
    - Instruct users to save their `VNSTOCK_API_KEY` in a `.env` file for security. If they paste it in chat, you can use it dynamically but advise them on the best practice.

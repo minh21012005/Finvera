@@ -20,7 +20,6 @@ import { StockFundamentals } from "./components/stock-fundamentals";
 import { StockValuation } from "./components/stock-valuation";
 import { StockSignals } from "./components/stock-signals";
 import { SymbolSearch } from "./components/symbol-search";
-import { formatDecimal } from "../market-overview/format/market-format";
 import { navigate } from "../../router";
 
 type OverviewState =

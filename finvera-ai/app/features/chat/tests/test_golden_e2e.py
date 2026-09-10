@@ -102,4 +102,8 @@ def test_keyword_planner_covers_the_tools_the_recording_used(entry):
         pytest.skip("nothing to compare")
     svc = ChatOrchestrationService(dispatcher=OrchestrationDispatcher(tool_client=None))
     planned = {p["tool_name"] for p in svc.plan_tools(entry["question"], entry.get("symbol"))}
-    assert used <= planned, f"keyword fallback planned {planned} but the model used {used}"
+    effective_planned = set(planned)
+    if "COMPARE" in effective_planned:
+        # COMPARE tool subsumes individual read tools (STOCK, VALUATION, etc.) for multi-symbol queries
+        effective_planned.update({"STOCK", "VALUATION", "FUNDAMENTAL", "TECHNICAL"})
+    assert used <= effective_planned, f"keyword fallback planned {planned} but the model used {used}"

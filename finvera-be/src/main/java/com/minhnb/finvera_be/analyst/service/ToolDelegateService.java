@@ -16,11 +16,14 @@ import com.minhnb.finvera_be.research.service.NewsArticleService;
 import com.minhnb.finvera_be.stock.dto.ScreenRequest;
 import com.minhnb.finvera_be.stock.dto.ScreenResponse;
 import com.minhnb.finvera_be.stock.domain.model.StockTypes.MetricApplicability;
+import com.minhnb.finvera_be.stock.domain.model.StockTypes.StrategyCode;
+import com.minhnb.finvera_be.stock.dto.ScanResponse;
 import com.minhnb.finvera_be.stock.service.FundamentalReportService;
 import com.minhnb.finvera_be.stock.service.StockOverviewService;
 import com.minhnb.finvera_be.stock.service.TechnicalIndicatorService;
 import com.minhnb.finvera_be.stock.service.ValuationService;
 import com.minhnb.finvera_be.stock.service.screener.ScreenerService;
+import com.minhnb.finvera_be.stock.service.strategy.StrategyScanService;
 import com.minhnb.finvera_be.stock.service.strategy.StrategySignalService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -47,6 +50,7 @@ public class ToolDelegateService {
     private final FundamentalReportService fundamentalReportService;
     private final ValuationService valuationService;
     private final StrategySignalService strategySignalService;
+    private final StrategyScanService strategyScanService;
     private final PortfolioService portfolioService;
     private final PositionService positionService;
     private final PortfolioAnalyticsService portfolioAnalyticsService;
@@ -60,6 +64,7 @@ public class ToolDelegateService {
             FundamentalReportService fundamentalReportService,
             ValuationService valuationService,
             StrategySignalService strategySignalService,
+            StrategyScanService strategyScanService,
             PortfolioService portfolioService,
             PositionService positionService,
             PortfolioAnalyticsService portfolioAnalyticsService,
@@ -71,6 +76,7 @@ public class ToolDelegateService {
         this.fundamentalReportService = fundamentalReportService;
         this.valuationService = valuationService;
         this.strategySignalService = strategySignalService;
+        this.strategyScanService = strategyScanService;
         this.portfolioService = portfolioService;
         this.positionService = positionService;
         this.portfolioAnalyticsService = portfolioAnalyticsService;
@@ -530,6 +536,122 @@ public class ToolDelegateService {
                 .toList();
 
         return new ScreenerExecutionToolResponse(matches, response.totalMatchCount(), Instant.now());
+    }
+
+    public ScanResponse scanStrategy(StrategyCode strategyCode, int limit) {
+        StrategyCode effectiveCode = strategyCode != null ? strategyCode : StrategyCode.MOMENTUM;
+        int effectiveLimit = Math.clamp(limit, 1, 20);
+        var result = strategyScanService.scan(effectiveCode, effectiveLimit, 0);
+        return ScanResponse.from(result);
+    }
+
+    @Transactional
+    public StockComparisonToolResponse compareStocks(List<String> rawSymbols) {
+        if (rawSymbols == null || rawSymbols.isEmpty()) {
+            return new StockComparisonToolResponse(List.of(), Instant.now());
+        }
+
+        List<String> cleanSymbols = rawSymbols.stream()
+                .filter(s -> s != null && !s.isBlank())
+                .map(ToolDelegateService::normalizeSymbol)
+                .distinct()
+                .limit(5)
+                .toList();
+
+        List<StockComparisonItemDto> items = new java.util.ArrayList<>();
+
+        for (String symbol : cleanSymbols) {
+            var overviewOpt = stockOverviewService.findBySymbol(symbol);
+            var fundamentals = getFundamentals(symbol);
+            var valuation = getValuation(symbol);
+            var technical = getTechnical(symbol);
+
+            String companyName = overviewOpt.map(o -> o.companyNameVi() != null ? o.companyNameVi() : o.symbol())
+                    .orElse(symbol);
+            String exchange = overviewOpt.map(StockOverviewService.StockOverview::venue).orElse(null);
+            String sectorName = overviewOpt.map(StockOverviewService.StockOverview::sector).orElse(null);
+
+            String priceStr = null;
+            String changeStr = null;
+            Long vol = null;
+            String marketCap = null;
+
+            if (overviewOpt.isPresent()) {
+                var price = overviewOpt.get().price();
+                if (price != null && price.priceApplicability() == MetricApplicability.DEFINED && price.lastPrice() != null) {
+                    priceStr = price.lastPrice().toPlainString();
+                    changeStr = price.percentageChange() != null ? price.percentageChange().toPlainString() : null;
+                    vol = price.volume();
+                    marketCap = price.marketCapVnd() != null ? price.marketCapVnd().toPlainString() : null;
+                }
+            }
+
+            // Extract RSI
+            String rsi14 = null;
+            if (technical.indicators() != null && technical.indicators().get("RSI14") != null) {
+                var ind = technical.indicators().get("RSI14");
+                if (ind instanceof com.minhnb.finvera_be.stock.service.TechnicalIndicatorService.IndicatorResult ir) {
+                    if (ir.applicability() == MetricApplicability.DEFINED && ir.components() != null && !ir.components().isEmpty()) {
+                        rsi14 = ir.components().getFirst().value() != null ? ir.components().getFirst().value().toPlainString() : null;
+                    }
+                }
+            }
+
+            // Extract primary signal and strength
+            String primarySignal = null;
+            String signalStrength = null;
+            String riskLevel = null;
+            if (technical.signal() != null) {
+                primarySignal = technical.signal().strategyCode() != null
+                        ? technical.signal().strategyCode() + " (" + technical.signal().direction() + ")"
+                        : technical.signal().direction();
+                signalStrength = technical.signal().signalStrength();
+                riskLevel = technical.signal().riskLevel();
+            }
+
+            // Extract ROA from raw facts if present
+            String roa = null;
+            if (fundamentals.raw() != null && fundamentals.raw().get("ROA") != null) {
+                roa = String.valueOf(fundamentals.raw().get("ROA"));
+            }
+
+            String trend = null;
+            if (technical.indicators() != null && technical.indicators().get("MA20") != null) {
+                trend = "TRACKING";
+            }
+
+            String dataStatus = overviewOpt.map(o -> o.dataStatus() != null ? o.dataStatus().name() : "CURRENT").orElse("UNAVAILABLE");
+            List<String> reasonCodes = overviewOpt.map(StockOverviewService.StockOverview::reasonCodes).orElse(List.of());
+
+            items.add(new StockComparisonItemDto(
+                    symbol,
+                    companyName,
+                    exchange,
+                    sectorName,
+                    priceStr,
+                    changeStr,
+                    vol,
+                    marketCap,
+                    valuation.peRatio(),
+                    valuation.pbRatio(),
+                    valuation.classification(),
+                    valuation.score(),
+                    fundamentals.roe(),
+                    roa,
+                    fundamentals.eps(),
+                    fundamentals.epsTtm(),
+                    fundamentals.revenueGrowthPercent(),
+                    fundamentals.epsGrowthPercent(),
+                    rsi14,
+                    trend,
+                    primarySignal,
+                    signalStrength,
+                    riskLevel,
+                    dataStatus,
+                    reasonCodes));
+        }
+
+        return new StockComparisonToolResponse(items, Instant.now());
     }
 
     private static String normalizeSymbol(String symbol) {

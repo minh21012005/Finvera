@@ -142,6 +142,57 @@ TOOL_DECLARATIONS: List[Dict[str, Any]] = [
             "required": ["query"],
         },
     },
+    {
+        "name": "STRATEGY_SCAN",
+        "description": (
+            "Quét toàn bộ thị trường tìm các mã cổ phiếu đang kích hoạt tín hiệu giao dịch theo "
+            "chiến lược kỹ thuật định lượng (MOMENTUM, BREAKOUT, TREND_FOLLOWING, PULLBACK, "
+            "RSI_BASED, MACD_BASED, MA_CROSSOVER, MEAN_REVERSION). Trả về danh sách mã cùng "
+            "điểm vào lệnh (entry), cắt lỗ (stopLoss), chốt lời (target1, target2), độ mạnh tín hiệu và mức rủi ro."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "strategyCode": {
+                    "type": "string",
+                    "enum": [
+                        "MOMENTUM",
+                        "BREAKOUT",
+                        "TREND_FOLLOWING",
+                        "PULLBACK",
+                        "RSI_BASED",
+                        "MACD_BASED",
+                        "MA_CROSSOVER",
+                        "MEAN_REVERSION",
+                    ],
+                    "description": "Mã chiến lược kỹ thuật cần quét (mặc định MOMENTUM)",
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Số lượng mã tối đa cần quét (1-20, mặc định 5)",
+                },
+            },
+        },
+    },
+    {
+        "name": "COMPARE",
+        "description": (
+            "So sánh đối đầu giữa 2 đến 5 mã cổ phiếu trên các khía cạnh định giá (P/E, P/B), "
+            "chất lượng tài chính (ROE, EPS, tăng trưởng doanh thu/lợi nhuận), sức mạnh giá và tín hiệu kỹ thuật. "
+            "Dùng khi người dùng muốn so sánh các cổ phiếu với nhau (ví dụ: 'So sánh SSI và VND', 'Giữa HPG và NKG mã nào tốt hơn')."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "symbols": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Danh sách các mã cổ phiếu cần so sánh (tối thiểu 2, tối đa 5 mã)",
+                },
+            },
+            "required": ["symbols"],
+        },
+    },
 ]
 
 TOOL_PROPOSAL_SYSTEM_INSTRUCTION = """Bạn là bộ định tuyến công cụ (tool router) cho Finvera AI Analyst, một trợ lý
@@ -310,15 +361,41 @@ class ChatOrchestrationService:
             "RSI", "MAC", "SMA", "EMA", "VND", "USD", "EPS", "ROE", "TOP",
             "THE", "AND", "FOR", "GET", "NAY", "HOM", "BAN", "CHO", "CON",
             "MAI", "XEM", "GIA", "DAN", "MUC", "TIN", "DOC", "BAI", "HOI",
-            "LAM", "SAO", "KHI", "NAO", "VAN", "ROI", "VOI", "TAI", "DAY"
+            "LAM", "SAO", "KHI", "NAO", "VAN", "ROI", "VOI", "TAI", "DAY",
+            "TOT", "HON", "NEN", "MUA", "LUC", "GIO", "DAU", "CAC", "NHO",
+            "LON", "VAY", "LAI", "LOI", "TUC", "HAY", "DOI", "DON", "MAU",
+            "TIM", "NUA", "QUA", "BOS", "COT", "CAN", "LUA", "GOM", "CAT"
         }
+
+        # Match uppercase 3-letter tokens, plus lowercase/mixed-case tokens joined by VS/VÀ/HAY or preceded by mã/cổ phiếu/cp
+        raw_symbols = re.findall(r"\b[A-Z]{3}\b", question)
+        vs_pairs = re.findall(r"\b([A-Za-z]{3})\s*(?:VS|VÀ|HAY)\s*([A-Za-z]{3})\b", question, re.IGNORECASE)
+        for t1, t2 in vs_pairs:
+            raw_symbols.extend([t1.upper(), t2.upper()])
+        explicit_tickers = re.findall(r"(?:MÃ|CỔ PHIẾU|CP)\s+([A-Z]{3})\b", q_upper)
+        raw_symbols.extend(explicit_tickers)
+
+        is_currency_vnd = bool(re.search(r"\b\d+\s*VND\b", question, re.IGNORECASE))
+        cleaned_tickers = []
+        for s in raw_symbols:
+            if s == "VND" and not is_currency_vnd:
+                cleaned_tickers.append("VND")
+            elif s not in stop_words:
+                cleaned_tickers.append(s)
+        unique_tickers = list(dict.fromkeys(cleaned_tickers))
+
+        comparison_keywords = (
+            "SO SÁNH", "GIỮA", "VÀ", "NÊN CHỌN", "TỐT HƠN", "HƠN", "ĐỐI ĐẦU", "COMPARE", "MÃ NÀO",
+            "VS", "VERSUS", "HAY", "CHỌN", "NÊN MUA", "NÊN ĐẦU TƯ"
+        )
+        if len(unique_tickers) >= 2 and any(k in q_upper for k in comparison_keywords):
+            proposed.append({"tool_name": "COMPARE", "arguments": {"symbols": unique_tickers[:5]}})
+            return proposed
 
         matched_symbol = symbol.upper() if symbol else None
         if not matched_symbol:
-            raw_symbols = re.findall(r"\b[A-Z]{3}\b", question)
-            tickers = [s for s in raw_symbols if s not in stop_words]
-            if tickers:
-                matched_symbol = tickers[0]
+            if unique_tickers:
+                matched_symbol = unique_tickers[0]
             else:
                 kw_match = re.search(r"(?:CỔ PHIẾU|MÃ)\s+([A-Z]{3})\b", q_upper)
                 if kw_match and kw_match.group(1) not in stop_words:
@@ -349,7 +426,29 @@ class ChatOrchestrationService:
                 args["symbol"] = matched_symbol
             proposed.append({"tool_name": "NEWS", "arguments": args})
 
-        if any(k in q_upper for k in ("LỌC CỔ PHIẾU", "TÌM CỔ PHIẾU", "LỌC MÃ", "MÃ NÀO CÓ", "CỔ PHIẾU CÓ", "TÌM MÃ", "SCREENER", "SCREENING", "DANH SÁCH CỔ PHIẾU", "CỔ PHIẾU NÀO", "CÁC MÃ CÓ", "CỔ PHIẾU THOẢ")):
+        trading_scan_keywords = (
+            "TRADING", "LƯỚT SÓNG", "NGẮN HẠN", "TÍN HIỆU TỐT", "TÍN HIỆU MUA",
+            "CHIẾN LƯỢC GIAO DỊCH", "BREAKOUT", "VƯỢT ĐỈNH", "BẮT ĐÁY", "PULLBACK",
+            "MOMENTUM", "ĐIỀU CHỈNH", "BẮT XU HƯỚNG"
+        )
+        if not matched_symbol and any(k in q_upper for k in trading_scan_keywords):
+            strat_code = "MOMENTUM"
+            if any(k in q_upper for k in ("BREAKOUT", "VƯỢT ĐỈNH")):
+                strat_code = "BREAKOUT"
+            elif any(k in q_upper for k in ("PULLBACK", "ĐIỀU CHỈNH")):
+                strat_code = "PULLBACK"
+            elif any(k in q_upper for k in ("BẮT ĐÁY", "MEAN REVERSION")):
+                strat_code = "MEAN_REVERSION"
+            elif any(k in q_upper for k in ("XU HƯỚNG", "TREND")):
+                strat_code = "TREND_FOLLOWING"
+            elif "RSI" in q_upper:
+                strat_code = "RSI_BASED"
+            elif "MACD" in q_upper:
+                strat_code = "MACD_BASED"
+            elif any(k in q_upper for k in ("MA", "GIAO CẮT", "CROSS")):
+                strat_code = "MA_CROSSOVER"
+            proposed.append({"tool_name": "STRATEGY_SCAN", "arguments": {"strategyCode": strat_code, "limit": 5}})
+        elif any(k in q_upper for k in ("LỌC CỔ PHIẾU", "TÌM CỔ PHIẾU", "LỌC MÃ", "MÃ NÀO CÓ", "CỔ PHIẾU CÓ", "TÌM MÃ", "SCREENER", "SCREENING", "DANH SÁCH CỔ PHIẾU", "CỔ PHIẾU NÀO", "CÁC MÃ CÓ", "CỔ PHIẾU THOẢ")):
             proposed.append({"tool_name": "SCREENING", "arguments": {"query": question}})
 
         if any(k in q_upper for k in ("BÁO CÁO THƯỜNG NIÊN", "TÀI LIỆU", "PDF", "TRÍCH XUẤT", "TRÍCH LỤC", "ĐỌC ĐƯỢC", "THEO TÀI LIỆU", "ĐẠI HỘI CỔ ĐÔNG", "ĐHCĐ", "NGHỊ QUYẾT", "CÔNG BỐ", "THUYẾT MINH", "VĂN BẢN")):
@@ -661,6 +760,194 @@ class ChatOrchestrationService:
                     res_line += f": {names}" + (" …" if len(matches) > 10 else "")
                 answer_parts.append(res_line + ".")
                 raw_claims.append(RawStructuredClaim(claimText=f"{total} mã", sequenceNo=seq, fieldPath="totalMatches", claimedValue=str(total)))
+
+            elif call.tool_name == ToolName.STRATEGY_SCAN:
+                strat = data.get("strategyCode", "CHIẾN LƯỢC")
+                matches = data.get("matches") or []
+                total = data.get("totalMatchCount", len(matches))
+                scan_lines = [f"**Kết quả quét chiến lược {strat}:** Tìm thấy **{total} mã** có tín hiệu kích hoạt."]
+                raw_claims.append(RawStructuredClaim(claimText=f"{total} mã", sequenceNo=seq, fieldPath="totalMatchCount", claimedValue=str(total)))
+                raw_claims.append(RawStructuredClaim(claimText=f"Chiến lược {strat}", sequenceNo=seq, fieldPath="strategyCode", claimedValue=str(strat)))
+
+                if matches:
+                    for idx, m in enumerate(matches[:5]):
+                        sym = m.get("symbol", "")
+                        comp_name = m.get("companyName", "")
+                        sig = m.get("signal") or {}
+                        direction = sig.get("direction", "NEUTRAL")
+                        entry_low = sig.get("entryLow")
+                        entry_high = sig.get("entryHigh")
+                        stop_loss = sig.get("stopLoss")
+                        target1 = sig.get("target1")
+                        strength = sig.get("signalStrength", "MODERATE")
+                        risk_lvl = sig.get("riskLevel", "MEDIUM")
+
+                        details = []
+                        if entry_low and entry_high:
+                            details.append(f"vùng mua {fmt_vi(entry_low, 0)} - {fmt_vi(entry_high, 0)}")
+                            raw_claims.append(RawStructuredClaim(
+                                claimText=f"Vùng mua {sym} {entry_low}", sequenceNo=seq,
+                                fieldPath=f"matches[{idx}].signal.entryLow", claimedValue=str(entry_low),
+                            ))
+                        if stop_loss:
+                            details.append(f"cắt lỗ {fmt_vi(stop_loss, 0)}")
+                            raw_claims.append(RawStructuredClaim(
+                                claimText=f"Cắt lỗ {sym} {stop_loss}", sequenceNo=seq,
+                                fieldPath=f"matches[{idx}].signal.stopLoss", claimedValue=str(stop_loss),
+                            ))
+                        if target1:
+                            details.append(f"mục tiêu 1 {fmt_vi(target1, 0)}")
+                            raw_claims.append(RawStructuredClaim(
+                                claimText=f"Mục tiêu {sym} {target1}", sequenceNo=seq,
+                                fieldPath=f"matches[{idx}].signal.target1", claimedValue=str(target1),
+                            ))
+                        if strength:
+                            details.append(f"tín hiệu {strength}")
+                        if risk_lvl:
+                            details.append(f"rủi ro {risk_lvl}")
+
+                        line = f"- **{sym}** ({comp_name}): {direction}"
+                        if details:
+                            line += " | " + ", ".join(details)
+                        scan_lines.append(line)
+                    scan_lines.append("*(Lưu ý: Các ngưỡng kỹ thuật trên là vùng tham khảo định lượng, không cam kết lợi nhuận)*.")
+                else:
+                    scan_lines.append("Hiện không có mã nào đáp ứng đủ điều kiện của chiến lược này.")
+                answer_parts.append("\n".join(scan_lines))
+
+            elif call.tool_name == ToolName.COMPARE:
+                items = data.get("items") or []
+                if not items:
+                    answer_parts.append("Không tìm thấy dữ liệu so sánh cho các mã cổ phiếu yêu cầu.")
+                else:
+                    symbols = [item.get("symbol", "") for item in items]
+                    comp_header = f"**Bảng so sánh đối đầu ({', '.join(symbols)}):**\n"
+
+                    headers = ["Chỉ số / Tiêu chí"] + symbols
+                    header_line = "| " + " | ".join(headers) + " |"
+                    sep_line = "| " + " | ".join(["---"] * len(headers)) + " |"
+
+                    rows = []
+                    # 1. Tên công ty & Sàn
+                    row_name = ["Công ty / Sàn"] + [f"{it.get('companyName', it.get('symbol'))} ({it.get('exchange', 'N/A')})" for it in items]
+                    rows.append("| " + " | ".join(row_name) + " |")
+
+                    # 2. Giá & % Thay đổi
+                    row_price = ["Thị giá (VND)"]
+                    for idx, it in enumerate(items):
+                        p = it.get("price")
+                        chg = it.get("changePercent")
+                        sym_it = it.get("symbol", "")
+                        p_str = f"{fmt_vi(p, 0)} ({fmt_vi(chg, 2)}%)" if p else "N/A"
+                        row_price.append(p_str)
+                        if p:
+                            raw_claims.append(RawStructuredClaim(
+                                claimText=f"Giá {sym_it} {p}", sequenceNo=seq,
+                                fieldPath=f"items[{idx}].price", claimedValue=str(p),
+                            ))
+                    rows.append("| " + " | ".join(row_price) + " |")
+
+                    # 3. P/E
+                    row_pe = ["P/E"]
+                    for idx, it in enumerate(items):
+                        pe = it.get("pe")
+                        sym_it = it.get("symbol", "")
+                        row_pe.append(fmt_vi(pe, 2) if pe else "N/A")
+                        if pe:
+                            raw_claims.append(RawStructuredClaim(
+                                claimText=f"P/E {sym_it} {pe}", sequenceNo=seq,
+                                fieldPath=f"items[{idx}].pe", claimedValue=str(pe),
+                            ))
+                    rows.append("| " + " | ".join(row_pe) + " |")
+
+                    # 4. P/B
+                    row_pb = ["P/B"]
+                    for idx, it in enumerate(items):
+                        pb = it.get("pb")
+                        sym_it = it.get("symbol", "")
+                        row_pb.append(fmt_vi(pb, 2) if pb else "N/A")
+                        if pb:
+                            raw_claims.append(RawStructuredClaim(
+                                claimText=f"P/B {sym_it} {pb}", sequenceNo=seq,
+                                fieldPath=f"items[{idx}].pb", claimedValue=str(pb),
+                            ))
+                    rows.append("| " + " | ".join(row_pb) + " |")
+
+                    # 5. Phân loại định giá
+                    row_val = ["Định giá Finvera"]
+                    for idx, it in enumerate(items):
+                        cls = it.get("valuationClassification")
+                        sym_it = it.get("symbol", "")
+                        cls_vi = {
+                            "VERY_ATTRACTIVE": "Rất hấp dẫn",
+                            "ATTRACTIVE": "Hấp dẫn",
+                            "FAIR": "Phù hợp",
+                            "EXPENSIVE": "Đắt",
+                            "VERY_EXPENSIVE": "Rất đắt",
+                        }.get(str(cls), str(cls) if cls else "Chưa công bố")
+                        row_val.append(cls_vi)
+                        if cls:
+                            raw_claims.append(RawStructuredClaim(
+                                claimText=f"Định giá {sym_it} {cls}", sequenceNo=seq,
+                                fieldPath=f"items[{idx}].valuationClassification", claimedValue=str(cls),
+                            ))
+                    rows.append("| " + " | ".join(row_val) + " |")
+
+                    # 6. ROE (%)
+                    row_roe = ["ROE (%)"]
+                    for idx, it in enumerate(items):
+                        roe = it.get("roe")
+                        sym_it = it.get("symbol", "")
+                        row_roe.append(f"{fmt_vi(roe, 2)}%" if roe else "N/A")
+                        if roe:
+                            raw_claims.append(RawStructuredClaim(
+                                claimText=f"ROE {sym_it} {roe}%", sequenceNo=seq,
+                                fieldPath=f"items[{idx}].roe", claimedValue=str(roe),
+                            ))
+                    rows.append("| " + " | ".join(row_roe) + " |")
+
+                    # 7. Tăng trưởng doanh thu (%)
+                    row_rev = ["Tăng trưởng D.Thu"]
+                    for idx, it in enumerate(items):
+                        rev = it.get("revenueGrowthPercent")
+                        sym_it = it.get("symbol", "")
+                        row_rev.append(f"{fmt_vi(rev, 2)}%" if rev else "N/A")
+                        if rev:
+                            raw_claims.append(RawStructuredClaim(
+                                claimText=f"Tăng trưởng doanh thu {sym_it} {rev}%", sequenceNo=seq,
+                                fieldPath=f"items[{idx}].revenueGrowthPercent", claimedValue=str(rev),
+                            ))
+                    rows.append("| " + " | ".join(row_rev) + " |")
+
+                    # 8. RSI (14)
+                    row_rsi = ["RSI (14)"]
+                    for idx, it in enumerate(items):
+                        rsi = it.get("rsi14")
+                        sym_it = it.get("symbol", "")
+                        row_rsi.append(fmt_vi(rsi, 1) if rsi else "N/A")
+                        if rsi:
+                            raw_claims.append(RawStructuredClaim(
+                                claimText=f"RSI {sym_it} {rsi}", sequenceNo=seq,
+                                fieldPath=f"items[{idx}].rsi14", claimedValue=str(rsi),
+                            ))
+                    rows.append("| " + " | ".join(row_rsi) + " |")
+
+                    # 9. Tín hiệu chiến lược
+                    row_sig = ["Tín hiệu kỹ thuật"]
+                    for it in items:
+                        sig = it.get("primarySignal")
+                        row_sig.append(sig if sig else "Chưa kích hoạt")
+                    rows.append("| " + " | ".join(row_sig) + " |")
+
+                    table_text = "\n".join([comp_header, header_line, sep_line] + rows)
+
+                    notes = [
+                        table_text,
+                        "\n**Đánh giá tương quan & Đánh đổi (Trade-offs):**",
+                        f"- So sánh giữa {', '.join(symbols)} cho thấy mỗi mã có những ưu thế và khẩu vị rủi ro riêng về định giá, chất lượng tài chính và dòng tiền kỹ thuật.",
+                        "- Nhà đầu tư nên cân nhắc tỷ trọng dựa trên mục tiêu đầu tư cá nhân và khẩu vị chịu rủi ro *(Lưu ý: Bảng so sánh mang tính chất hỗ trợ quyết định định lượng, không cấu thành khuyến nghị mua/bán bắt buộc)*."
+                    ]
+                    answer_parts.append("\n".join(notes))
 
             elif call.tool_name == ToolName.NEWS:
                 articles = data.get("articles", [])

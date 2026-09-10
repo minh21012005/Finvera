@@ -65,9 +65,15 @@ CẤU TRÚC JSON BẮT BUỘC:
 }
 
 QUY TẮC ĐẶC BIỆT:
-1. Nếu tiêu chí mơ hồ (ví dụ: "cổ phiếu ngon", "cổ phiếu tiềm năng", "giá rẻ" mà không có số cụ thể), gán confidence < 0.6 và điền giải thích vào ambiguityNote. TUYỆT ĐỐI KHÔNG tự bịa đặt đoán mò số liệu mà không báo trước (FR-009).
-2. Nếu có số liệu rõ ràng (ví dụ: "P/E dưới 10, ROE trên 15%"), gán confidence >= 0.8 và điền chính xác vào filters.fundamental (ví dụ: peMax: "10", roeMin: "15").
-3. Trả về DUY NHẤT một chuỗi JSON hợp lệ.
+1. Nếu người dùng yêu cầu lọc theo trường phái đầu tư (Archetype) mà không nêu chỉ số cụ thể:
+   - "Tăng trưởng" (Growth): doanh thu tăng >= 15%, EPS tăng >= 15%, ROE >= 15%.
+   - "Dài hạn" / "Giá trị" / "Tích sản" (Value): P/E <= 15, P/B <= 2.0, ROE >= 12%, Nợ/VCSH <= 1.5.
+   - "Cổ tức" (Dividend): ROE >= 12%, Nợ/VCSH <= 1.0, P/E <= 18.
+   - "Lướt sóng" / "Ngắn hạn" (Momentum): Giá trên MA20 (PRICE_ABOVE_MA20), RSI từ 45 đến 70.
+   Gán confidence = 0.85 và ghi chú giải thích quy đổi vào ambiguityNote.
+2. Nếu có số liệu rõ ràng cụ thể từ người dùng (ví dụ: "P/E dưới 10, ROE trên 15%"), gán confidence >= 0.9 và điền chính xác vào filters.
+3. Nếu hoàn toàn mơ hồ không thuộc trường phái nào ("cổ phiếu ngon", "cổ phiếu tiềm năng"), gán confidence < 0.6 và giải thích vào ambiguityNote. TUYỆT ĐỐI KHÔNG tự bịa đặt đoán mò số liệu mà không báo trước (FR-009).
+4. Trả về DUY NHẤT một chuỗi JSON hợp lệ.
 """
 
 
@@ -146,6 +152,31 @@ def _rule_based_extract(query: str) -> Optional[ScreenerConversionResult]:
         market["exchange"] = ["HNX"]
         matched_explicit_conditions += 1
 
+    # FR-005: Archetype conversions for natural investment philosophies
+    archetype_note = None
+    if any(k in q_lower for k in ("tăng trưởng", "growth")):
+        fundamental.setdefault("revenueGrowthPercentMin", "15.0")
+        fundamental.setdefault("earningsGrowthPercentMin", "15.0")
+        fundamental.setdefault("roeMin", "15.0")
+        archetype_note = "Tiêu chí tăng trưởng được quy đổi thành: Tăng trưởng doanh thu >= 15%, tăng trưởng EPS >= 15%, ROE >= 15%."
+    elif any(k in q_lower for k in ("dài hạn", "giá trị", "tích sản", "lâu dài", "nắm giữ", "value")):
+        fundamental.setdefault("peMax", "15.0")
+        fundamental.setdefault("pbMax", "2.0")
+        fundamental.setdefault("roeMin", "12.0")
+        fundamental.setdefault("debtToEquityMax", "1.5")
+        archetype_note = "Tiêu chí đầu tư giá trị / dài hạn được quy đổi thành: P/E <= 15, P/B <= 2.0, ROE >= 12%, Nợ/VCSH <= 1.5."
+    elif any(k in q_lower for k in ("cổ tức", "dividend")):
+        fundamental.setdefault("roeMin", "12.0")
+        fundamental.setdefault("debtToEquityMax", "1.0")
+        fundamental.setdefault("peMax", "18.0")
+        archetype_note = "Tiêu chí cổ tức được quy đổi thành: ROE >= 12%, Nợ/VCSH <= 1.0, P/E <= 18."
+    elif any(k in q_lower for k in ("lướt sóng", "ngắn hạn", "momentum", "bứt phá")):
+        technical.setdefault("rsiMin", "45.0")
+        technical.setdefault("rsiMax", "70.0")
+        if "maRelationship" not in technical:
+            technical["maRelationship"] = ["PRICE_ABOVE_MA20"]
+        archetype_note = "Tiêu chí lướt sóng ngắn hạn được quy đổi thành: Giá trên MA20, RSI từ 45 đến 70."
+
     filters: Dict[str, Any] = {}
     if market:
         filters["market"] = market
@@ -155,6 +186,13 @@ def _rule_based_extract(query: str) -> Optional[ScreenerConversionResult]:
         filters["technical"] = technical
     if fundamental:
         filters["fundamental"] = fundamental
+
+    if archetype_note:
+        return ScreenerConversionResult(
+            filters=filters,
+            confidence=0.85 if matched_explicit_conditions == 0 else 0.9,
+            ambiguityNote=archetype_note,
+        )
 
     # If completely vague without any numbers or clear indicators (e.g. "cổ phiếu ngon", "cổ phiếu tiềm năng")
     vague_keywords = ["ngon", "tiềm năng", "tốt", "giá rẻ", "đẹp", "hấp dẫn", "đáng mua"]

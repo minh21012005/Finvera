@@ -118,6 +118,26 @@ const TOOL_CAPABILITIES: ToolCapability[] = [
     accent: 'border-teal-500/30 hover:border-teal-400/70 bg-teal-950/20 hover:bg-teal-900/30',
     badgeColor: 'bg-teal-500/20 text-teal-300 border-teal-500/30',
   },
+  {
+    name: 'STRATEGY_SCAN',
+    badge: 'Quét chiến lược',
+    icon: '🎯',
+    title: 'Rà soát Tín hiệu & Chiến lược Định lượng',
+    desc: 'Rà soát toàn bộ cổ phiếu trên thị trường theo 8 chiến lược định lượng (Momentum, Breakout, Pullback, Mean Reversion...) với vùng mua, cắt lỗ và chốt lời.',
+    exampleQ: 'Lọc các cổ phiếu có tín hiệu tốt để trading ngắn hạn theo chiến lược Momentum',
+    accent: 'border-emerald-500/30 hover:border-emerald-400/70 bg-emerald-950/20 hover:bg-emerald-900/30',
+    badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+  },
+  {
+    name: 'COMPARE',
+    badge: 'So sánh đối đầu',
+    icon: '⚔️',
+    title: 'So sánh Đối đầu 2–5 Mã Cổ phiếu',
+    desc: 'Bảng đối chiếu trực quan đa chiều về Thị giá, Định giá (P/E, P/B), Sức khỏe tài chính (ROE, Tăng trưởng) và Đà kỹ thuật (RSI, Tín hiệu).',
+    exampleQ: 'So sánh SSI và VND xem mã nào tốt hơn để đầu tư',
+    accent: 'border-blue-500/30 hover:border-blue-400/70 bg-blue-950/20 hover:bg-blue-900/30',
+    badgeColor: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+  },
 ];
 
 export const AskAnalyst: React.FC = () => {
@@ -219,13 +239,13 @@ export const AskAnalyst: React.FC = () => {
           </h1>
         </div>
         <p className="text-xs text-slate-400">
-          Hệ thống tích hợp 9 công cụ dữ liệu tài chính chuyên sâu với cơ chế kiểm chứng số liệu minh bạch và bảo mật.
+          Hệ thống tích hợp {TOOL_CAPABILITIES.length} công cụ dữ liệu tài chính chuyên sâu với cơ chế kiểm chứng số liệu minh bạch và bảo mật.
         </p>
       </div>
 
       {/* Main Conversation / Output Area */}
       <div className="flex-1 min-h-[420px] bg-slate-900/60 rounded-xl border border-slate-800/80 p-5 overflow-y-auto space-y-6">
-        {/* Empty state: 9 Capabilities Board */}
+        {/* Empty state: Capabilities Board */}
         {!isStreaming && !streamedText && !finalResult && !errorMsg && (
           <div className="space-y-4 py-2">
             <div className="text-center space-y-1 pb-2">
@@ -233,7 +253,7 @@ export const AskAnalyst: React.FC = () => {
                 ⚡
               </div>
               <h2 className="text-sm font-semibold text-slate-200">
-                Bản Đồ 9 Công Cụ Dữ Liệu Sẵn Sàng Truy Vấn
+                Bản Đồ {TOOL_CAPABILITIES.length} Công Cụ Dữ Liệu Sẵn Sàng Truy Vấn
               </h2>
               <p className="text-xs text-slate-400 max-w-xl mx-auto">
                 Nhấp vào bất kỳ công cụ nào bên dưới để chèn câu hỏi mẫu vào ô nhập liệu (bạn có thể chỉnh sửa trước khi bấm Gửi).
@@ -321,7 +341,34 @@ export const AskAnalyst: React.FC = () => {
                         {statusStyle.label}
                       </span>
                     </div>
-                    {tc.toolName === 'SCREENING' && tc.arguments?.filters ? (
+                    {tc.toolName === 'STRATEGY_SCAN' ? (
+                      <div className="mt-2 space-y-1">
+                        <div className="text-slate-300 font-sans text-[11px] font-medium flex items-center gap-1.5">
+                          <span>Chiến lược:</span>
+                          <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold">
+                            {String(tc.arguments?.strategyCode || 'MOMENTUM')}
+                          </span>
+                          <span className="text-slate-400 text-[10px]">
+                            (Top {String(tc.arguments?.limit || 5)} mã)
+                          </span>
+                        </div>
+                      </div>
+                    ) : tc.toolName === 'COMPARE' ? (
+                      <div className="mt-2 space-y-1">
+                        <div className="text-slate-300 font-sans text-[11px] font-medium flex items-center gap-1.5 flex-wrap">
+                          <span>Đối đầu:</span>
+                          {Array.isArray(tc.arguments?.symbols) ? (
+                            tc.arguments.symbols.map((s: string) => (
+                              <span key={s} className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono font-bold">
+                                {s}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-slate-400">{JSON.stringify(tc.arguments?.symbols)}</span>
+                          )}
+                        </div>
+                      </div>
+                    ) : tc.toolName === 'SCREENING' && tc.arguments?.filters ? (
                       <div className="mt-2 space-y-1">
                         <div className="text-slate-300 font-sans text-[11px] font-medium">
                           Bộ lọc đã chuyển đổi:

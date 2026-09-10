@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.minhnb.finvera_be.analyst.dto.ToolResponseDtos.*;
@@ -37,7 +38,10 @@ import com.minhnb.finvera_be.stock.service.StockOverviewService;
 import com.minhnb.finvera_be.stock.service.StockOverviewService.StockOverview;
 import com.minhnb.finvera_be.stock.service.TechnicalIndicatorService;
 import com.minhnb.finvera_be.stock.service.ValuationService;
+import com.minhnb.finvera_be.stock.domain.model.StockTypes.StrategyCode;
 import com.minhnb.finvera_be.stock.service.screener.ScreenerService;
+import com.minhnb.finvera_be.stock.service.strategy.StrategyScanService;
+import com.minhnb.finvera_be.stock.service.strategy.StrategyScanService.ScanResult;
 import com.minhnb.finvera_be.stock.service.strategy.StrategySignalService;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -57,6 +61,7 @@ class ToolDelegateServiceTests {
     private FundamentalReportService fundamentalReportService;
     private ValuationService valuationService;
     private StrategySignalService strategySignalService;
+    private StrategyScanService strategyScanService;
     private PortfolioService portfolioService;
     private PositionService positionService;
     private PortfolioAnalyticsService portfolioAnalyticsService;
@@ -73,6 +78,7 @@ class ToolDelegateServiceTests {
         fundamentalReportService = mock(FundamentalReportService.class);
         valuationService = mock(ValuationService.class);
         strategySignalService = mock(StrategySignalService.class);
+        strategyScanService = mock(StrategyScanService.class);
         portfolioService = mock(PortfolioService.class);
         positionService = mock(PositionService.class);
         portfolioAnalyticsService = mock(PortfolioAnalyticsService.class);
@@ -86,6 +92,7 @@ class ToolDelegateServiceTests {
                 fundamentalReportService,
                 valuationService,
                 strategySignalService,
+                strategyScanService,
                 portfolioService,
                 positionService,
                 portfolioAnalyticsService,
@@ -370,5 +377,18 @@ class ToolDelegateServiceTests {
         }
         var classTx = ToolDelegateService.class.getAnnotation(org.springframework.transaction.annotation.Transactional.class);
         assertThat(classTx.readOnly()).isTrue(); // every other tool stays read-only
+    }
+
+    @Test
+    void scanStrategy_delegatesToService() {
+        var mockScanResult = new ScanResult(StrategyCode.MOMENTUM, List.of(), 0, 5, 0, 0, Instant.now());
+        when(strategyScanService.scan(StrategyCode.MOMENTUM, 5, 0)).thenReturn(mockScanResult);
+
+        var response = toolDelegateService.scanStrategy(StrategyCode.MOMENTUM, 5);
+
+        assertThat(response).isNotNull();
+        assertThat(response.strategyCode()).isEqualTo("MOMENTUM");
+        assertThat(response.totalMatchCount()).isEqualTo(0);
+        verify(strategyScanService).scan(StrategyCode.MOMENTUM, 5, 0);
     }
 }

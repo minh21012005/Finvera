@@ -64,3 +64,78 @@ async def test_t035_llm_fallback_low_confidence_includes_ambiguity_note():
     assert res.confidence < 0.6
     assert res.ambiguityNote is not None
     assert "Câu hỏi không có chỉ số" in res.ambiguityNote
+
+
+@pytest.mark.asyncio
+async def test_archetype_growth_conversion():
+    query = "Lọc cho tôi các cổ phiếu tăng trưởng cao"
+    res: ScreenerConversionResult = await convert_natural_language_to_filters(query)
+
+    assert res.confidence >= 0.8
+    assert res.ambiguityNote is not None
+    assert "tăng trưởng" in res.ambiguityNote.lower()
+    assert "fundamental" in res.filters
+    f = res.filters["fundamental"]
+    assert f["revenueGrowthPercentMin"] == "15.0"
+    assert f["earningsGrowthPercentMin"] == "15.0"
+    assert f["roeMin"] == "15.0"
+
+
+@pytest.mark.asyncio
+async def test_archetype_value_longterm_conversion():
+    query = "Tìm các mã cổ phiếu đầu tư dài hạn giá trị tích sản"
+    res: ScreenerConversionResult = await convert_natural_language_to_filters(query)
+
+    assert res.confidence >= 0.8
+    assert res.ambiguityNote is not None
+    assert "giá trị" in res.ambiguityNote.lower() or "dài hạn" in res.ambiguityNote.lower()
+    assert "fundamental" in res.filters
+    f = res.filters["fundamental"]
+    assert f["peMax"] == "15.0"
+    assert f["pbMax"] == "2.0"
+    assert f["roeMin"] == "12.0"
+    assert f["debtToEquityMax"] == "1.5"
+
+
+@pytest.mark.asyncio
+async def test_archetype_dividend_conversion():
+    query = "Lọc cổ phiếu chi trả cổ tức đều đặn"
+    res: ScreenerConversionResult = await convert_natural_language_to_filters(query)
+
+    assert res.confidence >= 0.8
+    assert res.ambiguityNote is not None
+    assert "cổ tức" in res.ambiguityNote.lower()
+    assert "fundamental" in res.filters
+    f = res.filters["fundamental"]
+    assert f["roeMin"] == "12.0"
+    assert f["debtToEquityMax"] == "1.0"
+    assert f["peMax"] == "18.0"
+
+
+@pytest.mark.asyncio
+async def test_archetype_momentum_screener_conversion():
+    query = "Lọc các mã lướt sóng ngắn hạn bứt phá"
+    res: ScreenerConversionResult = await convert_natural_language_to_filters(query)
+
+    assert res.confidence >= 0.8
+    assert res.ambiguityNote is not None
+    assert "lướt sóng" in res.ambiguityNote.lower() or "ngắn hạn" in res.ambiguityNote.lower()
+    assert "technical" in res.filters
+    t = res.filters["technical"]
+    assert t["rsiMin"] == "45.0"
+    assert t["rsiMax"] == "70.0"
+    assert "PRICE_ABOVE_MA20" in t["maRelationship"]
+
+
+@pytest.mark.asyncio
+async def test_archetype_with_explicit_override():
+    query = "Lọc cổ phiếu tăng trưởng có ROE trên 25%"
+    res: ScreenerConversionResult = await convert_natural_language_to_filters(query)
+
+    assert res.confidence >= 0.85
+    assert "fundamental" in res.filters
+    f = res.filters["fundamental"]
+    assert f["roeMin"] == "25"
+    assert f["revenueGrowthPercentMin"] == "15.0"
+    assert f["earningsGrowthPercentMin"] == "15.0"
+

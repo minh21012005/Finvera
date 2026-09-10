@@ -20,7 +20,7 @@ describe('AskAnalyst Component (User Story 1: P1)', () => {
     render(<AskAnalyst />);
     expect(screen.getByPlaceholderText(/Hỏi trợ lý phân tích/i)).toBeDefined();
     expect(screen.getByPlaceholderText(/Mã/i)).toBeDefined();
-    expect(screen.getByText(/Bản Đồ 9 Công Cụ Dữ Liệu Sẵn Sàng Truy Vấn/i)).toBeDefined();
+    expect(screen.getByText(/Bản Đồ \d+ Công Cụ Dữ Liệu Sẵn Sàng Truy Vấn/i)).toBeDefined();
     expect(screen.getByText(/Tổng quan & Độ rộng VN-INDEX/i)).toBeDefined();
   });
 

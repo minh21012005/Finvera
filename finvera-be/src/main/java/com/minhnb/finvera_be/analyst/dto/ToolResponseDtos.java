@@ -187,4 +187,40 @@ public final class ToolResponseDtos {
             int totalMatches,
             Instant asOf) {
     }
+
+    public record StockCompareRequest(List<String> symbols) {
+    }
+
+    public record StockComparisonItemDto(
+            String symbol,
+            String companyName,
+            String exchange,
+            String sectorName,
+            String price,
+            String changePercent,
+            Long volume,
+            String marketCap,
+            String pe,
+            String pb,
+            String valuationClassification,
+            String valuationScore,
+            String roe,
+            String roa,
+            String eps,
+            String epsTtm,
+            String revenueGrowthPercent,
+            String epsGrowthPercent,
+            String rsi14,
+            String trend,
+            String primarySignal,
+            String signalStrength,
+            String riskLevel,
+            String dataStatus,
+            List<String> reasonCodes) {
+    }
+
+    public record StockComparisonToolResponse(
+            List<StockComparisonItemDto> items,
+            Instant asOf) {
+    }
 }

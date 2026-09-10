@@ -6,7 +6,10 @@ import com.minhnb.finvera_be.portfolio.service.OwnerScopedAccess;
 import com.minhnb.finvera_be.research.dto.RetrieveRequest;
 import com.minhnb.finvera_be.research.dto.RetrieveResponse;
 import com.minhnb.finvera_be.research.service.RetrievalService;
+import com.minhnb.finvera_be.stock.domain.model.StockTypes.StrategyCode;
+import com.minhnb.finvera_be.stock.dto.ScanResponse;
 import com.minhnb.finvera_be.stock.dto.ScreenRequest;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -137,5 +140,22 @@ public class InternalToolController {
             @RequestBody(required = false) ScreenRequest request) {
         requireOwner(ownerId);
         return ResponseEntity.ok(toolDelegateService.executeScreener(request));
+    }
+
+    @PostMapping("/strategies/scan")
+    public ResponseEntity<ScanResponse> scanStrategy(
+            @RequestParam(name = "ownerId", required = false) UUID ownerId,
+            @RequestParam(name = "strategyCode", required = false, defaultValue = "MOMENTUM") StrategyCode strategyCode,
+            @RequestParam(name = "limit", required = false, defaultValue = "5") int limit) {
+        requireOwner(ownerId);
+        return ResponseEntity.ok(toolDelegateService.scanStrategy(strategyCode, limit));
+    }
+
+    @PostMapping("/stocks/compare")
+    public ResponseEntity<StockComparisonToolResponse> compareStocks(
+            @RequestParam(name = "ownerId", required = false) UUID ownerId,
+            @RequestBody(required = false) StockCompareRequest request) {
+        requireOwner(ownerId);
+        return ResponseEntity.ok(toolDelegateService.compareStocks(request != null ? request.symbols() : List.of()));
     }
 }

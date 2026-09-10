@@ -15,6 +15,8 @@ class ToolName(str, Enum):
     NEWS = "NEWS"
     RESEARCH_RAG = "RESEARCH_RAG"
     SCREENING = "SCREENING"
+    STRATEGY_SCAN = "STRATEGY_SCAN"
+    COMPARE = "COMPARE"
 
 
 _SYMBOL_PATTERN = re.compile(r"^[A-Z0-9]{1,20}$")
@@ -98,6 +100,48 @@ class ScreeningToolArgs(BaseModel):
     ambiguityNote: Optional[str] = None
 
 
+VALID_STRATEGY_CODES = {
+    "MOMENTUM",
+    "BREAKOUT",
+    "TREND_FOLLOWING",
+    "PULLBACK",
+    "RSI_BASED",
+    "MACD_BASED",
+    "MA_CROSSOVER",
+    "MEAN_REVERSION",
+}
+
+
+class StrategyScanToolArgs(BaseModel):
+    owner_id: uuid.UUID
+    strategy_code: str = Field("MOMENTUM", alias="strategyCode")
+    limit: int = Field(5, ge=1, le=20)
+
+    model_config = {"populate_by_name": True}
+
+    @field_validator("strategy_code")
+    @classmethod
+    def validate_strategy_code(cls, v: str) -> str:
+        s = v.strip().upper() if v else "MOMENTUM"
+        if s not in VALID_STRATEGY_CODES:
+            return "MOMENTUM"
+        return s
+
+
+class CompareToolArgs(BaseModel):
+    owner_id: uuid.UUID
+    symbols: List[str] = Field(..., min_length=2, max_length=5)
+
+    @field_validator("symbols")
+    @classmethod
+    def normalize_symbols(cls, v: List[str]) -> List[str]:
+        cleaned = [_normalize_symbol(s) for s in v if s and s.strip()]
+        unique = list(dict.fromkeys(cleaned))
+        if len(unique) < 2:
+            raise ValueError("Comparison requires at least 2 distinct symbols")
+        return unique[:5]
+
+
 TOOL_ARG_SCHEMAS: Dict[ToolName, type[BaseModel]] = {
     ToolName.MARKET: MarketToolArgs,
     ToolName.STOCK: SymbolToolArgs,
@@ -108,7 +152,11 @@ TOOL_ARG_SCHEMAS: Dict[ToolName, type[BaseModel]] = {
     ToolName.NEWS: NewsToolArgs,
     ToolName.RESEARCH_RAG: ResearchRagToolArgs,
     ToolName.SCREENING: ScreeningToolArgs,
+    ToolName.STRATEGY_SCAN: StrategyScanToolArgs,
+    ToolName.COMPARE: CompareToolArgs,
 }
+
+ToolArgsSchemas = TOOL_ARG_SCHEMAS
 
 
 def validate_tool_call(
