@@ -48,7 +48,9 @@ This feature introduces a dedicated, high-performance comparative tool capabilit
 - Automated portfolio rebalancing execution or broker order routing.
 - Fabricating subjective stock recommendations or ranking without quantitative underlying data.
 - Comparing more than 5 stocks in a single request (queries with >5 stocks will be capped to top 5).
-- Graphical comparison from SRS-CMP-01. This slice delivers the tabular comparison; charts require a separate frontend capability and contract.
+- Graphical comparison. SRS-CMP-01 was amended to tabular-only by the
+  2026-09-11 product-scope decision; the delivered table is the complete
+  currently planned presentation scope.
 
 ---
 

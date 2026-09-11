@@ -1,7 +1,7 @@
 # Finvera Architecture
 
 **Status**: Living document
-**Last updated**: 2026-08-30
+**Last updated**: 2026-09-11
 **Applies to**: `finvera-fe`, `finvera-be`, `finvera-ai`, and the shared data
 stores
 
@@ -14,6 +14,8 @@ conventions, and invariants that every feature inherits so that each new
 It is **not**:
 
 - product intent or MVP scope — that is the SRS;
+- current delivery status or future implementation order — that is tracked in
+  [FEATURE_ROADMAP.md](FEATURE_ROADMAP.md);
 - a substitute for a feature's `plan.md` and `data-model.md`;
 - a decision record — durable decisions live in `docs/adr/` and this document
   points at them rather than restating them.

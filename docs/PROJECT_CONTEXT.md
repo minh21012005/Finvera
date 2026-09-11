@@ -18,6 +18,11 @@ security posture, and the ADR index — is in
 [ARCHITECTURE.md](ARCHITECTURE.md). This file stays focused on product context
 and open gaps.
 
+Current delivery status, intentionally deferred SRS capabilities, dependencies,
+and the proposed implementation sequence are tracked in
+[FEATURE_ROADMAP.md](FEATURE_ROADMAP.md). The roadmap does not replace an
+approved feature specification.
+
 ## System Map
 
 ```text

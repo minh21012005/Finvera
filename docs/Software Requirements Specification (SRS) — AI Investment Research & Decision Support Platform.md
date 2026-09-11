@@ -136,9 +136,7 @@ Users interested in:
 - Indicators
 - Volume
 - Trend
-- Support/resistance
 - Breakouts
-- Multi-timeframe analysis
 - Trading strategies
 
 ## 3.4 Research-oriented Users
@@ -291,7 +289,6 @@ The stock page shall include:
 - Market capitalization
 - Sector
 - Trading volume
-- Overall stock score
 - Risk classification
 - Trend classification
 - Valuation classification
@@ -353,53 +350,25 @@ The system shall support:
 - Volume Spike
 - Volume Trend
 
-## 7.5 Price Structure
+## 7.5 Price Structure — Deprecated
 
-The system shall support:
+SRS-TEC-05 was deprecated by the 2026-09-11 product-scope decision. Finvera has
+no current delivery commitment for general support/resistance, price-structure,
+or Fibonacci analysis. Existing deterministic strategy rules that use a
+defined breakout condition remain supported under SRS-STR-01.
 
-- Support levels
-- Resistance levels
-- Breakout detection
-- Breakdown detection
-- Fibonacci retracement
-- Fibonacci extension
+## 7.6 Candlestick Analysis — Deprecated
 
-## 7.6 Candlestick Analysis
-
-The system may identify common candlestick patterns including:
-
-- Doji
-- Hammer
-- Inverted Hammer
-- Engulfing
-- Morning Star
-- Evening Star
-- Shooting Star
+SRS-TEC-06 was deprecated by the 2026-09-11 product-scope decision. Finvera has
+no current delivery commitment for candlestick-pattern identification.
 
 ---
 
-# 8. Multi-Timeframe Analysis
+# 8. Multi-Timeframe Analysis — Deprecated
 
-The Technical Analysis Engine shall support multiple timeframes:
-
-```text
-Intraday
-Daily
-Weekly
-Monthly
-```
-
-The system shall independently evaluate technical conditions for each timeframe.
-
-Example:
-
-```text
-Daily: Bullish
-Weekly: Bullish
-Monthly: Neutral
-```
-
-The system shall generate a multi-timeframe summary describing potential alignment or conflict between timeframes.
+SRS-TEC-07 was deprecated by the 2026-09-11 product-scope decision. Finvera's
+current technical-analysis contract remains daily-timeframe analysis; there is
+no planned cross-timeframe alignment feature.
 
 ---
 
@@ -473,43 +442,16 @@ Supported comparison dimensions:
 - Margin
 - Market capitalization
 
-The system shall present both tabular and graphical comparisons.
+The system shall present a tabular comparison. Graphical comparison is outside
+the current product scope.
 
 ---
 
-# 12. Stock Scoring
+# 12. Stock Scoring — Deprecated
 
-The system shall calculate a multi-factor stock score.
-
-Potential components:
-
-```text
-Technical Score
-Fundamental Score
-Valuation Score
-Momentum Score
-Volume Score
-Sector Score
-Risk Score
-```
-
-The system shall produce an overall score.
-
-Example:
-
-```text
-Technical       82
-Fundamental     76
-Valuation       64
-Momentum        87
-Volume          79
-Sector          81
-Risk            58
-
-Overall         77
-```
-
-The system shall also expose the factors contributing to the score.
+SRS-SCO-01 was deprecated by the 2026-09-11 product-scope decision. Finvera keeps
+separate deterministic risk, trend, and valuation classifications and does not
+combine them into an overall or composite stock score.
 
 ---
 
@@ -781,7 +723,6 @@ Each watchlist item may display:
 - Current price
 - Daily change
 - Technical trend
-- Overall score
 - Signal
 - Risk level
 - Volume condition
@@ -789,6 +730,8 @@ Each watchlist item may display:
 ---
 
 # 23. Investment Journal
+
+## 23.1 Journal Entries
 
 Users may record investment decisions.
 
@@ -808,17 +751,16 @@ Notes
 Timestamp
 ```
 
-The system may later use journal data to provide personalized analytics.
+## 23.2 AI Conversation History
 
-Example:
+Users shall be able to create, list, reopen, continue, rename, and delete their
+own AI Analyst conversations. A conversation shall retain ordered user and
+assistant turns together with the evidence references needed to review an
+answer later.
 
-```text
-Trend Following:
-Win Rate = 63%
-
-Breakout:
-Win Rate = 48%
-```
+Conversation context sent to an AI provider shall be bounded and minimized.
+Ownership shall be enforced by Spring Boot for every thread and message, and
+private prompts or responses shall not be written to application logs.
 
 ---
 
@@ -1118,26 +1060,11 @@ The AI Analyst may combine both sources.
 
 ---
 
-# 34. Daily Market Briefing
+# 34. Daily Market Briefing — Deprecated
 
-The system may generate an AI-powered daily market briefing.
-
-Potential content:
-
-```text
-Market Regime
-VN-Index Performance
-Market Breadth
-Strong Sectors
-Weak Sectors
-Unusual Volume
-Important News
-Macro Events
-Stocks to Monitor
-Key Risks
-```
-
-The briefing shall reference supporting data and sources where applicable.
+SRS-AIA-05 was deprecated by the 2026-09-11 product-scope decision. Users may
+still ask the AI Analyst questions about current market evidence, but Finvera
+does not plan a separately generated or scheduled daily briefing.
 
 ---
 
@@ -1770,6 +1697,24 @@ The following shall not be part of the initial MVP:
 
 These may become future extensions.
 
+## 48.1 Capabilities Removed From the Product Roadmap
+
+The following previously documented Post-MVP capabilities were removed by the
+2026-09-11 product-scope decision and are not planned extensions:
+
+- Daily market briefing
+- Personalized analytics derived from journal or conversation history
+- Composite or overall stock score
+- Graphical peer comparison or additional peer-comparison depth beyond the
+  delivered tabular comparison
+- General support/resistance, Fibonacci, candlestick-pattern, and
+  multi-timeframe analysis
+
+Their published `SRS-` identifiers remain in section 58 as deprecated records and
+must not be reused. Existing daily technical indicators, breakout strategy
+rules, separate risk/trend/valuation classifications, and tabular peer
+comparison remain in scope.
+
 ---
 
 # 49. Future Roadmap
@@ -1780,53 +1725,25 @@ MVP delivery sequence. Where this section and section 47 disagree on ordering,
 are delivered together as MVP-5 even though this roadmap discusses them under
 different themes.
 
-## Phase 1 — Core Platform
+Current implementation status, remaining slices, dependencies, and the proposed
+delivery order are maintained in [FEATURE_ROADMAP.md](FEATURE_ROADMAP.md). That
+delivery roadmap is informative and does not override the requirements or
+priorities in this SRS.
+
+## Phase 1 — Decision Workflow
 
 ```text
-Market Data
-Stock Analysis
-Technical Analysis
-Fundamental Analysis
-Screener
-Watchlist
-```
-
-## Phase 2 — Strategy
-
-```text
-Strategy Engine
-Signal Engine
-Risk Engine
+AI Conversation History
+Position Sizing
 Backtesting
 ```
 
-## Phase 3 — AI
+## Phase 2 — Ongoing Use
 
 ```text
-AI Analyst
-RAG
-Financial Report Q&A
-News Intelligence
-AI Explanation
-```
-
-## Phase 4 — Personalization
-
-```text
-Portfolio
+Alerts
+Sector Analytics
 Investment Journal
-Personalized Alerts
-Personalized AI Analysis
-```
-
-## Phase 5 — Advanced Platform
-
-```text
-Mobile Application
-Advanced ML
-Event-driven architecture
-Additional market data
-Broker integration
 ```
 
 ---
@@ -2245,20 +2162,20 @@ with a reason rather than renumbered or reused.
 | ID | Section | Capability | MVP |
 |---|---|---|---|
 | SRS-STK-01 | 6.1 | Per-stock overview: identity, price, change, capitalization, sector, volume | MVP-2 |
-| SRS-STK-02 | 6.1 | Overall stock score, risk, trend, and valuation classification on the stock page | MVP-2 (valuation, trend) / Post-MVP (composite score) |
+| SRS-STK-02 | 6.1 | Risk, trend, and valuation classification on the stock page | MVP-2 |
 | SRS-STK-03 | 6.2 | Stock page sections: Overview, Technical, Fundamental, Valuation, Financials, News, Research, AI Analysis | MVP-2 (first four) / MVP-6 and MVP-7 (remainder) |
 | SRS-TEC-01 | 7.1 | Trend indicators (SMA, EMA, MA20/50/200) | MVP-2 |
 | SRS-TEC-02 | 7.2 | Momentum indicators (RSI, MACD, Stochastic) | MVP-2 |
 | SRS-TEC-03 | 7.3 | Volatility indicators (Bollinger Bands, ATR) | MVP-2 |
 | SRS-TEC-04 | 7.4 | Volume analysis (average, relative, spike, trend) | MVP-2 |
-| SRS-TEC-05 | 7.5 | Price structure: support, resistance, breakout, breakdown, Fibonacci | Post-MVP |
-| SRS-TEC-06 | 7.6 | Candlestick pattern identification | Post-MVP |
-| SRS-TEC-07 | 8 | Multi-timeframe evaluation and alignment summary | Post-MVP |
+| SRS-TEC-05 | 7.5 | Price structure: support, resistance, breakout, breakdown, Fibonacci | Deprecated (2026-09-11) |
+| SRS-TEC-06 | 7.6 | Candlestick pattern identification | Deprecated (2026-09-11) |
+| SRS-TEC-07 | 8 | Multi-timeframe evaluation and alignment summary | Deprecated (2026-09-11) |
 | SRS-FUN-01 | 9.1 | Fundamental financial metrics for the latest accepted reporting period | MVP-2 |
 | SRS-VAL-01 | 10 | Valuation metrics (P/E, P/B, EV/EBITDA, PEG, dividend yield) | MVP-2 |
 | SRS-VAL-02 | 10 | Valuation comparison against history, sector, peers, and market | MVP-2 (history, sector) / Post-MVP (selected peers) |
-| SRS-CMP-01 | 11 | Multi-company peer comparison, tabular and graphical | Post-MVP |
-| SRS-SCO-01 | 12 | Multi-factor stock score with exposed contributing factors | Post-MVP |
+| SRS-CMP-01 | 11 | Multi-company peer comparison in tabular form | Post-MVP |
+| SRS-SCO-01 | 12 | Multi-factor stock score with exposed contributing factors | Deprecated (2026-09-11) |
 
 ## Screening
 
@@ -2287,7 +2204,8 @@ with a reason rather than renumbered or reused.
 | SRS-PF-01 | 20 | Portfolio holdings, positions, cash, and realized/unrealized P/L | MVP-5 |
 | SRS-PF-02 | 21 | Portfolio analytics, concentration, and benchmark comparison | MVP-5 |
 | SRS-WL-01 | 22 | Watchlist creation and per-item market and analysis context | MVP-5 |
-| SRS-JRN-01 | 23 | Investment journal entries and later personalized analytics | Post-MVP |
+| SRS-JRN-01 | 23 | Owner-scoped investment journal entries | Post-MVP |
+| SRS-CONV-01 | 23.2 | Owner-scoped persisted AI conversations with ordered turns and evidence references | Post-MVP |
 | SRS-ALR-01 | 35 | Configurable alerts and supported delivery channels | Post-MVP |
 
 ## News, documents, and retrieval
@@ -2309,7 +2227,7 @@ with a reason rather than renumbered or reused.
 | SRS-AIA-02 | 31 | Tool-selecting orchestration over allowlisted capabilities | MVP-7 |
 | SRS-AIA-03 | 32 | AI explanation of deterministic outputs without replacing the calculation | MVP-7 |
 | SRS-AIA-04 | 33 | Separation of structured-data queries from document retrieval | MVP-7 |
-| SRS-AIA-05 | 34 | Daily market briefing (optional capability) | Post-MVP |
+| SRS-AIA-05 | 34 | Daily market briefing | Deprecated (2026-09-11) |
 
 ## Cross-cutting
 
