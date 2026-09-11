@@ -54,3 +54,21 @@
 - [x] T009 [Constitution Gate] Run full test suites across both services to verify zero regressions.
       Verify: `.\mvnw.cmd test` in `finvera-be` and `uv run pytest` in `finvera-ai`
       Depends: T002, T007, T008
+
+## Phase 5: Post-Implementation Correctness Review
+
+- [x] T010 [FR-005] Align Growth, Value, Dividend, and Momentum presets with the approved spec; ensure explicit user bounds replace defaults without contradictory ranges.
+      Verify: `uv run pytest app/features/orchestration/tests/test_screener_conversion.py`
+      Depends: T007
+
+- [x] T011 [Auditability] Register `STRATEGY_SCAN` in the backend audit enum and cover persistence mapping.
+
+- [x] T012 [FR-005] Implement Archetype v2 conversion: separate Growth, Long-term Quality, Value, Dividend, and Momentum Screen; preserve explicit user constraints.
+
+- [x] T013 [FR-005] Add deterministic screener filters for published valuation classification and dividend yield with domain, service, DTO, contract, and boundary tests.
+
+- [x] T014 [DATA-003] Normalize VCI Debt/Equity to canonical percent points, migrate existing VCI report/summary values, and add exporter/migration tests.
+
+- [x] T015 [FR-005, DATA-003] Amend dependent screener/provider contracts and run complete backend, AI, and exporter validation.
+      Verify: `.\mvnw.cmd test "-Dtest=AnalystServiceTests"`
+      Depends: T005

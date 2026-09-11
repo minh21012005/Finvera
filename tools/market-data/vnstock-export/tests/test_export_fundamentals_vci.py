@@ -113,6 +113,10 @@ def test_margins_leverage_fcf_and_ebitda_follow_the_published_formulas():
     assert Decimal(y[("GROSS_MARGIN", 2025, None)]["value"]).quantize(Decimal("0.0001")) == (gp / rev * 100).quantize(Decimal("0.0001"))
     debt = Decimal("9393736731992") + Decimal("62907826150")
     assert Decimal(y[("TOTAL_DEBT", 2025, None)]["value"]) == debt
+    equity = Decimal(y[("EQUITY_ATTRIBUTABLE_TO_PARENT", 2025, None)]["value"])
+    assert Decimal(y[("DEBT_TO_EQUITY", 2025, None)]["value"]).quantize(Decimal("0.0001")) == (
+        debt / equity * 100
+    ).quantize(Decimal("0.0001"))
     assert y[("DEBT_TO_EQUITY", 2025, None)]["derivation"] == vci.RULE_DEBT_TO_EQUITY
     assert y[("FREE_CASH_FLOW", 2025, None)]["derivation"] == vci.RULE_FCF
     assert y[("EBITDA", 2025, None)]["derivation"] == vci.RULE_EBITDA

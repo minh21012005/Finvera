@@ -37,6 +37,7 @@ This plan implements a dedicated comparative tool `COMPARE` in Finvera, enabling
     ```java
     public record StockComparisonToolResponse(
         List<StockComparisonItemDto> items,
+        List<StockComparisonAlertDto> alerts,
         Instant asOf
     ) {}
     ```
@@ -65,19 +66,30 @@ This plan implements a dedicated comparative tool `COMPARE` in Finvera, enabling
         String primarySignal,
         String riskLevel,
         String dataStatus,
-        List<String> reasonCodes
+        List<String> reasonCodes,
+        Map<String, ComparisonSourceMetadataDto> sources,
+        String revenueTtm,
+        String netProfitTtm,
+        String debtToEquity,
+        String operatingMargin,
+        String grossMargin,
+        String netMargin,
+        String peSectorPercentile,
+        String pbSectorPercentile
     ) {}
     ```
 
 #### Service Layer (`ToolDelegateService.java`):
 - Add method `compareStocks(List<String> rawSymbols)`:
   - Normalize and deduplicate symbols, clamp between 2 and 5 symbols.
-  - For each symbol, retrieve:
+  - Resolve overview first and skip dependent lookups for unknown symbols, returning an `UNKNOWN_SYMBOL` alert while preserving valid comparison items.
+  - For each valid symbol, retrieve:
     - `StockOverview` (via `stockOverviewService`)
     - `FundamentalsToolResponse` (via `getFundamentals`)
     - `ValuationToolResponse` (via `getValuation`)
     - `TechnicalToolResponse` (via `getTechnical`)
-  - Assemble into `StockComparisonItemDto` and return `StockComparisonToolResponse`.
+  - Assemble into `StockComparisonItemDto`, preserving exact timestamp/status/reasons for overview, fundamentals, valuation, and technical data in `sources`.
+  - Derive trend from price relative to MA20/MA50 instead of returning a placeholder.
 
 #### Controller Layer (`InternalToolController.java`):
 - Add endpoint:
@@ -101,7 +113,7 @@ This plan implements a dedicated comparative tool `COMPARE` in Finvera, enabling
   ```python
   class CompareToolArgs(BaseModel):
       owner_id: uuid.UUID
-      symbols: List[str] = Field(..., min_length=2, max_length=5)
+      symbols: List[str] = Field(..., min_length=2)
 
       @field_validator("symbols")
       @classmethod
@@ -133,7 +145,7 @@ This plan implements a dedicated comparative tool `COMPARE` in Finvera, enabling
   - If `len(tickers) >= 2` and any comparative phrase matches (*"SO SÁNH"*, *"GIỮA"*, *"VÀ"*, *"NÊN CHỌN"*, *"TỐT HƠN"*, *"COMPARE"*, *"HƠN"*, *"ĐỐI ĐẦU"*):
     - Propose `{"tool_name": "COMPARE", "arguments": {"symbols": tickers[:5]}}`.
 - In `_offline_synthesize()`:
-  - Format a clean Markdown table comparing Symbol, Price, Change %, P/E, P/B, Valuation, ROE, Rev Growth, RSI, Signals.
+  - Format clean Markdown tables comparing Symbol, Price, Change %, P/E, P/B, published valuation and sector percentiles, ROE, revenue/EPS growth, revenue/net profit TTM, debt-to-equity, margins, RSI, and Signals.
   - Emit `RawStructuredClaim` objects for each cell of the comparative table for complete attribution verification.
   - Include balanced analytical summary highlighting trade-offs without prescriptive mandates.
 

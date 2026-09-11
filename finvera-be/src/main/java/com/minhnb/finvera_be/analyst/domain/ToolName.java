@@ -9,5 +9,7 @@ public enum ToolName {
     PORTFOLIO,
     NEWS,
     RESEARCH_RAG,
-    SCREENING
+    SCREENING,
+    STRATEGY_SCAN,
+    COMPARE
 }

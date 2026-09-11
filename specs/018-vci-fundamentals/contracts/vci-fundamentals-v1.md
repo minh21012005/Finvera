@@ -69,7 +69,7 @@ up to ~100 shares (MBB 8,054,999,900 vs 8,054,999,909) — immaterial, documente
 | GROSS_MARGIN | `vci-margin-v1` | GROSS_PROFIT ÷ REVENUE × 100 | both |
 | OPERATING_MARGIN | `vci-margin-v1` | OPERATING_PROFIT ÷ REVENUE × 100 | both |
 | NET_MARGIN | `vci-margin-v1` | NET_PROFIT ÷ REVENUE × 100 | both |
-| DEBT_TO_EQUITY | `vci-debt-to-equity-v1` | TOTAL_DEBT ÷ EQUITY_ATTRIBUTABLE_TO_PARENT (ratio, not percent) | both (types with TOTAL_DEBT) |
+| DEBT_TO_EQUITY | `vci-debt-to-equity-percent-v2` | TOTAL_DEBT ÷ EQUITY_ATTRIBUTABLE_TO_PARENT × 100 (percent points; `100` means debt equals equity) | both (types with TOTAL_DEBT) |
 | FREE_CASH_FLOW | `vci-fcf-ocf-plus-capex-v1` | OCF + capex (capex negative) | both |
 | EBITDA | `vci-ebitda-operating-profit-plus-da-v1` | OPERATING_PROFIT + D&A | both, NON_FINANCIAL only |
 

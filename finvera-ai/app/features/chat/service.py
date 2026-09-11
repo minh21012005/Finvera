@@ -367,18 +367,21 @@ class ChatOrchestrationService:
             "TIM", "NUA", "QUA", "BOS", "COT", "CAN", "LUA", "GOM", "CAT"
         }
 
-        # Match uppercase 3-letter tokens, plus lowercase/mixed-case tokens joined by VS/VÀ/HAY or preceded by mã/cổ phiếu/cp
-        raw_symbols = re.findall(r"\b[A-Z]{3}\b", question)
-        vs_pairs = re.findall(r"\b([A-Za-z]{3})\s*(?:VS|VÀ|HAY)\s*([A-Za-z]{3})\b", question, re.IGNORECASE)
-        for t1, t2 in vs_pairs:
-            raw_symbols.extend([t1.upper(), t2.upper()])
+        # Inspect each token occurrence so a ticker named VND is retained while a
+        # currency suffix such as "28.000 VND" is ignored.  A query can contain
+        # both forms ("SSI và VND tại 20.000 VND").
+        raw_symbols = []
+        for match in re.finditer(r"\b[A-Za-z]{3}\b", question):
+            candidate = match.group(0).upper()
+            if candidate == "VND" and re.search(r"\d[\d.,]*\s*$", question[:match.start()]):
+                continue
+            raw_symbols.append(candidate)
         explicit_tickers = re.findall(r"(?:MÃ|CỔ PHIẾU|CP)\s+([A-Z]{3})\b", q_upper)
         raw_symbols.extend(explicit_tickers)
 
-        is_currency_vnd = bool(re.search(r"\b\d+\s*VND\b", question, re.IGNORECASE))
         cleaned_tickers = []
         for s in raw_symbols:
-            if s == "VND" and not is_currency_vnd:
+            if s == "VND":
                 cleaned_tickers.append("VND")
             elif s not in stop_words:
                 cleaned_tickers.append(s)
@@ -617,11 +620,9 @@ class ChatOrchestrationService:
                 val_parts = []
                 if cls:
                     cls_desc = {
-                        "VERY_ATTRACTIVE": "Rất hấp dẫn",
-                        "ATTRACTIVE": "Hấp dẫn",
-                        "FAIR": "Phù hợp",
-                        "EXPENSIVE": "Đắt",
-                        "VERY_EXPENSIVE": "Rất đắt",
+                        "UNDER_VALUED": "Định giá thấp tương đối",
+                        "FAIR_VALUED": "Định giá hợp lý tương đối",
+                        "OVER_VALUED": "Định giá cao tương đối",
                     }.get(str(cls), str(cls))
                     val_parts.append(f"**Định giá {sym}:** Phân loại ở mức **{cls_desc}**.")
                     raw_claims.append(RawStructuredClaim(claimText=f"Phân loại {cls}", sequenceNo=seq, fieldPath="classification", claimedValue=str(cls)))
@@ -817,8 +818,13 @@ class ChatOrchestrationService:
 
             elif call.tool_name == ToolName.COMPARE:
                 items = data.get("items") or []
+                alerts = data.get("alerts") or []
                 if not items:
-                    answer_parts.append("Không tìm thấy dữ liệu so sánh cho các mã cổ phiếu yêu cầu.")
+                    alert_symbols = ", ".join(
+                        str(alert.get("symbol")) for alert in alerts if alert.get("symbol")
+                    )
+                    suffix = f" Không tìm thấy: {alert_symbols}." if alert_symbols else ""
+                    answer_parts.append("Không tìm thấy dữ liệu so sánh cho các mã cổ phiếu yêu cầu." + suffix)
                 else:
                     symbols = [item.get("symbol", "") for item in items]
                     comp_header = f"**Bảng so sánh đối đầu ({', '.join(symbols)}):**\n"
@@ -838,9 +844,14 @@ class ChatOrchestrationService:
                         p = it.get("price")
                         chg = it.get("changePercent")
                         sym_it = it.get("symbol", "")
-                        p_str = f"{fmt_vi(p, 0)} ({fmt_vi(chg, 2)}%)" if p else "N/A"
+                        if p is None:
+                            p_str = "N/A (chưa đủ dữ liệu)"
+                        elif chg is None:
+                            p_str = fmt_vi(p, 0)
+                        else:
+                            p_str = f"{fmt_vi(p, 0)} ({fmt_vi(chg, 2)}%)"
                         row_price.append(p_str)
-                        if p:
+                        if p is not None:
                             raw_claims.append(RawStructuredClaim(
                                 claimText=f"Giá {sym_it} {p}", sequenceNo=seq,
                                 fieldPath=f"items[{idx}].price", claimedValue=str(p),
@@ -852,8 +863,8 @@ class ChatOrchestrationService:
                     for idx, it in enumerate(items):
                         pe = it.get("pe")
                         sym_it = it.get("symbol", "")
-                        row_pe.append(fmt_vi(pe, 2) if pe else "N/A")
-                        if pe:
+                        row_pe.append(fmt_vi(pe, 2) if pe is not None else "N/A (chưa đủ dữ liệu)")
+                        if pe is not None:
                             raw_claims.append(RawStructuredClaim(
                                 claimText=f"P/E {sym_it} {pe}", sequenceNo=seq,
                                 fieldPath=f"items[{idx}].pe", claimedValue=str(pe),
@@ -865,13 +876,29 @@ class ChatOrchestrationService:
                     for idx, it in enumerate(items):
                         pb = it.get("pb")
                         sym_it = it.get("symbol", "")
-                        row_pb.append(fmt_vi(pb, 2) if pb else "N/A")
-                        if pb:
+                        row_pb.append(fmt_vi(pb, 2) if pb is not None else "N/A (chưa đủ dữ liệu)")
+                        if pb is not None:
                             raw_claims.append(RawStructuredClaim(
                                 claimText=f"P/B {sym_it} {pb}", sequenceNo=seq,
                                 fieldPath=f"items[{idx}].pb", claimedValue=str(pb),
                             ))
                     rows.append("| " + " | ".join(row_pb) + " |")
+
+                    for label, field in (("P/E percentile ngành", "peSectorPercentile"),
+                                         ("P/B percentile ngành", "pbSectorPercentile")):
+                        row = [label]
+                        for idx, it in enumerate(items):
+                            value = it.get(field)
+                            symbol = it.get("symbol", "")
+                            row.append(
+                                f"{fmt_vi(value, 1)}%" if value is not None else "N/A (chưa đủ dữ liệu)"
+                            )
+                            if value is not None:
+                                raw_claims.append(RawStructuredClaim(
+                                    claimText=f"{label} {symbol} {value}", sequenceNo=seq,
+                                    fieldPath=f"items[{idx}].{field}", claimedValue=str(value),
+                                ))
+                        rows.append("| " + " | ".join(row) + " |")
 
                     # 5. Phân loại định giá
                     row_val = ["Định giá Finvera"]
@@ -879,11 +906,9 @@ class ChatOrchestrationService:
                         cls = it.get("valuationClassification")
                         sym_it = it.get("symbol", "")
                         cls_vi = {
-                            "VERY_ATTRACTIVE": "Rất hấp dẫn",
-                            "ATTRACTIVE": "Hấp dẫn",
-                            "FAIR": "Phù hợp",
-                            "EXPENSIVE": "Đắt",
-                            "VERY_EXPENSIVE": "Rất đắt",
+                            "UNDER_VALUED": "Định giá thấp tương đối",
+                            "FAIR_VALUED": "Định giá hợp lý tương đối",
+                            "OVER_VALUED": "Định giá cao tương đối",
                         }.get(str(cls), str(cls) if cls else "Chưa công bố")
                         row_val.append(cls_vi)
                         if cls:
@@ -898,41 +923,90 @@ class ChatOrchestrationService:
                     for idx, it in enumerate(items):
                         roe = it.get("roe")
                         sym_it = it.get("symbol", "")
-                        row_roe.append(f"{fmt_vi(roe, 2)}%" if roe else "N/A")
-                        if roe:
+                        row_roe.append(f"{fmt_vi(roe, 2)}%" if roe is not None else "N/A (chưa đủ dữ liệu)")
+                        if roe is not None:
                             raw_claims.append(RawStructuredClaim(
                                 claimText=f"ROE {sym_it} {roe}%", sequenceNo=seq,
                                 fieldPath=f"items[{idx}].roe", claimedValue=str(roe),
                             ))
                     rows.append("| " + " | ".join(row_roe) + " |")
 
-                    # 7. Tăng trưởng doanh thu (%)
+                    # 7. Nợ/VCSH and profitability margins are canonical percent points.
+                    for label, field, suffix in (
+                        ("Nợ/VCSH (%)", "debtToEquity", "%"),
+                        ("Biên LN ròng (%)", "netMargin", "%"),
+                    ):
+                        row = [label]
+                        for idx, it in enumerate(items):
+                            value = it.get(field)
+                            symbol = it.get("symbol", "")
+                            row.append(
+                                f"{fmt_vi(value, 2)}{suffix}"
+                                if value is not None else "N/A (chưa đủ dữ liệu)"
+                            )
+                            if value is not None:
+                                raw_claims.append(RawStructuredClaim(
+                                    claimText=f"{label} {symbol} {value}", sequenceNo=seq,
+                                    fieldPath=f"items[{idx}].{field}", claimedValue=str(value),
+                                ))
+                        rows.append("| " + " | ".join(row) + " |")
+
+                    # 8. Growth metrics
                     row_rev = ["Tăng trưởng D.Thu"]
                     for idx, it in enumerate(items):
                         rev = it.get("revenueGrowthPercent")
                         sym_it = it.get("symbol", "")
-                        row_rev.append(f"{fmt_vi(rev, 2)}%" if rev else "N/A")
-                        if rev:
+                        row_rev.append(f"{fmt_vi(rev, 2)}%" if rev is not None else "N/A (chưa đủ dữ liệu)")
+                        if rev is not None:
                             raw_claims.append(RawStructuredClaim(
                                 claimText=f"Tăng trưởng doanh thu {sym_it} {rev}%", sequenceNo=seq,
                                 fieldPath=f"items[{idx}].revenueGrowthPercent", claimedValue=str(rev),
                             ))
                     rows.append("| " + " | ".join(row_rev) + " |")
 
-                    # 8. RSI (14)
+                    row_eps_growth = ["Tăng trưởng EPS"]
+                    for idx, it in enumerate(items):
+                        value = it.get("epsGrowthPercent")
+                        symbol = it.get("symbol", "")
+                        row_eps_growth.append(
+                            f"{fmt_vi(value, 2)}%" if value is not None else "N/A (chưa đủ dữ liệu)"
+                        )
+                        if value is not None:
+                            raw_claims.append(RawStructuredClaim(
+                                claimText=f"Tăng trưởng EPS {symbol} {value}%", sequenceNo=seq,
+                                fieldPath=f"items[{idx}].epsGrowthPercent", claimedValue=str(value),
+                            ))
+                    rows.append("| " + " | ".join(row_eps_growth) + " |")
+
+                    # 9. TTM scale metrics requested by the SRS peer-comparison dimension.
+                    for label, field in (("Doanh thu TTM (VND)", "revenueTtm"),
+                                         ("LNST TTM (VND)", "netProfitTtm")):
+                        row = [label]
+                        for idx, it in enumerate(items):
+                            value = it.get(field)
+                            symbol = it.get("symbol", "")
+                            row.append(fmt_vi(value, 0) if value is not None else "N/A (chưa đủ dữ liệu)")
+                            if value is not None:
+                                raw_claims.append(RawStructuredClaim(
+                                    claimText=f"{label} {symbol} {value}", sequenceNo=seq,
+                                    fieldPath=f"items[{idx}].{field}", claimedValue=str(value),
+                                ))
+                        rows.append("| " + " | ".join(row) + " |")
+
+                    # 10. RSI (14)
                     row_rsi = ["RSI (14)"]
                     for idx, it in enumerate(items):
                         rsi = it.get("rsi14")
                         sym_it = it.get("symbol", "")
-                        row_rsi.append(fmt_vi(rsi, 1) if rsi else "N/A")
-                        if rsi:
+                        row_rsi.append(fmt_vi(rsi, 1) if rsi is not None else "N/A (chưa đủ dữ liệu)")
+                        if rsi is not None:
                             raw_claims.append(RawStructuredClaim(
                                 claimText=f"RSI {sym_it} {rsi}", sequenceNo=seq,
                                 fieldPath=f"items[{idx}].rsi14", claimedValue=str(rsi),
                             ))
                     rows.append("| " + " | ".join(row_rsi) + " |")
 
-                    # 9. Tín hiệu chiến lược
+                    # 11. Tín hiệu chiến lược
                     row_sig = ["Tín hiệu kỹ thuật"]
                     for it in items:
                         sig = it.get("primarySignal")
@@ -947,6 +1021,22 @@ class ChatOrchestrationService:
                         f"- So sánh giữa {', '.join(symbols)} cho thấy mỗi mã có những ưu thế và khẩu vị rủi ro riêng về định giá, chất lượng tài chính và dòng tiền kỹ thuật.",
                         "- Nhà đầu tư nên cân nhắc tỷ trọng dựa trên mục tiêu đầu tư cá nhân và khẩu vị chịu rủi ro *(Lưu ý: Bảng so sánh mang tính chất hỗ trợ quyết định định lượng, không cấu thành khuyến nghị mua/bán bắt buộc)*."
                     ]
+                    sectors = {str(it.get("sectorName")) for it in items if it.get("sectorName")}
+                    if len(sectors) > 1:
+                        notes.append("- Các mã thuộc ngành khác nhau; P/E và cơ cấu nợ có thể không so sánh trực tiếp do đặc thù ngành.")
+                    partial_items = [
+                        str(it.get("symbol")) for it in items
+                        if it.get("dataStatus") not in (None, "CURRENT")
+                    ]
+                    if partial_items:
+                        notes.append(f"- Dữ liệu chưa đầy đủ hoặc chưa đồng nhất thời điểm cho: {', '.join(partial_items)}; xem metadata từng nguồn trong kết quả công cụ.")
+                    if alerts:
+                        unknown = ", ".join(
+                            str(alert.get("symbol")) for alert in alerts
+                            if alert.get("reasonCode") == "UNKNOWN_SYMBOL" and alert.get("symbol")
+                        )
+                        if unknown:
+                            notes.append(f"- Không tìm thấy mã: {unknown}; các mã hợp lệ còn lại vẫn được so sánh.")
                     answer_parts.append("\n".join(notes))
 
             elif call.tool_name == ToolName.NEWS:

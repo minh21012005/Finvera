@@ -76,25 +76,26 @@ async def test_archetype_growth_conversion():
     assert "tăng trưởng" in res.ambiguityNote.lower()
     assert "fundamental" in res.filters
     f = res.filters["fundamental"]
-    assert f["revenueGrowthPercentMin"] == "15.0"
-    assert f["earningsGrowthPercentMin"] == "15.0"
-    assert f["roeMin"] == "15.0"
+    assert f["revenueGrowthPercentMin"] == "10"
+    assert f["earningsGrowthPercentMin"] == "10"
+    assert f["roeMin"] == "15"
+    assert "debtToEquityMax" not in f
+    assert "market" not in res.filters
 
 
 @pytest.mark.asyncio
-async def test_archetype_value_longterm_conversion():
+async def test_combined_value_longterm_phrase_uses_value_preset_precedence():
     query = "Tìm các mã cổ phiếu đầu tư dài hạn giá trị tích sản"
     res: ScreenerConversionResult = await convert_natural_language_to_filters(query)
 
     assert res.confidence >= 0.8
     assert res.ambiguityNote is not None
-    assert "giá trị" in res.ambiguityNote.lower() or "dài hạn" in res.ambiguityNote.lower()
+    assert "preset value v2" in res.ambiguityNote.lower()
     assert "fundamental" in res.filters
     f = res.filters["fundamental"]
-    assert f["peMax"] == "15.0"
-    assert f["pbMax"] == "2.0"
-    assert f["roeMin"] == "12.0"
-    assert f["debtToEquityMax"] == "1.5"
+    assert f["valuationClassification"] == ["UNDER_VALUED"]
+    assert f["roeMin"] == "12"
+    assert res.filters["market"]["marketCapMin"] == "1000000000000"
 
 
 @pytest.mark.asyncio
@@ -107,9 +108,9 @@ async def test_archetype_dividend_conversion():
     assert "cổ tức" in res.ambiguityNote.lower()
     assert "fundamental" in res.filters
     f = res.filters["fundamental"]
-    assert f["roeMin"] == "12.0"
-    assert f["debtToEquityMax"] == "1.0"
-    assert f["peMax"] == "18.0"
+    assert f["dividendYieldMin"] == "3"
+    assert f["peMin"] == "0"
+    assert res.filters["market"]["marketCapMin"] == "2000000000000"
 
 
 @pytest.mark.asyncio
@@ -119,11 +120,12 @@ async def test_archetype_momentum_screener_conversion():
 
     assert res.confidence >= 0.8
     assert res.ambiguityNote is not None
-    assert "lướt sóng" in res.ambiguityNote.lower() or "ngắn hạn" in res.ambiguityNote.lower()
+    assert "momentum screen v2" in res.ambiguityNote.lower()
     assert "technical" in res.filters
     t = res.filters["technical"]
-    assert t["rsiMin"] == "45.0"
-    assert t["rsiMax"] == "70.0"
+    assert t["rsiMin"] == "50"
+    assert t["rsiMax"] == "68"
+    assert t["relativeVolumeMin"] == "1.2"
     assert "PRICE_ABOVE_MA20" in t["maRelationship"]
 
 
@@ -136,6 +138,49 @@ async def test_archetype_with_explicit_override():
     assert "fundamental" in res.filters
     f = res.filters["fundamental"]
     assert f["roeMin"] == "25"
-    assert f["revenueGrowthPercentMin"] == "15.0"
-    assert f["earningsGrowthPercentMin"] == "15.0"
+    assert f["revenueGrowthPercentMin"] == "10"
+    assert f["earningsGrowthPercentMin"] == "10"
 
+
+@pytest.mark.asyncio
+async def test_archetype_explicit_upper_bound_does_not_conflict_with_default():
+    res = await convert_natural_language_to_filters("Lọc cổ phiếu growth ROE dưới 10%")
+
+    fundamental = res.filters["fundamental"]
+    assert fundamental["roeMax"] == "10"
+    assert "roeMin" not in fundamental
+
+
+@pytest.mark.asyncio
+async def test_archetype_explicit_eps_growth_overrides_default():
+    res = await convert_natural_language_to_filters("Lọc cổ phiếu growth EPS > 50%")
+
+    assert res.filters["fundamental"]["earningsGrowthPercentMin"] == "50"
+
+
+@pytest.mark.asyncio
+async def test_archetype_longterm_quality_is_distinct_from_value():
+    res = await convert_natural_language_to_filters("Tìm cổ phiếu dài hạn tích sản")
+
+    f = res.filters["fundamental"]
+    assert f["revenueGrowthPercentMin"] == "5"
+    assert f["earningsGrowthPercentMin"] == "5"
+    assert f["roeMin"] == "15"
+    assert "valuationClassification" not in f
+    assert res.filters["market"]["marketCapMin"] == "1000000000000"
+
+
+@pytest.mark.asyncio
+async def test_value_explicit_pe_replaces_relative_classification_default():
+    res = await convert_natural_language_to_filters("Lọc cổ phiếu value P/E dưới 10")
+
+    fundamental = res.filters["fundamental"]
+    assert fundamental["peMax"] == "10"
+    assert "valuationClassification" not in fundamental
+
+
+@pytest.mark.asyncio
+async def test_explicit_debt_to_equity_uses_percent_point_contract():
+    res = await convert_natural_language_to_filters("Lọc cổ phiếu D/E dưới 100%")
+
+    assert res.filters["fundamental"]["debtToEquityMax"] == "100"

@@ -28,7 +28,7 @@ from typing import Any
 
 from export_fundamentals import CONTRACT_VERSION, canonical_json, period_bounds, output_filename
 
-TOOL_VERSION = "1.2.0"  # 1.2.0: Feature 022 DIVIDEND_PER_SHARE from cash dividends (feeds valuation DIVIDEND_YIELD)
+TOOL_VERSION = "1.3.0"  # 1.3.0: canonical DEBT_TO_EQUITY percent-point normalization
 SOURCE = "VNSTOCK_VCI"
 PAR_VALUE_VND = Decimal("10000")
 SIX = Decimal("0.000001")
@@ -40,7 +40,7 @@ RULE_BVPS = "vci-bvps-parent-equity-over-shares-v1"
 RULE_ROE = "vci-roe-parent-profit-over-average-equity-v1"
 RULE_ROA = "vci-roa-net-profit-over-average-assets-v1"
 RULE_MARGIN = "vci-margin-v1"
-RULE_DEBT_TO_EQUITY = "vci-debt-to-equity-v1"
+RULE_DEBT_TO_EQUITY = "vci-debt-to-equity-percent-v2"
 RULE_FCF = "vci-fcf-ocf-plus-capex-v1"
 RULE_EBITDA = "vci-ebitda-operating-profit-plus-da-v1"
 # Feature 019 (contract vci-derived-ratios-v1)
@@ -389,7 +389,8 @@ def build_metric_records(symbol: str, frames: Frames, period: str) -> list[dict[
         # leverage
         debt = fact("TOTAL_DEBT", column)
         if debt is not None and equity is not None and equity > 0:
-            records.append(record("DEBT_TO_EQUITY", column, debt / equity, BS, company_type, RULE_DEBT_TO_EQUITY))
+            records.append(record("DEBT_TO_EQUITY", column, debt / equity * HUNDRED,
+                                  BS, company_type, RULE_DEBT_TO_EQUITY))
         # cash flow
         ocf = resolve(frames, *inputs["ocf"], column)
         capex = resolve(frames, *inputs["capex"], column)

@@ -7,6 +7,7 @@ import com.minhnb.finvera_be.stock.domain.fundamentals.FundamentalSummaryCalcula
 import com.minhnb.finvera_be.stock.domain.model.StockTypes.IndicatorCode;
 import com.minhnb.finvera_be.stock.domain.model.StockTypes.IndicatorComponent;
 import com.minhnb.finvera_be.stock.domain.model.StockTypes.ValuationMetricCode;
+import com.minhnb.finvera_be.stock.domain.model.StockTypes.ValuationLabel;
 import com.minhnb.finvera_be.stock.domain.screener.ScreenerV1;
 import com.minhnb.finvera_be.stock.domain.screener.ScreenerV1.CandidateFacts;
 import com.minhnb.finvera_be.stock.domain.screener.ScreenerV1.CandidateResult;
@@ -159,11 +160,13 @@ public class ScreenerService {
 
         Map<UUID, Map<String, MetricPoint>> fundamentalByInstrument = Map.of();
         Map<UUID, Boolean> valuationPublishedByInstrument = Map.of();
+        Map<UUID, ValuationLabel> valuationClassificationByInstrument = Map.of();
         Map<UUID, Map<ValuationMetricCode, MetricPoint>> valuationByInstrument = Map.of();
         if (criteria.fundamental() != null && !survivorIds.isEmpty()) {
             fundamentalByInstrument = fetchFundamentalMetrics(survivorIds);
             var valuationFacts = fetchValuationMetrics(survivorIds);
             valuationPublishedByInstrument = valuationFacts.published();
+            valuationClassificationByInstrument = valuationFacts.classifications();
             valuationByInstrument = valuationFacts.metrics();
         }
 
@@ -180,7 +183,8 @@ public class ScreenerService {
                     technicalByInstrument.getOrDefault(lite.instrumentId(), Map.of()),
                     fundamentalByInstrument.getOrDefault(lite.instrumentId(), Map.of()),
                     valuationPublishedByInstrument.getOrDefault(lite.instrumentId(), false),
-                    valuationByInstrument.getOrDefault(lite.instrumentId(), Map.of()));
+                    valuationByInstrument.getOrDefault(lite.instrumentId(), Map.of()),
+                    valuationClassificationByInstrument.get(lite.instrumentId()));
             fullFactsById.put(lite.instrumentId(), full);
             CandidateResult result = ScreenerV1.evaluate(full, criteria);
             finalResults.add(result);
@@ -338,16 +342,24 @@ public class ScreenerService {
         return byInstrument;
     }
 
-    private record ValuationFacts(Map<UUID, Boolean> published, Map<UUID, Map<ValuationMetricCode, MetricPoint>> metrics) {
+    private record ValuationFacts(
+            Map<UUID, Boolean> published,
+            Map<UUID, ValuationLabel> classifications,
+            Map<UUID, Map<ValuationMetricCode, MetricPoint>> metrics) {
     }
 
     private ValuationFacts fetchValuationMetrics(List<UUID> instrumentIds) {
         List<ValuationAssessmentEntity> assessments = valuationAssessments
                 .findLatestCurrentByInstrumentIdInAndRuleVersion(instrumentIds, ValuationV1.RULE_VERSION);
         Map<UUID, Boolean> published = new HashMap<>();
+        Map<UUID, ValuationLabel> classifications = new HashMap<>();
         Map<UUID, UUID> instrumentByAssessmentId = new HashMap<>();
         for (ValuationAssessmentEntity assessment : assessments) {
             published.put(assessment.getInstrumentId(), assessment.getClassification() != null);
+            if (assessment.getClassification() != null) {
+                classifications.put(assessment.getInstrumentId(),
+                        ValuationLabel.valueOf(assessment.getClassification()));
+            }
             instrumentByAssessmentId.put(assessment.getId(), assessment.getInstrumentId());
         }
 
@@ -371,7 +383,7 @@ public class ScreenerService {
                                     .valueOf(row.getApplicability()),
                             row.getValue(), row.getQualityReason()));
         }
-        return new ValuationFacts(published, byInstrument);
+        return new ValuationFacts(published, classifications, byInstrument);
     }
 
     // ── Aggregation, sorting, validation ─────────────────────────────────────
@@ -442,6 +454,7 @@ public class ScreenerService {
             ScreenerV1.validateRange(f.peMin(), f.peMax());
             ScreenerV1.validateRange(f.pbMin(), f.pbMax());
             ScreenerV1.validateRange(f.debtToEquityMin(), f.debtToEquityMax());
+            ScreenerV1.validateRange(f.dividendYieldMin(), f.dividendYieldMax());
         }
         if (criteria.fundamental() != null && criteria.fundamental().ratios() != null) {
             var r = criteria.fundamental().ratios();

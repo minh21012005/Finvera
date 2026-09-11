@@ -57,7 +57,10 @@ CẤU TRÚC JSON BẮT BUỘC:
       "pbMin": "0.5",
       "pbMax": "3.0",
       "debtToEquityMin": "0.0",
-      "debtToEquityMax": "2.0"
+      "debtToEquityMax": "100.0",
+      "dividendYieldMin": "3.0",
+      "dividendYieldMax": "10.0",
+      "valuationClassification": ["UNDER_VALUED", "FAIR_VALUED", "OVER_VALUED"]
     }
   },
   "confidence": 0.0 - 1.0,
@@ -66,10 +69,11 @@ CẤU TRÚC JSON BẮT BUỘC:
 
 QUY TẮC ĐẶC BIỆT:
 1. Nếu người dùng yêu cầu lọc theo trường phái đầu tư (Archetype) mà không nêu chỉ số cụ thể:
-   - "Tăng trưởng" (Growth): doanh thu tăng >= 15%, EPS tăng >= 15%, ROE >= 15%.
-   - "Dài hạn" / "Giá trị" / "Tích sản" (Value): P/E <= 15, P/B <= 2.0, ROE >= 12%, Nợ/VCSH <= 1.5.
-   - "Cổ tức" (Dividend): ROE >= 12%, Nợ/VCSH <= 1.0, P/E <= 18.
-   - "Lướt sóng" / "Ngắn hạn" (Momentum): Giá trên MA20 (PRICE_ABOVE_MA20), RSI từ 45 đến 70.
+   - "Tăng trưởng" (Growth): doanh thu tăng >= 10%, EPS tăng >= 10%, ROE >= 15%.
+   - "Dài hạn" / "Tích sản" / "Nắm giữ" (Long-term Quality): doanh thu tăng >= 5%, EPS tăng >= 5%, ROE >= 15%, vốn hóa >= 1.000 tỷ VND.
+   - "Giá trị" / "Định giá hấp dẫn" (Value): valuationClassification = UNDER_VALUED, ROE >= 12%, vốn hóa >= 1.000 tỷ VND.
+   - "Cổ tức" (Dividend): dividend yield >= 3%, P/E được xác định và dương, vốn hóa >= 2.000 tỷ VND.
+   - "Lướt sóng" / "Ngắn hạn" (Momentum Screen): Giá trên MA20, RSI từ 50 đến 68, khối lượng tương đối >= 1.2. Đây là bộ lọc ứng viên, không phải tín hiệu MOMENTUM đã kích hoạt.
    Gán confidence = 0.85 và ghi chú giải thích quy đổi vào ambiguityNote.
 2. Nếu có số liệu rõ ràng cụ thể từ người dùng (ví dụ: "P/E dưới 10, ROE trên 15%"), gán confidence >= 0.9 và điền chính xác vào filters.
 3. Nếu hoàn toàn mơ hồ không thuộc trường phái nào ("cổ phiếu ngon", "cổ phiếu tiềm năng"), gán confidence < 0.6 và giải thích vào ambiguityNote. TUYỆT ĐỐI KHÔNG tự bịa đặt đoán mò số liệu mà không báo trước (FR-009).
@@ -89,93 +93,183 @@ def _rule_based_extract(query: str) -> Optional[ScreenerConversionResult]:
     price: Dict[str, Any] = {}
 
     matched_explicit_conditions = 0
+    explicit_metrics: set[str] = set()
 
     # PE
     pe_under = re.search(r"p/?e\s*(?:dưới|<|nhỏ hơn|<=)\s*(\d+(?:\.\d+)?)", q_lower)
     if pe_under:
         fundamental["peMax"] = pe_under.group(1)
+        explicit_metrics.add("pe")
         matched_explicit_conditions += 1
     pe_over = re.search(r"p/?e\s*(?:trên|>|lớn hơn|>=)\s*(\d+(?:\.\d+)?)", q_lower)
     if pe_over:
         fundamental["peMin"] = pe_over.group(1)
+        explicit_metrics.add("pe")
         matched_explicit_conditions += 1
 
     # PB
     pb_under = re.search(r"p/?b\s*(?:dưới|<|nhỏ hơn|<=)\s*(\d+(?:\.\d+)?)", q_lower)
     if pb_under:
         fundamental["pbMax"] = pb_under.group(1)
+        explicit_metrics.add("pb")
         matched_explicit_conditions += 1
     pb_over = re.search(r"p/?b\s*(?:trên|>|lớn hơn|>=)\s*(\d+(?:\.\d+)?)", q_lower)
     if pb_over:
         fundamental["pbMin"] = pb_over.group(1)
+        explicit_metrics.add("pb")
         matched_explicit_conditions += 1
 
     # ROE
     roe_over = re.search(r"roe\s*(?:trên|>|lớn hơn|>=)\s*(\d+(?:\.\d+)?)%?", q_lower)
     if roe_over:
         fundamental["roeMin"] = roe_over.group(1)
+        explicit_metrics.add("roe")
         matched_explicit_conditions += 1
     roe_under = re.search(r"roe\s*(?:dưới|<|nhỏ hơn|<=)\s*(\d+(?:\.\d+)?)%?", q_lower)
     if roe_under:
         fundamental["roeMax"] = roe_under.group(1)
+        explicit_metrics.add("roe")
         matched_explicit_conditions += 1
 
     # ROA
     roa_over = re.search(r"roa\s*(?:trên|>|lớn hơn|>=)\s*(\d+(?:\.\d+)?)%?", q_lower)
     if roa_over:
         fundamental["roaMin"] = roa_over.group(1)
+        explicit_metrics.add("roa")
+        matched_explicit_conditions += 1
+
+    # EPS/earnings growth. Explicit user constraints always replace the
+    # archetype default, including an opposite-side constraint.
+    eps_growth_over = re.search(
+        r"(?:eps\s*(?:tăng(?:\s*trưởng)?)?|tăng(?:\s*trưởng)?\s*eps)\s*(?:trên|>|lớn hơn|>=)\s*(\d+(?:\.\d+)?)%?",
+        q_lower,
+    )
+    if eps_growth_over:
+        fundamental["earningsGrowthPercentMin"] = eps_growth_over.group(1)
+        explicit_metrics.add("earnings_growth")
+        matched_explicit_conditions += 1
+    eps_growth_under = re.search(
+        r"(?:eps\s*(?:tăng(?:\s*trưởng)?)?|tăng(?:\s*trưởng)?\s*eps)\s*(?:dưới|<|nhỏ hơn|<=)\s*(\d+(?:\.\d+)?)%?",
+        q_lower,
+    )
+    if eps_growth_under:
+        fundamental["earningsGrowthPercentMax"] = eps_growth_under.group(1)
+        explicit_metrics.add("earnings_growth")
+        matched_explicit_conditions += 1
+
+    # Revenue growth
+    revenue_growth_over = re.search(
+        r"(?:doanh\s*thu|revenue)\s*(?:tăng(?:\s*trưởng)?)?\s*(?:trên|>|lớn hơn|>=)\s*(\d+(?:\.\d+)?)%?",
+        q_lower,
+    )
+    if revenue_growth_over:
+        fundamental["revenueGrowthPercentMin"] = revenue_growth_over.group(1)
+        explicit_metrics.add("revenue_growth")
+        matched_explicit_conditions += 1
+    revenue_growth_under = re.search(
+        r"(?:doanh\s*thu|revenue)\s*(?:tăng(?:\s*trưởng)?)?\s*(?:dưới|<|nhỏ hơn|<=)\s*(\d+(?:\.\d+)?)%?",
+        q_lower,
+    )
+    if revenue_growth_under:
+        fundamental["revenueGrowthPercentMax"] = revenue_growth_under.group(1)
+        explicit_metrics.add("revenue_growth")
+        matched_explicit_conditions += 1
+
+    # Debt/Equity canonical unit is percent points: 100 means debt equals equity.
+    debt_to_equity_max = re.search(
+        r"(?:d/?e|nợ\s*/?\s*(?:vốn chủ sở hữu|vcsh))\s*(?:dưới|<|nhỏ hơn|<=)\s*(\d+(?:\.\d+)?)%?",
+        q_lower,
+    )
+    if debt_to_equity_max:
+        fundamental["debtToEquityMax"] = debt_to_equity_max.group(1)
+        explicit_metrics.add("debt_to_equity")
+        matched_explicit_conditions += 1
+
+    dividend_yield_min = re.search(
+        r"(?:dividend\s*yield|lợi\s*suất\s*cổ\s*tức)\s*(?:trên|>|lớn hơn|>=)\s*(\d+(?:\.\d+)?)%?",
+        q_lower,
+    )
+    if dividend_yield_min:
+        fundamental["dividendYieldMin"] = dividend_yield_min.group(1)
+        explicit_metrics.add("dividend_yield")
         matched_explicit_conditions += 1
 
     # RSI
     rsi_over = re.search(r"rsi\s*(?:trên|>|lớn hơn|>=)\s*(\d+(?:\.\d+)?)", q_lower)
     if rsi_over:
         technical["rsiMin"] = rsi_over.group(1)
+        explicit_metrics.add("rsi")
         matched_explicit_conditions += 1
     rsi_under = re.search(r"rsi\s*(?:dưới|<|nhỏ hơn|<=)\s*(\d+(?:\.\d+)?)", q_lower)
     if rsi_under:
         technical["rsiMax"] = rsi_under.group(1)
+        explicit_metrics.add("rsi")
         matched_explicit_conditions += 1
 
     # MA relationships
     if "cắt lên ma20" in q_lower or "trên ma20" in q_lower:
         technical["maRelationship"] = ["PRICE_ABOVE_MA20"]
+        explicit_metrics.add("ma_relationship")
         matched_explicit_conditions += 1
     elif "cắt lên ma50" in q_lower or "trên ma50" in q_lower:
         technical["maRelationship"] = ["PRICE_ABOVE_MA50"]
+        explicit_metrics.add("ma_relationship")
         matched_explicit_conditions += 1
 
     # Exchanges
     if "hose" in q_lower or "hsx" in q_lower:
         market["exchange"] = ["HOSE"]
+        explicit_metrics.add("exchange")
         matched_explicit_conditions += 1
     elif "hnx" in q_lower:
         market["exchange"] = ["HNX"]
+        explicit_metrics.add("exchange")
         matched_explicit_conditions += 1
 
     # FR-005: Archetype conversions for natural investment philosophies
     archetype_note = None
     if any(k in q_lower for k in ("tăng trưởng", "growth")):
-        fundamental.setdefault("revenueGrowthPercentMin", "15.0")
-        fundamental.setdefault("earningsGrowthPercentMin", "15.0")
-        fundamental.setdefault("roeMin", "15.0")
-        archetype_note = "Tiêu chí tăng trưởng được quy đổi thành: Tăng trưởng doanh thu >= 15%, tăng trưởng EPS >= 15%, ROE >= 15%."
-    elif any(k in q_lower for k in ("dài hạn", "giá trị", "tích sản", "lâu dài", "nắm giữ", "value")):
-        fundamental.setdefault("peMax", "15.0")
-        fundamental.setdefault("pbMax", "2.0")
-        fundamental.setdefault("roeMin", "12.0")
-        fundamental.setdefault("debtToEquityMax", "1.5")
-        archetype_note = "Tiêu chí đầu tư giá trị / dài hạn được quy đổi thành: P/E <= 15, P/B <= 2.0, ROE >= 12%, Nợ/VCSH <= 1.5."
+        if "revenue_growth" not in explicit_metrics:
+            fundamental["revenueGrowthPercentMin"] = "10"
+        if "earnings_growth" not in explicit_metrics:
+            fundamental["earningsGrowthPercentMin"] = "10"
+        if "roe" not in explicit_metrics:
+            fundamental["roeMin"] = "15"
+        archetype_note = "Preset Growth v2 (heuristic): tăng trưởng doanh thu >= 10%, tăng trưởng EPS >= 10%, ROE >= 15%. Không giới hạn sàn và không áp dụng Nợ/VCSH mặc định vì khác biệt ngành. Điều kiện người dùng nhập được ưu tiên."
     elif any(k in q_lower for k in ("cổ tức", "dividend")):
-        fundamental.setdefault("roeMin", "12.0")
-        fundamental.setdefault("debtToEquityMax", "1.0")
-        fundamental.setdefault("peMax", "18.0")
-        archetype_note = "Tiêu chí cổ tức được quy đổi thành: ROE >= 12%, Nợ/VCSH <= 1.0, P/E <= 18."
+        if "dividend_yield" not in explicit_metrics:
+            fundamental["dividendYieldMin"] = "3"
+        if "pe" not in explicit_metrics:
+            fundamental["peMin"] = "0"
+        market.setdefault("marketCapMin", "2000000000000")
+        archetype_note = "Preset Dividend v2 (heuristic): lợi suất cổ tức >= 3%, P/E được xác định và dương, vốn hóa >= 2.000 tỷ VND. Chưa đánh giá được độ bền payout nhiều năm. Điều kiện người dùng nhập được ưu tiên."
+    elif any(k in q_lower for k in ("giá trị", "định giá hấp dẫn", "value")):
+        # A user-provided absolute valuation constraint is authoritative. Do
+        # not silently add the relative valuation-v3 classification as a
+        # second, stricter condition.
+        if "pe" not in explicit_metrics and "pb" not in explicit_metrics:
+            fundamental["valuationClassification"] = ["UNDER_VALUED"]
+        if "roe" not in explicit_metrics:
+            fundamental["roeMin"] = "12"
+        market.setdefault("marketCapMin", "1000000000000")
+        archetype_note = "Preset Value v2 (heuristic): valuation-v3 phải công bố UNDER_VALUED, ROE >= 12%, vốn hóa >= 1.000 tỷ VND. Không dùng ngưỡng P/E/P/B tuyệt đối cho mọi ngành. Điều kiện người dùng nhập được ưu tiên."
+    elif any(k in q_lower for k in ("dài hạn", "tích sản", "lâu dài", "nắm giữ")):
+        if "revenue_growth" not in explicit_metrics:
+            fundamental["revenueGrowthPercentMin"] = "5"
+        if "earnings_growth" not in explicit_metrics:
+            fundamental["earningsGrowthPercentMin"] = "5"
+        if "roe" not in explicit_metrics:
+            fundamental["roeMin"] = "15"
+        market.setdefault("marketCapMin", "1000000000000")
+        archetype_note = "Preset Long-term Quality v2 (heuristic): tăng trưởng doanh thu >= 5%, tăng trưởng EPS >= 5%, ROE >= 15%, vốn hóa >= 1.000 tỷ VND. Đây là sàng lọc ứng viên, chưa chứng minh tính bền vững nhiều năm. Điều kiện người dùng nhập được ưu tiên."
     elif any(k in q_lower for k in ("lướt sóng", "ngắn hạn", "momentum", "bứt phá")):
-        technical.setdefault("rsiMin", "45.0")
-        technical.setdefault("rsiMax", "70.0")
-        if "maRelationship" not in technical:
+        if "rsi" not in explicit_metrics:
+            technical["rsiMin"] = "50"
+            technical["rsiMax"] = "68"
+        if "ma_relationship" not in explicit_metrics:
             technical["maRelationship"] = ["PRICE_ABOVE_MA20"]
-        archetype_note = "Tiêu chí lướt sóng ngắn hạn được quy đổi thành: Giá trên MA20, RSI từ 45 đến 70."
+        technical.setdefault("relativeVolumeMin", "1.2")
+        archetype_note = "Preset Momentum Screen v2 (heuristic): giá trên MA20, RSI từ 50 đến 68, khối lượng tương đối >= 1.2. Đây là bộ lọc ứng viên, không phải tín hiệu MOMENTUM_SIGNAL. Điều kiện người dùng nhập được ưu tiên."
 
     filters: Dict[str, Any] = {}
     if market:

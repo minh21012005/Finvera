@@ -214,6 +214,14 @@ components:
         interestCoverageMax: { $ref: "#/components/schemas/Decimal" }
         debtToAssetsMin: { $ref: "#/components/schemas/Decimal" }
         debtToAssetsMax: { $ref: "#/components/schemas/Decimal" }
+        dividendYieldMin: { $ref: "#/components/schemas/Decimal" }
+        dividendYieldMax: { $ref: "#/components/schemas/Decimal" }
+        valuationClassification:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [UNDER_VALUED, FAIR_VALUED, OVER_VALUED]
 
     SortField:
       type: string

@@ -6,6 +6,7 @@ import com.minhnb.finvera_be.stock.domain.model.StockTypes.IndicatorCode;
 import com.minhnb.finvera_be.stock.domain.model.StockTypes.IndicatorComponent;
 import com.minhnb.finvera_be.stock.domain.model.StockTypes.MetricApplicability;
 import com.minhnb.finvera_be.stock.domain.model.StockTypes.ValuationMetricCode;
+import com.minhnb.finvera_be.stock.domain.model.StockTypes.ValuationLabel;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -248,6 +249,16 @@ public final class ScreenerV1 {
     private static CategoryOutcome evaluateFundamental(CandidateFacts c, FundamentalFilter f, Map<String, String> values) {
         CategoryOutcome outcome;
 
+        if (f.valuationClassification() != null && !f.valuationClassification().isEmpty()) {
+            if (!c.valuationPublished() || c.valuationClassification() == null) {
+                return unavailable("FUNDAMENTAL", "VALUATION_WITHHELD");
+            }
+            if (!f.valuationClassification().contains(c.valuationClassification())) {
+                return notMatched("FUNDAMENTAL");
+            }
+            values.put("valuationClassification", c.valuationClassification().name());
+        }
+
         outcome = evaluateSummaryMetric(c, "REVENUE_GROWTH_PERCENT", f.revenueGrowthPercentMin(),
                 f.revenueGrowthPercentMax(), "revenueGrowthPercent", values);
         if (outcome != null) {
@@ -276,6 +287,11 @@ public final class ScreenerV1 {
             return outcome;
         }
         outcome = evaluateValuationMetric(c, ValuationMetricCode.PB, f.pbMin(), f.pbMax(), "pb", values);
+        if (outcome != null) {
+            return outcome;
+        }
+        outcome = evaluateValuationMetric(c, ValuationMetricCode.DIVIDEND_YIELD,
+                f.dividendYieldMin(), f.dividendYieldMax(), "dividendYield", values);
         if (outcome != null) {
             return outcome;
         }
@@ -488,7 +504,19 @@ public final class ScreenerV1 {
             Map<IndicatorCode, IndicatorSnapshot> technicalIndicators,
             Map<String, MetricPoint> fundamentalMetrics,
             boolean valuationPublished,
-            Map<ValuationMetricCode, MetricPoint> valuationMetrics) {
+            Map<ValuationMetricCode, MetricPoint> valuationMetrics,
+            ValuationLabel valuationClassification) {
+        public CandidateFacts(
+                UUID instrumentId, String symbol, String companyName, String exchange, UUID sectorId, String sectorName,
+                Long sharesOutstanding, LocalDate asOfTradingDate, DataStatus priceDataStatus,
+                BigDecimal latestClose, BigDecimal previousValidClose, Long latestVolume,
+                List<DailyBarPoint> recentBars, Map<IndicatorCode, IndicatorSnapshot> technicalIndicators,
+                Map<String, MetricPoint> fundamentalMetrics, boolean valuationPublished,
+                Map<ValuationMetricCode, MetricPoint> valuationMetrics) {
+            this(instrumentId, symbol, companyName, exchange, sectorId, sectorName, sharesOutstanding, asOfTradingDate,
+                    priceDataStatus, latestClose, previousValidClose, latestVolume, recentBars,
+                    technicalIndicators, fundamentalMetrics, valuationPublished, valuationMetrics, null);
+        }
     }
 
     public record MarketFilter(Set<String> exchange, Set<UUID> sectorId, BigDecimal marketCapMin,
@@ -517,7 +545,9 @@ public final class ScreenerV1 {
             BigDecimal peMin, BigDecimal peMax,
             BigDecimal pbMin, BigDecimal pbMax,
             BigDecimal debtToEquityMin, BigDecimal debtToEquityMax,
-            RatioFilters ratios) {
+            RatioFilters ratios,
+            BigDecimal dividendYieldMin, BigDecimal dividendYieldMax,
+            Set<ValuationLabel> valuationClassification) {
         /** Pre-Feature-009 shape: no provider-ratio filters selected. */
         public FundamentalFilter(
                 BigDecimal revenueGrowthPercentMin, BigDecimal revenueGrowthPercentMax,
@@ -528,7 +558,19 @@ public final class ScreenerV1 {
                 BigDecimal pbMin, BigDecimal pbMax,
                 BigDecimal debtToEquityMin, BigDecimal debtToEquityMax) {
             this(revenueGrowthPercentMin, revenueGrowthPercentMax, earningsGrowthPercentMin, earningsGrowthPercentMax,
-                    roeMin, roeMax, roaMin, roaMax, peMin, peMax, pbMin, pbMax, debtToEquityMin, debtToEquityMax, null);
+                    roeMin, roeMax, roaMin, roaMax, peMin, peMax, pbMin, pbMax,
+                    debtToEquityMin, debtToEquityMax, null, null, null, null);
+        }
+        /** Pre-archetype-v2 shape: no dividend-yield or classification filter. */
+        public FundamentalFilter(
+                BigDecimal revenueGrowthPercentMin, BigDecimal revenueGrowthPercentMax,
+                BigDecimal earningsGrowthPercentMin, BigDecimal earningsGrowthPercentMax,
+                BigDecimal roeMin, BigDecimal roeMax, BigDecimal roaMin, BigDecimal roaMax,
+                BigDecimal peMin, BigDecimal peMax, BigDecimal pbMin, BigDecimal pbMax,
+                BigDecimal debtToEquityMin, BigDecimal debtToEquityMax, RatioFilters ratios) {
+            this(revenueGrowthPercentMin, revenueGrowthPercentMax, earningsGrowthPercentMin, earningsGrowthPercentMax,
+                    roeMin, roeMax, roaMin, roaMax, peMin, peMax, pbMin, pbMax,
+                    debtToEquityMin, debtToEquityMax, ratios, null, null, null);
         }
     }
 

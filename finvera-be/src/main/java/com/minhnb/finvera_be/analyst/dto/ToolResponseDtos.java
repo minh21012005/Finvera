@@ -191,6 +191,23 @@ public final class ToolResponseDtos {
     public record StockCompareRequest(List<String> symbols) {
     }
 
+    /** Exact freshness and quality metadata for one source used by COMPARE. */
+    public record ComparisonSourceMetadataDto(
+            Instant asOf,
+            String dataStatus,
+            List<String> reasonCodes,
+            String period,
+            String comparisonBasis,
+            Boolean published,
+            String priceTradingDate) {
+    }
+
+    public record StockComparisonAlertDto(
+            String symbol,
+            String reasonCode,
+            String message) {
+    }
+
     public record StockComparisonItemDto(
             String symbol,
             String companyName,
@@ -216,11 +233,38 @@ public final class ToolResponseDtos {
             String signalStrength,
             String riskLevel,
             String dataStatus,
-            List<String> reasonCodes) {
+            List<String> reasonCodes,
+            Map<String, ComparisonSourceMetadataDto> sources,
+            String revenueTtm,
+            String netProfitTtm,
+            String debtToEquity,
+            String operatingMargin,
+            String grossMargin,
+            String netMargin,
+            String peSectorPercentile,
+            String pbSectorPercentile) {
+        public StockComparisonItemDto(
+                String symbol, String companyName, String exchange, String sectorName,
+                String price, String changePercent, Long volume, String marketCap,
+                String pe, String pb, String valuationClassification, String valuationScore,
+                String roe, String roa, String eps, String epsTtm,
+                String revenueGrowthPercent, String epsGrowthPercent, String rsi14,
+                String trend, String primarySignal, String signalStrength, String riskLevel,
+                String dataStatus, List<String> reasonCodes) {
+            this(symbol, companyName, exchange, sectorName, price, changePercent, volume, marketCap,
+                    pe, pb, valuationClassification, valuationScore, roe, roa, eps, epsTtm,
+                    revenueGrowthPercent, epsGrowthPercent, rsi14, trend, primarySignal,
+                    signalStrength, riskLevel, dataStatus, reasonCodes, Map.of(),
+                    null, null, null, null, null, null, null, null);
+        }
     }
 
     public record StockComparisonToolResponse(
             List<StockComparisonItemDto> items,
+            List<StockComparisonAlertDto> alerts,
             Instant asOf) {
+        public StockComparisonToolResponse(List<StockComparisonItemDto> items, Instant asOf) {
+            this(items, List.of(), asOf);
+        }
     }
 }

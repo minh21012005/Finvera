@@ -45,7 +45,10 @@ Corrections to existing codes:
 - `DIVIDEND_YIELD` (`dividend_yield`): provider value is a **fraction**; the
   exporter multiplies by 100 and stamps `derivation =
   kbs-dividend-yield-fraction-to-percent` (research R-004.1).
-- `DEBT_TO_EQUITY`: catalog unit re-declared `PERCENT` (values already are).
+- `DEBT_TO_EQUITY`: catalog unit is `PERCENT`. KBS values are already percent
+  points. Feature 027 clarifies the cross-provider canonical rule: a value of
+  `100` means debt equals equity; ratio-form providers MUST multiply by 100 at
+  their adapter boundary.
 
 All of the above are in the **unscaled** set: they never inherit statement
 `unitScale`.

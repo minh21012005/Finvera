@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -46,6 +47,7 @@ import com.minhnb.finvera_be.stock.service.strategy.StrategySignalService;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -390,5 +392,120 @@ class ToolDelegateServiceTests {
         assertThat(response.strategyCode()).isEqualTo("MOMENTUM");
         assertThat(response.totalMatchCount()).isEqualTo(0);
         verify(strategyScanService).scan(StrategyCode.MOMENTUM, 5, 0);
+    }
+
+    @Test
+    void compareStocks_unknownSymbol_isReportedAndSkipsExpensiveLookups() {
+        when(stockOverviewService.findBySymbol("ZZZ")).thenReturn(Optional.empty());
+
+        var response = toolDelegateService.compareStocks(List.of("zzz"));
+
+        assertThat(response.items()).isEmpty();
+        assertThat(response.alerts()).singleElement().satisfies(alert -> {
+            assertThat(alert.symbol()).isEqualTo("ZZZ");
+            assertThat(alert.reasonCode()).isEqualTo("UNKNOWN_SYMBOL");
+        });
+        verify(fundamentalReportService, never()).findBySymbol(any());
+        verify(valuationService, never()).findBySymbol(any());
+        verify(technicalIndicatorService, never()).findBySymbol(any());
+        verify(strategySignalService, never()).findBySymbol(any());
+    }
+
+    @Test
+    void compareStocks_preservesPerSourceQualityMetadata() {
+        Instant overviewAsOf = Instant.parse("2026-09-09T08:00:00Z");
+        StockOverviewResult noPrice = new StockOverviewResult(MetricApplicability.MISSING, null, null, null, null,
+                null, null, null, null, null, null, null, "PRICE_UNAVAILABLE");
+        StockOverview overview = new StockOverview("ABC", "HOSE", "ABC Corp", null, "LISTED", "Industrials",
+                null, null, noPrice, SessionState.CLOSED, LocalDate.of(2026, 9, 9), overviewAsOf,
+                DataStatus.PARTIAL, List.of("PRICE_UNAVAILABLE"), "coh");
+        when(stockOverviewService.findBySymbol("ABC")).thenReturn(Optional.of(overview));
+
+        var response = toolDelegateService.compareStocks(List.of("ABC"));
+
+        assertThat(response.items()).singleElement().satisfies(item -> {
+            assertThat(item.dataStatus()).isEqualTo("PARTIAL");
+            assertThat(item.reasonCodes()).contains(
+                    "OVERVIEW:PRICE_UNAVAILABLE",
+                    "FUNDAMENTAL:NO_FUNDAMENTAL_REPORT",
+                    "VALUATION:NO_VALUATION",
+                    "TECHNICAL:UNAVAILABLE");
+            assertThat(item.sources().get("overview").asOf()).isEqualTo(overviewAsOf);
+            assertThat(item.sources().get("fundamental").asOf()).isNull();
+            assertThat(item.sources().get("valuation").asOf()).isNull();
+            assertThat(item.sources().get("technical").asOf()).isNull();
+        });
+        assertThat(response.asOf()).isEqualTo(overviewAsOf);
+    }
+
+    @Test
+    void compareStocks_exposesFundamentalFactsAndPublishedSectorPercentiles() {
+        Instant asOf = Instant.parse("2026-09-09T08:00:00Z");
+        StockOverviewResult noPrice = new StockOverviewResult(MetricApplicability.MISSING, null, null, null, null,
+                null, null, null, null, null, null, null, "PRICE_UNAVAILABLE");
+        StockOverview overview = new StockOverview("ABC", "HOSE", "ABC Corp", null, "LISTED", "Industrials",
+                null, null, noPrice, SessionState.CLOSED, LocalDate.of(2026, 9, 9), asOf,
+                DataStatus.PARTIAL, List.of("PRICE_UNAVAILABLE"), "coh");
+        when(stockOverviewService.findBySymbol("ABC")).thenReturn(Optional.of(overview));
+
+        var fundamentals = new FundamentalReportService.StockFundamentals(
+                "ABC", "QUARTER", 2026, 2, LocalDate.of(2026, 4, 1), LocalDate.of(2026, 6, 30),
+                "CONSOLIDATED", "UNKNOWN", "VND", false, "2026-Q2",
+                List.of(
+                        new FundamentalReportService.FundamentalMetric("REVENUE_TTM", new BigDecimal("7200000000000"), "VND", 0, MetricApplicability.DEFINED, null),
+                        new FundamentalReportService.FundamentalMetric("NET_PROFIT_TTM", new BigDecimal("2500000000000"), "VND", 0, MetricApplicability.DEFINED, null),
+                        new FundamentalReportService.FundamentalMetric("DEBT_TO_EQUITY", new BigDecimal("85.000000"), "PERCENT", 6, MetricApplicability.DEFINED, null),
+                        new FundamentalReportService.FundamentalMetric("OPERATING_MARGIN", new BigDecimal("31.2"), "PERCENT", 2, MetricApplicability.DEFINED, null),
+                        new FundamentalReportService.FundamentalMetric("GROSS_MARGIN", new BigDecimal("44.1"), "PERCENT", 2, MetricApplicability.DEFINED, null),
+                        new FundamentalReportService.FundamentalMetric("NET_MARGIN", new BigDecimal("34.7"), "PERCENT", 2, MetricApplicability.DEFINED, null)),
+                DataStatus.CURRENT, List.of(), LocalDate.of(2026, 9, 9), asOf, "coh", null);
+        when(fundamentalReportService.findBySymbol("ABC")).thenReturn(Optional.of(fundamentals));
+
+        var valuation = new ValuationService.StockValuation(
+                "ABC", "valuation-v3", true,
+                com.minhnb.finvera_be.stock.domain.model.StockTypes.ValuationLabel.UNDER_VALUED,
+                new BigDecimal("35"), 35, 90, true, true, "Industrials", "KBS", "1", 24, 100,
+                List.of(
+                        new ValuationService.ValuationMetric("PE", new BigDecimal("8.2"), MetricApplicability.DEFINED,
+                                null, new BigDecimal("31.0"), null, null, "LATEST_REPORT", new BigDecimal("8.2")),
+                        new ValuationService.ValuationMetric("PB", new BigDecimal("1.1"), MetricApplicability.DEFINED,
+                                null, new BigDecimal("27.5"), null, null, "LATEST_REPORT", new BigDecimal("1.1"))),
+                DataStatus.CURRENT, List.of(), LocalDate.of(2026, 9, 9), asOf, "coh");
+        when(valuationService.findBySymbol("ABC")).thenReturn(Optional.of(valuation));
+
+        var response = toolDelegateService.compareStocks(List.of("ABC"));
+
+        assertThat(response.items()).singleElement().satisfies(item -> {
+            assertThat(item.valuationClassification()).isEqualTo("UNDER_VALUED");
+            assertThat(item.revenueTtm()).isEqualTo("7200000000000");
+            assertThat(item.netProfitTtm()).isEqualTo("2500000000000");
+            assertThat(item.debtToEquity()).isEqualTo("85.000000");
+            assertThat(item.operatingMargin()).isEqualTo("31.2");
+            assertThat(item.grossMargin()).isEqualTo("44.1");
+            assertThat(item.netMargin()).isEqualTo("34.7");
+            assertThat(item.peSectorPercentile()).isEqualTo("31.0");
+            assertThat(item.pbSectorPercentile()).isEqualTo("27.5");
+        });
+    }
+
+    @Test
+    void compareStocks_fiveSymbols_completesWithinLocalBudget() {
+        List<String> symbols = List.of("AAA", "BBB", "CCC", "DDD", "EEE");
+        for (String symbol : symbols) {
+            StockOverviewResult noPrice = new StockOverviewResult(MetricApplicability.MISSING, null, null, null, null,
+                    null, null, null, null, null, null, null, "PRICE_UNAVAILABLE");
+            StockOverview overview = new StockOverview(symbol, "HOSE", symbol + " Corp", null, "LISTED", null,
+                    null, null, noPrice, SessionState.CLOSED, LocalDate.of(2026, 9, 9),
+                    Instant.parse("2026-09-09T08:00:00Z"), DataStatus.PARTIAL,
+                    List.of("PRICE_UNAVAILABLE"), "coh-" + symbol);
+            when(stockOverviewService.findBySymbol(symbol)).thenReturn(Optional.of(overview));
+        }
+
+        long started = System.nanoTime();
+        var response = toolDelegateService.compareStocks(symbols);
+        Duration elapsed = Duration.ofNanos(System.nanoTime() - started);
+
+        assertThat(response.items()).hasSize(5);
+        assertThat(elapsed).isLessThan(Duration.ofMillis(1500));
     }
 }

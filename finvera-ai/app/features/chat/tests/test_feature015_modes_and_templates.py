@@ -137,6 +137,32 @@ def test_offline_templates_do_not_create_hidden_threshold_classifications():
     assert "rất cao" not in answer
 
 
+def test_offline_valuation_uses_published_valuation_v3_labels():
+    svc = _service()
+    calls = [
+        _call(index, ToolName.VALUATION, {
+            "symbol": symbol,
+            "classification": classification,
+            "asOf": "2026-09-02T03:00:00Z",
+        }, {"symbol": symbol})
+        for index, (symbol, classification) in enumerate((
+            ("AAA", "UNDER_VALUED"),
+            ("BBB", "FAIR_VALUED"),
+            ("CCC", "OVER_VALUED"),
+        ), start=1)
+    ]
+
+    parts, raw_claims, _ = svc._offline_synthesize(calls)
+    answer = " ".join(parts)
+
+    assert "Định giá thấp tương đối" in answer
+    assert "Định giá hợp lý tương đối" in answer
+    assert "Định giá cao tương đối" in answer
+    assert [claim.claimedValue for claim in raw_claims] == [
+        "UNDER_VALUED", "FAIR_VALUED", "OVER_VALUED",
+    ]
+
+
 def test_quota_retry_delay_only_for_bounded_429_hints():
     e429 = RuntimeError("429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'details': [{'retryDelay': '9s'}]}}")
     assert quota_retry_delay_seconds(e429) == 10.0

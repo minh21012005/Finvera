@@ -37,7 +37,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Service delegates for the nine tools (DATA-001, DATA-002, research R-004).
+ * Service delegates for the eleven tools (DATA-001, DATA-002, research R-004).
  * Thin wrappers invoking existing services without modifying authoritative calculations.
  */
 @Service
@@ -559,38 +559,46 @@ public class ToolDelegateService {
                 .toList();
 
         List<StockComparisonItemDto> items = new java.util.ArrayList<>();
+        List<StockComparisonAlertDto> alerts = new java.util.ArrayList<>();
+        List<Instant> sourceTimes = new java.util.ArrayList<>();
 
         for (String symbol : cleanSymbols) {
             var overviewOpt = stockOverviewService.findBySymbol(symbol);
+            if (overviewOpt.isEmpty()) {
+                alerts.add(new StockComparisonAlertDto(
+                        symbol,
+                        "UNKNOWN_SYMBOL",
+                        "Không tìm thấy mã " + symbol + " trong danh mục cổ phiếu."));
+                continue;
+            }
+
             var fundamentals = getFundamentals(symbol);
             var valuation = getValuation(symbol);
             var technical = getTechnical(symbol);
 
-            String companyName = overviewOpt.map(o -> o.companyNameVi() != null ? o.companyNameVi() : o.symbol())
-                    .orElse(symbol);
-            String exchange = overviewOpt.map(StockOverviewService.StockOverview::venue).orElse(null);
-            String sectorName = overviewOpt.map(StockOverviewService.StockOverview::sector).orElse(null);
+            var overview = overviewOpt.orElseThrow();
+            String companyName = overview.companyNameVi() != null ? overview.companyNameVi() : overview.symbol();
+            String exchange = overview.venue();
+            String sectorName = overview.sector();
 
             String priceStr = null;
             String changeStr = null;
             Long vol = null;
             String marketCap = null;
 
-            if (overviewOpt.isPresent()) {
-                var price = overviewOpt.get().price();
-                if (price != null && price.priceApplicability() == MetricApplicability.DEFINED && price.lastPrice() != null) {
-                    priceStr = price.lastPrice().toPlainString();
-                    changeStr = price.percentageChange() != null ? price.percentageChange().toPlainString() : null;
-                    vol = price.volume();
-                    marketCap = price.marketCapVnd() != null ? price.marketCapVnd().toPlainString() : null;
-                }
+            var price = overview.price();
+            if (price != null && price.priceApplicability() == MetricApplicability.DEFINED && price.lastPrice() != null) {
+                priceStr = price.lastPrice().toPlainString();
+                changeStr = price.percentageChange() != null ? price.percentageChange().toPlainString() : null;
+                vol = price.volume();
+                marketCap = price.marketCapVnd() != null ? price.marketCapVnd().toPlainString() : null;
             }
 
             // Extract RSI
             String rsi14 = null;
             if (technical.indicators() != null && technical.indicators().get("RSI14") != null) {
                 var ind = technical.indicators().get("RSI14");
-                if (ind instanceof com.minhnb.finvera_be.stock.service.TechnicalIndicatorService.IndicatorResult ir) {
+                if (ind instanceof com.minhnb.finvera_be.stock.domain.technical.TechnicalIndicatorsV1.IndicatorResult ir) {
                     if (ir.applicability() == MetricApplicability.DEFINED && ir.components() != null && !ir.components().isEmpty()) {
                         rsi14 = ir.components().getFirst().value() != null ? ir.components().getFirst().value().toPlainString() : null;
                     }
@@ -615,13 +623,41 @@ public class ToolDelegateService {
                 roa = String.valueOf(fundamentals.raw().get("ROA"));
             }
 
-            String trend = null;
-            if (technical.indicators() != null && technical.indicators().get("MA20") != null) {
-                trend = "TRACKING";
+            String trend = deriveTrend(price != null ? price.lastPrice() : null, technical.indicators());
+
+            String overviewStatus = overview.dataStatus() != null ? overview.dataStatus().name() : "UNAVAILABLE";
+            String fundamentalStatus = fundamentals.dataStatus() != null ? fundamentals.dataStatus() : "UNAVAILABLE";
+            String valuationStatus = valuation.dataStatus() != null ? valuation.dataStatus() : "UNAVAILABLE";
+            String technicalStatus = technical.dataStatus() != null ? technical.dataStatus() : "UNAVAILABLE";
+            String dataStatus = aggregateComparisonStatus(
+                    overviewStatus, fundamentalStatus, valuationStatus, technicalStatus);
+
+            List<String> reasonCodes = new java.util.ArrayList<>();
+            addPrefixedReasons(reasonCodes, "OVERVIEW", overview.reasonCodes());
+            addPrefixedReasons(reasonCodes, "FUNDAMENTAL", fundamentals.reasonCodes());
+            addPrefixedReasons(reasonCodes, "VALUATION", valuation.reasonCodes());
+            if ("UNAVAILABLE".equals(technicalStatus)) {
+                reasonCodes.add("TECHNICAL:UNAVAILABLE");
             }
 
-            String dataStatus = overviewOpt.map(o -> o.dataStatus() != null ? o.dataStatus().name() : "CURRENT").orElse("UNAVAILABLE");
-            List<String> reasonCodes = overviewOpt.map(StockOverviewService.StockOverview::reasonCodes).orElse(List.of());
+            Map<String, ComparisonSourceMetadataDto> sources = new java.util.LinkedHashMap<>();
+            sources.put("overview", new ComparisonSourceMetadataDto(
+                    sourceAsOf(overviewStatus, overview.asOf()), overviewStatus, safeReasons(overview.reasonCodes()),
+                    null, null, null, null));
+            sources.put("fundamental", new ComparisonSourceMetadataDto(
+                    sourceAsOf(fundamentalStatus, fundamentals.asOf()), fundamentalStatus, safeReasons(fundamentals.reasonCodes()),
+                    fundamentals.period(), null, null, null));
+            sources.put("valuation", new ComparisonSourceMetadataDto(
+                    sourceAsOf(valuationStatus, valuation.asOf()), valuationStatus, safeReasons(valuation.reasonCodes()),
+                    null, valuation.comparisonBasis(), valuation.published(), valuation.priceTradingDate()));
+            sources.put("technical", new ComparisonSourceMetadataDto(
+                    sourceAsOf(technicalStatus, technical.asOf()), technicalStatus,
+                    "UNAVAILABLE".equals(technicalStatus) ? List.of("TECHNICAL_UNAVAILABLE") : List.of(),
+                    null, null, null, null));
+
+            sources.values().stream().map(ComparisonSourceMetadataDto::asOf)
+                    .filter(java.util.Objects::nonNull)
+                    .forEach(sourceTimes::add);
 
             items.add(new StockComparisonItemDto(
                     symbol,
@@ -648,10 +684,99 @@ public class ToolDelegateService {
                     signalStrength,
                     riskLevel,
                     dataStatus,
-                    reasonCodes));
+                    List.copyOf(reasonCodes),
+                    Map.copyOf(sources),
+                    rawString(fundamentals.raw(), "REVENUE_TTM"),
+                    rawString(fundamentals.raw(), "NET_PROFIT_TTM"),
+                    rawString(fundamentals.raw(), "DEBT_TO_EQUITY"),
+                    rawString(fundamentals.raw(), "OPERATING_MARGIN"),
+                    rawString(fundamentals.raw(), "GROSS_MARGIN"),
+                    rawString(fundamentals.raw(), "NET_MARGIN"),
+                    sectorPercentile(valuation.metrics(), "PE"),
+                    sectorPercentile(valuation.metrics(), "PB")));
         }
 
-        return new StockComparisonToolResponse(items, Instant.now());
+        Instant asOf = sourceTimes.stream().max(Instant::compareTo).orElseGet(Instant::now);
+        return new StockComparisonToolResponse(List.copyOf(items), List.copyOf(alerts), asOf);
+    }
+
+    private static List<String> safeReasons(List<String> reasons) {
+        return reasons == null ? List.of() : List.copyOf(reasons);
+    }
+
+    private static String rawString(Map<String, Object> raw, String key) {
+        if (raw == null || raw.get(key) == null) return null;
+        return String.valueOf(raw.get(key));
+    }
+
+    private static String sectorPercentile(List<MetricFactDto> metrics, String metricCode) {
+        if (metrics == null) return null;
+        return metrics.stream()
+                .filter(metric -> metricCode.equals(metric.metricCode()))
+                .map(MetricFactDto::sectorPercentile)
+                .filter(java.util.Objects::nonNull)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private static Instant sourceAsOf(String status, Instant asOf) {
+        return "UNAVAILABLE".equals(status) ? null : asOf;
+    }
+
+    private static void addPrefixedReasons(List<String> target, String source, List<String> reasons) {
+        if (reasons == null) return;
+        reasons.stream().filter(r -> r != null && !r.isBlank())
+                .map(r -> source + ":" + r)
+                .forEach(target::add);
+    }
+
+    private static String aggregateComparisonStatus(String... statuses) {
+        boolean hasUnavailable = false;
+        boolean hasPartial = false;
+        boolean hasStale = false;
+        boolean hasDelayed = false;
+        for (String status : statuses) {
+            hasUnavailable |= "UNAVAILABLE".equals(status);
+            hasPartial |= "PARTIAL".equals(status);
+            hasStale |= "STALE".equals(status);
+            hasDelayed |= "DELAYED".equals(status);
+        }
+        if (hasUnavailable || hasPartial) return "PARTIAL";
+        if (hasStale) return "STALE";
+        if (hasDelayed) return "DELAYED";
+        return "CURRENT";
+    }
+
+    private static String deriveTrend(BigDecimal price, Map<String, Object> indicators) {
+        if (price == null || indicators == null) return null;
+        BigDecimal ma20 = indicatorValue(indicators.get("MA20"));
+        BigDecimal ma50 = indicatorValue(indicators.get("MA50"));
+        if (ma20 != null && ma50 != null) {
+            if (price.compareTo(ma20) > 0 && price.compareTo(ma50) > 0 && ma20.compareTo(ma50) > 0) {
+                return "UPTREND_ABOVE_MA20_MA50";
+            }
+            if (price.compareTo(ma20) < 0 && price.compareTo(ma50) < 0 && ma20.compareTo(ma50) < 0) {
+                return "DOWNTREND_BELOW_MA20_MA50";
+            }
+            return "MIXED_VS_MA20_MA50";
+        }
+        if (ma20 != null) return price.compareTo(ma20) >= 0 ? "PRICE_ABOVE_MA20" : "PRICE_BELOW_MA20";
+        if (ma50 != null) return price.compareTo(ma50) >= 0 ? "PRICE_ABOVE_MA50" : "PRICE_BELOW_MA50";
+        return null;
+    }
+
+    private static BigDecimal indicatorValue(Object raw) {
+        if (!(raw instanceof com.minhnb.finvera_be.stock.domain.technical.TechnicalIndicatorsV1.IndicatorResult result)
+                || result.applicability() != MetricApplicability.DEFINED
+                || result.components() == null) {
+            return null;
+        }
+        return result.components().stream()
+                .filter(component -> component.value() != null
+                        && component.applicability() == MetricApplicability.DEFINED)
+                .map(component -> component.value())
+                .findFirst()
+                .orElse(null);
     }
 
     private static String normalizeSymbol(String symbol) {

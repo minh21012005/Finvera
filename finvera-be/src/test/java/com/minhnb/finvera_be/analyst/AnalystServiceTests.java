@@ -214,6 +214,31 @@ class AnalystServiceTests {
     }
 
     @Test
+    void processAskStream_persistsNewToolNamesWithoutStockFallback() throws Exception {
+        UUID ownerId = UUID.randomUUID();
+        String compare = "data: {\"type\":\"tool_call\",\"toolCall\":{\"sequenceNo\":1,\"toolName\":\"COMPARE\",\"arguments\":{\"symbols\":[\"SSI\",\"VND\"]},\"status\":\"SUCCEEDED\",\"failureReason\":null,\"latencyMs\":12}}";
+        String scan = "data: {\"type\":\"tool_call\",\"toolCall\":{\"sequenceNo\":2,\"toolName\":\"STRATEGY_SCAN\",\"arguments\":{\"strategyCode\":\"MOMENTUM\"},\"status\":\"SUCCEEDED\",\"failureReason\":null,\"latencyMs\":15}}";
+        doAnswer(invocation -> {
+            Consumer<String> consumer = invocation.getArgument(1);
+            consumer.accept(compare);
+            consumer.accept(scan);
+            return null;
+        }).when(aiClient).streamAsk(any(), any());
+
+        analystService.processAskStream(
+                ownerId,
+                new AskAnalystRequest("So sánh và quét chiến lược", null, List.of()),
+                mock(SseEmitter.class));
+
+        verify(queryService).recordToolCall(
+                any(UUID.class), eq((short) 1), eq(ToolName.COMPARE), anyString(),
+                eq(ToolCallStatus.SUCCEEDED), any(), eq(12), any());
+        verify(queryService).recordToolCall(
+                any(UUID.class), eq((short) 2), eq(ToolName.STRATEGY_SCAN), anyString(),
+                eq(ToolCallStatus.SUCCEEDED), any(), eq(15), any());
+    }
+
+    @Test
     void explainOutput_blankOutputType_throwsException() {
         UUID ownerId = UUID.randomUUID();
         ExplainRequest req = new ExplainRequest("  ", "HPG", List.of(new EvidenceFactorDto("RSI", "RSI 70")));

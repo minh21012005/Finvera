@@ -5,6 +5,7 @@ import com.minhnb.finvera_be.stock.domain.screener.ScreenerV1.BreakoutCondition;
 import com.minhnb.finvera_be.stock.domain.screener.ScreenerV1.MacdSignal;
 import com.minhnb.finvera_be.stock.domain.screener.ScreenerV1.MaRelationship;
 import com.minhnb.finvera_be.stock.domain.screener.ScreenerV1.TrendDirection;
+import com.minhnb.finvera_be.stock.domain.model.StockTypes.ValuationLabel;
 import com.minhnb.finvera_be.stock.service.screener.ScreenerService.SortDirection;
 import com.minhnb.finvera_be.stock.service.screener.ScreenerService.SortField;
 import java.math.BigDecimal;
@@ -123,7 +124,9 @@ public record ScreenRequest(
             String netMarginMin, String netMarginMax,
             String currentRatioMin, String currentRatioMax,
             String interestCoverageMin, String interestCoverageMax,
-            String debtToAssetsMin, String debtToAssetsMax) {
+            String debtToAssetsMin, String debtToAssetsMax,
+            String dividendYieldMin, String dividendYieldMax,
+            List<ValuationLabel> valuationClassification) {
         ScreenerV1.FundamentalFilter toDomain() {
             return new ScreenerV1.FundamentalFilter(
                     decimal(revenueGrowthPercentMin), decimal(revenueGrowthPercentMax),
@@ -138,7 +141,10 @@ public record ScreenRequest(
                             decimal(grossMarginMin), decimal(grossMarginMax), decimal(netMarginMin), decimal(netMarginMax),
                             decimal(currentRatioMin), decimal(currentRatioMax),
                             decimal(interestCoverageMin), decimal(interestCoverageMax),
-                            decimal(debtToAssetsMin), decimal(debtToAssetsMax)));
+                            decimal(debtToAssetsMin), decimal(debtToAssetsMax)),
+                    decimal(dividendYieldMin), decimal(dividendYieldMax),
+                    valuationClassification == null || valuationClassification.isEmpty()
+                            ? null : Set.copyOf(valuationClassification));
         }
     }
 

@@ -89,7 +89,7 @@ APIs emit to the frontend. Implemented by
 | vci-roa-net-profit-over-average-assets-v1 | ROA = LN sau thuế ÷ tổng tài sản bình quân (quy tắc vci-roa-net-profit-over-average-assets-v1) |
 | vci-roa-net-profit-over-average-assets-v1-end | ROA = LN sau thuế ÷ tổng tài sản cuối kỳ — chưa đủ số dư đầu kỳ để lấy bình quân |
 | vci-margin-v1 | Biên lợi nhuận = lợi nhuận ÷ doanh thu thuần × 100 (quy tắc vci-margin-v1) |
-| vci-debt-to-equity-v1 | Nợ vay/Vốn chủ = (vay ngắn hạn + vay dài hạn) ÷ vốn chủ sở hữu công ty mẹ (quy tắc vci-debt-to-equity-v1) |
+| vci-debt-to-equity-percent-v2 | Nợ vay/Vốn chủ = ((vay ngắn hạn + vay dài hạn) ÷ vốn chủ sở hữu công ty mẹ) × 100, đơn vị điểm phần trăm (quy tắc vci-debt-to-equity-percent-v2) |
 | vci-fcf-ocf-plus-capex-v1 | Dòng tiền tự do = dòng tiền HĐKD + chi đầu tư TSCĐ (quy tắc vci-fcf-ocf-plus-capex-v1) |
 | vci-ebitda-operating-profit-plus-da-v1 | EBITDA = lợi nhuận hoạt động + khấu hao (quy tắc vci-ebitda-operating-profit-plus-da-v1) |
 | SOURCE_SUPERSEDED | Bản ghi từ nguồn cũ đã được thay bằng nguồn mới có nhãn kỳ đã kiểm chứng |

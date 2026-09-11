@@ -3,8 +3,8 @@
 **Feature Directory**: `027-analyst-discovery-expansion`  
 **Created**: 2026-09-10  
 **Status**: Specified  
-**SRS References**: Section 11 (AI Analyst), Section 4 (Transparency & Guardrails), Section 3.2 (Stock Screener & Strategy Signals)  
-**SRS Requirement IDs**: SRS-AI-01, SRS-AI-02, SRS-AI-03, SRS-SCR-01, SRS-SIG-01  
+**SRS References**: Sections 13–16 (Screener, Natural-Language Screener, Strategy and Signal) and Sections 30–32 (AI Analyst)
+**SRS Requirement IDs**: SRS-SCR-01, SRS-SCR-03, SRS-STR-01, SRS-SIG-01, SRS-AIA-01, SRS-AIA-02, SRS-AIA-03
 **Input**: User request to support open-ended discovery questions (e.g. *"Lọc cho tôi trên thị trường có mã cổ phiếu nào có tín hiệu tốt để trading ngắn hạn ko, nếu ko thì vào thời điểm nào, chiến lược ra sao"*, as well as long-term investment, growth, and value archetypes).
 
 ## Scope Summary *(mandatory)*
@@ -20,10 +20,11 @@ This feature expands AI Analyst with two primary discovery capabilities:
 - Internal tool endpoint in Spring Boot: `POST /tools/strategies/scan` returning paginated, sorted `ScanMatch` items with entry levels, stop-loss, take-profit, and risk assessments.
 - Orchestration tool declaration: `STRATEGY_SCAN` in `finvera-ai` (`allowlist.py`, `service.py`, `dispatch.py`).
 - Tool proposal prompt and keyword heuristics updated to route short-term trading, breakout, momentum, and technical setup questions to `STRATEGY_SCAN`.
-- Rule-based and LLM prompt enhancement in `screener_conversion.py` supporting 4 standard archetypes:
-  - `GROWTH`: ROE ≥ 15%, EPS growth ≥ 10%, Debt/Equity ≤ 1.0, exchange HOSE.
-  - `VALUE`: P/E ≤ 12, P/B ≤ 1.5, ROE ≥ 12%, MarketCap ≥ 1,000B VND.
-  - `DIVIDEND`: P/E ≤ 15, positive earnings, MarketCap ≥ 2,000B VND.
+- Rule-based and LLM prompt enhancement in `screener_conversion.py` supporting 5 disclosed, versioned discovery archetypes:
+  - `GROWTH`: revenue growth ≥ 10%, EPS growth ≥ 10%, ROE ≥ 15%.
+  - `LONG_TERM_QUALITY`: revenue growth ≥ 5%, EPS growth ≥ 5%, ROE ≥ 15%, MarketCap ≥ 1,000B VND.
+  - `VALUE`: published `UNDER_VALUED` classification, ROE ≥ 12%, MarketCap ≥ 1,000B VND.
+  - `DIVIDEND`: dividend yield ≥ 3%, positive/defined P/E, MarketCap ≥ 2,000B VND.
   - `MOMENTUM_SCREEN`: Price above MA20, RSI 50–68, Relative Volume ≥ 1.2x.
 - Attribution verification support: Ensuring `STRATEGY_SCAN` claims are verified against authentic tool response data without wiping out the model's analytical narrative.
 
@@ -57,11 +58,11 @@ As a fundamental investor, I want to ask for stocks suitable for long-term holdi
 
 **Why this priority**: Fundamental and long-term investors represent a core user segment who need disciplined screening based on financial ratios rather than technical indicators.
 
-**Independent Test**: Send query *"Tìm cho tôi các cổ phiếu cơ bản tốt để đầu tư nắm giữ dài hạn"* to Analyst. Verify `SCREENING` is called with filters containing `roeMin: "15"`, `earningsGrowthPercentMin: "10"`, `debtToEquityMax: "1.0"`.
+**Independent Test**: Send query *"Tìm cho tôi các cổ phiếu cơ bản tốt để đầu tư nắm giữ dài hạn"* to Analyst. Verify `SCREENING` is called with the `LONG_TERM_QUALITY` filters: `roeMin: "15"`, `revenueGrowthPercentMin: "5"`, `earningsGrowthPercentMin: "5"`, and `marketCapMin: "1000000000000"`.
 
 **Acceptance Scenarios**:
-1. **Given** a natural language query specifying "dài hạn" or "tăng trưởng", **When** `convert_natural_language_to_filters` runs, **Then** it produces calibrated `fundamental` criteria with confidence ≥ 0.75 and an informative disclosure note.
-2. **Given** a query asking for "cổ phiếu giá rẻ" or "định giá hấp dẫn", **When** converter runs, **Then** it produces `peMax: "12"`, `pbMax: "1.5"`, and `roeMin: "12"`.
+1. **Given** a natural language query specifying "dài hạn" or "tăng trưởng", **When** `convert_natural_language_to_filters` runs, **Then** it selects the distinct `LONG_TERM_QUALITY` or `GROWTH` profile with confidence ≥ 0.75 and discloses the exact heuristic filters.
+2. **Given** a query asking for "cổ phiếu giá trị" or "định giá hấp dẫn", **When** converter runs, **Then** it filters on published `UNDER_VALUED` classification, `roeMin: "12"`, and `marketCapMin: "1000000000000"` without applying universal P/E/P/B cut-offs.
 
 ---
 
@@ -82,9 +83,11 @@ As a fundamental investor, I want to ask for stocks suitable for long-term holdi
 - **FR-002**: `finvera-be` `POST /tools/strategies/scan` MUST return `ScanMatch` objects containing `symbol`, `companyName`, `exchange`, `direction`, `levels` (`entryPrice`, `stopLoss`, `takeProfit`), `signalStrength`, `riskLevel`, `overallScore`, and `supportingEvidence`.
 - **FR-003**: `finvera-ai` MUST include `ToolName.STRATEGY_SCAN` in its allowlist and declare it in `TOOL_DECLARATIONS` for Gemini function-calling with parameter `strategyCode` (`MOMENTUM`, `BREAKOUT`, `TREND_FOLLOWING`, `PULLBACK`, `RSI_BASED`, `MACD_BASED`, `MA_CROSSOVER`, `MEAN_REVERSION`).
 - **FR-004**: `finvera-ai`'s deterministic planner `plan_tools()` MUST route queries containing short-term trading keywords (*"tín hiệu"*, *"trading"*, *"lướt sóng"*, *"ngắn hạn"*, *"breakout"*, *"vượt đỉnh"*, *"bắt đáy"*) to `STRATEGY_SCAN`.
-- **FR-005**: `finvera-ai`'s `screener_conversion.py` MUST support Archetype Mapping for common investment styles:
-  - `GROWTH`: `roeMin: "15"`, `earningsGrowthPercentMin: "10"`, `debtToEquityMax: "1.0"`.
-  - `VALUE`: `peMax: "12"`, `pbMax: "1.5"`, `roeMin: "12"`, `marketCapMin: "1000000000000"`.
+- **FR-005**: `finvera-ai`'s `screener_conversion.py` MUST support the versioned Archetype v2 mappings defined in `research.md`:
+  - `GROWTH`: `revenueGrowthPercentMin: "10"`, `earningsGrowthPercentMin: "10"`, `roeMin: "15"`.
+  - `LONG_TERM_QUALITY`: `revenueGrowthPercentMin: "5"`, `earningsGrowthPercentMin: "5"`, `roeMin: "15"`, `marketCapMin: "1000000000000"`.
+  - `VALUE`: `valuationClassification: ["UNDER_VALUED"]`, `roeMin: "12"`, `marketCapMin: "1000000000000"`.
+  - `DIVIDEND`: `dividendYieldMin: "3"`, `peMin: "0"`, `marketCapMin: "2000000000000"`.
   - `MOMENTUM`: `maRelationship: ["PRICE_ABOVE_MA20"]`, `rsiMin: "50"`, `rsiMax: "68"`, `relativeVolumeMin: "1.2"`.
 - **FR-006**: `finvera-ai`'s synthesis prompt MUST direct the model to present `STRATEGY_SCAN` matches with structured actionable sections: Entry Price, Stop-loss, Take-profit, and Risk/Reward assessment.
 
@@ -92,6 +95,20 @@ As a fundamental investor, I want to ask for stocks suitable for long-term holdi
 
 - **DATA-001**: All entry, stop-loss, and take-profit prices MUST be sourced directly from the deterministic `StrategySignalV1` engine response, formatted in VND with dot thousand separators.
 - **DATA-002**: The model MUST NOT guarantee investment returns or issue unconditional trading mandates, maintaining calibrated conditional language (*"nhà đầu tư có thể cân nhắc"*, *"ngưỡng quản trị rủi ro"*).
+- **DATA-003**: `DEBT_TO_EQUITY` MUST use canonical percent points across providers (`100` means debt equals equity); provider adapters MUST normalize before persistence.
+
+## Success Criteria *(mandatory)*
+
+1. All five archetype queries deterministically produce their documented v2 filters and explicit user bounds take precedence.
+2. Value queries use the published valuation classification rather than fixed P/E/P/B thresholds.
+3. Debt/Equity has one canonical unit across KBS, VCI, catalog metadata and screener inputs.
+4. Existing strategy-scan behavior and all relevant backend/Python/exporter tests pass.
+
+### Product Decision — Attribution Visibility (2026-09-10)
+
+- Attribution reports whether structured claims are supported by tool data, but it is not a content-suppression gate.
+- In online mode, the complete model response remains visible so the operator can inspect exactly what the AI produced. Coverage and attribution metadata MUST remain visible alongside that response.
+- Prompts continue to request calibrated language under DATA-002; the verifier does not rewrite, truncate, or refuse the response solely because prose is unattributed.
 
 ### Security and Privacy
 

@@ -7,6 +7,7 @@ import com.minhnb.finvera_be.stock.domain.model.StockTypes.IndicatorCode;
 import com.minhnb.finvera_be.stock.domain.model.StockTypes.IndicatorComponent;
 import com.minhnb.finvera_be.stock.domain.model.StockTypes.MetricApplicability;
 import com.minhnb.finvera_be.stock.domain.model.StockTypes.ValuationMetricCode;
+import com.minhnb.finvera_be.stock.domain.model.StockTypes.ValuationLabel;
 import com.minhnb.finvera_be.stock.domain.screener.ScreenerV1.BreakoutCondition;
 import com.minhnb.finvera_be.stock.domain.screener.ScreenerV1.CandidateFacts;
 import com.minhnb.finvera_be.stock.domain.screener.ScreenerV1.CandidateResult;
@@ -283,6 +284,40 @@ class ScreenerV1Tests {
         assertThat(onlyOutcome(result).reasonCode()).isEqualTo("NEGATIVE_EARNINGS");
     }
 
+    @Test
+    void valueArchetypeUsesPublishedRelativeClassification() {
+        FundamentalFilter filter = new FundamentalFilter(
+                null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null,
+                null, null, java.util.Set.of(ValuationLabel.UNDER_VALUED));
+
+        CandidateFacts underValued = baseCandidate("VALUE", "HOSE")
+                .valuationClassification(ValuationLabel.UNDER_VALUED).build();
+        CandidateFacts fair = baseCandidate("FAIR", "HOSE")
+                .valuationClassification(ValuationLabel.FAIR_VALUED).build();
+
+        assertThat(ScreenerV1.evaluate(underValued, criteria(null, null, null, filter)).matched()).isTrue();
+        assertThat(ScreenerV1.evaluate(fair, criteria(null, null, null, filter)).matched()).isFalse();
+    }
+
+    @Test
+    void dividendArchetypeRequiresDefinedPositivePeAndYieldFloor() {
+        FundamentalFilter filter = new FundamentalFilter(
+                null, null, null, null, null, null, null, null,
+                BigDecimal.ZERO, null, null, null, null, null, null,
+                new BigDecimal("3"), null, null);
+        CandidateFacts candidate = baseCandidate("DIV", "HOSE")
+                .valuationMetric(ValuationMetricCode.PE,
+                        new MetricPoint(MetricApplicability.DEFINED, new BigDecimal("14"), null))
+                .valuationMetric(ValuationMetricCode.DIVIDEND_YIELD,
+                        new MetricPoint(MetricApplicability.DEFINED, new BigDecimal("3.5"), null))
+                .build();
+
+        CandidateResult result = ScreenerV1.evaluate(candidate, criteria(null, null, null, filter));
+        assertThat(result.matched()).isTrue();
+        assertThat(result.matchedValues()).containsEntry("pe", "14").containsEntry("dividendYield", "3.5");
+    }
+
     // ── Combination and reproducibility ──────────────────────────────────────
 
     @Test
@@ -381,6 +416,7 @@ class ScreenerV1Tests {
         private final java.util.Map<IndicatorCode, IndicatorSnapshot> indicators = new java.util.HashMap<>();
         private final java.util.Map<String, MetricPoint> fundamentalMetrics = new java.util.HashMap<>();
         private boolean valuationPublished = true;
+        private ValuationLabel valuationClassification = ValuationLabel.FAIR_VALUED;
         private final java.util.Map<ValuationMetricCode, MetricPoint> valuationMetrics = new java.util.HashMap<>();
 
         CandidateBuilder(String symbol, String exchange) {
@@ -436,6 +472,13 @@ class ScreenerV1Tests {
 
         CandidateBuilder valuationPublished(boolean published) {
             this.valuationPublished = published;
+            if (!published) this.valuationClassification = null;
+            return this;
+        }
+
+        CandidateBuilder valuationClassification(ValuationLabel classification) {
+            this.valuationClassification = classification;
+            this.valuationPublished = classification != null;
             return this;
         }
 
@@ -449,7 +492,7 @@ class ScreenerV1Tests {
                     sharesOutstanding, LocalDate.of(2026, 8, 19), DataStatus.CURRENT, latestClose,
                     previousValidClose, latestVolume, recentBars, java.util.Map.copyOf(indicators),
                     java.util.Map.copyOf(fundamentalMetrics), valuationPublished,
-                    java.util.Map.copyOf(valuationMetrics));
+                    java.util.Map.copyOf(valuationMetrics), valuationClassification);
         }
     }
 

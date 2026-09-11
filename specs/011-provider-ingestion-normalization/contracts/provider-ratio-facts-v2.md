@@ -27,7 +27,10 @@ matches the catalog:
 | `TOTAL_ASSETS_GROWTH_PERCENT`, `EQUITY_GROWTH_PERCENT` | growth rows | ✘ | ✔ |
 | margins, leverage, liquidity, `INTEREST_COVERAGE`, `BVPS`, `TRAILING_EPS`, `BETA`, `COST_INCOME_RATIO`, `LOAN_TO_DEPOSIT`, `DEBT_TO_EQUITY` | as v1 | ✔ | ✔ |
 
-Units and signs per code are those of v1 U-2.
+Units and signs per code are those of v1 U-2. Feature 027 clarifies that
+`DEBT_TO_EQUITY` is canonical percent points across every provider (`100` means
+debt equals equity). VCI's derived `debt / equity` ratio is multiplied by 100
+before packaging under derivation `vci-debt-to-equity-percent-v2`.
 
 ## U-3 Exclusions (unchanged, plus)
 

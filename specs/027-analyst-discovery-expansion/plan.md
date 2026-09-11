@@ -48,10 +48,14 @@ This plan connects AI Analyst to the backend's deterministic `StrategyScanServic
   - Update `_offline_synthesize()` to support `STRATEGY_SCAN` template formatting and structured claims.
 - **`screener_conversion.py`**:
   - Enhance `_rule_based_extract()` and `CONVERSION_SYSTEM_PROMPT` to recognize:
-    - **Growth archetype**: `dài hạn`, `tăng trưởng` -> `roeMin: "15"`, `earningsGrowthPercentMin: "10"`, `debtToEquityMax: "1.0"`.
-    - **Value archetype**: `giá trị`, `định giá rẻ`, `biên an toàn` -> `peMax: "12"`, `pbMax: "1.5"`, `roeMin: "12"`.
-    - **Dividend archetype**: `cổ tức`, `cổ tức cao`, `tiền mặt` -> `peMax: "15"`, `marketCapMin: "2000000000000"`.
+    - **Growth archetype**: `tăng trưởng`, `growth` -> revenue growth >= 10%, EPS growth >= 10%, ROE >= 15%.
+    - **Long-term quality archetype**: `dài hạn`, `tích sản`, `nắm giữ` -> revenue growth >= 5%, EPS growth >= 5%, ROE >= 15%, market cap >= 1,000B VND.
+    - **Value archetype**: `giá trị`, `định giá hấp dẫn` -> published `UNDER_VALUED`, ROE >= 12%, market cap >= 1,000B VND.
+    - **Dividend archetype**: `cổ tức`, `cổ tức cao`, `tiền mặt` -> dividend yield >= 3%, defined positive P/E, market cap >= 2,000B VND.
     - **Momentum screener**: `maRelationship: ["PRICE_ABOVE_MA20"]`, `rsiMin: "50"`, `rsiMax: "68"`, `relativeVolumeMin: "1.2"`.
+  - Explicit metric constraints in the user's query take precedence over both lower and upper preset bounds for that metric, preventing contradictory filters.
+  - Extend `ScreenRequest`/`ScreenerV1` additively with `valuationClassification` and `dividendYieldMin/Max`.
+  - Keep `DEBT_TO_EQUITY` as percent points and normalize the VCI `debt/equity` derivation by multiplying by 100 before persistence.
 
 ---
 

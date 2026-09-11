@@ -130,7 +130,10 @@ class StrategyScanToolArgs(BaseModel):
 
 class CompareToolArgs(BaseModel):
     owner_id: uuid.UUID
-    symbols: List[str] = Field(..., min_length=2, max_length=5)
+    # Accept a longer model proposal at the boundary and deterministically cap it
+    # in the validator.  Applying max_length here would reject the payload before
+    # the documented first-five policy can run.
+    symbols: List[str] = Field(..., min_length=2)
 
     @field_validator("symbols")
     @classmethod

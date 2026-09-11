@@ -165,6 +165,8 @@ recalculated (research R-004).
 | `currentRatioMin`/`Max` | `fundamental_summary_metric` code `CURRENT_RATIO` (Feature 009) | inclusive range |
 | `interestCoverageMin`/`Max` | `fundamental_summary_metric` code `INTEREST_COVERAGE` (Feature 009) | inclusive range |
 | `debtToAssetsMin`/`Max` | `fundamental_summary_metric` code `DEBT_TO_ASSETS` (Feature 009, percent) | inclusive range |
+| `dividendYieldMin`/`Max` | `valuation_metric` code `DIVIDEND_YIELD` on the current published `valuation_assessment` (percent points) | inclusive range |
+| `valuationClassification` | current published `valuation_assessment.classification` | membership in `{UNDER_VALUED, FAIR_VALUED, OVER_VALUED}` |
 
 A `PE`/`PB` filter excludes a stock whose current `valuation_assessment` is
 withheld entirely (`classification is null`), not only a stock whose `PE`/

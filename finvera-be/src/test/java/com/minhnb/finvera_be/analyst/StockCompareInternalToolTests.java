@@ -118,7 +118,7 @@ class StockCompareInternalToolTests {
                 "48000000000000",
                 "18.5",
                 "1.8",
-                "FAIR",
+                "FAIR_VALUED",
                 "52.0",
                 "14.5",
                 "4.2",
@@ -145,7 +145,7 @@ class StockCompareInternalToolTests {
                 "22000000000000",
                 "14.2",
                 "1.3",
-                "ATTRACTIVE",
+                "UNDER_VALUED",
                 "65.0",
                 "11.8",
                 "3.5",
@@ -177,6 +177,6 @@ class StockCompareInternalToolTests {
                 .andExpect(jsonPath("$.items[0].roe").value("14.5"))
                 .andExpect(jsonPath("$.items[1].symbol").value("VND"))
                 .andExpect(jsonPath("$.items[1].price").value("18200"))
-                .andExpect(jsonPath("$.items[1].valuationClassification").value("ATTRACTIVE"));
+                .andExpect(jsonPath("$.items[1].valuationClassification").value("UNDER_VALUED"));
     }
 }

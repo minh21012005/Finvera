@@ -46,3 +46,33 @@
 - [x] T008 [Constitution Gate] Run full test suites across both services to verify zero regressions.
       Verify: `.\mvnw.cmd test` in `finvera-be` and `uv run pytest` in `finvera-ai`
       Depends: T003, T007
+
+## Phase 4: Post-Implementation Correctness and Performance Review
+
+- [x] T009 [FR-003, FR-004, EF-004] Accept oversized model proposals and cap them to five; recognize lowercase comma-separated tickers and distinguish ticker VND from a currency suffix.
+      Verify: `uv run pytest app/features/orchestration/tests/test_compare_tool.py`
+      Depends: T007
+
+- [x] T010 [FR-002, DATA-001, EF-001] Preserve per-source timestamps, statuses, and reasons; omit unknown symbols with explicit alerts; derive an actual MA-relative trend.
+      Verify: `.\mvnw.cmd test "-Dtest=ToolDelegateServiceTests,StockCompareInternalToolTests"`
+      Depends: T003
+
+- [x] T011 [Auditability] Register `COMPARE` in the backend audit enum and verify persisted tool identity.
+      Verify: `.\mvnw.cmd test "-Dtest=AnalystServiceTests"`
+      Depends: T006
+
+- [x] T012 [Contract] Add STRATEGY_SCAN and COMPARE paths, tool names, requests, responses, alerts, and source metadata to the versioned internal OpenAPI contract.
+      Verify: parse `specs/007-ai-analyst/contracts/internal-api.openapi.yaml`
+      Depends: T010
+
+- [x] T013 [PERF-001] Cover the complete five-symbol aggregation path with the 1,500ms local service budget and skip expensive dependent lookups for unknown symbols.
+      Verify: `.\mvnw.cmd test "-Dtest=ToolDelegateServiceTests"`
+      Depends: T010
+
+- [x] T014 [FR-002, FR-005, DATA-001] Expand the comparison DTO, OpenAPI schema, and deterministic synthesis with revenue/net profit TTM, debt-to-equity, margins, and valuation sector percentiles; retain nulls instead of estimating unavailable values.
+      Verify: `.\mvnw.cmd test "-Dtest=ToolDelegateServiceTests,StockCompareInternalToolTests"` and `uv run pytest app/features/orchestration/tests/test_compare_tool.py`
+      Depends: T012
+
+- [x] T015 [SRS-CMP-01, Contract] Correct SRS traceability and published valuation-v3 labels, and explicitly defer the graphical portion of SRS-CMP-01.
+      Verify: parse `specs/007-ai-analyst/contracts/internal-api.openapi.yaml` and review `spec.md`/`plan.md`
+      Depends: T014

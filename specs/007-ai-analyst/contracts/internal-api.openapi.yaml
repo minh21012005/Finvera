@@ -324,6 +324,54 @@ paths:
         "400": { $ref: "#/components/responses/ValidationError" }
         "401": { $ref: "#/components/responses/InvalidInternalKey" }
 
+  /tools/strategies/scan:
+    post:
+      operationId: toolStrategyScan
+      x-hosted-by: finvera-be
+      summary: Run a deterministic strategy scan for AI Analyst discovery.
+      tags: [Tools]
+      parameters:
+        - $ref: "#/components/parameters/OwnerIdQuery"
+        - name: strategyCode
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [MOMENTUM, BREAKOUT, TREND_FOLLOWING, PULLBACK, RSI_BASED, MACD_BASED, MA_CROSSOVER, MEAN_REVERSION]
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 20, default: 5 }
+      responses:
+        "200":
+          description: Matches and levels produced by the deterministic strategy engine.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StrategyScanTool" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/InvalidInternalKey" }
+
+  /tools/stocks/compare:
+    post:
+      operationId: toolStockCompare
+      x-hosted-by: finvera-be
+      summary: Compare up to five stocks using deterministic structured data.
+      tags: [Tools]
+      parameters:
+        - $ref: "#/components/parameters/OwnerIdQuery"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StockCompareRequest" }
+      responses:
+        "200":
+          description: Valid symbols are returned as items; unknown symbols are returned as alerts.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StockComparisonTool" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/InvalidInternalKey" }
+
 components:
   securitySchemes:
     internalApiKey:
@@ -381,6 +429,8 @@ components:
         - NEWS
         - RESEARCH_RAG
         - SCREENING
+        - STRATEGY_SCAN
+        - COMPARE
 
     OrchestrateAskRequest:
       type: object
@@ -722,6 +772,121 @@ components:
               companyName: { type: string }
         totalCount: { type: integer }
         asOf: { type: string, format: date-time }
+
+    StrategyScanTool:
+      type: object
+      additionalProperties: true
+      required: [strategyCode, matches, totalMatchCount, limit, offset, excludedForInsufficientHistoryCount, calculatedAt]
+      properties:
+        strategyCode: { type: string }
+        matches:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            required: [symbol, companyName, exchange, signal]
+            properties:
+              symbol: { type: string }
+              companyName: { type: string }
+              exchange: { type: string }
+              signal: { type: object, additionalProperties: true }
+        totalMatchCount: { type: integer }
+        limit: { type: integer }
+        offset: { type: integer }
+        excludedForInsufficientHistoryCount: { type: integer }
+        calculatedAt: { type: string, format: date-time }
+
+    StockCompareRequest:
+      type: object
+      required: [symbols]
+      additionalProperties: false
+      properties:
+        symbols:
+          type: array
+          minItems: 2
+          description: More than five proposed symbols are deterministically capped to the first five distinct symbols.
+          items: { type: string, pattern: "^[A-Za-z0-9]{1,20}$" }
+
+    ComparisonSourceMetadata:
+      type: object
+      required: [dataStatus, reasonCodes]
+      properties:
+        asOf: { type: string, format: date-time, nullable: true }
+        dataStatus: { type: string, enum: [CURRENT, DELAYED, STALE, PARTIAL, UNAVAILABLE] }
+        reasonCodes: { type: array, items: { type: string } }
+        period: { type: string, nullable: true }
+        comparisonBasis: { type: string, nullable: true }
+        published: { type: boolean, nullable: true }
+        priceTradingDate: { type: string, format: date, nullable: true }
+
+    StockComparisonTool:
+      type: object
+      additionalProperties: false
+      required: [items, alerts, asOf]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            required: [symbol, dataStatus, reasonCodes, sources]
+            properties:
+              symbol: { type: string }
+              companyName: { type: string, nullable: true }
+              exchange: { type: string, nullable: true }
+              sectorName: { type: string, nullable: true }
+              price: { type: string, nullable: true }
+              changePercent: { type: string, nullable: true }
+              volume: { type: integer, format: int64, nullable: true }
+              marketCap: { type: string, nullable: true }
+              pe: { type: string, nullable: true }
+              pb: { type: string, nullable: true }
+              valuationClassification:
+                type: string
+                enum: [UNDER_VALUED, FAIR_VALUED, OVER_VALUED]
+                nullable: true
+              valuationScore: { type: string, nullable: true }
+              roe: { type: string, nullable: true }
+              roa: { type: string, nullable: true }
+              eps: { type: string, nullable: true }
+              epsTtm: { type: string, nullable: true }
+              revenueGrowthPercent: { type: string, nullable: true }
+              epsGrowthPercent: { type: string, nullable: true }
+              revenueTtm: { type: string, nullable: true }
+              netProfitTtm: { type: string, nullable: true }
+              debtToEquity:
+                type: string
+                nullable: true
+                description: Canonical percent points; 100 means debt equals equity.
+              operatingMargin: { type: string, nullable: true }
+              grossMargin: { type: string, nullable: true }
+              netMargin: { type: string, nullable: true }
+              peSectorPercentile: { type: string, nullable: true }
+              pbSectorPercentile: { type: string, nullable: true }
+              rsi14: { type: string, nullable: true }
+              trend: { type: string, nullable: true }
+              primarySignal: { type: string, nullable: true }
+              signalStrength: { type: string, nullable: true }
+              riskLevel: { type: string, nullable: true }
+              dataStatus: { type: string, enum: [CURRENT, DELAYED, STALE, PARTIAL, UNAVAILABLE] }
+              reasonCodes: { type: array, items: { type: string } }
+              sources:
+                type: object
+                required: [overview, fundamental, valuation, technical]
+                additionalProperties: { $ref: "#/components/schemas/ComparisonSourceMetadata" }
+        alerts:
+          type: array
+          items:
+            type: object
+            required: [symbol, reasonCode, message]
+            properties:
+              symbol: { type: string }
+              reasonCode: { type: string, enum: [UNKNOWN_SYMBOL] }
+              message: { type: string }
+        asOf:
+          type: string
+          format: date-time
+          description: Latest real observation timestamp among available sources; unavailable sources carry null asOf.
 
     ErrorResponse:
       type: object

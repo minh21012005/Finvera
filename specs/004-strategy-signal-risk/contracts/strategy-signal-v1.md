@@ -77,9 +77,10 @@ A strategy whose minimum bar count is unmet is `INSUFFICIENT_HISTORY`
 false produces no signal (FR-004) — this is not an error and not
 persisted (`data-model.md`).
 
-Every threshold above is a **strict** inequality except where explicitly
-written as `<=`/`>=`; a value exactly on a non-strict boundary (e.g.
-`RSI14 = 60.000000` for Momentum) does **not** satisfy the condition.
+Every threshold above follows its written operator. A value exactly on a
+non-strict boundary satisfies that individual condition; for example,
+`RSI14 = 60.000000` satisfies Momentum's RSI condition, while the strategy
+still requires `MACD.HISTOGRAM > 0`.
 
 ## Signal levels
 
@@ -137,7 +138,7 @@ Implementation and fixtures MUST cover at least:
 | Each strategy at its own minimum-bar boundary (one bar short, exact minimum) | One bar short → `INSUFFICIENT_HISTORY`; exact minimum → evaluated |
 | Each of the three crossing strategies: condition true both today and yesterday | No signal — a stale "still above" state is not a fresh cross |
 | Each of the three crossing strategies: condition false yesterday, true today | Signal produced |
-| `RSI14` exactly `60.000000` for Momentum | No signal (strict `>=` boundary honored, but exactly-equal case documented and asserted) |
+| `RSI14` exactly `60.000000` for Momentum | RSI boundary passes; signal exists only when `MACD.HISTOGRAM > 0` |
 | `ATR14 <= 0` fixture | Signal withheld with `INVALID_LEVELS`, no divide-by-zero |
 | Exactly 3 of 6 risk factors available vs. exactly 4 | 3 → risk score/level withheld, signal still shown; 4 → published |
 | Cross-source conflict on a bar a strategy depends on | That strategy withheld with `SOURCE_CONFLICT`, others unaffected |
