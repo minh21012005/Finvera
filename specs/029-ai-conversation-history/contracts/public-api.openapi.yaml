@@ -1,0 +1,337 @@
+openapi: 3.1.0
+info:
+  title: Finvera AI Conversation History API
+  version: conversation-history-v1
+  description: >-
+    Additive owner-scoped conversation APIs. The existing
+    POST /api/v1/analyst/ask endpoint remains stateless and compatible.
+servers:
+  - url: /api/v1
+security:
+  - sessionCookie: []
+tags:
+  - name: Analyst Conversations
+
+paths:
+  /analyst/conversations:
+    get:
+      tags: [Analyst Conversations]
+      operationId: listAnalystConversations
+      summary: List the authenticated owner's conversations by recent activity.
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/ConversationLimit'
+      responses:
+        '200':
+          description: Stable keyset page.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConversationPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /analyst/conversations/ask:
+    post:
+      tags: [Analyst Conversations]
+      operationId: askInConversation
+      summary: Create or continue a conversation and stream a grounded answer.
+      description: >-
+        Omit conversationId to create a conversation with the first accepted
+        question. The first stream event is accepted and identifies the durable
+        conversation/exchange and context-window counts. Reusing a completed
+        clientRequestId replays accepted plus final without another AI call.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConversationAskRequest' }
+      responses:
+        '200':
+          description: SSE stream beginning with accepted and ending with final or error.
+          content:
+            text/event-stream:
+              schema: { $ref: '#/components/schemas/ConversationStreamEvent' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfRequired' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/ConversationConflict' }
+        '503': { $ref: '#/components/responses/AnalystUnavailable' }
+
+  /analyst/conversations/{conversationId}/exchanges:
+    get:
+      tags: [Analyst Conversations]
+      operationId: getAnalystConversationExchanges
+      summary: Read an owned conversation and one chronological exchange page.
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+        - name: before
+          in: query
+          required: false
+          schema: { type: string }
+          description: Opaque cursor for exchanges older than the current page.
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        '200':
+          description: Conversation metadata and chronological exchange page.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ExchangePage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /analyst/conversations/{conversationId}:
+    patch:
+      tags: [Analyst Conversations]
+      operationId: renameAnalystConversation
+      summary: Rename an owned conversation.
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RenameConversationRequest' }
+      responses:
+        '200':
+          description: Updated conversation.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConversationSummary' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfRequired' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Analyst Conversations]
+      operationId: deleteAnalystConversation
+      summary: Hard-delete an owned non-processing conversation.
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      responses:
+        '204': { description: Deleted. }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfRequired' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/ConversationConflict' }
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: FINVERA_SESSION
+
+  parameters:
+    ConversationId:
+      name: conversationId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      schema: { type: string }
+      description: Opaque `(lastActivityAt,id)` keyset cursor.
+    ConversationLimit:
+      name: limit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+
+  responses:
+    ValidationError:
+      description: Invalid input or cursor; no mutation occurred.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthenticated:
+      description: Missing or invalid owner session.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    CsrfRequired:
+      description: Missing or invalid CSRF token.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: Missing or non-owned conversation; deliberately indistinguishable.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    ConversationConflict:
+      description: >-
+        A generation is active, deletion is blocked, the same request is still
+        processing, or a client request identifier was reused with a different
+        payload.
+      content:
+        application/problem+json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Problem'
+              - type: object
+                properties:
+                  reasonCode:
+                    enum: [CONVERSATION_BUSY, REQUEST_IN_PROGRESS, IDEMPOTENCY_KEY_REUSED]
+                  retryable: { type: boolean }
+    AnalystUnavailable:
+      description: >-
+        AI orchestration is unavailable before stream acceptance. A dependency
+        failure after acceptance is represented by the terminal SSE error event.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+  schemas:
+    ConversationAskRequest:
+      type: object
+      additionalProperties: false
+      required: [clientRequestId, question]
+      properties:
+        conversationId:
+          type: string
+          format: uuid
+          description: Omit only for the first question of a new conversation.
+        clientRequestId: { type: string, format: uuid }
+        question: { type: string, minLength: 1, maxLength: 2000 }
+        symbol: { type: string, minLength: 1, maxLength: 20 }
+
+    ContextWindowInfo:
+      type: object
+      additionalProperties: false
+      required: [ruleVersion, includedExchanges, omittedExchanges]
+      properties:
+        ruleVersion: { type: string, const: context-window-v1 }
+        includedExchanges: { type: integer, minimum: 0, maximum: 5 }
+        omittedExchanges: { type: integer, minimum: 0 }
+
+    AcceptedEvent:
+      type: object
+      additionalProperties: false
+      required: [type, conversationId, exchangeId, created, contextWindow]
+      properties:
+        type: { type: string, const: accepted }
+        conversationId: { type: string, format: uuid }
+        exchangeId: { type: string, format: uuid }
+        created: { type: boolean }
+        title: { type: string, minLength: 1, maxLength: 120 }
+        contextWindow: { $ref: '#/components/schemas/ContextWindowInfo' }
+
+    ConversationFinalResult:
+      allOf:
+        - $ref: '../../007-ai-analyst/contracts/public-api.openapi.yaml#/components/schemas/AnalystFinalResult'
+        - type: object
+          required: [ruleVersion, toolCalls]
+          properties:
+            ruleVersion:
+              type: string
+              description: Analyst orchestration/rule version used for this historical result.
+            toolCalls:
+              type: array
+              items:
+                $ref: '../../007-ai-analyst/contracts/public-api.openapi.yaml#/components/schemas/ToolCallEvent'
+
+    ConversationStreamEvent:
+      oneOf:
+        - $ref: '#/components/schemas/AcceptedEvent'
+        - type: object
+          required: [type, toolCall]
+          properties:
+            type: { type: string, const: tool_call }
+            toolCall:
+              $ref: '../../007-ai-analyst/contracts/public-api.openapi.yaml#/components/schemas/ToolCallEvent'
+        - type: object
+          required: [type, textDelta]
+          properties:
+            type: { type: string, const: delta }
+            textDelta: { type: string }
+        - type: object
+          required: [type, final]
+          properties:
+            type: { type: string, const: final }
+            final: { $ref: '#/components/schemas/ConversationFinalResult' }
+        - type: object
+          required: [type, reasonCode, retryable]
+          properties:
+            type: { type: string, const: error }
+            reasonCode: { type: string }
+            retryable: { type: boolean }
+
+    ConversationSummary:
+      type: object
+      additionalProperties: false
+      required: [id, title, titleSource, createdAt, updatedAt, lastActivityAt, exchangeCount]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string, minLength: 1, maxLength: 120 }
+        titleSource: { type: string, enum: [AUTO, OWNER] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        lastActivityAt: { type: string, format: date-time }
+        exchangeCount: { type: integer, minimum: 1 }
+        processing: { type: boolean }
+
+    ConversationPage:
+      type: object
+      additionalProperties: false
+      required: [items, hasMore]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ConversationSummary' }
+        nextCursor: { type: string }
+        hasMore: { type: boolean }
+
+    ConversationExchange:
+      type: object
+      additionalProperties: false
+      required: [id, sequenceNo, question, status, contextWindow, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        sequenceNo: { type: integer, minimum: 1 }
+        question: { type: string, minLength: 1, maxLength: 2000 }
+        symbol: { type: string }
+        status: { type: string, enum: [PROCESSING, COMPLETED, FAILED, CANCELLED] }
+        final: { $ref: '#/components/schemas/ConversationFinalResult' }
+        failureCode: { type: string }
+        contextWindow: { $ref: '#/components/schemas/ContextWindowInfo' }
+        createdAt: { type: string, format: date-time }
+        completedAt: { type: string, format: date-time }
+
+    ExchangePage:
+      type: object
+      additionalProperties: false
+      required: [conversation, items, hasMore]
+      properties:
+        conversation: { $ref: '#/components/schemas/ConversationSummary' }
+        items:
+          type: array
+          description: Chronological within this page.
+          items: { $ref: '#/components/schemas/ConversationExchange' }
+        olderCursor: { type: string }
+        hasMore: { type: boolean }
+
+    RenameConversationRequest:
+      type: object
+      additionalProperties: false
+      required: [title]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 120 }
+
+    Problem:
+      type: object
+      required: [type, title, status, reasonCode, correlationId]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        reasonCode: { type: string }
+        correlationId: { type: string }
+        retryable: { type: boolean }
