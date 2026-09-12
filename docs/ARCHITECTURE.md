@@ -1,7 +1,7 @@
 # Finvera Architecture
 
 **Status**: Living document
-**Last updated**: 2026-09-11
+**Last updated**: 2026-09-12
 **Applies to**: `finvera-fe`, `finvera-be`, `finvera-ai`, and the shared data
 stores
 
@@ -75,7 +75,7 @@ finvera-be/src/main/java/com/minhnb/finvera_be/
 ├── stock/        features 002-004 — equity reference, bars, fundamentals, analysis, screener, strategy signals
 ├── portfolio/    feature 005 — portfolios, transactions, positions, analytics, watchlists
 ├── research/     feature 006 — documents, news, chunks, retrieval/ask boundary to finvera-ai
-└── analyst/      feature 007 — AI analyst queries, tool delegates, internal tool endpoints
+└── analyst/      features 007, 029 — AI queries/tools and owner-scoped conversation history
 ```
 
 Cross-module reads go through each module's published application interface
@@ -178,6 +178,12 @@ is a reason code, not a status.
 | Caching | `ETag` plus `304`; the validator is derived from the accepted revision the response was built from |
 | Timestamps | ISO-8601 UTC instants; market dates as `YYYY-MM-DD` with an explicit `timezone` field |
 | Provenance | Allowlisted source labels only; never raw provider metadata, headers, or payloads |
+
+Feature 029 adds conversation endpoints alongside the standalone Analyst SSE
+endpoint. Spring persists each owner-scoped exchange before `accepted`, derives
+a bounded recent context from PostgreSQL, and stores the exact sanitized public
+final result for replay. FastAPI remains stateless and treats history as
+untrusted referential context rather than evidence.
 
 ## 6. Frontend conventions
 

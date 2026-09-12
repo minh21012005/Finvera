@@ -100,6 +100,11 @@ public class ProblemDetailsAdvice {
         return response(request, HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "Request validation failed");
     }
 
+    @ExceptionHandler(jakarta.validation.ConstraintViolationException.class)
+    ResponseEntity<ProblemDetail> invalidConstraint(HttpServletRequest request) {
+        return response(request, HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "Request validation failed");
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     ResponseEntity<ProblemDetail> invalidArgument(HttpServletRequest request, Exception ex) {
         return response(request, HttpStatus.BAD_REQUEST, "INVALID_REQUEST", ex.getMessage());
@@ -124,6 +129,19 @@ public class ProblemDetailsAdvice {
     @ExceptionHandler(com.minhnb.finvera_be.research.service.ResearchExceptions.RetrievalUnavailableException.class)
     ResponseEntity<ProblemDetail> retrievalUnavailable(HttpServletRequest request, Exception ex) {
         return response(request, HttpStatus.SERVICE_UNAVAILABLE, "RETRIEVAL_UNAVAILABLE", ex.getMessage());
+    }
+
+    @ExceptionHandler(com.minhnb.finvera_be.analyst.service.AnalystConversationExceptions.ConversationNotFoundException.class)
+    ResponseEntity<ProblemDetail> conversationNotFound(HttpServletRequest request) {
+        return response(request, HttpStatus.NOT_FOUND, "CONVERSATION_NOT_FOUND", "Conversation not found");
+    }
+
+    @ExceptionHandler(com.minhnb.finvera_be.analyst.service.AnalystConversationExceptions.ConversationConflictException.class)
+    ResponseEntity<ProblemDetail> conversationConflict(HttpServletRequest request,
+            com.minhnb.finvera_be.analyst.service.AnalystConversationExceptions.ConversationConflictException ex) {
+        var result = response(request, HttpStatus.CONFLICT, ex.reasonCode(), ex.getMessage());
+        result.getBody().setProperty("retryable", ex.retryable());
+        return result;
     }
 
     @ExceptionHandler(com.minhnb.finvera_be.research.service.ResearchExceptions.VectorCleanupFailedException.class)

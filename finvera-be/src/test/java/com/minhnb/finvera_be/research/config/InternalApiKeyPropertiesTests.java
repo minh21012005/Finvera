@@ -40,12 +40,13 @@ class InternalApiKeyPropertiesTests {
 
     @Test
     void analystPropertiesRefuseBlankAndPlaceholder() {
-        assertThatThrownBy(() -> new AnalystProperties(null, "", 0, null, null))
+        assertThatThrownBy(() -> new AnalystProperties(null, "", 0, null, null, 0, 0, 0, null))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("FINVERA_ANALYST_INTERNAL_API_KEY");
-        assertThatThrownBy(() -> new AnalystProperties(null, PLACEHOLDER, 0, null, null))
+        assertThatThrownBy(() -> new AnalystProperties(null, PLACEHOLDER, 0, null, null, 0, 0, 0, null))
                 .isInstanceOf(IllegalStateException.class);
-        assertThatCode(() -> new AnalystProperties(null, "a-real-shared-secret", 5, Duration.ofSeconds(5), null))
+        assertThatCode(() -> new AnalystProperties(null, "a-real-shared-secret", 5, Duration.ofSeconds(5), null,
+                10, 5, 12_000, Duration.ofSeconds(60)))
                 .doesNotThrowAnyException();
     }
 }

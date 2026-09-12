@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,12 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @Service
 public class AnalystService {
+
+    public interface StreamLifecycle {
+        StreamLifecycle NOOP = new StreamLifecycle() { };
+        default void onFinal(PublicFinalEventDto result) { }
+        default void onFailure(String reasonCode) { }
+    }
 
     private static final Logger log = LoggerFactory.getLogger(AnalystService.class);
 
@@ -143,6 +150,11 @@ public class AnalystService {
     }
 
     public void processAskStream(UUID ownerId, AskAnalystRequest request, SseEmitter emitter) {
+        processAskStream(ownerId, request, emitter, null, StreamLifecycle.NOOP);
+    }
+
+    public void processAskStream(UUID ownerId, AskAnalystRequest request, SseEmitter emitter,
+            UUID conversationExchangeId, StreamLifecycle lifecycle) {
         if (request == null || request.question() == null || request.question().isBlank()) {
             throw new IllegalArgumentException("Question must not be blank");
         }
@@ -151,7 +163,11 @@ public class AnalystService {
         }
 
         UUID queryId = UUID.randomUUID();
-        queryService.recordQueryStart(queryId, ownerId, AnalystRequestType.ASK, request.question());
+        if (conversationExchangeId == null) {
+            queryService.recordQueryStart(queryId, ownerId, AnalystRequestType.ASK, request.question());
+        } else {
+            queryService.recordQueryStart(queryId, ownerId, AnalystRequestType.ASK, request.question(), conversationExchangeId);
+        }
         InternalAskRequest internalRequest = new InternalAskRequest(
                 ownerId,
                 request.question(),
@@ -160,6 +176,7 @@ public class AnalystService {
 
         Map<Integer, String> toolSeqToName = new HashMap<>();
         List<ToolCallEventDto> recordedToolCalls = new ArrayList<>();
+        AtomicBoolean finalReceived = new AtomicBoolean(false);
 
         try {
             aiClient.streamAsk(internalRequest, line -> {
@@ -266,6 +283,9 @@ public class AnalystService {
                                 internalFinal.plannerMode(),
                                 internalFinal.claimCoverage());
 
+                        lifecycle.onFinal(publicFinal);
+                        finalReceived.set(true);
+
                         Map<String, Object> publicFinalEnvelope = Map.of(
                                 "type", "final",
                                 "final", publicFinal);
@@ -283,9 +303,15 @@ public class AnalystService {
                                 publicFinal.toolCallBoundReached());
                     }
                 } catch (IOException e) {
-                    log.error("Failed to parse or relay SSE event: {}", json, e);
+                    throw new StreamProcessingException(e);
                 }
             });
+
+            if (!finalReceived.get()) {
+                queryService.recordQueryCompletion(queryId, AnalystQueryOutcome.FAILED, false);
+                lifecycle.onFailure("STREAM_ENDED_WITHOUT_FINAL");
+                sendTerminalError(emitter, "STREAM_ENDED_WITHOUT_FINAL", true);
+            }
 
             try {
                 emitter.complete();
@@ -293,11 +319,27 @@ public class AnalystService {
             }
         } catch (Exception e) {
             log.error("Error processing analyst ask stream for queryId {}", queryId, e);
+            queryService.recordQueryCompletion(queryId, AnalystQueryOutcome.FAILED, false);
+            lifecycle.onFailure("ANALYST_UNAVAILABLE");
             try {
-                emitter.completeWithError(e);
+                sendTerminalError(emitter, "ANALYST_UNAVAILABLE", true);
+                emitter.complete();
             } catch (Exception ignored) {
             }
         }
+    }
+
+    private void sendTerminalError(SseEmitter emitter, String reasonCode, boolean retryable) {
+        try {
+            emitter.send(SseEmitter.event().data(objectMapper.writeValueAsString(Map.of(
+                    "type", "error", "reasonCode", reasonCode, "retryable", retryable))));
+        } catch (Exception ignored) {
+            // The connection may already be gone; persistence state was updated first.
+        }
+    }
+
+    private static final class StreamProcessingException extends RuntimeException {
+        private StreamProcessingException(Throwable cause) { super(cause); }
     }
 
     public com.minhnb.finvera_be.analyst.dto.AskAnalystDto.ExplainResponse explainOutput(

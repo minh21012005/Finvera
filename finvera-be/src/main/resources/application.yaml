@@ -36,6 +36,16 @@ finvera:
       id: ${FINVERA_OWNER_ID}
       username: ${FINVERA_OWNER_USERNAME}
       password-hash: ${FINVERA_OWNER_PASSWORD_HASH}
+  analyst:
+    ai-service-url: ${FINVERA_ANALYST_AI_SERVICE_URL:http://127.0.0.1:8000}
+    internal-api-key: ${FINVERA_ANALYST_INTERNAL_API_KEY:}
+    max-tool-calls: ${FINVERA_ANALYST_MAX_TOOL_CALLS:10}
+    tool-call-timeout: ${FINVERA_ANALYST_TOOL_CALL_TIMEOUT:10s}
+    ask-timeout: ${FINVERA_ANALYST_ASK_TIMEOUT:30s}
+    conversation-context-candidates: ${FINVERA_ANALYST_CONTEXT_CANDIDATES:10}
+    conversation-context-included: ${FINVERA_ANALYST_CONTEXT_INCLUDED:5}
+    conversation-context-characters: ${FINVERA_ANALYST_CONTEXT_CHARACTERS:12000}
+    conversation-stale-grace: ${FINVERA_ANALYST_STALE_GRACE:60s}
   data-retention:
     cleanup:
       enabled: ${FINVERA_DATA_RETENTION_CLEANUP_ENABLED:false}

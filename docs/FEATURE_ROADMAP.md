@@ -2,7 +2,7 @@
 
 **Status**: Living delivery roadmap
 
-**Last reviewed**: 2026-09-11
+**Last reviewed**: 2026-09-12
 
 **Authority**: The SRS defines product intent. Approved feature specifications,
 contracts, and ADRs define accepted behavior. This roadmap records current
@@ -44,6 +44,7 @@ feature artifacts remain the detailed source of behavior and limitations.
 | News, documents, retrieval, and cited Q&A | **Delivered** | `specs/006-news-document-rag/` |
 | AI Analyst with structured tools, attribution, graceful degradation, and discovery archetypes | **Delivered** | `specs/007-ai-analyst/`, `specs/015-analyst-e2e-on-real-data/`, `specs/027-analyst-discovery-expansion/` |
 | Tabular peer comparison | **Delivered** | `specs/028-peer-comparison-tool/`; graphical comparison is outside the current product scope. |
+| Owner-scoped AI conversation history with bounded sliding context | **Delivered** | `specs/029-ai-conversation-history/` |
 
 “Delivered” refers to the implemented feature slice, not a claim that every
 future extension in the same SRS domain is complete.
@@ -57,14 +58,11 @@ models needed by later personalization features.
 
 | Order | Capability | SRS traceability | Current state | Minimum coherent first slice | Dependencies and correctness gates |
 |---|---|---|---|---|---|
-| A1 | AI conversation history | SRS-CONV-01; SRS section 4.1 | **Planned**. The request contract can carry bounded `priorTurns`, but the UI does not populate them and there is no owner-scoped conversation/message persistence. Analyst audit records are not conversation history. | Create, list, reopen, continue, rename, and delete owner-only conversations; persist user and assistant turns plus evidence references; provide bounded context to the existing analyst orchestrator. | Requires server-side ownership checks, retention/deletion rules, pagination, prompt/data minimization, and proof that one user cannot access another user's thread. Full private prompts or responses must not enter logs. |
-| A2 | Deterministic position sizing | SRS-RSK-02 | **Planned**. It was deferred by Feature 004 until portfolio inputs existed; Feature 005 now satisfies that dependency. | Calculate a scenario from available capital, maximum trade risk, entry/stop distance, lot size, current exposure, and applicable market constraints. Show every input, assumption, cap, rounding rule, and withholding reason. | Requires declared VND/ratio precision, zero or invalid stop-distance handling, concentration/exposure caps, market lot rules, stale-price behavior, and boundary/property tests. It remains decision support, not an order recommendation. |
-| A3 | Historical strategy backtesting | SRS-BKT-01, SRS-BKT-02 | **Planned**. No backtest engine, persistence model, API, or UI exists. | Run one supported deterministic strategy for one symbol and daily interval over an explicit period; configure initial capital, sizing, fees, and slippage; return trades, equity curve, total return, CAGR, win rate, profit factor, maximum drawdown, Sharpe ratio, average trade, and trade count. | Depends on explicit execution timing, historical adjustment basis, corporate-action policy, trading calendar, point-in-time input rules, transaction costs, slippage, and position sizing. Tests must detect look-ahead leakage and state survivorship limitations. Do not add a new deployable service without measured need and an ADR. |
+| A1 | Deterministic position sizing | SRS-RSK-02 | **Planned**. It was deferred by Feature 004 until portfolio inputs existed; Feature 005 now satisfies that dependency. | Calculate a scenario from available capital, maximum trade risk, entry/stop distance, lot size, current exposure, and applicable market constraints. Show every input, assumption, cap, rounding rule, and withholding reason. | Requires declared VND/ratio precision, zero or invalid stop-distance handling, concentration/exposure caps, market lot rules, stale-price behavior, and boundary/property tests. It remains decision support, not an order recommendation. |
+| A2 | Historical strategy backtesting | SRS-BKT-01, SRS-BKT-02 | **Planned**. No backtest engine, persistence model, API, or UI exists. | Run one supported deterministic strategy for one symbol and daily interval over an explicit period; configure initial capital, sizing, fees, and slippage; return trades, equity curve, total return, CAGR, win rate, profit factor, maximum drawdown, Sharpe ratio, average trade, and trade count. | Depends on explicit execution timing, historical adjustment basis, corporate-action policy, trading calendar, point-in-time input rules, transaction costs, slippage, and position sizing. Tests must detect look-ahead leakage and state survivorship limitations. Do not add a new deployable service without measured need and an ADR. |
 
-AI conversation history and position sizing are independent and may be planned
-in either order. Backtesting should follow the position-sizing contract so the
-interactive calculator and simulation engine do not develop conflicting sizing
-semantics.
+Backtesting should follow the position-sizing contract so the interactive
+calculator and simulation engine do not develop conflicting sizing semantics.
 
 ### Wave B — ongoing use and research depth
 
@@ -96,12 +94,11 @@ must not be reused.
 Unless user value or newly discovered dependencies justify a change, start
 features in this order:
 
-1. AI conversation history.
-2. Deterministic position sizing.
-3. Historical backtesting.
-4. Alerts.
-5. Sector analytics.
-6. Investment journal.
+1. Deterministic position sizing.
+2. Historical backtesting.
+3. Alerts.
+4. Sector analytics.
+5. Investment journal.
 
 This ordering is a planning recommendation, not a reservation of feature
 numbers. The next capability that enters development should receive the next

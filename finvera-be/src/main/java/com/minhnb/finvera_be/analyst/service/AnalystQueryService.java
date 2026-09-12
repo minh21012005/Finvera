@@ -45,6 +45,16 @@ public class AnalystQueryService {
             UUID ownerId,
             AnalystRequestType requestType,
             String rawQuestion) {
+        return recordQueryStart(queryId, ownerId, requestType, rawQuestion, null);
+    }
+
+    @Transactional
+    public AnalystQueryEntity recordQueryStart(
+            UUID queryId,
+            UUID ownerId,
+            AnalystRequestType requestType,
+            String rawQuestion,
+            UUID conversationExchangeId) {
         Objects.requireNonNull(queryId, "queryId");
         Objects.requireNonNull(ownerId, "ownerId");
         Objects.requireNonNull(requestType, "requestType");
@@ -63,7 +73,8 @@ public class AnalystQueryService {
                 AnalystQueryOutcome.PARTIAL,
                 false,
                 now,
-                null);
+                null,
+                conversationExchangeId);
 
         return queryRepository.save(entity);
     }

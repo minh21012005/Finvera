@@ -9,7 +9,11 @@ public record AnalystProperties(
         String internalApiKey,
         int maxToolCalls,
         Duration toolCallTimeout,
-        Duration askTimeout) {
+        Duration askTimeout,
+        int conversationContextCandidates,
+        int conversationContextIncluded,
+        int conversationContextCharacters,
+        Duration conversationStaleGrace) {
 
     public AnalystProperties {
         if (aiServiceUrl == null || aiServiceUrl.isBlank()) {
@@ -31,6 +35,19 @@ public record AnalystProperties(
         }
         if (askTimeout == null || askTimeout.isZero() || askTimeout.isNegative()) {
             askTimeout = Duration.ofSeconds(30);
+        }
+        if (conversationContextCandidates <= 0 || conversationContextCandidates > 10) {
+            conversationContextCandidates = 10;
+        }
+        if (conversationContextIncluded <= 0 || conversationContextIncluded > 5
+                || conversationContextIncluded > conversationContextCandidates) {
+            conversationContextIncluded = Math.min(5, conversationContextCandidates);
+        }
+        if (conversationContextCharacters <= 0 || conversationContextCharacters > 12_000) {
+            conversationContextCharacters = 12_000;
+        }
+        if (conversationStaleGrace == null || conversationStaleGrace.isNegative()) {
+            conversationStaleGrace = Duration.ofSeconds(60);
         }
     }
 }

@@ -6,7 +6,7 @@
 
 **Spec**: [spec.md](spec.md)
 
-**Status**: Planned
+**Status**: Implemented and validated
 
 ## Summary
 
@@ -212,14 +212,20 @@ reconstruct full answers or citations.
 
 Add privacy-safe counters/timers only:
 
-- `analyst.conversation.created`
-- `analyst.conversation.ask.completed{outcome}`
-- `analyst.conversation.context.included`
-- `analyst.conversation.context.omitted`
-- `analyst.conversation.request.duplicate{state}`
-- `analyst.conversation.read.duration`
-- `analyst.conversation.deleted`
-- `analyst.conversation.stale_processing.reconciled`
+- `finvera.analyst.conversation.accepted`
+- `finvera.analyst.conversation.created`
+- `finvera.analyst.conversation.ask.completed{outcome}`
+- `finvera.analyst.conversation.context.included`
+- `finvera.analyst.conversation.context.omitted`
+- `finvera.analyst.conversation.request.conflict{reason}`
+- `finvera.analyst.conversation.replayed`
+- `finvera.analyst.conversation.failed{reason}`
+- `finvera.analyst.conversation.cancelled`
+- `finvera.analyst.conversation.list`
+- `finvera.analyst.conversation.read`
+- `finvera.analyst.conversation.persist-final`
+- `finvera.analyst.conversation.deleted`
+- `finvera.analyst.conversation.stale-processing.reconciled`
 
 Structured logs may include correlation ID, owner-safe internal identifier,
 conversation/exchange UUID, rule version, counts, state, duration, and reason
@@ -323,8 +329,6 @@ finvera-be/src/test/java/com/minhnb/finvera_be/analyst/
 ├── AnalystConversationServiceTests.java
 ├── ConversationContextWindowPolicyTests.java
 ├── ConversationTitlePolicyTests.java
-├── AnalystConversationAuthorizationTests.java
-├── AnalystConversationPaginationTests.java
 └── AnalystConversationPerformanceTests.java
 
 finvera-ai/app/features/chat/
@@ -336,6 +340,7 @@ finvera-ai/app/features/chat/
 finvera-fe/src/features/analyst/
 ├── api/analyst.ts
 ├── components/AskAnalyst.tsx
+├── components/ConversationAnalyst.tsx
 ├── components/ConversationSidebar.tsx
 ├── components/ConversationTranscript.tsx
 └── conversation-history.test.tsx

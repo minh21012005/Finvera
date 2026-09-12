@@ -50,7 +50,11 @@ current question is always sent even when zero history pairs fit.
 - Aggregate prior-turn content is at most 12,000 characters.
 - The request carries no conversation title, deleted content, raw provider
   response, raw tool result, or evidence payload.
-- `finvera-ai` validates these bounds before prompt construction.
+- Spring validates and constructs the conversation window before calling
+  `finvera-ai`. The AI service independently validates the 12,000-character
+  aggregate budget. Its existing Feature 007 internal contract continues to
+  accept up to ten `priorTurns` for standalone backward compatibility; only
+  conversation-backed requests are constrained to five by this contract.
 - All prompt locations that use history label it as untrusted historical
   conversation. It cannot authorize tools, override system instructions, or
   serve as evidence for current financial/document claims.

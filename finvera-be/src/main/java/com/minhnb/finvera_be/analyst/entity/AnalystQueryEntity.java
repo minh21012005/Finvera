@@ -47,6 +47,9 @@ public class AnalystQueryEntity {
     @Column(name = "completed_at")
     private Instant completedAt;
 
+    @Column(name = "conversation_exchange_id")
+    private UUID conversationExchangeId;
+
     protected AnalystQueryEntity() {
     }
 
@@ -60,6 +63,21 @@ public class AnalystQueryEntity {
             boolean toolCallBoundReached,
             Instant requestedAt,
             Instant completedAt) {
+        this(id, ownerId, requestType, questionPreview, questionHash, outcome,
+                toolCallBoundReached, requestedAt, completedAt, null);
+    }
+
+    public AnalystQueryEntity(
+            UUID id,
+            UUID ownerId,
+            AnalystRequestType requestType,
+            String questionPreview,
+            String questionHash,
+            AnalystQueryOutcome outcome,
+            boolean toolCallBoundReached,
+            Instant requestedAt,
+            Instant completedAt,
+            UUID conversationExchangeId) {
         this.id = id;
         this.ownerId = ownerId;
         this.requestType = requestType;
@@ -69,6 +87,7 @@ public class AnalystQueryEntity {
         this.toolCallBoundReached = toolCallBoundReached;
         this.requestedAt = requestedAt;
         this.completedAt = completedAt;
+        this.conversationExchangeId = conversationExchangeId;
     }
 
     public UUID getId() {
@@ -105,6 +124,10 @@ public class AnalystQueryEntity {
 
     public Instant getCompletedAt() {
         return completedAt;
+    }
+
+    public UUID getConversationExchangeId() {
+        return conversationExchangeId;
     }
 
     public void setOutcome(AnalystQueryOutcome outcome) {

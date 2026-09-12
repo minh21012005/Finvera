@@ -27,6 +27,7 @@ the service boundary even in the current private-owner deployment.
 Indexes and constraints:
 
 - primary key `(id)`;
+- unique `(id, owner_id)` as the target of the exchange ownership foreign key;
 - index `(owner_id, last_activity_at DESC, id DESC)`;
 - `length(btrim(title)) BETWEEN 1 AND 120`;
 - `next_sequence_no >= 1`.
@@ -62,6 +63,8 @@ Indexes and constraints:
 
 - unique `(conversation_id, sequence_no)`;
 - unique `(owner_id, client_request_id)`;
+- foreign key `(conversation_id, owner_id)` to the matching owned conversation,
+  preventing owner mismatch at the database boundary;
 - index `(conversation_id, sequence_no DESC, id DESC)`;
 - partial unique index on `(conversation_id)` where `status = 'PROCESSING'`;
 - question length 1-2000 after trim;

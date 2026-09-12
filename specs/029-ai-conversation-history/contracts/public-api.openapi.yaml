@@ -56,7 +56,6 @@ paths:
         '403': { $ref: '#/components/responses/CsrfRequired' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/ConversationConflict' }
-        '503': { $ref: '#/components/responses/AnalystUnavailable' }
 
   /analyst/conversations/{conversationId}/exchanges:
     get:
@@ -178,16 +177,8 @@ components:
               - type: object
                 properties:
                   reasonCode:
-                    enum: [CONVERSATION_BUSY, REQUEST_IN_PROGRESS, IDEMPOTENCY_KEY_REUSED]
+                    enum: [CONVERSATION_BUSY, REQUEST_IN_PROGRESS, REQUEST_ALREADY_TERMINAL, IDEMPOTENCY_KEY_REUSED]
                   retryable: { type: boolean }
-    AnalystUnavailable:
-      description: >-
-        AI orchestration is unavailable before stream acceptance. A dependency
-        failure after acceptance is represented by the terminal SSE error event.
-      content:
-        application/problem+json:
-          schema: { $ref: '#/components/schemas/Problem' }
-
   schemas:
     ConversationAskRequest:
       type: object
@@ -195,12 +186,12 @@ components:
       required: [clientRequestId, question]
       properties:
         conversationId:
-          type: string
+          type: [string, 'null']
           format: uuid
           description: Omit only for the first question of a new conversation.
         clientRequestId: { type: string, format: uuid }
-        question: { type: string, minLength: 1, maxLength: 2000 }
-        symbol: { type: string, minLength: 1, maxLength: 20 }
+        question: { type: string, minLength: 1, maxLength: 2000, pattern: '.*\S.*' }
+        symbol: { type: [string, 'null'], minLength: 1, maxLength: 20, pattern: '^[A-Za-z0-9._-]+$' }
 
     ContextWindowInfo:
       type: object
@@ -214,7 +205,7 @@ components:
     AcceptedEvent:
       type: object
       additionalProperties: false
-      required: [type, conversationId, exchangeId, created, contextWindow]
+      required: [type, conversationId, exchangeId, created, title, contextWindow]
       properties:
         type: { type: string, const: accepted }
         conversationId: { type: string, format: uuid }
@@ -266,7 +257,7 @@ components:
     ConversationSummary:
       type: object
       additionalProperties: false
-      required: [id, title, titleSource, createdAt, updatedAt, lastActivityAt, exchangeCount]
+      required: [id, title, titleSource, createdAt, updatedAt, lastActivityAt, exchangeCount, processing]
       properties:
         id: { type: string, format: uuid }
         title: { type: string, minLength: 1, maxLength: 120 }
@@ -280,41 +271,44 @@ components:
     ConversationPage:
       type: object
       additionalProperties: false
-      required: [items, hasMore]
+      required: [items, nextCursor, hasMore]
       properties:
         items:
           type: array
           items: { $ref: '#/components/schemas/ConversationSummary' }
-        nextCursor: { type: string }
+        nextCursor: { type: [string, 'null'] }
         hasMore: { type: boolean }
 
     ConversationExchange:
       type: object
       additionalProperties: false
-      required: [id, sequenceNo, question, status, contextWindow, createdAt]
+      required: [id, sequenceNo, question, symbol, status, final, failureCode, contextWindow, createdAt, completedAt]
       properties:
         id: { type: string, format: uuid }
         sequenceNo: { type: integer, minimum: 1 }
         question: { type: string, minLength: 1, maxLength: 2000 }
-        symbol: { type: string }
+        symbol: { type: [string, 'null'] }
         status: { type: string, enum: [PROCESSING, COMPLETED, FAILED, CANCELLED] }
-        final: { $ref: '#/components/schemas/ConversationFinalResult' }
-        failureCode: { type: string }
+        final:
+          oneOf:
+            - $ref: '#/components/schemas/ConversationFinalResult'
+            - type: 'null'
+        failureCode: { type: [string, 'null'] }
         contextWindow: { $ref: '#/components/schemas/ContextWindowInfo' }
         createdAt: { type: string, format: date-time }
-        completedAt: { type: string, format: date-time }
+        completedAt: { type: [string, 'null'], format: date-time }
 
     ExchangePage:
       type: object
       additionalProperties: false
-      required: [conversation, items, hasMore]
+      required: [conversation, items, olderCursor, hasMore]
       properties:
         conversation: { $ref: '#/components/schemas/ConversationSummary' }
         items:
           type: array
           description: Chronological within this page.
           items: { $ref: '#/components/schemas/ConversationExchange' }
-        olderCursor: { type: string }
+        olderCursor: { type: [string, 'null'] }
         hasMore: { type: boolean }
 
     RenameConversationRequest:
@@ -322,7 +316,7 @@ components:
       additionalProperties: false
       required: [title]
       properties:
-        title: { type: string, minLength: 1, maxLength: 120 }
+        title: { type: string, minLength: 1, maxLength: 120, pattern: '.*\S.*' }
 
     Problem:
       type: object

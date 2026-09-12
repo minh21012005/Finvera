@@ -38,7 +38,7 @@ Expected:
 From `finvera-be`:
 
 ```powershell
-.\mvnw.cmd test "-Dtest=AnalystConversationMigrationTests,ConversationContextWindowPolicyTests,AnalystConversationServiceTests,AnalystConversationControllerTests,AnalystConversationAuthorizationTests"
+.\mvnw.cmd test "-Dtest=AnalystConversationMigrationTests,ConversationContextWindowPolicyTests,ConversationTitlePolicyTests,AnalystConversationServiceTests,AnalystConversationControllerTests"
 ```
 
 Expected:
@@ -202,3 +202,27 @@ npm test
 Record exact totals and any skipped live dependency honestly. Do not mark the
 feature complete if migration, authorization, context, idempotency, deletion,
 AI stale-fact/injection, or P1 acceptance fails.
+
+## 10. Validation evidence — 2026-09-12
+
+- OpenAPI was parsed successfully with SnakeYAML 2.6. The feature spec, plan,
+  research, data model, and contracts contain no unresolved clarification.
+- Backend final focused controller/migration/service/policy suite: 20 passed,
+  0 failed, 0 skipped. `AnalystConversationServiceTests` includes three
+  independent repetitions of the create/follow-up/list/read/rename/delete P1
+  lifecycle, privacy-safe metric assertions, and a private failure canary check.
+- Backend full suite: 761 passed, 0 failed, 0 skipped in 7 minutes 30 seconds.
+- Backend performance fixture: 2 passed against 10,000 conversations and
+  10,000 exchanges; local p95 was 24 ms for conversation list, 26 ms for the
+  exchange page, and 26 ms for accepted-state persistence.
+- AI focused conversation/orchestration/attribution suite: 26 passed. AI full
+  suite: 183 passed, 1 existing golden-provider case skipped, with 3 dependency
+  warnings. `python -m compileall app` passed.
+- Frontend conversation suite: 10 passed, including exact stored-evidence
+  replay, stable older-page prepend, stream interruption, late-event isolation,
+  cancellation, rename, delete, and delete-failure state. Frontend full suite:
+  32 files and 169 tests passed. ESLint and the production TypeScript/Vite build
+  passed; Vite reported the existing 500 kB chunk-size advisory.
+- Deterministic adapters and fixtures were used. A live LLM/provider run and a
+  manual browser session were not run because neither is required to establish
+  deterministic correctness and both remain optional operational checks.

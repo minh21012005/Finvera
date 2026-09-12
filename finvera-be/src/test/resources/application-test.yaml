@@ -26,3 +26,7 @@ finvera:
     internal-api-key: test-internal-api-key
   analyst:
     internal-api-key: test-internal-api-key
+    conversation-context-candidates: 10
+    conversation-context-included: 5
+    conversation-context-characters: 12000
+    conversation-stale-grace: 60s

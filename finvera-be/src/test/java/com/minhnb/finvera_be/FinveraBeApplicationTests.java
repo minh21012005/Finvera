@@ -135,6 +135,15 @@ class FinveraBeApplicationTests {
 	com.minhnb.finvera_be.analyst.repository.AnalystToolCallRepository analystToolCallRepository;
 
 	@MockitoBean
+	com.minhnb.finvera_be.analyst.repository.AnalystConversationRepository analystConversationRepository;
+
+	@MockitoBean
+	com.minhnb.finvera_be.analyst.repository.AnalystConversationExchangeRepository analystConversationExchangeRepository;
+
+	@MockitoBean
+	org.springframework.transaction.support.TransactionTemplate transactionTemplate;
+
+	@MockitoBean
 	com.minhnb.finvera_be.portfolio.repository.PortfolioRepository portfolioRepository;
 
 	@MockitoBean

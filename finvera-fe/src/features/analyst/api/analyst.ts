@@ -62,6 +62,161 @@ export interface AskAnalystCallbacks {
   onError?: (error: Error) => void;
 }
 
+export interface ContextWindowInfo {
+  ruleVersion: string;
+  includedExchanges: number;
+  omittedExchanges: number;
+}
+
+export interface ConversationSummary {
+  id: string;
+  title: string;
+  titleSource: 'AUTO' | 'OWNER';
+  createdAt: string;
+  updatedAt: string;
+  lastActivityAt: string;
+  exchangeCount: number;
+  processing: boolean;
+}
+
+export interface ConversationExchange {
+  id: string;
+  sequenceNo: number;
+  question: string;
+  symbol?: string | null;
+  status: 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+  final?: AnalystFinalResult | null;
+  failureCode?: string | null;
+  contextWindow: ContextWindowInfo;
+  createdAt: string;
+  completedAt?: string | null;
+}
+
+export interface ConversationPage {
+  items: ConversationSummary[];
+  nextCursor?: string | null;
+  hasMore: boolean;
+}
+
+export interface ExchangePage {
+  conversation: ConversationSummary;
+  items: ConversationExchange[];
+  olderCursor?: string | null;
+  hasMore: boolean;
+}
+
+export interface ConversationAskRequest {
+  conversationId?: string;
+  clientRequestId: string;
+  question: string;
+  symbol?: string;
+}
+
+export interface AcceptedConversationEvent {
+  type: 'accepted';
+  conversationId: string;
+  exchangeId: string;
+  created: boolean;
+  title: string;
+  contextWindow: ContextWindowInfo;
+}
+
+export interface ConversationCallbacks extends AskAnalystCallbacks {
+  onAccepted?: (event: AcceptedConversationEvent) => void;
+  onTerminalError?: (reasonCode: string, retryable: boolean) => void;
+}
+
+async function csrfHeaders(accept?: string): Promise<Record<string, string>> {
+  const csrf = await getCsrf();
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (accept) headers.Accept = accept;
+  if (csrf?.token) headers[csrf.headerName] = csrf.token;
+  return headers;
+}
+
+async function jsonRequest<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, { credentials: 'same-origin', ...init });
+  if (!response.ok) {
+    const problem = await response.json().catch(() => ({}));
+    throw new Error(problem.detail || problem.title || `Yêu cầu thất bại (${response.status})`);
+  }
+  return response.json() as Promise<T>;
+}
+
+export function listConversations(cursor?: string, limit = 20): Promise<ConversationPage> {
+  const query = new URLSearchParams({ limit: String(limit) });
+  if (cursor) query.set('cursor', cursor);
+  return jsonRequest(`/api/v1/analyst/conversations?${query}`);
+}
+
+export function getConversationExchanges(conversationId: string, before?: string, limit = 50): Promise<ExchangePage> {
+  const query = new URLSearchParams({ limit: String(limit) });
+  if (before) query.set('before', before);
+  return jsonRequest(`/api/v1/analyst/conversations/${conversationId}/exchanges?${query}`);
+}
+
+export async function renameConversation(conversationId: string, title: string): Promise<ConversationSummary> {
+  return jsonRequest(`/api/v1/analyst/conversations/${conversationId}`, {
+    method: 'PATCH', headers: await csrfHeaders(), body: JSON.stringify({ title }),
+  });
+}
+
+export async function deleteConversation(conversationId: string): Promise<void> {
+  const response = await fetch(`/api/v1/analyst/conversations/${conversationId}`, {
+    method: 'DELETE', credentials: 'same-origin', headers: await csrfHeaders(),
+  });
+  if (!response.ok) {
+    const problem = await response.json().catch(() => ({}));
+    throw new Error(problem.detail || problem.title || `Không thể xóa (${response.status})`);
+  }
+}
+
+export async function streamConversationAsk(request: ConversationAskRequest,
+  callbacks: ConversationCallbacks, signal?: AbortSignal): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch('/api/v1/analyst/conversations/ask', {
+      method: 'POST', credentials: 'same-origin', headers: await csrfHeaders('text/event-stream'),
+      body: JSON.stringify(request), signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') return;
+    const resolved = error instanceof Error ? error : new Error('Lỗi mạng khi kết nối AI Analyst');
+    callbacks.onError?.(resolved); throw resolved;
+  }
+  if (!response.ok) {
+    const problem = await response.json().catch(() => ({}));
+    const error = new Error(problem.detail || problem.title || `Yêu cầu thất bại (${response.status})`);
+    callbacks.onError?.(error); throw error;
+  }
+  if (!response.body) throw new Error('Máy chủ không trả về luồng dữ liệu');
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let terminal = false;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n'); buffer = lines.pop() || '';
+    for (const line of lines) {
+      const trimmed = line.trim(); if (!trimmed.startsWith('data:')) continue;
+      try {
+        const event = JSON.parse(trimmed.slice(5).trim());
+        if (event.type === 'accepted') callbacks.onAccepted?.(event);
+        else if (event.type === 'tool_call') callbacks.onToolCall?.(event.toolCall);
+        else if (event.type === 'delta') callbacks.onDelta?.(event.textDelta);
+        else if (event.type === 'final') { terminal = true; callbacks.onFinal?.(event.final); }
+        else if (event.type === 'error') {
+          terminal = true; callbacks.onTerminalError?.(event.reasonCode, event.retryable);
+        }
+      } catch { /* Ignore incomplete/malformed event lines. */ }
+    }
+  }
+  if (!terminal && !signal?.aborted) callbacks.onError?.(new Error('Luồng kết thúc trước kết quả cuối cùng'));
+}
+
 export async function streamAskAnalyst(
   request: AskAnalystRequest,
   callbacks: AskAnalystCallbacks,

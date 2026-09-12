@@ -1,5 +1,5 @@
 import React from 'react';
-import { AskAnalyst } from './components/AskAnalyst';
+import { ConversationAnalyst } from './components/ConversationAnalyst';
 import { navigate } from '../../router';
 
 export const AnalystPage: React.FC = () => {
@@ -15,7 +15,7 @@ export const AnalystPage: React.FC = () => {
           Trợ lý phân tích định lượng đa công cụ — tích hợp tra cứu giá, chỉ báo kỹ thuật, BCTC, độ rộng thị trường và Hybrid RAG.
         </p>
       </header>
-      <AskAnalyst />
+      <ConversationAnalyst />
     </main>
   );
 };

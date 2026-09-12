@@ -56,6 +56,7 @@ capabilities. Qdrant and Redis contain derived data and cannot be authoritative.
 | Document ingestion and retrieval | FastAPI + source metadata in PostgreSQL | Parse, embed, retrieve, rerank |
 | News/document interpretation | FastAPI | Extract, classify, summarize with citations |
 | AI analyst orchestration | FastAPI behind Spring Boot | Select allowlisted tools and synthesize evidence |
+| AI conversation history | Spring Boot + PostgreSQL | Consume bounded untrusted context; no AI-side persistence |
 
 ## MVP Delivery Order
 
@@ -128,6 +129,12 @@ an inconsistency.
 - **Resolved — initial LLM provider**: Gemini is the initial LLM provider;
   model/version selection, privacy review, quotas, cost, and fallback belong to
   the first AI feature plan. See [ADR-0002](adr/0002-use-gemini-as-initial-llm-provider.md).
+- **Resolved — AI conversation history**: Feature 029 stores owner-scoped
+  conversations and exact public answer/evidence snapshots in PostgreSQL.
+  Spring selects at most five whole recent exchanges within 12,000 Unicode
+  characters; FastAPI remains stateless and cannot treat history as current
+  evidence. See `specs/029-ai-conversation-history/` and
+  [the runbook](runbooks/ai-conversation-history.md).
 - Embedding model/provider, reranking, and document storage remain unresolved.
   The first RAG feature plan must benchmark and select them independently of the
   Gemini decision.
