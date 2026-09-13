@@ -1,0 +1,253 @@
+openapi: 3.1.0
+info:
+  title: Finvera Position Sizing API
+  version: 1.0.0
+  description: Stateless deterministic cash-equity position sizing.
+paths:
+  /api/v1/position-sizing/calculate:
+    post:
+      operationId: calculatePositionSize
+      summary: Calculate one transparent long-equity sizing scenario
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: X-CSRF-TOKEN
+          in: header
+          required: true
+          description: Token obtained from the authenticated CSRF endpoint.
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SizingRequest' }
+      responses:
+        '200':
+          description: Calculated or truthfully withheld result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SizingResult' }
+        '401': { description: Authentication required }
+        '403': { description: Missing or invalid CSRF token }
+        '404': { description: Portfolio missing, deleted, or not owned; non-disclosing }
+        '422':
+          description: Invalid or mutually inconsistent request
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '500':
+          description: Isolated unexpected calculation failure
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: FINVERA_SESSION
+  schemas:
+    DecimalString:
+      type: string
+      pattern: '^(0|[1-9][0-9]*)(\.[0-9]+)?$'
+      examples: ['500000000', '0.01']
+    MoneyDecimalString:
+      type: string
+      description: Non-negative VND decimal with precision at most 20 and scale at most 6.
+      pattern: '^(?=.{1,21}$)(?=\d+(?:\.\d+)?$)(?!(?:\d{21}|\d{15,}\.\d{6}$))\d{1,20}(?:\.\d{1,6})?$'
+    RateDecimalString:
+      type: string
+      description: Non-negative decimal-fraction rate with precision at most 20 and scale at most 8; semantic range is validated by the operation.
+      pattern: '^(?=.{1,21}$)(?=\d+(?:\.\d+)?$)\d{1,20}(?:\.\d{1,8})?$'
+    SizingRequest:
+      type: object
+      additionalProperties: false
+      description: MANUAL requires manualCapital and forbids portfolioId; PORTFOLIO requires portfolioId and forbids manualCapital.
+      required: [mode, symbol, riskBudget, priceInput, costPolicy]
+      properties:
+        mode: { type: string, enum: [MANUAL, PORTFOLIO] }
+        symbol: { type: string, pattern: '^[A-Z0-9]{3,10}$' }
+        portfolioId: { type: [string, 'null'], format: uuid }
+        manualCapital:
+          oneOf:
+            - { $ref: '#/components/schemas/ManualCapital' }
+            - { type: 'null' }
+        riskBudget:
+          oneOf:
+            - { $ref: '#/components/schemas/FixedRiskBudget' }
+            - { $ref: '#/components/schemas/PercentRiskBudget' }
+        priceInput:
+          oneOf:
+            - { $ref: '#/components/schemas/ManualPriceInput' }
+            - { $ref: '#/components/schemas/SignalPriceInput' }
+        costPolicy:
+          oneOf:
+            - { $ref: '#/components/schemas/ExcludedCosts' }
+            - { $ref: '#/components/schemas/DeclaredCosts' }
+        exposureLimits:
+          oneOf:
+            - { $ref: '#/components/schemas/ExposureLimits' }
+            - { type: 'null' }
+    ManualCapital:
+      type: object
+      additionalProperties: false
+      required: [capitalBaseVnd, availableCashVnd]
+      properties:
+        capitalBaseVnd: { $ref: '#/components/schemas/MoneyDecimalString' }
+        availableCashVnd: { $ref: '#/components/schemas/MoneyDecimalString' }
+        portfolioValueVnd:
+          oneOf: [{ $ref: '#/components/schemas/MoneyDecimalString' }, { type: 'null' }]
+        existingSymbolMarketValueVnd:
+          oneOf: [{ $ref: '#/components/schemas/MoneyDecimalString' }, { type: 'null' }]
+        currentDeployedMarketValueVnd:
+          oneOf: [{ $ref: '#/components/schemas/MoneyDecimalString' }, { type: 'null' }]
+    FixedRiskBudget:
+      type: object
+      additionalProperties: false
+      required: [kind, value]
+      properties:
+        kind: { const: FIXED_VND }
+        value: { $ref: '#/components/schemas/MoneyDecimalString' }
+    PercentRiskBudget:
+      type: object
+      additionalProperties: false
+      required: [kind, value]
+      properties:
+        kind: { const: PERCENT }
+        value:
+          type: string
+          description: Positive decimal fraction no greater than one, scale at most 8.
+          pattern: '^(?:0\.(?=\d{0,7}[1-9])\d{1,8}|1(?:\.0{1,8})?)$'
+    ManualPriceInput:
+      type: object
+      additionalProperties: false
+      required: [source, entryPriceVnd, stopPriceVnd]
+      properties:
+        source: { const: MANUAL }
+        entryPriceVnd: { $ref: '#/components/schemas/MoneyDecimalString' }
+        stopPriceVnd: { $ref: '#/components/schemas/MoneyDecimalString' }
+        originatingSignalContext: { $ref: '#/components/schemas/OriginatingSignalContext' }
+    OriginatingSignalContext:
+      type: object
+      additionalProperties: false
+      required: [strategyCode, ruleVersion, calculatedAt, asOfTradingDate]
+      properties:
+        strategyCode: { type: string, minLength: 1, maxLength: 60 }
+        ruleVersion: { type: string, minLength: 1, maxLength: 60 }
+        calculatedAt: { type: string, format: date-time }
+        asOfTradingDate: { type: string, format: date }
+    SignalPriceInput:
+      type: object
+      additionalProperties: false
+      required: [source, strategyCode, ruleVersion, calculatedAt, entryBasis, confirmed]
+      properties:
+        source: { const: SIGNAL }
+        strategyCode: { type: string, minLength: 1, maxLength: 60 }
+        ruleVersion: { type: string, minLength: 1, maxLength: 60 }
+        calculatedAt: { type: string, format: date-time }
+        entryBasis: { type: string, enum: [ENTRY_LOW, MIDPOINT, ENTRY_HIGH] }
+        confirmed: { const: true }
+    ExcludedCosts:
+      type: object
+      additionalProperties: false
+      required: [excludeCosts]
+      properties:
+        excludeCosts: { const: true }
+    DeclaredCosts:
+      type: object
+      additionalProperties: false
+      required: [excludeCosts, entryFeeRate, exitFeeRate, sellTaxRate, entrySlippageRate, exitSlippageRate]
+      properties:
+        excludeCosts: { const: false }
+        entryFeeRate: { $ref: '#/components/schemas/RateDecimalString' }
+        exitFeeRate: { $ref: '#/components/schemas/RateDecimalString' }
+        sellTaxRate: { $ref: '#/components/schemas/RateDecimalString' }
+        entrySlippageRate: { $ref: '#/components/schemas/RateDecimalString' }
+        exitSlippageRate: { $ref: '#/components/schemas/RateDecimalString' }
+    ExposureLimits:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        maxSymbolConcentrationRate: { $ref: '#/components/schemas/RateDecimalString' }
+        maxDeploymentRate: { $ref: '#/components/schemas/RateDecimalString' }
+    SizingResult:
+      type: object
+      additionalProperties: false
+      required: [status, symbol, mode, quantity, rawPermittedQuantity, lotSize, roundingRemainder, capitalBaseVnd, availableCashVnd, resolvedEntryPriceVnd, resolvedStopPriceVnd, effectiveEntryPriceVnd, effectiveStopPriceVnd, costsExcluded, riskBudgetVnd, acquisitionUnitCostVnd, stopNetProceedsPerShareVnd, lossPerShareVnd, requiredCapitalVnd, estimatedLossAtStopVnd, remainingCashVnd, projectedSymbolMarketValueVnd, projectedSymbolExposureRate, projectedDeploymentRate, constraints, inputEvidence, reasonCodes, warnings, sizingRuleVersion, marketRuleVersion, calculatedAt]
+      properties:
+        status: { type: string, enum: [CALCULATED, WITHHELD] }
+        symbol: { type: string }
+        mode: { type: string, enum: [MANUAL, PORTFOLIO] }
+        quantity: { type: [integer, 'null'], format: int64, minimum: 0 }
+        rawPermittedQuantity: { type: [integer, 'null'], format: int64, minimum: 0 }
+        lotSize: { type: integer, minimum: 1 }
+        roundingRemainder: { type: [integer, 'null'], format: int64, minimum: 0 }
+        capitalBaseVnd: { oneOf: [{ $ref: '#/components/schemas/DecimalString' }, { type: 'null' }] }
+        availableCashVnd: { oneOf: [{ $ref: '#/components/schemas/DecimalString' }, { type: 'null' }] }
+        resolvedEntryPriceVnd: { oneOf: [{ $ref: '#/components/schemas/DecimalString' }, { type: 'null' }] }
+        resolvedStopPriceVnd: { oneOf: [{ $ref: '#/components/schemas/DecimalString' }, { type: 'null' }] }
+        effectiveEntryPriceVnd: { oneOf: [{ $ref: '#/components/schemas/DecimalString' }, { type: 'null' }] }
+        effectiveStopPriceVnd: { oneOf: [{ $ref: '#/components/schemas/DecimalString' }, { type: 'null' }] }
+        costsExcluded: { type: boolean }
+        riskBudgetVnd: { oneOf: [{ $ref: '#/components/schemas/DecimalString' }, { type: 'null' }] }
+        acquisitionUnitCostVnd: { oneOf: [{ $ref: '#/components/schemas/DecimalString' }, { type: 'null' }] }
+        stopNetProceedsPerShareVnd: { oneOf: [{ $ref: '#/components/schemas/DecimalString' }, { type: 'null' }] }
+        lossPerShareVnd: { oneOf: [{ $ref: '#/components/schemas/DecimalString' }, { type: 'null' }] }
+        requiredCapitalVnd: { oneOf: [{ $ref: '#/components/schemas/DecimalString' }, { type: 'null' }] }
+        estimatedLossAtStopVnd: { oneOf: [{ $ref: '#/components/schemas/DecimalString' }, { type: 'null' }] }
+        remainingCashVnd: { oneOf: [{ $ref: '#/components/schemas/DecimalString' }, { type: 'null' }] }
+        projectedSymbolMarketValueVnd: { oneOf: [{ $ref: '#/components/schemas/DecimalString' }, { type: 'null' }] }
+        projectedSymbolExposureRate: { oneOf: [{ $ref: '#/components/schemas/DecimalString' }, { type: 'null' }] }
+        projectedDeploymentRate: { oneOf: [{ $ref: '#/components/schemas/DecimalString' }, { type: 'null' }] }
+        constraints:
+          type: array
+          items: { $ref: '#/components/schemas/ConstraintResult' }
+        inputEvidence:
+          type: array
+          items: { $ref: '#/components/schemas/InputEvidence' }
+        reasonCodes:
+          type: array
+          items:
+            type: string
+            enum: [MARKET_LOT_RULE_UNAVAILABLE, PORTFOLIO_DATA_UNAVAILABLE, SIGNAL_NOT_CURRENT, BELOW_STANDARD_LOT]
+        warnings:
+          type: array
+          items:
+            type: string
+            enum: [COSTS_EXCLUDED, ENTRY_FEE_EXCLUDED, EXIT_FEE_EXCLUDED, SELL_TAX_EXCLUDED, ENTRY_SLIPPAGE_EXCLUDED, EXIT_SLIPPAGE_EXCLUDED]
+        sizingRuleVersion: { const: position-sizing-v1 }
+        marketRuleVersion: { const: market-lot-v1 }
+        calculatedAt: { type: string, format: date-time }
+    ConstraintResult:
+      type: object
+      additionalProperties: false
+      required: [code, applicability, binding]
+      properties:
+        code: { type: string, enum: [RISK_BUDGET, AFFORDABILITY, SYMBOL_CONCENTRATION, TOTAL_DEPLOYMENT] }
+        applicability: { type: string, enum: [APPLIED, NOT_APPLIED, WITHHELD] }
+        rawQuantity: { type: [integer, 'null'], format: int64, minimum: 0 }
+        binding: { type: boolean }
+    InputEvidence:
+      type: object
+      additionalProperties: false
+      required: [field, value, source, unit]
+      properties:
+        field: { type: string }
+        value: { type: string, minLength: 1 }
+        source: { type: string, enum: [OWNER_ENTERED, PORTFOLIO, SIGNAL, SIGNAL_CONTEXT, MARKET_RULE] }
+        unit: { type: string, enum: [VND, VND_PER_SHARE, DECIMAL_RATE, SHARES, TEXT] }
+        asOf: { type: [string, 'null'], format: date-time }
+        coherenceKey: { type: [string, 'null'] }
+    Problem:
+      type: object
+      additionalProperties: true
+      required: [type, title, status]
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        reasonCode:
+          type: string
+          enum: [INVALID_REQUEST, INVALID_INPUT, INVALID_RISK_BUDGET, INCOMPLETE_COST_POLICY, INVALID_PRICE_RELATIONSHIP, SIGNAL_NOT_CONFIRMED, SERVER_ERROR]

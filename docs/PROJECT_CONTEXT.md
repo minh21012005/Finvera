@@ -135,6 +135,13 @@ an inconsistency.
   characters; FastAPI remains stateless and cannot treat history as current
   evidence. See `specs/029-ai-conversation-history/` and
   [the runbook](runbooks/ai-conversation-history.md).
+- **Implemented; owner review pending — deterministic position sizing**:
+  Feature 030 provides one stateless `position-sizing-v1` engine for manual,
+  portfolio-linked, and current-signal scenarios. It applies risk, cash,
+  optional concentration/deployment, declared cost/slippage, and versioned
+  market-lot constraints, then exposes all inputs and binding caps. See
+  `specs/030-deterministic-position-sizing/` and
+  [the runbook](runbooks/position-sizing.md).
 - Embedding model/provider, reranking, and document storage remain unresolved.
   The first RAG feature plan must benchmark and select them independently of the
   Gemini decision.

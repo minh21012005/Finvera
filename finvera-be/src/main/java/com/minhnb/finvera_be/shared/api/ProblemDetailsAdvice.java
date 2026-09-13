@@ -97,7 +97,18 @@ public class ProblemDetailsAdvice {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<ProblemDetail> invalidRequest(HttpServletRequest request) {
-        return response(request, HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "Request validation failed");
+        HttpStatus status = isPositionSizing(request) ? HttpStatus.UNPROCESSABLE_ENTITY : HttpStatus.BAD_REQUEST;
+        return response(request, status, "INVALID_REQUEST", "Request validation failed");
+    }
+
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    ResponseEntity<ProblemDetail> unreadableRequest(HttpServletRequest request) {
+        HttpStatus status = isPositionSizing(request) ? HttpStatus.UNPROCESSABLE_ENTITY : HttpStatus.BAD_REQUEST;
+        return response(request, status, "INVALID_REQUEST", "Request body is invalid");
+    }
+
+    private static boolean isPositionSizing(HttpServletRequest request) {
+        return request.getRequestURI().startsWith("/api/v1/position-sizing/");
     }
 
     @ExceptionHandler(jakarta.validation.ConstraintViolationException.class)
@@ -129,6 +140,12 @@ public class ProblemDetailsAdvice {
     @ExceptionHandler(com.minhnb.finvera_be.research.service.ResearchExceptions.RetrievalUnavailableException.class)
     ResponseEntity<ProblemDetail> retrievalUnavailable(HttpServletRequest request, Exception ex) {
         return response(request, HttpStatus.SERVICE_UNAVAILABLE, "RETRIEVAL_UNAVAILABLE", ex.getMessage());
+    }
+
+    @ExceptionHandler(com.minhnb.finvera_be.positioning.service.PositionSizingExceptions.InvalidSizingRequestException.class)
+    ResponseEntity<ProblemDetail> invalidSizingRequest(HttpServletRequest request,
+            com.minhnb.finvera_be.positioning.service.PositionSizingExceptions.InvalidSizingRequestException ex) {
+        return response(request, HttpStatus.UNPROCESSABLE_ENTITY, ex.reasonCode(), ex.getMessage());
     }
 
     @ExceptionHandler(com.minhnb.finvera_be.analyst.service.AnalystConversationExceptions.ConversationNotFoundException.class)

@@ -1,7 +1,7 @@
 # Finvera Architecture
 
 **Status**: Living document
-**Last updated**: 2026-09-12
+**Last updated**: 2026-09-13
 **Applies to**: `finvera-fe`, `finvera-be`, `finvera-ai`, and the shared data
 stores
 
@@ -74,6 +74,7 @@ finvera-be/src/main/java/com/minhnb/finvera_be/
 ├── market/       feature 001 — indices, calendar, instruments, breadth, regime
 ├── stock/        features 002-004 — equity reference, bars, fundamentals, analysis, screener, strategy signals
 ├── portfolio/    feature 005 — portfolios, transactions, positions, analytics, watchlists
+├── positioning/  feature 030 — stateless deterministic position sizing
 ├── research/     feature 006 — documents, news, chunks, retrieval/ask boundary to finvera-ai
 └── analyst/      features 007, 029 — AI queries/tools and owner-scoped conversation history
 ```
@@ -184,6 +185,13 @@ endpoint. Spring persists each owner-scoped exchange before `accepted`, derives
 a bounded recent context from PostgreSQL, and stores the exact sanitized public
 final result for replay. FastAPI remains stateless and treats history as
 untrusted referential context rather than evidence.
+
+Feature 030 adds a CSRF-protected stateless position-sizing endpoint. Its pure
+`position-sizing-v1` engine uses decimal arithmetic and consumes market,
+owner-scoped portfolio, and current-signal facts only through published
+application services. The response exposes every applied candidate, all tied
+binding caps, lot rounding, costs, provenance, and rule versions. React renders
+the result and never recalculates it.
 
 ## 6. Frontend conventions
 

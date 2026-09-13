@@ -11,9 +11,11 @@ import { ResearchPage } from "./features/research/components/research-page";
 import { AnalystPage } from "./features/analyst";
 import { OwnerAccessGate } from "./features/auth/owner-access-gate";
 import { TcbsRenewalPage } from "./features/tcbs-renewal/tcbs-renewal-page";
+import { PositionSizingPage } from "./features/position-sizing/components/position-sizing-page";
 import {
   isAnalystPath,
   isPortfoliosPath,
+  isPositionSizingPath,
   isResearchPath,
   isScreenerPath,
   isStrategyScanPath,
@@ -47,6 +49,8 @@ export function App() {
         <PortfolioDetailPage key={portfolioId} portfolioId={portfolioId} />
       ) : isPortfoliosPath(pathname) ? (
         <PortfolioList />
+      ) : isPositionSizingPath(pathname) ? (
+        <PositionSizingPage />
       ) : watchlistId ? (
         <WatchlistDetailPage key={watchlistId} watchlistId={watchlistId} />
       ) : isWatchlistsPath(pathname) ? (

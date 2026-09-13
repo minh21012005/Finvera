@@ -21,6 +21,7 @@ const WATCHLIST_DETAIL_PATH = /^\/watchlists\/([0-9a-fA-F-]{36})\/?$/;
 const RESEARCH_PATH = /^\/research\/?$/;
 const ANALYST_PATH = /^\/analyst\/?$/;
 const TCBS_RENEWAL_PATH = /^\/tcbs-renewal\/?$/;
+const POSITION_SIZING_PATH = /^\/position-sizing\/?$/;
 
 export function parseStockSymbolFromPath(pathname: string): string | null {
   const match = STOCK_DETAIL_PATH.exec(pathname);
@@ -63,4 +64,8 @@ export function isAnalystPath(pathname: string): boolean {
 
 export function isTcbsRenewalPath(pathname: string): boolean {
   return TCBS_RENEWAL_PATH.test(pathname);
+}
+
+export function isPositionSizingPath(pathname: string): boolean {
+  return POSITION_SIZING_PATH.test(pathname);
 }

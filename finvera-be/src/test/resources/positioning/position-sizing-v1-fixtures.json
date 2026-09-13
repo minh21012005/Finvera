@@ -1,0 +1,36 @@
+{
+  "ruleVersion": "position-sizing-v1",
+  "lotRuleVersion": "market-lot-v1",
+  "fixtures": [
+    {
+      "name": "normal_risk_binding",
+      "input": { "capitalBaseVnd": "1000000", "availableCashVnd": "500000", "entryPriceVnd": "1000", "stopPriceVnd": "900", "riskBudgetVnd": "20000", "lotSize": 100 },
+      "expected": { "riskQuantity": 200, "affordabilityQuantity": 500, "rawPermittedQuantity": 200, "quantity": 200, "roundingRemainder": 0, "binding": ["RISK_BUDGET"] }
+    },
+    {
+      "name": "risk_and_cash_tie_exact_lot",
+      "input": { "capitalBaseVnd": "1000000", "availableCashVnd": "1000000", "entryPriceVnd": "1000", "stopPriceVnd": "900", "riskBudgetVnd": "100000", "lotSize": 100 },
+      "expected": { "riskQuantity": 1000, "affordabilityQuantity": 1000, "rawPermittedQuantity": 1000, "quantity": 1000, "roundingRemainder": 0, "binding": ["RISK_BUDGET", "AFFORDABILITY"] }
+    },
+    {
+      "name": "below_one_standard_lot",
+      "input": { "capitalBaseVnd": "1000000", "availableCashVnd": "99000", "entryPriceVnd": "1000", "stopPriceVnd": "900", "riskBudgetVnd": "9900", "lotSize": 100 },
+      "expected": { "rawPermittedQuantity": 99, "quantity": null, "roundingRemainder": 99, "reasonCodes": ["BELOW_STANDARD_LOT"] }
+    },
+    {
+      "name": "symbol_cap_with_declared_costs",
+      "input": { "capitalBaseVnd": "500000000", "availableCashVnd": "300000000", "entryPriceVnd": "50000", "stopPriceVnd": "47000", "riskBudgetVnd": "10000000", "entryFeeRate": "0.0015", "exitFeeRate": "0.0015", "sellTaxRate": "0.001", "entrySlippageRate": "0.002", "exitSlippageRate": "0.002", "portfolioValueVnd": "500000000", "existingSymbolMarketValueVnd": "50000000", "currentDeployedMarketValueVnd": "250000000", "maxSymbolConcentrationRate": "0.20", "maxDeploymentRate": "0.70", "lotSize": 100 },
+      "expected": { "effectiveEntryPriceVnd": "50100", "acquisitionUnitCostVnd": "50175.15", "rawPermittedQuantity": 998, "quantity": 900, "roundingRemainder": 98, "requiredCapitalVnd": "45157635", "binding": ["SYMBOL_CONCENTRATION"] }
+    },
+    {
+      "name": "money_scale_overflow_rejected",
+      "input": { "capitalBaseVnd": "1000000", "availableCashVnd": "1000000", "entryPriceVnd": "1000.1234567", "stopPriceVnd": "900", "riskBudgetVnd": "10000", "lotSize": 100 },
+      "expected": { "error": "INVALID_ENTRYPRICEVND" }
+    },
+    {
+      "name": "quantity_long_overflow_rejected",
+      "input": { "capitalBaseVnd": "99999999999999.999999", "availableCashVnd": "99999999999999.999999", "entryPriceVnd": "0.000002", "stopPriceVnd": "0.000001", "riskBudgetVnd": "99999999999999.999999", "lotSize": 100 },
+      "expected": { "error": "QUANTITY_OUT_OF_RANGE" }
+    }
+  ]
+}
