@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
   X,
-  Search,
   Wrench,
   ArrowUpRight,
   Sparkles,
@@ -48,7 +47,6 @@ const TOOL_ICONS: Record<
 
 export const SupportedToolsModal: React.FC<Props> = ({ isOpen, onClose, onSelectQuery }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
-  const [searchQuery, setSearchQuery] = useState<string>('');
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -73,7 +71,7 @@ export const SupportedToolsModal: React.FC<Props> = ({ isOpen, onClose, onSelect
   ];
 
   const filteredTools = SUPPORTED_TOOLS.filter((tool) => {
-    const matchCategory =
+    return (
       selectedCategory === 'ALL' ||
       (selectedCategory === 'FUNDAMENTAL'
         ? tool.category === 'FUNDAMENTAL'
@@ -81,18 +79,8 @@ export const SupportedToolsModal: React.FC<Props> = ({ isOpen, onClose, onSelect
         ? tool.category === 'MARKET'
         : selectedCategory === 'QUANT'
         ? tool.category === 'QUANT'
-        : tool.category === selectedCategory);
-
-    const q = searchQuery.toLowerCase().trim();
-    const matchSearch =
-      !q ||
-      tool.name.toLowerCase().includes(q) ||
-      tool.badge.toLowerCase().includes(q) ||
-      tool.summary.toLowerCase().includes(q) ||
-      tool.description.toLowerCase().includes(q) ||
-      tool.sampleQueries.some((sq) => sq.query.toLowerCase().includes(q));
-
-    return matchCategory && matchSearch;
+        : tool.category === selectedCategory)
+    );
   });
 
   return (
@@ -136,40 +124,29 @@ export const SupportedToolsModal: React.FC<Props> = ({ isOpen, onClose, onSelect
           </button>
         </div>
 
-        {/* Filter and Search Bar */}
-        <div className="border-b border-slate-800 px-6 py-3 bg-[#08101e]/80 flex flex-col sm:flex-row gap-3 items-center justify-between">
-          <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0 scrollbar-none">
+        {/* Category Tabs Bar (Clean, spacious padding) */}
+        <div className="border-b border-slate-800/80 px-6 py-4 bg-[#08101e]/90">
+          <div className="flex items-center justify-start sm:justify-center overflow-x-auto scrollbar-none gap-2">
             {categories.map((cat) => (
               <button
                 key={cat.id}
                 type="button"
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                className={`rounded-xl px-4 py-2 text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                   selectedCategory === cat.id
                     ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                    : 'bg-slate-800/60 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                    : 'bg-slate-800/60 text-slate-400 hover:text-slate-200 hover:bg-slate-800 border border-transparent hover:border-slate-700/60'
                 }`}
               >
                 {cat.label}
               </button>
             ))}
           </div>
-
-          <div className="relative w-full sm:w-64 shrink-0">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm kiếm công cụ hoặc mẫu lệnh…"
-              className="w-full rounded-xl border border-slate-800 bg-slate-900/90 pl-9 pr-3 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 outline-none focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500"
-            />
-          </div>
         </div>
 
         {/* Tools Grid */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
             {filteredTools.map((tool: SupportedTool) => {
               const iconMeta = TOOL_ICONS[tool.id] || {
                 icon: Wrench,
@@ -181,7 +158,7 @@ export const SupportedToolsModal: React.FC<Props> = ({ isOpen, onClose, onSelect
               return (
                 <div
                   key={tool.id}
-                  className="flex flex-col justify-between rounded-xl border border-slate-800/80 bg-slate-900/40 hover:bg-slate-900/70 hover:border-slate-700/80 p-4 transition-all group"
+                  className="flex flex-col justify-between h-full rounded-xl border border-slate-800/80 bg-slate-900/40 hover:bg-slate-900/70 hover:border-slate-700/80 p-4 transition-all group"
                 >
                   <div>
                     <div className="flex items-start gap-3 mb-2.5">
@@ -210,12 +187,12 @@ export const SupportedToolsModal: React.FC<Props> = ({ isOpen, onClose, onSelect
                     </p>
                   </div>
 
-                  {/* Sample Queries */}
-                  <div className="border-t border-slate-800/80 pt-2.5 mt-1 space-y-1.5">
+                  {/* Sample Queries with Full Question Text */}
+                  <div className="border-t border-slate-800/80 pt-3 mt-2 space-y-2">
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
                       Câu hỏi mẫu (Bấm để hỏi):
                     </span>
-                    <div className="flex flex-col gap-1.5">
+                    <div className="flex flex-col gap-2">
                       {tool.sampleQueries.map((sq, idx) => (
                         <button
                           key={idx}
@@ -224,12 +201,27 @@ export const SupportedToolsModal: React.FC<Props> = ({ isOpen, onClose, onSelect
                             onSelectQuery(sq.query, sq.symbol);
                             onClose();
                           }}
-                          className="flex items-start justify-between gap-2 text-left rounded-lg bg-slate-950/70 hover:bg-indigo-950/60 border border-slate-800/70 hover:border-indigo-700/60 px-3 py-2 text-xs text-slate-300 hover:text-cyan-200 transition-all cursor-pointer group/btn"
+                          className="w-full flex items-start justify-between gap-3 text-left rounded-xl bg-slate-950/70 hover:bg-indigo-950/50 border border-slate-800/80 hover:border-indigo-600/60 p-3 transition-all cursor-pointer group/btn"
                         >
-                          <span className="flex-1 leading-relaxed break-words whitespace-normal font-normal">
-                            "{sq.query}"
-                          </span>
-                          <ArrowUpRight size={13} className="text-slate-500 group-hover/btn:text-cyan-400 shrink-0 mt-0.5" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <span className="text-[10px] font-bold text-indigo-400 group-hover/btn:text-cyan-300 transition-colors uppercase tracking-wider">
+                                {sq.label}
+                              </span>
+                              {sq.symbol && (
+                                <span className="rounded bg-indigo-950/90 border border-indigo-800/70 px-1.5 py-0.2 text-[9px] font-mono font-bold text-indigo-300">
+                                  #{sq.symbol}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-300 group-hover/btn:text-slate-100 leading-relaxed font-normal break-words">
+                              "{sq.query}"
+                            </p>
+                          </div>
+                          <ArrowUpRight
+                            size={14}
+                            className="text-slate-500 group-hover/btn:text-cyan-400 shrink-0 transition-colors mt-0.5"
+                          />
                         </button>
                       ))}
                     </div>
@@ -242,16 +234,13 @@ export const SupportedToolsModal: React.FC<Props> = ({ isOpen, onClose, onSelect
           {filteredTools.length === 0 && (
             <div className="text-center py-12 text-slate-400 space-y-2">
               <Sparkles size={28} className="mx-auto text-slate-600" />
-              <p className="text-sm">Không tìm thấy công cụ nào phù hợp với từ khóa.</p>
+              <p className="text-sm">Không tìm thấy công cụ nào trong nhóm này.</p>
               <button
                 type="button"
-                onClick={() => {
-                  setSelectedCategory('ALL');
-                  setSearchQuery('');
-                }}
+                onClick={() => setSelectedCategory('ALL')}
                 className="text-xs text-indigo-400 hover:underline cursor-pointer"
               >
-                Đặt lại bộ lọc
+                Xem tất cả công cụ
               </button>
             </div>
           )}

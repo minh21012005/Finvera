@@ -39,11 +39,11 @@ describe('Supported Tools Showcase', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('filters tools by search keyword', () => {
+  it('filters tools by category tab', () => {
     render(<SupportedToolsModal isOpen={true} onClose={vi.fn()} onSelectQuery={vi.fn()} />);
 
-    const searchInput = screen.getByPlaceholderText('Tìm kiếm công cụ hoặc mẫu lệnh…');
-    fireEvent.change(searchInput, { target: { value: 'Breakout' } });
+    const quantTab = screen.getByRole('button', { name: 'Chiến lược & Sàng lọc' });
+    fireEvent.click(quantTab);
 
     expect(screen.getByText('Quét Chiến lược Quant Engine')).toBeDefined();
     expect(screen.queryByText('Hồ sơ & Thị giá Cổ phiếu')).toBeNull();

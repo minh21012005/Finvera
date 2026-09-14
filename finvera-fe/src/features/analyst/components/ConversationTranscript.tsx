@@ -169,7 +169,7 @@ export const ConversationTranscript: React.FC<Props> = ({
           </div>
 
           {/* Quick Prompt Starters Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 items-stretch">
             {STARTER_PROMPTS.map((starter, i) => {
               const StarterIcon = starter.icon;
               return (
@@ -177,7 +177,7 @@ export const ConversationTranscript: React.FC<Props> = ({
                   key={i}
                   type="button"
                   onClick={() => onSelectQuery?.(starter.query, starter.symbol)}
-                  className="flex flex-col text-left rounded-xl border border-slate-800/80 bg-slate-900/40 hover:bg-indigo-950/30 hover:border-indigo-600/50 p-3.5 transition-all cursor-pointer group shadow-sm hover:shadow-md"
+                  className="h-full min-h-[96px] flex flex-col justify-between text-left rounded-xl border border-slate-800/80 bg-slate-900/40 hover:bg-indigo-950/30 hover:border-indigo-600/50 p-3.5 transition-all cursor-pointer group shadow-sm hover:shadow-md"
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
@@ -195,7 +195,7 @@ export const ConversationTranscript: React.FC<Props> = ({
                       className="text-slate-600 group-hover:text-cyan-400 transition-colors shrink-0"
                     />
                   </div>
-                  <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed pl-8">
+                  <p className="text-xs text-slate-300 leading-relaxed pl-8 break-words font-normal">
                     "{starter.query}"
                   </p>
                 </button>
