@@ -132,7 +132,7 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
                 </NavLink>
                 <NavLink href="/screener" active={isScreener}>
                   <SlidersHorizontal className="nav-icon-svg" size={14} />
-                  <span>Bộ lọc cổ phiếu</span>
+                  <span>Bộ lọc<span className="hidden 2xl:inline"> cổ phiếu</span></span>
                 </NavLink>
               </div>
 
@@ -140,7 +140,7 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
               <div className="nav-group">
                 <NavLink href="/strategies" active={isStrategies}>
                   <Zap className="nav-icon-svg" size={14} />
-                  <span>Chiến lược định lượng</span>
+                  <span>Chiến lược<span className="hidden 2xl:inline"> định lượng</span></span>
                 </NavLink>
                 <NavLink href="/position-sizing" active={isPositionSizing}>
                   <SlidersHorizontal className="nav-icon-svg" size={14} />
@@ -156,7 +156,7 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
               <div className="nav-group">
                 <NavLink href="/portfolios" active={isPortfolios}>
                   <Briefcase className="nav-icon-svg" size={14} />
-                  <span>Quản lý Danh mục</span>
+                  <span><span className="hidden 2xl:inline">Quản lý </span>Danh mục</span>
                 </NavLink>
                 <NavLink href="/watchlists" active={isWatchlists}>
                   <Star className="nav-icon-svg" size={14} />
@@ -168,11 +168,11 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
               <div className="nav-group">
                 <NavLink href="/research" active={isResearch}>
                   <BookOpen className="nav-icon-svg" size={14} />
-                  <span>Nghiên cứu tài liệu</span>
+                  <span>Nghiên cứu<span className="hidden 2xl:inline"> tài liệu</span></span>
                 </NavLink>
                 <NavLink href="/analyst" active={isAnalyst} className="ai-nav-link">
                   <Bot className="nav-icon-svg" size={14} />
-                  <span>AI Financial Analyst</span>
+                  <span>AI <span className="hidden 2xl:inline">Financial </span>Analyst</span>
                 </NavLink>
               </div>
 
@@ -180,7 +180,7 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
               <div className="nav-group">
                 <NavLink href="/tcbs-renewal" active={isTcbsRenewal} className="live-nav-link">
                   <Radio className="nav-icon-svg" size={14} />
-                  <span>Dữ liệu Realtime</span>
+                  <span>Dữ liệu Live</span>
                 </NavLink>
               </div>
             </div>

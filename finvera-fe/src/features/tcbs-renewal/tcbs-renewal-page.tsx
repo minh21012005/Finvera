@@ -1,8 +1,6 @@
 import { type FormEvent, useEffect, useState } from "react";
-import { navigate } from "../../router";
 import { getTcbsStatus, renewTcbsSession, TcbsRenewalApiError, type TcbsStatus } from "./api/tcbs-renewal";
 import {
-  ArrowLeft,
   ShieldCheck,
   Radio,
   Clock,
@@ -69,15 +67,7 @@ export function TcbsRenewalPage() {
     <main className="app-shell">
       <div className="tcbs-renewal-container">
         <header className="page-header">
-          <button
-            type="button"
-            className="btn-link flex items-center gap-1.5 mb-3"
-            onClick={() => navigate("/")}
-          >
-            <ArrowLeft size={15} />
-            <span>Về tổng quan thị trường</span>
-          </button>
-          <p className="eyebrow">FINVERA · PRIVATE REALTIME DATA</p>
+          <p className="eyebrow">FINVERA · PRIVATE LIVE DATA</p>
           <div className="flex items-center justify-between flex-wrap gap-4 mt-1">
             <div>
               <h1>Kết nối TCBS Thesis Live</h1>
