@@ -12,6 +12,23 @@ import org.springframework.data.repository.query.Param;
 
 public interface TechnicalIndicatorResultRepository extends JpaRepository<TechnicalIndicatorResultEntity, UUID> {
 
+    /** Revision chỉ báo mới nhất đã tính tại cutoff cho từng (ngày, mã chỉ báo). */
+    @Query(value="""
+            WITH ranked AS (
+              SELECT r.*, ROW_NUMBER() OVER (PARTITION BY as_of_trading_date,indicator_code
+                    ORDER BY calculated_at DESC,id DESC) rn
+              FROM technical_indicator_result r
+              WHERE instrument_id=:instrumentId AND rule_version=:ruleVersion
+                AND as_of_trading_date BETWEEN :fromInclusive AND :toInclusive AND calculated_at<=:cutoff
+            )
+            SELECT id,instrument_id,indicator_code,rule_version,as_of_trading_date,window_start_date,window_end_date,
+                   input_bar_count,input_set_hash,adjustment_status,data_status,quality_reason,calculated_at,is_current,supersedes_id
+            FROM ranked WHERE rn=1 ORDER BY as_of_trading_date,indicator_code
+            """,nativeQuery=true)
+    List<TechnicalIndicatorResultEntity> findHistoricalSnapshot(@Param("instrumentId") UUID instrumentId,
+            @Param("ruleVersion") String ruleVersion,@Param("fromInclusive") LocalDate fromInclusive,
+            @Param("toInclusive") LocalDate toInclusive,@Param("cutoff") java.time.Instant cutoff);
+
     Optional<TechnicalIndicatorResultEntity> findFirstByInstrumentIdAndIndicatorCodeAndAsOfTradingDateAndRuleVersionAndCurrentTrue(
             UUID instrumentId, String indicatorCode, LocalDate asOfTradingDate, String ruleVersion);
 

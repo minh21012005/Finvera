@@ -79,6 +79,7 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
   const isAnalyst = pathname.startsWith("/analyst");
   const isTcbsRenewal = pathname.startsWith("/tcbs-renewal");
   const isPositionSizing = pathname.startsWith("/position-sizing");
+  const isBacktest = pathname.startsWith("/backtests");
 
   return (
     <div className="terminal-root">
@@ -142,6 +143,10 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
               <NavLink href="/position-sizing" active={isPositionSizing}>
                 <SlidersHorizontal className="nav-icon-svg" size={15} />
                 <span>Quy mô vị thế</span>
+              </NavLink>
+              <NavLink href="/backtests" active={isBacktest}>
+                <BarChart3 className="nav-icon-svg" size={15} />
+                <span>Backtesting</span>
               </NavLink>
               <NavLink href="/watchlists" active={isWatchlists}>
                 <Star className="nav-icon-svg" size={15} />

@@ -142,6 +142,14 @@ an inconsistency.
   market-lot constraints, then exposes all inputs and binding caps. See
   `specs/030-deterministic-position-sizing/` and
   [the runbook](runbooks/position-sizing.md).
+- **Implemented; rollout and owner review pending — historical backtesting**:
+  Feature 031 provides all eight deterministic strategies, next-session-open
+  execution, bounded pyramiding, exact decimal costs, immutable trade/equity
+  ledgers, metrics, evidence, owner-only APIs, and a React workflow. Its bounded
+  worker is disabled by default. Provider-adjusted execution basis, current-lot
+  historical use, survivorship, and suspension/delisting limits are disclosed.
+  See `specs/031-historical-strategy-backtesting/` and
+  [the runbook](runbooks/backtesting.md).
 - Embedding model/provider, reranking, and document storage remain unresolved.
   The first RAG feature plan must benchmark and select them independently of the
   Gemini decision.

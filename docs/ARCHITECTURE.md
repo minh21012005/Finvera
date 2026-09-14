@@ -193,6 +193,14 @@ application services. The response exposes every applied candidate, all tied
 binding caps, lot rounding, costs, provenance, and rule versions. React renders
 the result and never recalculates it.
 
+Feature 031 adds owner-scoped asynchronous historical backtests inside the
+Spring modular monolith. The `backtest` module owns lifecycle, a pure versioned
+engine, immutable result ledgers, metrics, authorization, and a bounded local
+worker; it consumes stock/market facts through published application services
+and reuses `position-sizing-v1`. PostgreSQL is the job and result source of
+truth. VCI provider-adjusted OHLC and the current lot rule are disclosed
+simulation assumptions, and the worker remains disabled by default for rollout.
+
 ## 6. Frontend conventions
 
 | Convention | Rule |

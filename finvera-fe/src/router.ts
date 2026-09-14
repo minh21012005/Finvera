@@ -22,6 +22,7 @@ const RESEARCH_PATH = /^\/research\/?$/;
 const ANALYST_PATH = /^\/analyst\/?$/;
 const TCBS_RENEWAL_PATH = /^\/tcbs-renewal\/?$/;
 const POSITION_SIZING_PATH = /^\/position-sizing\/?$/;
+const BACKTEST_PATH = /^\/backtests\/?$/;
 
 export function parseStockSymbolFromPath(pathname: string): string | null {
   const match = STOCK_DETAIL_PATH.exec(pathname);
@@ -69,3 +70,4 @@ export function isTcbsRenewalPath(pathname: string): boolean {
 export function isPositionSizingPath(pathname: string): boolean {
   return POSITION_SIZING_PATH.test(pathname);
 }
+export function isBacktestPath(pathname:string):boolean{return BACKTEST_PATH.test(pathname);}

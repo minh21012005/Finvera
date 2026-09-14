@@ -15,6 +15,24 @@ public interface EquityDailyBarRepository extends JpaRepository<EquityDailyBarEn
 
     String DEPRECATED_TCBS_STOCK_SOURCE = "TCBS_IFLASH_STOCK_DATA";
 
+    /** Bản revision mới nhất đã tồn tại tại cutoff cho từng ngày; không dùng cờ is_current hiện tại. */
+    @Query(value = """
+            WITH ranked AS (
+              SELECT b.*, ROW_NUMBER() OVER (PARTITION BY trading_date
+                    ORDER BY accepted_at DESC, revision DESC, id DESC) rn
+              FROM equity_daily_bar b
+              WHERE instrument_id=:instrumentId AND trading_date BETWEEN :fromInclusive AND :toInclusive
+                AND accepted_at<=:cutoff AND source<>'TCBS_IFLASH_STOCK_DATA'
+            )
+            SELECT id,instrument_id,ingestion_record_id,import_batch_id,trading_date,open_price,high_price,low_price,
+                   close_price,reference_price,adjusted_close,adjustment_factor,adjustment_status,volume,value_vnd,
+                   source,observed_at,accepted_at,revision,is_current,supersedes_id,quality_reason
+            FROM ranked WHERE rn=1 ORDER BY trading_date
+            """, nativeQuery=true)
+    List<EquityDailyBarEntity> findHistoricalSnapshot(
+            @Param("instrumentId") UUID instrumentId,@Param("fromInclusive") LocalDate fromInclusive,
+            @Param("toInclusive") LocalDate toInclusive,@Param("cutoff") java.time.Instant cutoff);
+
     /**
      * Q-45: when the newest current bar of an instrument was accepted — a provider correction
      * (NBW 2026-07-02: 33,400 → 31,800) or a history backfill re-imports rows without adding a

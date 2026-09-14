@@ -31,6 +31,14 @@ server:
       timeout: 30m
 
 finvera:
+  backtest:
+    worker:
+      enabled: ${FINVERA_BACKTEST_WORKER_ENABLED:true}
+      concurrency: ${FINVERA_BACKTEST_WORKER_CONCURRENCY:1}
+      stale-after: ${FINVERA_BACKTEST_WORKER_STALE_AFTER:5m}
+      poll-delay: ${FINVERA_BACKTEST_WORKER_POLL_DELAY:5s}
+      heartbeat-delay: ${FINVERA_BACKTEST_WORKER_HEARTBEAT_DELAY:30s}
+      recovery-delay: ${FINVERA_BACKTEST_WORKER_RECOVERY_DELAY:60s}
   security:
     owner:
       id: ${FINVERA_OWNER_ID}

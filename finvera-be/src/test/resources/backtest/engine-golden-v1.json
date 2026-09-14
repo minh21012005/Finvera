@@ -1,0 +1,12 @@
+{
+  "case": "next-open-stop-first",
+  "initialCapitalVnd": "1000000",
+  "signalDate": "2026-01-02",
+  "entryDate": "2026-01-05",
+  "rawEntryPriceVnd": "100",
+  "stopPriceVnd": "90",
+  "targetPriceVnd": "120",
+  "expectedExitReason": "STOP_LOSS",
+  "sameBarHigh": "125",
+  "sameBarLow": "85"
+}

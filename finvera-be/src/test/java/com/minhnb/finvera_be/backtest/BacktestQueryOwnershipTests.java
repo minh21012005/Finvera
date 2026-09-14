@@ -1,0 +1,6 @@
+package com.minhnb.finvera_be.backtest;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;import static org.mockito.Mockito.*;
+import com.minhnb.finvera_be.backtest.repository.*;import com.minhnb.finvera_be.backtest.service.*;import com.minhnb.finvera_be.portfolio.service.OwnerScopedAccess;import java.util.*;import org.junit.jupiter.api.Test;
+class BacktestQueryOwnershipTests{
+ @Test void nonOwnedIdIsIndistinguishableFromUnknownAcrossDetailAndChildren(){UUID owner=UUID.randomUUID(),id=UUID.randomUUID();var runs=mock(BacktestRunRepository.class);var access=mock(OwnerScopedAccess.class);when(access.getAuthenticatedOwnerId()).thenReturn(owner);when(runs.findByIdAndOwnerId(id,owner)).thenReturn(Optional.empty());var service=new BacktestQueryService(runs,mock(BacktestTradeRepository.class),mock(BacktestEquityPointRepository.class),mock(BacktestMetricRepository.class),mock(BacktestEntryEventRepository.class),mock(BacktestEvidenceRepository.class),access);assertThatThrownBy(()->service.detail(id)).isInstanceOf(BacktestExceptions.NotFound.class);assertThatThrownBy(()->service.trades(id,10,0)).isInstanceOf(BacktestExceptions.NotFound.class);assertThatThrownBy(()->service.equity(id,10,0)).isInstanceOf(BacktestExceptions.NotFound.class);assertThatThrownBy(()->service.events(id,10,0)).isInstanceOf(BacktestExceptions.NotFound.class);}
+}

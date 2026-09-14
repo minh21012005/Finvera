@@ -1,0 +1,282 @@
+openapi: 3.1.0
+info:
+  title: Finvera Historical Backtesting API
+  version: 1.0.0
+security:
+  - sessionCookie: []
+paths:
+  /api/v1/backtests:
+    post:
+      summary: Create an owner-scoped asynchronous backtest
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema: { type: string, minLength: 1, maxLength: 100 }
+        - in: header
+          name: X-CSRF-TOKEN
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateBacktestRequest' }
+      responses:
+        '202':
+          description: Accepted
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BacktestRunSummary' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+    get:
+      summary: List the owner's runs
+      parameters:
+        - { $ref: '#/components/parameters/Limit' }
+        - { $ref: '#/components/parameters/Offset' }
+      responses:
+        '200':
+          description: Stable newest-first page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BacktestRunPage' }
+        '401': { $ref: '#/components/responses/Problem' }
+  /api/v1/backtests/{runId}:
+    get:
+      summary: Read owner-scoped status, assumptions, metrics, and evidence
+      parameters: [ { $ref: '#/components/parameters/RunId' } ]
+      responses:
+        '200':
+          description: Run detail
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BacktestRunDetail' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /api/v1/backtests/{runId}/trades:
+    get:
+      summary: Page completed tranche trades
+      parameters: [ { $ref: '#/components/parameters/RunId' }, { $ref: '#/components/parameters/Limit' }, { $ref: '#/components/parameters/Offset' } ]
+      responses:
+        '200': { description: Trade page, content: { application/json: { schema: { $ref: '#/components/schemas/TradePage' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /api/v1/backtests/{runId}/equity:
+    get:
+      summary: Page daily equity points
+      parameters: [ { $ref: '#/components/parameters/RunId' }, { $ref: '#/components/parameters/Limit' }, { $ref: '#/components/parameters/Offset' } ]
+      responses:
+        '200': { description: Equity page, content: { application/json: { schema: { $ref: '#/components/schemas/EquityPage' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /api/v1/backtests/{runId}/events:
+    get:
+      summary: Page rejected or cancelled entry events
+      parameters: [ { $ref: '#/components/parameters/RunId' }, { $ref: '#/components/parameters/Limit' }, { $ref: '#/components/parameters/Offset' } ]
+      responses:
+        '200': { description: Event page, content: { application/json: { schema: { $ref: '#/components/schemas/EventPage' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: FINVERA_SESSION
+  parameters:
+    RunId: { in: path, name: runId, required: true, schema: { type: string, format: uuid } }
+    Limit: { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 500, default: 100 } }
+    Offset: { in: query, name: offset, schema: { type: integer, minimum: 0, default: 0 } }
+  responses:
+    Problem:
+      description: RFC 9457 problem with stable reasonCode
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+  schemas:
+    Money:
+      type: string
+      pattern: '^(?=.{1,21}$)(?=\d+(?:\.\d+)?$)(?!(?:\d{21}|\d{15,}\.\d{6}$))\d{1,20}(?:\.\d{1,6})?$'
+    Rate:
+      type: string
+      pattern: '^(?:0(?:\.\d{1,8})?|1(?:\.0{1,8})?)$'
+    CostRate:
+      type: string
+      pattern: '^(?:0(?:\.\d{1,8})?|0\.\d{1,8})$'
+    PositiveRate:
+      type: string
+      pattern: '^(?:0\.(?=\d{0,7}[1-9])\d{1,8}|1(?:\.0{1,8})?)$'
+    Decimal:
+      type: string
+      pattern: '^-?\d+(?:\.\d+)?$'
+    StrategyCode:
+      type: string
+      enum: [TREND_FOLLOWING, MOMENTUM, BREAKOUT, PULLBACK, MEAN_REVERSION, MA_CROSSOVER, MACD_BASED, RSI_BASED]
+    RunStatus:
+      type: string
+      enum: [QUEUED, RUNNING, COMPLETED, WITHHELD, FAILED]
+    CostPolicy:
+      oneOf:
+        - type: object
+          required: [excluded]
+          properties: { excluded: { const: true } }
+          additionalProperties: false
+        - type: object
+          required: [excluded, entryFeeRate, exitFeeRate, sellTaxRate, entrySlippageRate, exitSlippageRate]
+          properties:
+            excluded: { const: false }
+            entryFeeRate: { $ref: '#/components/schemas/CostRate' }
+            exitFeeRate: { $ref: '#/components/schemas/CostRate' }
+            sellTaxRate: { $ref: '#/components/schemas/CostRate' }
+            entrySlippageRate: { $ref: '#/components/schemas/CostRate' }
+            exitSlippageRate: { $ref: '#/components/schemas/CostRate' }
+          additionalProperties: false
+    CreateBacktestRequest:
+      type: object
+      required: [strategyCode, symbol, startDate, endDate, initialCapitalVnd, riskPerTrancheRate, maxAggregateOpenRiskRate, costs]
+      properties:
+        strategyCode: { $ref: '#/components/schemas/StrategyCode' }
+        symbol: { type: string, pattern: '^[A-Z0-9]{1,10}$' }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        initialCapitalVnd: { $ref: '#/components/schemas/Money' }
+        riskPerTrancheRate: { $ref: '#/components/schemas/PositiveRate' }
+        maxAggregateOpenRiskRate: { $ref: '#/components/schemas/PositiveRate' }
+        costs: { $ref: '#/components/schemas/CostPolicy' }
+      additionalProperties: false
+    BacktestRunSummary:
+      type: object
+      required: [id, status, strategyCode, symbol, startDate, endDate, processedSessions, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/RunStatus' }
+        strategyCode: { $ref: '#/components/schemas/StrategyCode' }
+        symbol: { type: string }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        processedSessions: { type: integer, minimum: 0 }
+        totalSessions: { type: [integer, 'null'], minimum: 0 }
+        reasonCode: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+        completedAt: { type: [string, 'null'], format: date-time }
+    BacktestRunPage:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/BacktestRunSummary' } }
+        total: { type: integer, minimum: 0 }
+        limit: { type: integer }
+        offset: { type: integer }
+    Metric:
+      type: object
+      required: [code, unit, availability, ruleVersion]
+      properties:
+        code: { type: string, enum: [TOTAL_RETURN, CAGR, WIN_RATE, PROFIT_FACTOR, MAXIMUM_DRAWDOWN, SHARPE_RATIO, AVERAGE_TRADE_RETURN, TRADE_COUNT] }
+        value: { anyOf: [ { $ref: '#/components/schemas/Decimal' }, { type: 'null' } ] }
+        unit: { type: string, enum: [RATE, RATIO, COUNT] }
+        availability: { type: string, enum: [DEFINED, UNAVAILABLE] }
+        reasonCode: { type: [string, 'null'] }
+        ruleVersion: { type: string }
+    Evidence:
+      type: object
+      required: [key, value, unit]
+      properties:
+        key: { type: string }
+        value: { type: string }
+        unit: { type: string, enum: [TEXT, DATE, INSTANT, VND, RATE, COUNT] }
+    BacktestRunDetail:
+      allOf:
+        - { $ref: '#/components/schemas/BacktestRunSummary' }
+        - type: object
+          required: [dataCutoffAcceptedAt, assumptions, metrics, evidence, warnings]
+          properties:
+            dataCutoffAcceptedAt: { type: string, format: date-time }
+            assumptions: { $ref: '#/components/schemas/BacktestAssumptions' }
+            metrics: { type: array, items: { $ref: '#/components/schemas/Metric' } }
+            evidence: { type: array, items: { $ref: '#/components/schemas/Evidence' } }
+            warnings: { type: array, items: { type: string } }
+    BacktestAssumptions:
+      type: object
+      required: [initialCapitalVnd, riskPerTrancheRate, maxAggregateOpenRiskRate, costs, strategyRuleVersion, sizingRuleVersion, engineRuleVersion, metricsRuleVersion, pyramidingRuleVersion, entryTiming, sameBarPriority, maxOpenTranches, pyramidStepAtr]
+      properties:
+        initialCapitalVnd: { $ref: '#/components/schemas/Money' }
+        riskPerTrancheRate: { $ref: '#/components/schemas/PositiveRate' }
+        maxAggregateOpenRiskRate: { $ref: '#/components/schemas/PositiveRate' }
+        costs: { $ref: '#/components/schemas/CostPolicy' }
+        strategyRuleVersion: { type: string, const: strategy-signal-v1 }
+        sizingRuleVersion: { type: string, const: position-sizing-v1 }
+        engineRuleVersion: { type: string, const: backtest-engine-v1 }
+        metricsRuleVersion: { type: string, const: backtest-metrics-v1 }
+        pyramidingRuleVersion: { type: string, const: pyramiding-v1 }
+        entryTiming: { type: string, const: NEXT_ELIGIBLE_SESSION_OPEN }
+        sameBarPriority: { type: string, const: STOP_FIRST }
+        maxOpenTranches: { type: integer, const: 4 }
+        pyramidStepAtr: { type: string, const: '0.5' }
+      additionalProperties: false
+    Trade:
+      type: object
+      required: [sequence, signalDate, entryDate, exitDate, quantity, rawEntryPriceVnd, effectiveEntryPriceVnd, effectiveExitPriceVnd, acquisitionCostVnd, netExitProceedsVnd, netPnlVnd, tradeReturnRate, exitReason]
+      properties:
+        sequence: { type: integer, minimum: 1 }
+        signalDate: { type: string, format: date }
+        entryDate: { type: string, format: date }
+        exitDate: { type: string, format: date }
+        quantity: { type: integer, minimum: 1 }
+        rawEntryPriceVnd:
+          allOf: [{ $ref: '#/components/schemas/Decimal' }]
+          description: Selected pre-slippage execution-series price; under a provider-adjusted run this is the normalized provider-adjusted value despite the retained v1 field name.
+        effectiveEntryPriceVnd: { $ref: '#/components/schemas/Decimal' }
+        effectiveExitPriceVnd: { $ref: '#/components/schemas/Decimal' }
+        acquisitionCostVnd: { $ref: '#/components/schemas/Decimal' }
+        netExitProceedsVnd: { $ref: '#/components/schemas/Decimal' }
+        netPnlVnd: { $ref: '#/components/schemas/Decimal' }
+        tradeReturnRate: { $ref: '#/components/schemas/Decimal' }
+        exitReason: { type: string, enum: [STOP_LOSS, TARGET1, END_OF_PERIOD] }
+    EquityPoint:
+      type: object
+      required: [tradingDate, cashVnd, openPositionValueVnd, totalEquityVnd, openTrancheCount]
+      properties:
+        tradingDate: { type: string, format: date }
+        cashVnd: { $ref: '#/components/schemas/Decimal' }
+        openPositionValueVnd: { $ref: '#/components/schemas/Decimal' }
+        totalEquityVnd: { $ref: '#/components/schemas/Decimal' }
+        openTrancheCount: { type: integer, minimum: 0, maximum: 4 }
+        dailyReturnRate: { anyOf: [ { $ref: '#/components/schemas/Decimal' }, { type: 'null' } ] }
+    EntryEvent:
+      type: object
+      required: [sequence, signalDate, outcome, reasonCode, openTrancheCount]
+      properties:
+        sequence: { type: integer, minimum: 1 }
+        signalDate: { type: string, format: date }
+        executionDate: { type: [string, 'null'], format: date }
+        outcome: { type: string, enum: [REJECTED, CANCELLED] }
+        reasonCode: { type: string }
+        openTrancheCount: { type: integer, minimum: 0, maximum: 4 }
+    TradePage:
+      type: object
+      required: [items, total, limit, offset]
+      properties: { items: { type: array, items: { $ref: '#/components/schemas/Trade' } }, total: { type: integer }, limit: { type: integer }, offset: { type: integer } }
+    EquityPage:
+      type: object
+      required: [items, total, limit, offset]
+      properties: { items: { type: array, items: { $ref: '#/components/schemas/EquityPoint' } }, total: { type: integer }, limit: { type: integer }, offset: { type: integer } }
+    EventPage:
+      type: object
+      required: [items, total, limit, offset]
+      properties: { items: { type: array, items: { $ref: '#/components/schemas/EntryEvent' } }, total: { type: integer }, limit: { type: integer }, offset: { type: integer } }
+    Problem:
+      type: object
+      required: [type, title, status, reasonCode]
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        reasonCode: { type: string }

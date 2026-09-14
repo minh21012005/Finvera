@@ -1,5 +1,8 @@
 package com.minhnb.finvera_be;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.minhnb.finvera_be.backtest.config.BacktestWorkerConfig;
 import com.minhnb.finvera_be.market.repository.MarketCalendarDayRepository;
 import com.minhnb.finvera_be.market.repository.MarketIndexRepository;
 import com.minhnb.finvera_be.market.repository.MarketIndexSnapshotRepository;
@@ -20,6 +23,7 @@ import com.minhnb.finvera_be.stock.repository.SectorReferenceRepository;
 import com.minhnb.finvera_be.stock.repository.TechnicalIndicatorResultRepository;
 import com.minhnb.finvera_be.stock.repository.TechnicalIndicatorValueRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -34,6 +38,9 @@ import java.util.UUID;
 		+ "org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration,"
 		+ "org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration")
 class FinveraBeApplicationTests {
+
+	@Autowired
+	BacktestWorkerConfig.Properties backtestWorkerProperties;
 
 	@MockitoBean
 	MarketObservationRepository marketObservationRepository;
@@ -144,6 +151,9 @@ class FinveraBeApplicationTests {
 	org.springframework.transaction.support.TransactionTemplate transactionTemplate;
 
 	@MockitoBean
+	org.springframework.transaction.PlatformTransactionManager platformTransactionManager;
+
+	@MockitoBean
 	com.minhnb.finvera_be.portfolio.repository.PortfolioRepository portfolioRepository;
 
 	@MockitoBean
@@ -164,6 +174,13 @@ class FinveraBeApplicationTests {
 	@MockitoBean
 	com.minhnb.finvera_be.research.repository.ResearchChunkRepository researchChunkRepository;
 
+	@MockitoBean com.minhnb.finvera_be.backtest.repository.BacktestRunRepository backtestRunRepository;
+	@MockitoBean com.minhnb.finvera_be.backtest.repository.BacktestTradeRepository backtestTradeRepository;
+	@MockitoBean com.minhnb.finvera_be.backtest.repository.BacktestEquityPointRepository backtestEquityPointRepository;
+	@MockitoBean com.minhnb.finvera_be.backtest.repository.BacktestMetricRepository backtestMetricRepository;
+	@MockitoBean com.minhnb.finvera_be.backtest.repository.BacktestEntryEventRepository backtestEntryEventRepository;
+	@MockitoBean com.minhnb.finvera_be.backtest.repository.BacktestEvidenceRepository backtestEvidenceRepository;
+
 	@DynamicPropertySource
 	static void ownerProperties(DynamicPropertyRegistry registry) {
 		registry.add("finvera.security.owner.id", UUID::randomUUID);
@@ -174,6 +191,8 @@ class FinveraBeApplicationTests {
 
 	@Test
 	void contextLoads() {
+		assertThat(backtestWorkerProperties.enabled()).isTrue();
+		assertThat(backtestWorkerProperties.concurrency()).isOne();
 	}
 
 }

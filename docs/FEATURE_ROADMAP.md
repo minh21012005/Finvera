@@ -46,6 +46,7 @@ feature artifacts remain the detailed source of behavior and limitations.
 | Tabular peer comparison | **Delivered** | `specs/028-peer-comparison-tool/`; graphical comparison is outside the current product scope. |
 | Owner-scoped AI conversation history with bounded sliding context | **Delivered** | `specs/029-ai-conversation-history/` |
 | Deterministic position sizing | **Operational follow-up** | `specs/030-deterministic-position-sizing/`; implementation and automated feature gates pass, owner comprehension review remains pending. |
+| Historical strategy backtesting | **Operational follow-up** | `specs/031-historical-strategy-backtesting/`; implementation and enabled worker configuration are complete; owner comprehension review remains pending. |
 
 “Delivered” refers to the implemented feature slice, not a claim that every
 future extension in the same SRS domain is complete.
@@ -59,7 +60,7 @@ models needed by later personalization features.
 
 | Order | Capability | SRS traceability | Current state | Minimum coherent first slice | Dependencies and correctness gates |
 |---|---|---|---|---|---|
-| A2 | Historical strategy backtesting | SRS-BKT-01, SRS-BKT-02 | **Planned**. No backtest engine, persistence model, API, or UI exists. | Run one supported deterministic strategy for one symbol and daily interval over an explicit period; configure initial capital, sizing, fees, and slippage; return trades, equity curve, total return, CAGR, win rate, profit factor, maximum drawdown, Sharpe ratio, average trade, and trade count. | Depends on explicit execution timing, historical adjustment basis, corporate-action policy, trading calendar, point-in-time input rules, transaction costs, slippage, and position sizing. Tests must detect look-ahead leakage and state survivorship limitations. Do not add a new deployable service without measured need and an ADR. |
+| A2 | Historical strategy backtesting | SRS-BKT-01, SRS-BKT-02 | **Implemented; rollout and owner review pending** in Feature 031. | Run any of eight supported deterministic strategies for one symbol and daily interval over an explicit period; configure capital, risk, fees, tax, and slippage; inspect immutable trades, equity, metrics, evidence, warnings, and rejected entries. | Bounded worker stays disabled until rollout. VCI provider-adjusted prices, current lot rules applied historically, survivorship, corporate actions, and suspension/delisting coverage remain explicit limitations. |
 
 Backtesting should follow the position-sizing contract so the interactive
 calculator and simulation engine do not develop conflicting sizing semantics.
@@ -95,7 +96,7 @@ Unless user value or newly discovered dependencies justify a change, start
 features in this order:
 
 1. Complete the position-sizing owner comprehension review.
-2. Historical backtesting.
+2. Complete historical-backtesting rollout and owner review.
 3. Alerts.
 4. Sector analytics.
 5. Investment journal.

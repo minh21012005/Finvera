@@ -8334,3 +8334,6 @@ tbody th {
   border-color: #f43f5e;
   background: rgba(244, 63, 94, 0.08);
 }
+.backtest-page thead th {
+  color: #94a3b8;
+}
