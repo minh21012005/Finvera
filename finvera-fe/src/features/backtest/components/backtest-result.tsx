@@ -9,58 +9,199 @@ const COST_FIELDS: Array<[keyof Omit<CostPolicy, "excluded">, string]> = [
 ];
 
 export function BacktestResult({ run }: { run: RunDetail }) {
-  return <section className="panel" aria-labelledby="backtest-result-title">
-    <h2 id="backtest-result-title">Kết quả {run.symbol}</h2>
-    <p>Trạng thái: <strong>{run.status}</strong> · {run.processedSessions}/{run.totalSessions ?? "?"} phiên</p>
-    {run.reasonCode && <p role="alert">Lý do: {run.reasonCode}</p>}
-    {run.warnings.map((warning) => <p key={warning} role="status">Cảnh báo: {warning}</p>)}
+  const isCompleted = run.status === "COMPLETED";
+  const isRunning = run.status === "RUNNING";
 
-    <h3>Chỉ số</h3>
-    {run.metrics.length === 0 ? <p>Không có chỉ số được công bố cho run này.</p> : <table>
-      <thead><tr><th>Chỉ số</th><th>Giá trị</th><th>Khả dụng</th></tr></thead>
-      <tbody>{run.metrics.map((metric) => <tr key={metric.code}>
-        <td>{metric.code}</td><td>{metric.value ?? "—"}</td>
-        <td>{metric.availability}{metric.reasonCode ? ` (${metric.reasonCode})` : ""}</td>
-      </tr>)}</tbody>
-    </table>}
+  return (
+    <section
+      className="panel bg-slate-900/70 border border-slate-800 rounded-xl p-6 shadow-xl mb-6 space-y-6"
+      aria-labelledby="backtest-result-title"
+    >
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-slate-800">
+        <div>
+          <h2 id="backtest-result-title" className="text-xl font-bold text-white">
+            Kết quả {run.symbol}
+          </h2>
+          <p className="text-xs text-slate-400 mt-1">
+            Trạng thái:{" "}
+            <strong
+              className={`px-2 py-0.5 rounded text-xs font-mono font-bold uppercase ${
+                isCompleted
+                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                  : isRunning
+                  ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse"
+                  : "bg-rose-500/20 text-rose-300 border border-rose-500/40"
+              }`}
+            >
+              {run.status}
+            </strong>{" "}
+            · {run.processedSessions}/{run.totalSessions ?? "?"} phiên
+          </p>
+        </div>
+        <div className="text-xs text-slate-400 font-mono">
+          Strategy: <span className="text-cyan-400 font-bold">{run.strategyCode}</span>
+        </div>
+      </div>
 
-    <h3>Giả định và chi phí</h3>
-    <dl>
-      <dt>Vốn ban đầu</dt><dd>{run.assumptions.initialCapitalVnd} VND</dd>
-      <dt>Rủi ro mỗi tranche</dt><dd>{run.assumptions.riskPerTrancheRate}</dd>
-      <dt>Rủi ro mở tối đa</dt><dd>{run.assumptions.maxAggregateOpenRiskRate}</dd>
-      <dt>Chính sách chi phí</dt><dd>{run.assumptions.costs.excluded ? "Loại trừ theo lựa chọn của người dùng" : "Đã áp dụng"}</dd>
-      {!run.assumptions.costs.excluded && COST_FIELDS.map(([field, label]) =>
-        <CostRow key={field} label={label} value={run.assumptions.costs[field]} />)}
-      <dt>Khớp lệnh</dt><dd>Open của phiên đủ điều kiện kế tiếp</dd>
-      <dt>Cùng chạm stop/target</dt><dd>Ưu tiên stop để tránh đánh giá quá lạc quan</dd>
-      <dt>Số tranche tối đa</dt><dd>{run.assumptions.maxOpenTranches}</dd>
-      <dt>Bước pyramiding</dt><dd>{run.assumptions.pyramidStepAtr} ATR</dd>
-    </dl>
+      {run.reasonCode && (
+        <p role="alert" className="p-3.5 rounded-lg bg-rose-950/40 border border-rose-800/60 text-xs text-rose-300 font-medium">
+          Lý do: {run.reasonCode}
+        </p>
+      )}
 
-    <h3>Phiên bản quy tắc</h3>
-    <dl>
-      <dt>Strategy</dt><dd>{run.assumptions.strategyRuleVersion}</dd>
-      <dt>Position sizing</dt><dd>{run.assumptions.sizingRuleVersion}</dd>
-      <dt>Engine</dt><dd>{run.assumptions.engineRuleVersion}</dd>
-      <dt>Metrics</dt><dd>{run.assumptions.metricsRuleVersion}</dd>
-      <dt>Pyramiding</dt><dd>{run.assumptions.pyramidingRuleVersion}</dd>
-    </dl>
+      {run.warnings.map((warning) => (
+        <p key={warning} role="status" className="p-3 rounded-lg bg-amber-950/30 border border-amber-800/50 text-xs text-amber-300">
+          Cảnh báo: {warning}
+        </p>
+      ))}
 
-    <h3>Nguồn và bằng chứng</h3>
-    <p>Cutoff dữ liệu: {run.dataCutoffAcceptedAt}</p>
-    {run.evidence.length === 0 ? <p>Không có bằng chứng bổ sung.</p> : <table>
-      <thead><tr><th>Thuộc tính</th><th>Giá trị</th><th>Đơn vị</th></tr></thead>
-      <tbody>{run.evidence.map((item) => <tr key={item.key}>
-        <td>{item.key}</td><td>{item.value}</td><td>{item.unit}</td>
-      </tr>)}</tbody>
-    </table>}
+      <div>
+        <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider mb-3">Chỉ số</h3>
+        {run.metrics.length === 0 ? (
+          <p className="p-4 rounded-lg bg-slate-950/40 border border-slate-800 text-xs text-slate-400 text-center">
+            Không có chỉ số được công bố cho run này.
+          </p>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border border-slate-800">
+            <table className="terminal-data-table">
+              <thead>
+                <tr>
+                  <th>Chỉ số</th>
+                  <th>Giá trị</th>
+                  <th>Khả dụng</th>
+                </tr>
+              </thead>
+              <tbody>
+                {run.metrics.map((metric) => (
+                  <tr key={metric.code}>
+                    <td className="font-mono font-bold text-slate-200">{metric.code}</td>
+                    <td className="font-mono text-cyan-300 font-bold">{metric.value ?? "—"}</td>
+                    <td className="text-xs text-slate-400">
+                      {metric.availability}
+                      {metric.reasonCode ? ` (${metric.reasonCode})` : ""}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
-    <h3>Giới hạn dữ liệu</h3>
-    <p>Corporate action: run bị WITHHELD nếu adjustment factor đổi khi chờ vào hoặc đang giữ vị thế.</p>
-  </section>;
+      <div className="rounded-xl bg-slate-950/40 border border-slate-800 p-5">
+        <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider mb-3">Giả định và chi phí</h3>
+        <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+          <div className="p-2.5 rounded bg-slate-900/60 border border-slate-800/60">
+            <dt className="text-slate-400 mb-0.5">Vốn ban đầu</dt>
+            <dd className="font-mono font-bold text-slate-200">{run.assumptions.initialCapitalVnd} VND</dd>
+          </div>
+          <div className="p-2.5 rounded bg-slate-900/60 border border-slate-800/60">
+            <dt className="text-slate-400 mb-0.5">Rủi ro mỗi tranche</dt>
+            <dd className="font-mono font-bold text-slate-200">{run.assumptions.riskPerTrancheRate}</dd>
+          </div>
+          <div className="p-2.5 rounded bg-slate-900/60 border border-slate-800/60">
+            <dt className="text-slate-400 mb-0.5">Rủi ro mở tối đa</dt>
+            <dd className="font-mono font-bold text-slate-200">{run.assumptions.maxAggregateOpenRiskRate}</dd>
+          </div>
+          <div className="p-2.5 rounded bg-slate-900/60 border border-slate-800/60">
+            <dt className="text-slate-400 mb-0.5">Chính sách chi phí</dt>
+            <dd className="font-semibold text-cyan-300">
+              {run.assumptions.costs.excluded ? "Loại trừ theo lựa chọn của người dùng" : "Đã áp dụng"}
+            </dd>
+          </div>
+          {!run.assumptions.costs.excluded &&
+            COST_FIELDS.map(([field, label]) => (
+              <CostRow key={field} label={label} value={run.assumptions.costs[field]} />
+            ))}
+          <div className="p-2.5 rounded bg-slate-900/60 border border-slate-800/60">
+            <dt className="text-slate-400 mb-0.5">Khớp lệnh</dt>
+            <dd className="text-slate-200 font-medium">Open của phiên đủ điều kiện kế tiếp</dd>
+          </div>
+          <div className="p-2.5 rounded bg-slate-900/60 border border-slate-800/60">
+            <dt className="text-slate-400 mb-0.5">Cùng chạm stop/target</dt>
+            <dd className="text-slate-200 font-medium">Ưu tiên stop để tránh đánh giá quá lạc quan</dd>
+          </div>
+          <div className="p-2.5 rounded bg-slate-900/60 border border-slate-800/60">
+            <dt className="text-slate-400 mb-0.5">Số tranche tối đa</dt>
+            <dd className="font-mono font-bold text-slate-200">{run.assumptions.maxOpenTranches}</dd>
+          </div>
+          <div className="p-2.5 rounded bg-slate-900/60 border border-slate-800/60">
+            <dt className="text-slate-400 mb-0.5">Bước pyramiding</dt>
+            <dd className="font-mono font-bold text-slate-200">{run.assumptions.pyramidStepAtr} ATR</dd>
+          </div>
+        </dl>
+      </div>
+
+      <div className="rounded-xl bg-slate-950/40 border border-slate-800 p-5">
+        <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider mb-3">Phiên bản quy tắc</h3>
+        <dl className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-xs font-mono">
+          <div className="p-2 rounded bg-slate-900/50 border border-slate-800/50">
+            <dt className="text-slate-400 text-[11px] mb-0.5">Strategy</dt>
+            <dd className="text-slate-200">{run.assumptions.strategyRuleVersion}</dd>
+          </div>
+          <div className="p-2 rounded bg-slate-900/50 border border-slate-800/50">
+            <dt className="text-slate-400 text-[11px] mb-0.5">Position sizing</dt>
+            <dd className="text-slate-200">{run.assumptions.sizingRuleVersion}</dd>
+          </div>
+          <div className="p-2 rounded bg-slate-900/50 border border-slate-800/50">
+            <dt className="text-slate-400 text-[11px] mb-0.5">Engine</dt>
+            <dd className="text-slate-200">{run.assumptions.engineRuleVersion}</dd>
+          </div>
+          <div className="p-2 rounded bg-slate-900/50 border border-slate-800/50">
+            <dt className="text-slate-400 text-[11px] mb-0.5">Metrics</dt>
+            <dd className="text-slate-200">{run.assumptions.metricsRuleVersion}</dd>
+          </div>
+          <div className="p-2 rounded bg-slate-900/50 border border-slate-800/50">
+            <dt className="text-slate-400 text-[11px] mb-0.5">Pyramiding</dt>
+            <dd className="text-slate-200">{run.assumptions.pyramidingRuleVersion}</dd>
+          </div>
+        </dl>
+      </div>
+
+      <div className="rounded-xl bg-slate-950/40 border border-slate-800 p-5">
+        <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider mb-2">Nguồn và bằng chứng</h3>
+        <p className="text-xs text-slate-400 mb-3 font-mono">Cutoff dữ liệu: {run.dataCutoffAcceptedAt}</p>
+        {run.evidence.length === 0 ? (
+          <p className="text-xs text-slate-500">Không có bằng chứng bổ sung.</p>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border border-slate-800">
+            <table className="terminal-data-table">
+              <thead>
+                <tr>
+                  <th>Thuộc tính</th>
+                  <th>Giá trị</th>
+                  <th>Đơn vị</th>
+                </tr>
+              </thead>
+              <tbody>
+                {run.evidence.map((item) => (
+                  <tr key={item.key}>
+                    <td className="font-mono font-bold text-slate-300">{item.key}</td>
+                    <td className="font-mono text-cyan-300">{item.value}</td>
+                    <td className="text-xs text-slate-400">{item.unit}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-lg bg-amber-950/20 border border-amber-800/30 p-4">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-amber-300 mb-1.5">Giới hạn dữ liệu</h3>
+        <p className="text-xs text-slate-300 leading-relaxed">
+          Corporate action: run bị WITHHELD nếu adjustment factor đổi khi chờ vào hoặc đang giữ vị thế.
+        </p>
+      </div>
+    </section>
+  );
 }
 
 function CostRow({ label, value }: { label: string; value: string | undefined }) {
-  return <><dt>{label}</dt><dd>{value ?? "Không khả dụng"}</dd></>;
+  return (
+    <div className="p-2.5 rounded bg-slate-900/60 border border-slate-800/60">
+      <dt className="text-slate-400 mb-0.5">{label}</dt>
+      <dd className="font-mono font-bold text-slate-200">{value ?? "Không khả dụng"}</dd>
+    </div>
+  );
 }

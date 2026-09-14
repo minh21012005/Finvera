@@ -72,9 +72,6 @@ export function WatchlistList() {
     <main className="app-shell quant-terminal-layout portfolio-list-wrapper">
       <header className="page-header portfolio-list-header">
         <div className="portfolio-header-left">
-          <button type="button" className="back-link" onClick={() => navigate("/")}>
-            ← Trang chủ
-          </button>
           <p className="eyebrow">FINVERA · WATCHLIST RESEARCH</p>
           <h1 id="watchlist-page-heading">
             Danh sách theo dõi (Watchlist)

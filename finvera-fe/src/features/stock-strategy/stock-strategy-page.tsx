@@ -2,7 +2,6 @@ import { useState } from "react";
 import { scanStrategy, StrategyScanApiError, type ScanResponse, type StrategyCode } from "./api/stock-strategy";
 import { StrategyPicker } from "./components/strategy-picker";
 import { StrategyScanResults } from "./components/strategy-scan-results";
-import { navigate } from "../../router";
 
 export function StockStrategyPage() {
   const [result, setResult] = useState<ScanResponse | null>(null);
@@ -42,13 +41,10 @@ export function StockStrategyPage() {
     <main className="app-shell quant-terminal-layout" aria-labelledby="strategy-scan-page-heading">
       <header className="page-header strategy-header">
         <div className="strat-header-left">
-          <button type="button" className="back-link" onClick={() => navigate("/")}>
-            ← Trang chủ
-          </button>
-          <p className="eyebrow">FINVERA · STRATEGY SIGNALS</p>
-          <h1 id="strategy-scan-page-heading">Khuyến Nghị & Tín Hiệu AI</h1>
+          <p className="eyebrow">FINVERA · QUANTITATIVE STRATEGY ENGINE</p>
+          <h1 id="strategy-scan-page-heading">Chiến Lược & Tín Hiệu Định Lượng</h1>
           <p className="strategy-header-sub">
-            Mô hình định lượng phát hiện tín hiệu kỹ thuật tất định, kịch bản giao dịch và quản trị rủi ro theo quy tắc chuẩn.
+            Mô hình tính toán tín hiệu kỹ thuật tất định theo các bộ quy tắc chiến lược định lượng, kịch bản giao dịch và quản trị rủi ro.
           </p>
         </div>
       </header>

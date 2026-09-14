@@ -138,21 +138,87 @@ export const ConversationAnalyst: React.FC = () => {
           globalThis.document?.getElementById('new-conversation-button')?.focus();
         } catch (e) { setError(e instanceof Error ? e.message : 'Không thể xóa'); throw e; }
       }} />
-    <div className="min-w-0 flex-1 space-y-3">
-      {error && <div role="alert" className="rounded-lg border border-rose-700 bg-rose-950/30 p-3 text-sm text-rose-300">{error}</div>}
-      <ConversationTranscript exchanges={exchanges} streamedText={streamedText} streamedExchangeId={streamedExchangeId}
-        loading={loading} hasOlder={olderHasMore} onLoadOlder={() => void loadOlder()} />
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <label className="sr-only" htmlFor="conversation-symbol">Mã cổ phiếu</label>
-        <input id="conversation-symbol" maxLength={20} value={symbol} onChange={(e) => setSymbol(e.target.value.toUpperCase())} disabled={sending}
-          placeholder="Mã (FPT…)" className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white sm:w-28" />
-        <label className="sr-only" htmlFor="conversation-question">Câu hỏi</label>
-        <input id="conversation-question" maxLength={2000} value={question} onChange={(e) => setQuestion(e.target.value)} disabled={sending}
-          onKeyDown={(e) => { if (e.key==='Enter') { e.preventDefault(); void send(); } }} placeholder="Hỏi AI Analyst…"
-          className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-white" />
-        {sending ? <button type="button" onClick={() => { const targetId=activeExchangeIdRef.current; abortRef.current?.abort(); setExchanges((old) => old.map((x) => x.id===targetId && x.status==='PROCESSING' ? { ...x, status:'CANCELLED', failureCode:'CLIENT_CANCELLED' } : x)); setSending(false); }}
-          className="rounded-lg bg-rose-600 px-4 py-2 text-sm text-white">Dừng</button>
-          : <button type="button" disabled={!question.trim()} onClick={() => void send()} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Gửi</button>}
+    <div className="min-w-0 flex-1 space-y-4">
+      {error && (
+        <div role="alert" className="rounded-xl border border-rose-800/60 bg-rose-950/40 p-3.5 text-xs text-rose-300 shadow-lg flex items-center gap-2">
+          <span>{error}</span>
+        </div>
+      )}
+
+      <ConversationTranscript
+        exchanges={exchanges}
+        streamedText={streamedText}
+        streamedExchangeId={streamedExchangeId}
+        loading={loading}
+        hasOlder={olderHasMore}
+        onLoadOlder={() => void loadOlder()}
+      />
+
+      {/* Input container */}
+      <div className="rounded-2xl border border-slate-800 bg-slate-950/80 backdrop-blur-md p-3 shadow-2xl">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <label className="sr-only" htmlFor="conversation-symbol">
+            Mã cổ phiếu
+          </label>
+          <input
+            id="conversation-symbol"
+            maxLength={20}
+            value={symbol}
+            onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+            disabled={sending}
+            placeholder="Mã (FPT…)"
+            className="rounded-xl border border-slate-800 bg-slate-900/90 px-3 py-2 text-xs font-mono font-bold text-cyan-400 placeholder:text-slate-500 outline-none focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500 sm:w-28 text-center uppercase"
+          />
+
+          <label className="sr-only" htmlFor="conversation-question">
+            Câu hỏi
+          </label>
+          <input
+            id="conversation-question"
+            maxLength={2000}
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            disabled={sending}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                void send();
+              }
+            }}
+            placeholder="Hỏi AI Analyst…"
+            className="min-w-0 flex-1 rounded-xl border border-slate-800 bg-slate-900/90 px-4 py-2.5 text-xs text-white placeholder:text-slate-500 outline-none focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500"
+          />
+
+          {sending ? (
+            <button
+              type="button"
+              onClick={() => {
+                const targetId = activeExchangeIdRef.current;
+                abortRef.current?.abort();
+                setExchanges((old) =>
+                  old.map((x) =>
+                    x.id === targetId && x.status === 'PROCESSING'
+                      ? { ...x, status: 'CANCELLED', failureCode: 'CLIENT_CANCELLED' }
+                      : x
+                  )
+                );
+                setSending(false);
+              }}
+              className="rounded-xl bg-rose-600 hover:bg-rose-500 px-5 py-2 text-xs font-bold text-white transition-all cursor-pointer shadow-lg shadow-rose-600/20"
+            >
+              Dừng
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={!question.trim()}
+              onClick={() => void send()}
+              className="rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 px-5 py-2 text-xs font-bold text-white shadow-lg shadow-indigo-600/20 disabled:opacity-40 transition-all cursor-pointer"
+            >
+              Gửi
+            </button>
+          )}
+        </div>
       </div>
     </div>
   </div>;

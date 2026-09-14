@@ -75,9 +75,6 @@ export function PortfolioList() {
     <main className="app-shell quant-terminal-layout portfolio-list-wrapper">
       <header className="page-header portfolio-list-header">
         <div className="portfolio-header-left">
-          <button type="button" className="back-link" onClick={() => navigate("/")}>
-            ← Trang chủ
-          </button>
           <p className="eyebrow">FINVERA · PORTFOLIO ASSET MANAGEMENT</p>
           <h1 id="portfolio-page-heading">
             Quản lý danh mục đầu tư

@@ -2,7 +2,6 @@ import { useState } from "react";
 import { executeScreen, ScreenerApiError, type ScreenRequest, type ScreenResponse } from "./api/stock-screener";
 import { ScreenerFilters } from "./components/screener-filters";
 import { ScreenerResults } from "./components/screener-results";
-import { navigate } from "../../router";
 
 export function StockScreenerPage() {
   const [result, setResult] = useState<ScreenResponse | null>(null);
@@ -30,9 +29,6 @@ export function StockScreenerPage() {
   return (
     <main className="app-shell quant-terminal-layout" aria-labelledby="screener-page-heading">
       <header className="page-header screener-header">
-        <button type="button" className="back-link" onClick={() => navigate("/")}>
-          ← Trang chủ
-        </button>
         <p className="eyebrow">FINVERA · QUANT RADAR & SCREENER</p>
         <h1 id="screener-page-heading">Bộ Lọc & Phân Tích Chuyên Sâu</h1>
         <p className="screener-header-sub">

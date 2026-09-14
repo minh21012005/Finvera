@@ -8,7 +8,6 @@ import { NewsSubmit } from "./news-submit";
 import { RetrievalResults } from "./retrieval-results";
 
 import { FileText, Newspaper, Search, Bot } from "lucide-react";
-import { navigate } from "../../../router";
 
 export function ResearchPage() {
   const [activeTab, setActiveTab] = useState<"documents" | "news" | "retrieval" | "ask">("documents");
@@ -57,9 +56,6 @@ export function ResearchPage() {
     <main className="app-shell space-y-6">
       {/* Header */}
       <header className="page-header">
-        <button type="button" className="back-link" onClick={() => navigate("/")}>
-          ← Trang chủ
-        </button>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <p className="eyebrow">FINVERA · RESEARCH & RAG</p>

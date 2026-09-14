@@ -121,49 +121,68 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
             </div>
           </div>
 
-          {/* Tầng 2: Menu Tabs Điều Hướng */}
+          {/* Tầng 2: Menu Điều Hướng Phân Nhóm Dàn Đều (Quant Segmented Bar) */}
           <div className="nav-links-row">
             <div className="nav-links" role="tablist">
-              <NavLink href="/" active={isHome}>
-                <BarChart3 className="nav-icon-svg" size={15} />
-                <span>Tổng quan thị trường & AI Radar</span>
-              </NavLink>
-              <NavLink href="/screener" active={isScreener}>
-                <SlidersHorizontal className="nav-icon-svg" size={15} />
-                <span>Bộ lọc & Phân tích chuyên sâu</span>
-              </NavLink>
-              <NavLink href="/strategies" active={isStrategies}>
-                <Zap className="nav-icon-svg" size={15} />
-                <span>Khuyến nghị & Tín hiệu AI</span>
-              </NavLink>
-              <NavLink href="/portfolios" active={isPortfolios}>
-                <Briefcase className="nav-icon-svg" size={15} />
-                <span>Quản trị danh mục & Rủi ro</span>
-              </NavLink>
-              <NavLink href="/position-sizing" active={isPositionSizing}>
-                <SlidersHorizontal className="nav-icon-svg" size={15} />
-                <span>Quy mô vị thế</span>
-              </NavLink>
-              <NavLink href="/backtests" active={isBacktest}>
-                <BarChart3 className="nav-icon-svg" size={15} />
-                <span>Backtesting</span>
-              </NavLink>
-              <NavLink href="/watchlists" active={isWatchlists}>
-                <Star className="nav-icon-svg" size={15} />
-                <span>Theo dõi (Watchlist)</span>
-              </NavLink>
-              <NavLink href="/research" active={isResearch}>
-                <BookOpen className="nav-icon-svg" size={15} />
-                <span>Nghiên cứu & RAG</span>
-              </NavLink>
-              <NavLink href="/analyst" active={isAnalyst} className="ai-nav-link">
-                <Bot className="nav-icon-svg" size={15} />
-                <span>AI Analyst</span>
-              </NavLink>
-              <NavLink href="/tcbs-renewal" active={isTcbsRenewal}>
-                <Radio className="nav-icon-svg" size={15} />
-                <span>Live data</span>
-              </NavLink>
+              {/* Nhóm 1: Thị trường & Sàng lọc */}
+              <div className="nav-group">
+                <NavLink href="/" active={isHome}>
+                  <BarChart3 className="nav-icon-svg" size={14} />
+                  <span>Thị trường</span>
+                </NavLink>
+                <NavLink href="/screener" active={isScreener}>
+                  <SlidersHorizontal className="nav-icon-svg" size={14} />
+                  <span>Bộ lọc cổ phiếu</span>
+                </NavLink>
+              </div>
+
+              {/* Nhóm 2: Định lượng & Chiến lược */}
+              <div className="nav-group">
+                <NavLink href="/strategies" active={isStrategies}>
+                  <Zap className="nav-icon-svg" size={14} />
+                  <span>Chiến lược định lượng</span>
+                </NavLink>
+                <NavLink href="/position-sizing" active={isPositionSizing}>
+                  <SlidersHorizontal className="nav-icon-svg" size={14} />
+                  <span>Quy mô vị thế</span>
+                </NavLink>
+                <NavLink href="/backtests" active={isBacktest}>
+                  <BarChart3 className="nav-icon-svg" size={14} />
+                  <span>Backtesting</span>
+                </NavLink>
+              </div>
+
+              {/* Nhóm 3: Quản trị Tài sản */}
+              <div className="nav-group">
+                <NavLink href="/portfolios" active={isPortfolios}>
+                  <Briefcase className="nav-icon-svg" size={14} />
+                  <span>Quản lý Danh mục</span>
+                </NavLink>
+                <NavLink href="/watchlists" active={isWatchlists}>
+                  <Star className="nav-icon-svg" size={14} />
+                  <span>Watchlist</span>
+                </NavLink>
+              </div>
+
+              {/* Nhóm 4: Nghiên cứu & AI Co-pilot */}
+              <div className="nav-group">
+                <NavLink href="/research" active={isResearch}>
+                  <BookOpen className="nav-icon-svg" size={14} />
+                  <span>Nghiên cứu tài liệu</span>
+                </NavLink>
+                <NavLink href="/analyst" active={isAnalyst} className="ai-nav-link">
+                  <Bot className="nav-icon-svg" size={14} />
+                  <span>AI Financial Analyst</span>
+                </NavLink>
+              </div>
+
+              {/* Nhóm 5: Dữ liệu thời gian thực */}
+              <div className="nav-group">
+                <NavLink href="/tcbs-renewal" active={isTcbsRenewal} className="live-nav-link">
+                  <Radio className="nav-icon-svg" size={14} />
+                  <span>Dữ liệu Realtime</span>
+                </NavLink>
+              </div>
             </div>
           </div>
         </div>
