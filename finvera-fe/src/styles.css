@@ -8817,3 +8817,13 @@ tbody th {
   border-color: #273e5e;
 }
 
+/* AI Analyst Symbol Input reset - strictly prevent double borders */
+#conversation-symbol {
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+}

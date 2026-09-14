@@ -1,7 +1,22 @@
 import React from 'react';
 import type { ConversationExchange } from '../api/analyst';
 import { LiteMarkdown } from '../format/lite-markdown';
-import { Bot, User, Sparkles, ShieldCheck, FileText, AlertCircle } from 'lucide-react';
+import {
+  Bot,
+  User,
+  Sparkles,
+  ShieldCheck,
+  FileText,
+  AlertCircle,
+  Wrench,
+  ArrowUpRight,
+  TrendingUp,
+  FileSpreadsheet,
+  Zap,
+  GitCompare,
+  BarChart3,
+  BookOpen,
+} from 'lucide-react';
 
 interface Props {
   exchanges: ConversationExchange[];
@@ -10,6 +25,8 @@ interface Props {
   loading: boolean;
   hasOlder: boolean;
   onLoadOlder: () => void;
+  onOpenTools?: () => void;
+  onSelectQuery?: (query: string, symbol?: string) => void;
 }
 
 const vietnameseTime = (value: string) =>
@@ -22,6 +39,54 @@ const stateLabel: Record<ConversationExchange['status'], string> = {
   CANCELLED: 'Đã dừng',
 };
 
+const STARTER_PROMPTS = [
+  {
+    icon: TrendingUp,
+    iconColor: 'text-cyan-400',
+    iconBg: 'bg-cyan-500/10 border-cyan-500/30',
+    title: 'Phân tích Kỹ thuật & Xu hướng',
+    query: 'Phân tích kỹ thuật các chỉ báo RSI, MACD và các đường MA của FPT',
+    symbol: 'FPT',
+  },
+  {
+    icon: FileSpreadsheet,
+    iconColor: 'text-amber-400',
+    iconBg: 'bg-amber-500/10 border-amber-500/30',
+    title: 'BCTC & Chỉ số Sinh lời',
+    query: 'Tình hình doanh thu, tăng trưởng lợi nhuận và ROE của VCB qua các quý gần nhất',
+    symbol: 'VCB',
+  },
+  {
+    icon: Zap,
+    iconColor: 'text-rose-400',
+    iconBg: 'bg-rose-500/10 border-rose-500/30',
+    title: 'Quét Chiến lược Quant Engine',
+    query: 'Quét các cổ phiếu đang có tín hiệu Breakout vượt nền giá hôm nay',
+  },
+  {
+    icon: GitCompare,
+    iconColor: 'text-sky-400',
+    iconBg: 'bg-sky-500/10 border-sky-500/30',
+    title: 'So sánh Đa Cổ phiếu',
+    query: 'So sánh các chỉ số tài chính và định giá giữa HPG, NKG và HSG',
+  },
+  {
+    icon: BarChart3,
+    iconColor: 'text-emerald-400',
+    iconBg: 'bg-emerald-500/10 border-emerald-500/30',
+    title: 'Độ rộng & Dòng tiền Thị trường',
+    query: 'Tổng quan diễn biến thị trường và thanh khoản VN-Index hôm nay',
+  },
+  {
+    icon: BookOpen,
+    iconColor: 'text-purple-400',
+    iconBg: 'bg-purple-500/10 border-purple-500/30',
+    title: 'Hybrid RAG Nghiên cứu Tài liệu',
+    query: 'Kế hoạch mở rộng chuỗi và định hướng kinh doanh của MWG trong tài liệu ĐHCĐ',
+    symbol: 'MWG',
+  },
+];
+
 export const ConversationTranscript: React.FC<Props> = ({
   exchanges,
   streamedText,
@@ -29,13 +94,33 @@ export const ConversationTranscript: React.FC<Props> = ({
   loading,
   hasOlder,
   onLoadOlder,
+  onOpenTools,
+  onSelectQuery,
 }) => (
   <section
     aria-label="Nội dung hội thoại"
     aria-live="polite"
     className="min-h-[540px] flex-1 overflow-y-auto rounded-2xl border border-slate-800 bg-[#060b13]/90 backdrop-blur-md p-5 shadow-2xl flex flex-col justify-between"
   >
-    <div className="space-y-6 flex-1">
+    <div className="space-y-4 flex-1">
+      {/* Transcript Top Bar */}
+      <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
+        <div className="flex items-center gap-2">
+          <span className="inline-block w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#00d2e0]" />
+          <span className="text-xs font-bold text-slate-300">Hội thoại AI Financial Analyst</span>
+        </div>
+        {onOpenTools && (
+          <button
+            type="button"
+            onClick={onOpenTools}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/90 hover:bg-slate-800 hover:border-slate-700 px-3 py-1.5 text-xs font-semibold text-cyan-400 hover:text-cyan-300 transition-all cursor-pointer shadow-sm"
+          >
+            <Wrench size={13} />
+            <span>11 Công cụ hỗ trợ</span>
+          </button>
+        )}
+      </div>
+
       {hasOlder && (
         <div className="text-center pb-2">
           <button
@@ -57,15 +142,65 @@ export const ConversationTranscript: React.FC<Props> = ({
       )}
 
       {!loading && exchanges.length === 0 && (
-        <div className="grid min-h-[380px] place-items-center text-center p-8">
-          <div className="max-w-md space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-950/60 border border-indigo-800/60 flex items-center justify-center text-indigo-400 mx-auto shadow-inner">
+        <div className="py-6 px-2 sm:px-4 max-w-3xl mx-auto space-y-6">
+          <div className="text-center space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-900/50 to-cyan-900/50 border border-indigo-700/50 flex items-center justify-center text-cyan-300 mx-auto shadow-inner">
               <Sparkles size={22} />
             </div>
-            <h3 className="text-base font-bold text-slate-100">Bắt đầu nghiên cứu cùng AI Copilot</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Hãy đặt câu hỏi đầu tiên để bắt đầu một nghiên cứu mới.
+            <h3 className="text-lg font-bold text-white tracking-tight">
+              Bắt đầu nghiên cứu cùng Finvera AI Analyst
+            </h3>
+            <p className="text-xs text-slate-400 max-w-lg mx-auto leading-relaxed">
+              Trợ lý định lượng chuyên sâu cho thị trường chứng khoán Việt Nam. Chọn gợi ý nhanh bên dưới hoặc mở danh mục 11 công cụ để khám phá.
             </p>
+            {onOpenTools && (
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={onOpenTools}
+                  className="inline-flex items-center gap-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-indigo-500/30 hover:border-indigo-500/60 px-4 py-2 text-xs font-semibold text-cyan-300 hover:text-cyan-200 transition-all cursor-pointer shadow-lg shadow-indigo-950/40"
+                >
+                  <Wrench size={14} />
+                  <span>Khám phá 11 Công cụ AI hỗ trợ</span>
+                  <ArrowUpRight size={14} className="text-slate-400" />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Quick Prompt Starters Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+            {STARTER_PROMPTS.map((starter, i) => {
+              const StarterIcon = starter.icon;
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => onSelectQuery?.(starter.query, starter.symbol)}
+                  className="flex flex-col text-left rounded-xl border border-slate-800/80 bg-slate-900/40 hover:bg-indigo-950/30 hover:border-indigo-600/50 p-3.5 transition-all cursor-pointer group shadow-sm hover:shadow-md"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 ${starter.iconBg}`}
+                      >
+                        <StarterIcon size={13} className={starter.iconColor} />
+                      </div>
+                      <span className="text-[11px] font-bold text-slate-200 group-hover:text-cyan-300 transition-colors">
+                        {starter.title}
+                      </span>
+                    </div>
+                    <ArrowUpRight
+                      size={13}
+                      className="text-slate-600 group-hover:text-cyan-400 transition-colors shrink-0"
+                    />
+                  </div>
+                  <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed pl-8">
+                    "{starter.query}"
+                  </p>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
