@@ -40,11 +40,18 @@ public record ScreenRequest(
     }
 
     public SortField effectiveSortField() {
-        return sortField == null ? SortField.SYMBOL : sortField;
+        return sortField == null ? SortField.MARKET_CAP : sortField;
     }
 
     public SortDirection effectiveSortDirection() {
-        return sortDirection == null ? SortDirection.ASC : sortDirection;
+        if (sortDirection != null) {
+            return sortDirection;
+        }
+        SortField field = effectiveSortField();
+        return (field == SortField.SYMBOL || field == SortField.PE || field == SortField.PB
+                || field == SortField.DEBT_TO_EQUITY)
+                ? SortDirection.ASC
+                : SortDirection.DESC;
     }
 
     public int effectiveLimit() {

@@ -147,7 +147,15 @@ TOOL_DECLARATIONS: List[Dict[str, Any]] = [
         "description": "Lọc/tìm cổ phiếu thoả một tiêu chí (ví dụ: momentum tốt, P/E thấp, RSI quá bán).",
         "parameters": {
             "type": "object",
-            "properties": {"query": {"type": "string", "description": "Tiêu chí lọc bằng ngôn ngữ tự nhiên"}},
+            "properties": {
+                "query": {"type": "string", "description": "Tiêu chí lọc bằng ngôn ngữ tự nhiên"},
+                "sortField": {
+                    "type": "string",
+                    "description": "Tiêu chí sắp xếp: MARKET_CAP, PE, PB, ROE, ROA, RSI, RELATIVE_VOLUME, EARNINGS_GROWTH_PERCENT, REVENUE_GROWTH_PERCENT, PRICE, PRICE_CHANGE_PERCENT",
+                },
+                "sortDirection": {"type": "string", "description": "Thứ tự sắp xếp: ASC hoặc DESC"},
+                "limit": {"type": "integer", "description": "Số lượng mã tối đa cần lấy (mặc định 10)"},
+            },
             "required": ["query"],
         },
     },
@@ -1314,6 +1322,10 @@ class ChatOrchestrationService:
                 arguments["filters"] = conv_result.filters
                 if conv_result.ambiguityNote:
                     arguments["ambiguityNote"] = conv_result.ambiguityNote
+                if conv_result.sortField and "sortField" not in arguments:
+                    arguments["sortField"] = conv_result.sortField
+                if conv_result.sortDirection and "sortDirection" not in arguments:
+                    arguments["sortDirection"] = conv_result.sortDirection
             async with semaphore:
                 return await self.dispatcher.dispatch_single_tool(
                     sequence_no=i,

@@ -98,6 +98,9 @@ class ScreeningToolArgs(BaseModel):
     owner_id: uuid.UUID
     filters: Dict[str, Any] = Field(default_factory=dict)
     ambiguityNote: Optional[str] = None
+    sortField: Optional[str] = None
+    sortDirection: Optional[str] = None
+    limit: Optional[int] = Field(10, ge=1, le=50)
 
 
 VALID_STRATEGY_CODES = {
@@ -115,7 +118,7 @@ VALID_STRATEGY_CODES = {
 class StrategyScanToolArgs(BaseModel):
     owner_id: uuid.UUID
     strategy_code: str = Field("MOMENTUM", alias="strategyCode")
-    limit: int = Field(5, ge=1, le=20)
+    limit: int = Field(10, ge=1, le=20)
 
     model_config = {"populate_by_name": True}
 

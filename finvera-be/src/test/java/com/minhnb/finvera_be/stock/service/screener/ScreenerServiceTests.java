@@ -219,6 +219,57 @@ class ScreenerServiceTests {
         assertThat(symbols).containsExactly("SCR11", "SCR10");
     }
 
+    @Test
+    void sortingByMarketCapDescendingPrioritizesLargerMarketCapAndHoseOverUpcom() {
+        seedListedInstrument("AAA_PENNY", MarketTypes.Venue.UPCOM.name(), 100_000L);
+        seedDailyBar("AAA_PENNY", LocalDate.of(2026, 8, 14), new BigDecimal("10000.000000"));
+
+        seedListedInstrument("VNM_BLUECHIP", MarketTypes.Venue.HOSE.name(), 10_000_000L);
+        seedDailyBar("VNM_BLUECHIP", LocalDate.of(2026, 8, 14), new BigDecimal("70000.000000"));
+
+        var criteria = new ScreenCriteria(null,
+                new PriceFilter(new BigDecimal("1"), new BigDecimal("999999"), null, null), null, null);
+        var result = screener.execute(criteria, SortField.MARKET_CAP, SortDirection.DESC, 50, 0);
+
+        var symbols = result.matches().stream().map(ScreenerService.ScreenMatch::symbol)
+                .filter(s -> s.equals("AAA_PENNY") || s.equals("VNM_BLUECHIP")).toList();
+        assertThat(symbols).containsExactly("VNM_BLUECHIP", "AAA_PENNY");
+    }
+
+    @Test
+    void nullsAreSortedLastWhenSortingDescending() {
+        seedListedInstrument("SCR_WITH_PRICE", MarketTypes.Venue.HOSE.name(), 1_000_000L);
+        seedDailyBar("SCR_WITH_PRICE", LocalDate.of(2026, 8, 14), new BigDecimal("25000.000000"));
+
+        seedListedInstrument("SCR_NO_PRICE", MarketTypes.Venue.HOSE.name(), 1_000_000L);
+        // No daily bar seeded for SCR_NO_PRICE
+
+        var criteria = new ScreenCriteria(null, null, null, null);
+        var result = screener.execute(criteria, SortField.PRICE, SortDirection.DESC, 50, 0);
+
+        var symbols = result.matches().stream().map(ScreenerService.ScreenMatch::symbol)
+                .filter(s -> s.equals("SCR_WITH_PRICE") || s.equals("SCR_NO_PRICE")).toList();
+        assertThat(symbols).containsExactly("SCR_WITH_PRICE", "SCR_NO_PRICE");
+    }
+
+    @Test
+    void sortingByRsiWithoutTechnicalFilterFetchesAndOrdersMatches() {
+        seedListedInstrument("SCR_RSI_1", MarketTypes.Venue.HOSE.name(), 1_000_000L);
+        seedAscendingBars("SCR_RSI_1", LocalDate.of(2025, 1, 1), 260);
+        technicalIndicatorService.findBySymbol("SCR_RSI_1");
+
+        seedListedInstrument("SCR_RSI_2", MarketTypes.Venue.HOSE.name(), 1_000_000L);
+
+        var criteria = new ScreenCriteria(null, null, null, null);
+        var result = screener.execute(criteria, SortField.RSI, SortDirection.DESC, 50, 0);
+
+        var symbols = result.matches().stream().map(ScreenerService.ScreenMatch::symbol)
+                .filter(s -> s.equals("SCR_RSI_1") || s.equals("SCR_RSI_2")).toList();
+        assertThat(symbols).containsExactly("SCR_RSI_1", "SCR_RSI_2");
+        assertThat(result.matches().stream().filter(m -> m.symbol().equals("SCR_RSI_1")).findFirst().orElseThrow()
+                .matchedValues()).containsKey("rsi");
+    }
+
     // ── Seeding helpers ──────────────────────────────────────────────────────
 
     private UUID seedListedInstrument(String symbol, String venue, long sharesOutstanding) {

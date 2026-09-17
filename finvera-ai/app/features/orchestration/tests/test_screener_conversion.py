@@ -184,3 +184,26 @@ async def test_explicit_debt_to_equity_uses_percent_point_contract():
     res = await convert_natural_language_to_filters("Lọc cổ phiếu D/E dưới 100%")
 
     assert res.filters["fundamental"]["debtToEquityMax"] == "100"
+
+
+@pytest.mark.asyncio
+async def test_sort_extraction_roe_descending():
+    res = await convert_natural_language_to_filters("Lọc top 10 cổ phiếu ROE cao nhất trên sàn HOSE")
+    assert res.sortField == "ROE"
+    assert res.sortDirection == "DESC"
+    assert res.filters.get("market", {}).get("exchange") == ["HOSE"]
+
+
+@pytest.mark.asyncio
+async def test_sort_extraction_pe_ascending():
+    res = await convert_natural_language_to_filters("Tìm cổ phiếu P/E thấp nhất ngành ngân hàng")
+    assert res.sortField == "PE"
+    assert res.sortDirection == "ASC"
+
+
+@pytest.mark.asyncio
+async def test_sort_extraction_default_market_cap():
+    res = await convert_natural_language_to_filters("Lọc cổ phiếu có RSI dưới 30")
+    assert res.sortField == "MARKET_CAP"
+    assert res.sortDirection == "DESC"
+

@@ -37,8 +37,10 @@ import com.minhnb.finvera_be.stock.repository.TechnicalIndicatorResultRepository
 import com.minhnb.finvera_be.stock.repository.TechnicalIndicatorValueRepository;
 import com.minhnb.finvera_be.stock.repository.ValuationAssessmentRepository;
 import com.minhnb.finvera_be.stock.repository.ValuationMetricRepository;
+import com.minhnb.finvera_be.stock.domain.model.StockTypes.MetricApplicability;
 import com.minhnb.finvera_be.stock.service.CoherenceKeys;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -150,11 +152,11 @@ public class ScreenerService {
         }
 
         // ── Pass 2: bulk-fetch Technical/Fundamental only for survivors and only
-        //     for the categories the request actually selected ──────────────────
+        //     for the categories the request actually selected or needs for sorting ─
         List<UUID> survivorIds = survivors.stream().map(CandidateFacts::instrumentId).toList();
 
         Map<UUID, Map<IndicatorCode, IndicatorSnapshot>> technicalByInstrument = Map.of();
-        if (criteria.technical() != null && !survivorIds.isEmpty()) {
+        if ((criteria.technical() != null || requiresTechnical(sortField)) && !survivorIds.isEmpty()) {
             technicalByInstrument = fetchTechnicalIndicators(survivorIds);
         }
 
@@ -162,7 +164,7 @@ public class ScreenerService {
         Map<UUID, Boolean> valuationPublishedByInstrument = Map.of();
         Map<UUID, ValuationLabel> valuationClassificationByInstrument = Map.of();
         Map<UUID, Map<ValuationMetricCode, MetricPoint>> valuationByInstrument = Map.of();
-        if (criteria.fundamental() != null && !survivorIds.isEmpty()) {
+        if ((criteria.fundamental() != null || requiresFundamental(sortField)) && !survivorIds.isEmpty()) {
             fundamentalByInstrument = fetchFundamentalMetrics(survivorIds);
             var valuationFacts = fetchValuationMetrics(survivorIds);
             valuationPublishedByInstrument = valuationFacts.published();
@@ -204,8 +206,15 @@ public class ScreenerService {
                 continue;
             }
             CandidateFacts facts = fullFactsById.get(result.instrumentId());
+            Map<String, String> values = new LinkedHashMap<>(result.matchedValues());
+            if (sortField != null && sortField != SortField.SYMBOL && !values.containsKey(sortField.matchedValueKey())) {
+                BigDecimal sortVal = resolveSortValue(facts, sortField);
+                if (sortVal != null) {
+                    values.put(sortField.matchedValueKey(), sortVal.toPlainString());
+                }
+            }
             matches.add(new ScreenMatch(facts.symbol(), facts.companyName(), facts.exchange(), facts.sectorName(),
-                    result.matchedValues(), facts.priceDataStatus(), facts.asOfTradingDate()));
+                    values, facts.priceDataStatus(), facts.asOfTradingDate()));
             coherenceParts.add(facts.instrumentId().toString());
         }
 
@@ -411,21 +420,102 @@ public class ScreenerService {
         Comparator<ScreenMatch> comparator;
         if (sortField == SortField.SYMBOL) {
             comparator = Comparator.comparing(ScreenMatch::symbol);
+            if (sortDirection == SortDirection.DESC) {
+                comparator = comparator.reversed();
+            }
         } else {
             String key = sortField.matchedValueKey();
+            Comparator<BigDecimal> valOrder = sortDirection == SortDirection.DESC
+                    ? Comparator.reverseOrder()
+                    : Comparator.naturalOrder();
             comparator = Comparator.comparing(
                     (ScreenMatch m) -> {
                         String raw = m.matchedValues().get(key);
                         return raw == null ? null : new BigDecimal(raw);
                     },
-                    Comparator.nullsLast(Comparator.naturalOrder()));
-        }
-        if (sortDirection == SortDirection.DESC) {
-            comparator = comparator.reversed();
+                    Comparator.nullsLast(valOrder));
         }
         List<ScreenMatch> sorted = new ArrayList<>(matches);
-        sorted.sort(comparator.thenComparing(ScreenMatch::symbol));
+        sorted.sort(comparator
+                .thenComparingInt(m -> exchangeQualityRank(m.exchange()))
+                .thenComparing(ScreenMatch::symbol));
         return sorted;
+    }
+
+    private static int exchangeQualityRank(String exchange) {
+        if (exchange == null) return 4;
+        return switch (exchange.toUpperCase()) {
+            case "HOSE" -> 1;
+            case "HNX" -> 2;
+            case "UPCOM" -> 3;
+            default -> 4;
+        };
+    }
+
+    private BigDecimal resolveSortValue(CandidateFacts facts, SortField sortField) {
+        if (sortField == null || sortField == SortField.SYMBOL) {
+            return null;
+        }
+        return switch (sortField) {
+            case MARKET_CAP -> facts.sharesOutstanding() != null && facts.latestClose() != null
+                    ? facts.latestClose().multiply(BigDecimal.valueOf(facts.sharesOutstanding()))
+                            .setScale(6, RoundingMode.HALF_UP)
+                    : null;
+            case PRICE -> facts.latestClose();
+            case PRICE_CHANGE_PERCENT -> facts.latestClose() != null && facts.previousValidClose() != null
+                    && facts.previousValidClose().signum() > 0
+                    ? facts.latestClose().subtract(facts.previousValidClose())
+                            .multiply(BigDecimal.valueOf(100))
+                            .divide(facts.previousValidClose(), 6, RoundingMode.HALF_UP)
+                    : null;
+            case RSI -> componentValue(facts, IndicatorCode.RSI14, IndicatorComponent.VALUE);
+            case RELATIVE_VOLUME -> componentValue(facts, IndicatorCode.RELATIVE_VOLUME, IndicatorComponent.VALUE);
+            case REVENUE_GROWTH_PERCENT -> getMetricPointValue(facts.fundamentalMetrics(), "REVENUE_GROWTH_PERCENT");
+            case EARNINGS_GROWTH_PERCENT -> getMetricPointValue(facts.fundamentalMetrics(), "EPS_GROWTH_PERCENT");
+            case ROE -> getMetricPointValue(facts.fundamentalMetrics(), "ROE");
+            case ROA -> getMetricPointValue(facts.fundamentalMetrics(), "ROA");
+            case DEBT_TO_EQUITY -> getMetricPointValue(facts.fundamentalMetrics(), "DEBT_TO_EQUITY");
+            case PE -> getValuationPointValue(facts.valuationMetrics(), ValuationMetricCode.PE);
+            case PB -> getValuationPointValue(facts.valuationMetrics(), ValuationMetricCode.PB);
+            case SYMBOL -> null;
+        };
+    }
+
+    private static BigDecimal componentValue(CandidateFacts c, IndicatorCode code, IndicatorComponent component) {
+        if (c.technicalIndicators() == null) {
+            return null;
+        }
+        IndicatorSnapshot snapshot = c.technicalIndicators().get(code);
+        if (snapshot == null || snapshot.applicability() != MetricApplicability.DEFINED || snapshot.components() == null) {
+            return null;
+        }
+        return snapshot.components().get(component);
+    }
+
+    private static BigDecimal getMetricPointValue(Map<String, MetricPoint> metrics, String code) {
+        if (metrics == null || !metrics.containsKey(code)) {
+            return null;
+        }
+        MetricPoint point = metrics.get(code);
+        return point == null || point.applicability() != MetricApplicability.DEFINED ? null : point.value();
+    }
+
+    private static BigDecimal getValuationPointValue(Map<ValuationMetricCode, MetricPoint> metrics, ValuationMetricCode code) {
+        if (metrics == null || !metrics.containsKey(code)) {
+            return null;
+        }
+        MetricPoint point = metrics.get(code);
+        return point == null || point.applicability() != MetricApplicability.DEFINED ? null : point.value();
+    }
+
+    private static boolean requiresTechnical(SortField sortField) {
+        return sortField == SortField.RSI || sortField == SortField.RELATIVE_VOLUME;
+    }
+
+    private static boolean requiresFundamental(SortField sortField) {
+        return sortField == SortField.PE || sortField == SortField.PB || sortField == SortField.ROE
+                || sortField == SortField.ROA || sortField == SortField.DEBT_TO_EQUITY
+                || sortField == SortField.REVENUE_GROWTH_PERCENT || sortField == SortField.EARNINGS_GROWTH_PERCENT;
     }
 
     private void validateRanges(ScreenCriteria criteria) {

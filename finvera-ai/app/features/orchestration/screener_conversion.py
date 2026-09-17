@@ -13,6 +13,8 @@ class ScreenerConversionResult(BaseModel):
     filters: Dict[str, Any]
     confidence: float
     ambiguityNote: Optional[str] = None
+    sortField: Optional[str] = None
+    sortDirection: Optional[str] = None
 
 
 CONVERSION_SYSTEM_PROMPT = """Bạn là trợ lý AI chuyên gia phân tích tài chính, nhiệm vụ của bạn là chuyển đổi tiêu chí tìm kiếm/lọc cổ phiếu bằng ngôn ngữ tự nhiên (tiếng Việt) thành bộ lọc có cấu trúc JSON hợp lệ cho công cụ Finvera Screener.
@@ -63,6 +65,8 @@ CẤU TRÚC JSON BẮT BUỘC:
       "valuationClassification": ["UNDER_VALUED", "FAIR_VALUED", "OVER_VALUED"]
     }
   },
+  "sortField": "MARKET_CAP" | "PRICE" | "PRICE_CHANGE_PERCENT" | "RSI" | "RELATIVE_VOLUME" | "REVENUE_GROWTH_PERCENT" | "EARNINGS_GROWTH_PERCENT" | "ROE" | "ROA" | "PE" | "PB" | "DEBT_TO_EQUITY" | null,
+  "sortDirection": "ASC" | "DESC" | null,
   "confidence": 0.0 - 1.0,
   "ambiguityNote": "Mô tả giải thích nếu câu hỏi mơ hồ hoặc không xác định được chỉ số định lượng cụ thể" | null
 }
@@ -94,6 +98,40 @@ def _rule_based_extract(query: str) -> Optional[ScreenerConversionResult]:
 
     matched_explicit_conditions = 0
     explicit_metrics: set[str] = set()
+
+    detected_sort_field = None
+    detected_sort_direction = None
+
+    if any(k in q_lower for k in ("roe cao", "roe lớn", "top roe", "roe cao nhất")):
+        detected_sort_field = "ROE"
+        detected_sort_direction = "DESC"
+    elif any(k in q_lower for k in ("roa cao", "roa lớn", "top roa", "roa cao nhất")):
+        detected_sort_field = "ROA"
+        detected_sort_direction = "DESC"
+    elif any(k in q_lower for k in ("p/e thấp", "pe thấp", "p/e rẻ", "pe rẻ", "p/e nhỏ", "pe nhỏ", "p/e thấp nhất")):
+        detected_sort_field = "PE"
+        detected_sort_direction = "ASC"
+    elif any(k in q_lower for k in ("p/b thấp", "pb thấp", "p/b rẻ", "pb rẻ", "p/b thấp nhất")):
+        detected_sort_field = "PB"
+        detected_sort_direction = "ASC"
+    elif any(k in q_lower for k in ("vốn hóa lớn", "vốn hoá lớn", "vốn hóa to", "bluechip", "vốn hóa cao", "vốn hóa lớn nhất")):
+        detected_sort_field = "MARKET_CAP"
+        detected_sort_direction = "DESC"
+    elif any(k in q_lower for k in ("tăng trưởng eps", "eps cao", "tăng trưởng lợi nhuận")):
+        detected_sort_field = "EARNINGS_GROWTH_PERCENT"
+        detected_sort_direction = "DESC"
+    elif any(k in q_lower for k in ("tăng trưởng doanh thu", "doanh thu cao")):
+        detected_sort_field = "REVENUE_GROWTH_PERCENT"
+        detected_sort_direction = "DESC"
+    elif any(k in q_lower for k in ("thanh khoản cao", "thanh khoản lớn", "khối lượng lớn", "thanh khoản tốt")):
+        detected_sort_field = "RELATIVE_VOLUME"
+        detected_sort_direction = "DESC"
+    elif any(k in q_lower for k in ("tăng mạnh nhất", "tăng giá mạnh", "tăng trần")) and not any(k in q_lower for k in ("sắp", "dự đoán", "tương lai")):
+        detected_sort_field = "PRICE_CHANGE_PERCENT"
+        detected_sort_direction = "DESC"
+
+    sort_field = detected_sort_field or "MARKET_CAP"
+    sort_direction = detected_sort_direction or "DESC"
 
     # PE
     pe_under = re.search(r"p/?e\s*(?:dưới|<|nhỏ hơn|<=)\s*(\d+(?:\.\d+)?)", q_lower)
@@ -286,6 +324,8 @@ def _rule_based_extract(query: str) -> Optional[ScreenerConversionResult]:
             filters=filters,
             confidence=0.85 if matched_explicit_conditions == 0 else 0.9,
             ambiguityNote=archetype_note,
+            sortField=sort_field,
+            sortDirection=sort_direction,
         )
 
     # If completely vague without any numbers or clear indicators (e.g. "cổ phiếu ngon", "cổ phiếu tiềm năng")
@@ -297,13 +337,17 @@ def _rule_based_extract(query: str) -> Optional[ScreenerConversionResult]:
             filters={},
             confidence=0.4,
             ambiguityNote="Yêu cầu tìm kiếm chưa cung cấp tiêu chí định lượng cụ thể (như P/E, ROE, RSI hoặc sàn giao dịch). Finvera giữ nguyên tiêu chí mở rộng không suy đoán.",
+            sortField=None,
+            sortDirection=None,
         )
 
-    if matched_explicit_conditions > 0:
+    if matched_explicit_conditions > 0 or detected_sort_field is not None:
         return ScreenerConversionResult(
             filters=filters,
-            confidence=0.9,
+            confidence=0.9 if matched_explicit_conditions > 0 else 0.85,
             ambiguityNote=None,
+            sortField=sort_field,
+            sortDirection=sort_direction,
         )
 
     return None
@@ -338,10 +382,14 @@ async def convert_natural_language_to_filters(
             if confidence < 0.6 and not ambiguity_note:
                 ambiguity_note = "Tiêu chí tìm kiếm có độ mơ hồ cao. Finvera không tự ý đưa ra giả định số liệu."
 
+            sort_field_val = data.get("sortField") or "MARKET_CAP"
+            sort_dir_val = data.get("sortDirection") or "DESC"
             return ScreenerConversionResult(
                 filters=filters,
                 confidence=confidence,
                 ambiguityNote=ambiguity_note,
+                sortField=sort_field_val,
+                sortDirection=sort_dir_val,
             )
     except Exception as e:
         logger.warning(f"Error converting natural language to screener filters: {e}")

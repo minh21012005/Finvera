@@ -82,10 +82,16 @@ class BackendToolClient:
                         news_params["limit"] = str(arguments["limit"])
                     resp = await client.get(f"{self.base_url}/tools/research/news", params=news_params, headers=headers)
                 elif tool_name == ToolName.SCREENING:
+                    body = dict(arguments.get("filters") or {})
+                    if "sortField" in arguments:
+                        body["sortField"] = arguments["sortField"]
+                    if "sortDirection" in arguments:
+                        body["sortDirection"] = arguments["sortDirection"]
+                    body["limit"] = arguments.get("limit") or 10
                     resp = await client.post(
                         f"{self.base_url}/tools/screener/executions",
                         params=params,
-                        json=arguments.get("filters", {}),
+                        json=body,
                         headers=headers,
                     )
                 elif tool_name == ToolName.RESEARCH_RAG:

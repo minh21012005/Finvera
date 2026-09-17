@@ -38,7 +38,14 @@ describe("ScreenerFilters", () => {
 
     await user.click(screen.getByRole("button", { name: /lọc cổ phiếu/i }));
 
-    expect(submitted).toEqual({ market: undefined, price: undefined, technical: undefined, fundamental: undefined });
+    expect(submitted).toEqual({
+      market: undefined,
+      price: undefined,
+      technical: undefined,
+      fundamental: undefined,
+      sortField: "MARKET_CAP",
+      sortDirection: "DESC",
+    });
   });
 
   it("builds a request carrying only the fields the owner actually filled in", async () => {
@@ -100,6 +107,12 @@ describe("buildScreenRequest", () => {
       debtToEquityMax: "",
     });
     expect(request.market?.exchange).toEqual(["HOSE"]);
+  });
+
+  it("defaults sortField to MARKET_CAP and sortDirection to DESC", () => {
+    const request = buildScreenRequest(EMPTY_FORM);
+    expect(request.sortField).toBe("MARKET_CAP");
+    expect(request.sortDirection).toBe("DESC");
   });
 });
 

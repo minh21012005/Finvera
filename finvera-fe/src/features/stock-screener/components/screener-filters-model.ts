@@ -188,5 +188,7 @@ export function buildScreenRequest(form: FormState): ScreenRequest {
     price: hasAny(price) ? price : undefined,
     technical: hasAny(technical) ? technical : undefined,
     fundamental: hasAny(fundamental) ? fundamental : undefined,
+    sortField: "MARKET_CAP",
+    sortDirection: "DESC",
   };
 }
