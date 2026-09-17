@@ -183,6 +183,28 @@ public class ProblemDetailsAdvice {
      * the 500 that actually happened, and the real cause was only in the server log. Every
      * unhandled failure now becomes a 500 problem with the correlation id and no internals.
      */
+    @ExceptionHandler(com.minhnb.finvera_be.alert.service.AlertExceptions.AlertNotFoundException.class)
+    ResponseEntity<ProblemDetail> alertNotFound(HttpServletRequest request) {
+        return response(request, HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND", "Resource not found");
+    }
+
+    @ExceptionHandler(com.minhnb.finvera_be.alert.service.AlertExceptions.NotificationNotFoundException.class)
+    ResponseEntity<ProblemDetail> notificationNotFound(HttpServletRequest request) {
+        return response(request, HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND", "Resource not found");
+    }
+
+    @ExceptionHandler(com.minhnb.finvera_be.alert.service.AlertExceptions.AlertValidationException.class)
+    ResponseEntity<ProblemDetail> alertValidation(HttpServletRequest request,
+            com.minhnb.finvera_be.alert.service.AlertExceptions.AlertValidationException ex) {
+        return response(request, HttpStatus.UNPROCESSABLE_ENTITY, ex.reasonCode(), "Alert condition is invalid");
+    }
+
+    @ExceptionHandler(com.minhnb.finvera_be.alert.service.AlertExceptions.AlertQuotaException.class)
+    ResponseEntity<ProblemDetail> alertQuota(HttpServletRequest request,
+            com.minhnb.finvera_be.alert.service.AlertExceptions.AlertQuotaException ex) {
+        return response(request, HttpStatus.TOO_MANY_REQUESTS, ex.getMessage(), "Alert quota reached");
+    }
+
     @ExceptionHandler(Exception.class)
     ResponseEntity<ProblemDetail> unhandled(HttpServletRequest request, Exception ex) {
         log.error("unhandled_request_failure correlationId={} path={} exception={}",

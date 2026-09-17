@@ -31,6 +31,14 @@ server:
       timeout: 30m
 
 finvera:
+  alert:
+    worker:
+      enabled: ${FINVERA_ALERT_WORKER_ENABLED:true}
+      poll-delay: ${FINVERA_ALERT_WORKER_POLL_DELAY:10s}
+      recovery-delay: ${FINVERA_ALERT_WORKER_RECOVERY_DELAY:30s}
+      lease-duration: ${FINVERA_ALERT_WORKER_LEASE_DURATION:60s}
+      batch-size: ${FINVERA_ALERT_WORKER_BATCH_SIZE:50}
+      max-attempts: ${FINVERA_ALERT_WORKER_MAX_ATTEMPTS:2}
   backtest:
     worker:
       enabled: ${FINVERA_BACKTEST_WORKER_ENABLED:true}

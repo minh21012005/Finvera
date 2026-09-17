@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isAnalystPath, isResearchPath, isScreenerPath, parseStockSymbolFromPath } from "./router";
+import { isAlertsPath, isAnalystPath, isResearchPath, isScreenerPath, parseStockSymbolFromPath } from "./router";
 
 describe("router", () => {
   it("recognizes /analyst as the AI Analyst route", () => {
@@ -15,5 +15,11 @@ describe("router", () => {
     expect(isResearchPath("/research")).toBe(true);
     expect(isScreenerPath("/screener")).toBe(true);
     expect(parseStockSymbolFromPath("/stocks/HPG")).toBe("HPG");
+  });
+
+  it("recognizes the owner alerts route only", () => {
+    expect(isAlertsPath("/alerts")).toBe(true);
+    expect(isAlertsPath("/alerts/")).toBe(true);
+    expect(isAlertsPath("/alerts/other")).toBe(false);
   });
 });

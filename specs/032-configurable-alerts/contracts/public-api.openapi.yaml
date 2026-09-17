@@ -1,0 +1,271 @@
+openapi: 3.1.0
+info:
+  title: Finvera Configurable Alerts API
+  version: 1.0.0
+  description: Owner-scoped deterministic alerts and durable in-app notifications.
+servers:
+  - url: /
+security:
+  - cookieSession: []
+paths:
+  /api/v1/alerts:
+    get:
+      operationId: listAlerts
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200': {description: Stable newest-first page, content: {application/json: {schema: {$ref: '#/components/schemas/AlertPage'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+    post:
+      operationId: createAlert
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/CreateAlertRequest'}}}
+      responses:
+        '201': {description: Created enabled definition, content: {application/json: {schema: {$ref: '#/components/schemas/Alert'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '422': {$ref: '#/components/responses/Invalid'}
+        '429': {$ref: '#/components/responses/Quota'}
+  /api/v1/alerts/{alertId}:
+    parameters:
+      - $ref: '#/components/parameters/AlertId'
+    get:
+      operationId: getAlert
+      responses:
+        '200': {description: Definition detail, content: {application/json: {schema: {$ref: '#/components/schemas/Alert'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+    delete:
+      operationId: deleteAlert
+      responses:
+        '204': {description: Soft deleted}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/v1/alerts/{alertId}/state:
+    parameters:
+      - $ref: '#/components/parameters/AlertId'
+    put:
+      operationId: setAlertState
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/SetAlertStateRequest'}}}
+      responses:
+        '200': {description: Updated definition, content: {application/json: {schema: {$ref: '#/components/schemas/Alert'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/Invalid'}
+        '429': {$ref: '#/components/responses/Quota'}
+  /api/v1/alerts/{alertId}/evaluations:
+    parameters:
+      - $ref: '#/components/parameters/AlertId'
+      - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/Offset'
+    get:
+      operationId: listAlertEvaluations
+      responses:
+        '200': {description: Newest-first evaluations, content: {application/json: {schema: {$ref: '#/components/schemas/EvaluationPage'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/v1/notifications:
+    get:
+      operationId: listNotifications
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - {name: unreadOnly, in: query, schema: {type: boolean, default: false}}
+      responses:
+        '200': {description: Newest-first inbox page, content: {application/json: {schema: {$ref: '#/components/schemas/NotificationPage'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /api/v1/notifications/unread-count:
+    get:
+      operationId: getUnreadNotificationCount
+      responses:
+        '200': {description: Unread count, content: {application/json: {schema: {type: object, required: [count], properties: {count: {type: integer, minimum: 0}}}}}}
+  /api/v1/notifications/{notificationId}:
+    get:
+      operationId: getNotification
+      parameters: [{$ref: '#/components/parameters/NotificationId'}]
+      responses:
+        '200': {description: Immutable inbox item, content: {application/json: {schema: {$ref: '#/components/schemas/Notification'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/v1/notifications/{notificationId}/read:
+    put:
+      operationId: markNotificationRead
+      parameters: [{$ref: '#/components/parameters/NotificationId'}]
+      responses:
+        '200': {description: Idempotently marked read, content: {application/json: {schema: {$ref: '#/components/schemas/Notification'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/v1/notifications/read-all:
+    put:
+      operationId: markAllNotificationsRead
+      responses:
+        '200': {description: Number changed, content: {application/json: {schema: {type: object, required: [updatedCount, readAt], properties: {updatedCount: {type: integer, minimum: 0}, readAt: {type: string, format: date-time}}}}}}
+components:
+  securitySchemes:
+    cookieSession: {type: apiKey, in: cookie, name: FINVERA_SESSION}
+  parameters:
+    AlertId: {name: alertId, in: path, required: true, schema: {type: string, format: uuid}}
+    NotificationId: {name: notificationId, in: path, required: true, schema: {type: string, format: uuid}}
+    Limit: {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+    Offset: {name: offset, in: query, schema: {type: integer, minimum: 0, maximum: 10000, default: 0}}
+  responses:
+    Unauthorized: {description: Authentication required, content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
+    NotFound: {description: Unknown and non-owned IDs are indistinguishable, content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
+    Invalid: {description: Invalid or unavailable target/condition, content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
+    Quota: {description: Owner alert quota reached, content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}}
+  schemas:
+    CreateAlertRequest:
+      type: object
+      additionalProperties: false
+      required: [name, condition]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 120}
+        condition: {$ref: '#/components/schemas/Condition'}
+    SetAlertStateRequest:
+      type: object
+      additionalProperties: false
+      required: [enabled]
+      properties: {enabled: {type: boolean}}
+    Condition:
+      oneOf:
+        - {$ref: '#/components/schemas/PriceThresholdCondition'}
+        - {$ref: '#/components/schemas/IndicatorThresholdCondition'}
+        - {$ref: '#/components/schemas/MacdCondition'}
+        - {$ref: '#/components/schemas/BreakoutCondition'}
+        - {$ref: '#/components/schemas/MovingAverageCondition'}
+        - {$ref: '#/components/schemas/RegimeCondition'}
+        - {$ref: '#/components/schemas/StrategyCondition'}
+        - {$ref: '#/components/schemas/PortfolioCondition'}
+        - {$ref: '#/components/schemas/DocumentCondition'}
+      discriminator: {propertyName: type}
+    PriceThresholdCondition:
+      type: object
+      additionalProperties: false
+      required: [type, symbol, threshold, adjustmentBasis]
+      properties:
+        type: {enum: [PRICE_ABOVE, PRICE_BELOW]}
+        symbol: {type: string, pattern: '^[A-Za-z0-9]{1,10}$'}
+        threshold: {type: string, pattern: '^[0-9]+(\.[0-9]{1,12})?$'}
+        adjustmentBasis: {enum: [RAW, PROVIDER_ADJUSTED]}
+    IndicatorThresholdCondition:
+      type: object
+      additionalProperties: false
+      required: [type, symbol, threshold]
+      properties:
+        type: {enum: [RSI_ABOVE, RSI_BELOW, VOLUME_SPIKE]}
+        symbol: {type: string, pattern: '^[A-Za-z0-9]{1,10}$'}
+        threshold: {type: string, pattern: '^[0-9]+(\.[0-9]{1,12})?$'}
+    MacdCondition:
+      type: object
+      additionalProperties: false
+      required: [type, symbol]
+      properties:
+        type: {enum: [MACD_BULLISH_CROSS, MACD_BEARISH_CROSS]}
+        symbol: {type: string, pattern: '^[A-Za-z0-9]{1,10}$'}
+    BreakoutCondition:
+      type: object
+      additionalProperties: false
+      required: [type, symbol, adjustmentBasis]
+      properties:
+        type: {enum: [BREAKOUT, BREAKDOWN]}
+        symbol: {type: string, pattern: '^[A-Za-z0-9]{1,10}$'}
+        adjustmentBasis: {enum: [RAW, PROVIDER_ADJUSTED]}
+    MovingAverageCondition:
+      type: object
+      additionalProperties: false
+      required: [type, symbol, shortWindow, longWindow]
+      properties:
+        type: {enum: [MA_BULLISH_CROSS, MA_BEARISH_CROSS]}
+        symbol: {type: string, pattern: '^[A-Za-z0-9]{1,10}$'}
+        shortWindow: {enum: [20, 50, 200]}
+        longWindow: {enum: [20, 50, 200]}
+    RegimeCondition:
+      type: object
+      additionalProperties: false
+      required: [type, targetLabel]
+      properties:
+        type: {const: MARKET_REGIME_CHANGE}
+        targetLabel: {enum: [BULL, EARLY_BULL, SIDEWAYS, EARLY_BEAR, BEAR]}
+    StrategyCondition:
+      type: object
+      additionalProperties: false
+      required: [type, symbol, strategyCode]
+      properties:
+        type: {const: STRATEGY_SIGNAL}
+        symbol: {type: string, pattern: '^[A-Za-z0-9]{1,10}$'}
+        strategyCode: {enum: [TREND_FOLLOWING, MOMENTUM, BREAKOUT, PULLBACK, MEAN_REVERSION, MA_CROSSOVER, MACD_BASED, RSI_BASED]}
+    PortfolioCondition:
+      type: object
+      additionalProperties: false
+      required: [type, portfolioId, thresholdPercent]
+      properties:
+        type: {const: PORTFOLIO_CONCENTRATION_ABOVE}
+        portfolioId: {type: string, format: uuid}
+        thresholdPercent: {type: string}
+    DocumentCondition:
+      type: object
+      additionalProperties: false
+      required: [type, symbol]
+      properties:
+        type: {const: NEW_DOCUMENT}
+        symbol: {type: string, pattern: '^[A-Z0-9]{1,10}$'}
+        documentType: {type: string, maxLength: 32}
+    Alert:
+      type: object
+      required: [id, name, condition, conditionVersion, conditionSummary, enabled, episodeState, createdAt, updatedAt]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        condition: {$ref: '#/components/schemas/Condition'}
+        conditionVersion: {const: alert-condition-v1}
+        conditionSummary: {type: string}
+        enabled: {type: boolean}
+        episodeState: {enum: [UNKNOWN, 'FALSE', 'TRUE']}
+        latestEvaluation: {$ref: '#/components/schemas/Evaluation'}
+        lastTriggeredAt: {type: [string, 'null'], format: date-time}
+        lastDeliveryOutcome: {type: [string, 'null']}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+    Evaluation:
+      type: object
+      required: [id, outcome, evaluatedAt, attemptCount]
+      properties:
+        id: {type: string, format: uuid}
+        outcome: {enum: ['FALSE', 'TRUE', WITHHELD, FAILED]}
+        reasonCode: {type: [string, 'null']}
+        factAt: {type: [string, 'null'], format: date-time}
+        acceptedAt: {type: [string, 'null'], format: date-time}
+        evaluatedAt: {type: string, format: date-time}
+        attemptCount: {type: integer, minimum: 1, maximum: 2}
+        evidence: {type: object, additionalProperties: true}
+    Notification:
+      type: object
+      required: [id, alertId, title, message, conditionSnapshot, evidence, triggeredAt, deliveredAt]
+      properties:
+        id: {type: string, format: uuid}
+        alertId: {type: string, format: uuid}
+        title: {type: string}
+        message: {type: string}
+        conditionSnapshot: {type: object, additionalProperties: true}
+        evidence: {type: object, additionalProperties: true}
+        triggeredAt: {type: string, format: date-time}
+        deliveredAt: {type: string, format: date-time}
+        readAt: {type: [string, 'null'], format: date-time}
+    AlertPage:
+      type: object
+      required: [items, totalCount, limit, offset]
+      properties: {items: {type: array, items: {$ref: '#/components/schemas/Alert'}}, totalCount: {type: integer}, limit: {type: integer}, offset: {type: integer}}
+    EvaluationPage:
+      type: object
+      required: [items, totalCount, limit, offset]
+      properties: {items: {type: array, items: {$ref: '#/components/schemas/Evaluation'}}, totalCount: {type: integer}, limit: {type: integer}, offset: {type: integer}}
+    NotificationPage:
+      type: object
+      required: [items, totalCount, limit, offset]
+      properties: {items: {type: array, items: {$ref: '#/components/schemas/Notification'}}, totalCount: {type: integer}, limit: {type: integer}, offset: {type: integer}}
+    Problem:
+      type: object
+      required: [status, reasonCode]
+      properties:
+        status: {type: integer}
+        title: {type: string}
+        detail: {type: string}
+        reasonCode: {type: string}
+        correlationId: {type: string}

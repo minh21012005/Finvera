@@ -1,0 +1,1 @@
+package com.minhnb.finvera_be.alert.repository;import com.minhnb.finvera_be.alert.entity.AlertDeliveryAttemptEntity;import java.util.UUID;import org.springframework.data.jpa.repository.JpaRepository;public interface AlertDeliveryAttemptRepository extends JpaRepository<AlertDeliveryAttemptEntity,UUID>{}

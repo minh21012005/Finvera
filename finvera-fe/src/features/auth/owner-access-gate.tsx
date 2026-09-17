@@ -16,6 +16,7 @@ import {
   Bot,
   LogOut,
   Radio,
+  Bell,
 } from "lucide-react";
 
 type State =
@@ -80,6 +81,7 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
   const isTcbsRenewal = pathname.startsWith("/tcbs-renewal");
   const isPositionSizing = pathname.startsWith("/position-sizing");
   const isBacktest = pathname.startsWith("/backtests");
+  const isAlerts = pathname.startsWith("/alerts");
 
   return (
     <div className="terminal-root">
@@ -161,6 +163,10 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
                 <NavLink href="/watchlists" active={isWatchlists}>
                   <Star className="nav-icon-svg" size={14} />
                   <span>Watchlist</span>
+                </NavLink>
+                <NavLink href="/alerts" active={isAlerts}>
+                  <Bell className="nav-icon-svg" size={14} />
+                  <span>Cảnh báo</span>
                 </NavLink>
               </div>
 

@@ -1,0 +1,6 @@
+package com.minhnb.finvera_be.alert;import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;import com.tngtech.archunit.core.importer.ImportOption;import com.tngtech.archunit.junit.*;import com.tngtech.archunit.lang.ArchRule;
+@AnalyzeClasses(packages="com.minhnb.finvera_be",importOptions=ImportOption.DoNotIncludeTests.class)public class AlertArchitectureTests{
+ @ArchTest static final ArchRule NO_FOREIGN_PERSISTENCE=noClasses().that().resideInAPackage("..alert..").should().dependOnClassesThat().resideInAnyPackage("..market.repository..","..market.entity..","..stock.repository..","..stock.entity..","..portfolio.repository..","..portfolio.entity..","..research.repository..","..research.entity..");
+ @ArchTest static final ArchRule CONTROLLERS_USE_SERVICES=noClasses().that().resideInAPackage("..alert.controller..").should().dependOnClassesThat().resideInAnyPackage("..alert.repository..","..alert.entity..");
+ @ArchTest static final ArchRule DOMAIN_IS_PURE=noClasses().that().resideInAPackage("..alert.domain..").should().dependOnClassesThat().resideInAnyPackage("org.springframework..","jakarta.persistence..","..alert.service..","..alert.repository..","..alert.entity..");
+}

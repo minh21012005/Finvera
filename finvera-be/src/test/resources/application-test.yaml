@@ -30,3 +30,6 @@ finvera:
     conversation-context-included: 5
     conversation-context-characters: 12000
     conversation-stale-grace: 60s
+  alert:
+    worker:
+      enabled: false

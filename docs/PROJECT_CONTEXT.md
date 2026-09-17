@@ -57,6 +57,7 @@ capabilities. Qdrant and Redis contain derived data and cannot be authoritative.
 | News/document interpretation | FastAPI | Extract, classify, summarize with citations |
 | AI analyst orchestration | FastAPI behind Spring Boot | Select allowlisted tools and synthesize evidence |
 | AI conversation history | Spring Boot + PostgreSQL | Consume bounded untrusted context; no AI-side persistence |
+| Configurable alerts and inbox | Spring Boot + PostgreSQL worker | None; deterministic source facts and immutable evidence only |
 
 ## MVP Delivery Order
 
@@ -142,11 +143,12 @@ an inconsistency.
   market-lot constraints, then exposes all inputs and binding caps. See
   `specs/030-deterministic-position-sizing/` and
   [the runbook](runbooks/position-sizing.md).
-- **Implemented; rollout and owner review pending — historical backtesting**:
+- **Implemented; owner review pending — historical backtesting**:
   Feature 031 provides all eight deterministic strategies, next-session-open
   execution, bounded pyramiding, exact decimal costs, immutable trade/equity
   ledgers, metrics, evidence, owner-only APIs, and a React workflow. Its bounded
-  worker is disabled by default. Provider-adjusted execution basis, current-lot
+  worker is enabled by default with concurrency one and remains independently
+  disableable for maintenance or incident response. Provider-adjusted execution basis, current-lot
   historical use, survivorship, and suspension/delisting limits are disclosed.
   See `specs/031-historical-strategy-backtesting/` and
   [the runbook](runbooks/backtesting.md).

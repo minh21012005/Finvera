@@ -60,7 +60,7 @@ models needed by later personalization features.
 
 | Order | Capability | SRS traceability | Current state | Minimum coherent first slice | Dependencies and correctness gates |
 |---|---|---|---|---|---|
-| A2 | Historical strategy backtesting | SRS-BKT-01, SRS-BKT-02 | **Implemented; rollout and owner review pending** in Feature 031. | Run any of eight supported deterministic strategies for one symbol and daily interval over an explicit period; configure capital, risk, fees, tax, and slippage; inspect immutable trades, equity, metrics, evidence, warnings, and rejected entries. | Bounded worker stays disabled until rollout. VCI provider-adjusted prices, current lot rules applied historically, survivorship, corporate actions, and suspension/delisting coverage remain explicit limitations. |
+| A2 | Historical strategy backtesting | SRS-BKT-01, SRS-BKT-02 | **Implemented; owner review pending** in Feature 031. | Run any of eight supported deterministic strategies for one symbol and daily interval over an explicit period; configure capital, risk, fees, tax, and slippage; inspect immutable trades, equity, metrics, evidence, warnings, and rejected entries. | One bounded worker is enabled by default and can be disabled during maintenance or incident response. VCI provider-adjusted prices, current lot rules applied historically, survivorship, corporate actions, and suspension/delisting coverage remain explicit limitations. |
 
 Backtesting should follow the position-sizing contract so the interactive
 calculator and simulation engine do not develop conflicting sizing semantics.
@@ -69,7 +69,7 @@ calculator and simulation engine do not develop conflicting sizing semantics.
 
 | Order | Capability | SRS traceability | Current state | Minimum coherent first slice | Dependencies and correctness gates |
 |---|---|---|---|---|---|
-| B1 | Configurable alerts | SRS-ALR-01 | **Planned** | Create, enable, disable, list, and delete a bounded set of deterministic price, indicator, signal, portfolio-risk, or document-event alerts; show last evaluation and delivery state. | Requires an explicit evaluation schedule, deduplication/idempotency, stale/missing-data handling, per-owner quotas, retry limits, delivery-channel contract, and graceful channel failure. Begin with an in-app channel unless a feature plan justifies an external provider. |
+| B1 | Configurable alerts | SRS-ALR-01 | **Implemented; final environment validation pending** in Feature 032. | Create, enable, disable, list, and delete a bounded set of deterministic price, indicator, signal, portfolio-risk, or document-event alerts; inspect accepted evidence and operate a durable in-app inbox. | The default-enabled worker polls every 10 seconds in batches of 50, uses database leases and deduplication, withholds stale/missing facts, enforces owner quotas, and makes at most two total attempts. External delivery channels remain outside this slice. |
 | B2 | Sector analytics | SRS-MKT-03, SRS-MKT-04 | **Planned**. Sector reference data exists, but sector performance, momentum, liquidity, relative strength, and leader/laggard analysis do not. | Compare supported sectors over explicit windows and identify leading/weak stocks using deterministic, exposed formulas. | Requires stable point-in-time sector membership, coverage thresholds, aggregation/weighting rules, adjustment basis, liquidity units, and missing-member handling. |
 | B3 | Investment journal | SRS-JRN-01 | **Planned** | Owner-scoped create/read/update/delete journal entries linked optionally to a symbol, portfolio, strategy signal, and conversation; capture thesis, assumptions, decision, tags, and event time. | Reuse conversation ownership where linked. Define retention, export/deletion, timezone, immutable audit fields, and the boundary between user-authored facts and AI summaries. |
 
@@ -96,8 +96,8 @@ Unless user value or newly discovered dependencies justify a change, start
 features in this order:
 
 1. Complete the position-sizing owner comprehension review.
-2. Complete historical-backtesting rollout and owner review.
-3. Alerts.
+2. Complete the historical-backtesting owner review.
+3. Complete the configurable-alerts owner/environment review.
 4. Sector analytics.
 5. Investment journal.
 

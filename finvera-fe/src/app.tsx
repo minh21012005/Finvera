@@ -13,9 +13,11 @@ import { OwnerAccessGate } from "./features/auth/owner-access-gate";
 import { TcbsRenewalPage } from "./features/tcbs-renewal/tcbs-renewal-page";
 import { PositionSizingPage } from "./features/position-sizing/components/position-sizing-page";
 import { BacktestPage } from "./features/backtest/components/backtest-page";
+import { AlertsPage } from "./features/alerts/components/alerts-page";
 import {
   isAnalystPath,
   isBacktestPath,
+  isAlertsPath,
   isPortfoliosPath,
   isPositionSizingPath,
   isResearchPath,
@@ -55,6 +57,8 @@ export function App() {
         <PositionSizingPage />
       ) : isBacktestPath(pathname) ? (
         <BacktestPage />
+      ) : isAlertsPath(pathname) ? (
+        <AlertsPage />
       ) : watchlistId ? (
         <WatchlistDetailPage key={watchlistId} watchlistId={watchlistId} />
       ) : isWatchlistsPath(pathname) ? (

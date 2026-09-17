@@ -280,7 +280,13 @@ SRS section 57 maps the SRS's original architectural baseline to these ADRs wher
 the two differ. The ADR is the engineering authority; the SRS remains the product
 authority.
 
-## 11. Deliberately absent
+## 11. Alert execution boundary
+
+Feature 032 adds an `alert` module inside the Spring modular monolith. Browser clients use only `/api/v1/alerts` and `/api/v1/notifications`. The module reads market, stock, portfolio, and research facts through their published application services; it never reaches into another module's repository or entity model.
+
+PostgreSQL owns definitions, evaluations, immutable in-app notifications, delivery attempts, deduplication, episode state, and worker leases. Due rows are claimed transactionally with row locking and `SKIP LOCKED`. The worker is enabled by default, bounded to 50 definitions per poll and two total attempts, and can be disabled for maintenance without disabling definition or inbox access. See [the alert runbook](runbooks/configurable-alerts.md) and [Feature 032](../specs/032-configurable-alerts/plan.md).
+
+## 12. Deliberately absent
 
 Named here so no feature treats their absence as an oversight or as permission.
 
@@ -293,7 +299,7 @@ Named here so no feature treats their absence as an oversight or as permission.
 | Order execution or brokerage integration | Out of product scope; Finvera is decision support, not a trading system |
 | An LLM in any calculation path | Never. Constitution Principle I |
 
-## 12. Changing this document
+## 13. Changing this document
 
 Update it in the same change that alters a boundary, a shared convention, or the
 module map. A convention introduced by one feature and reused by the next belongs

@@ -3,6 +3,7 @@ package com.minhnb.finvera_be;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.minhnb.finvera_be.backtest.config.BacktestWorkerConfig;
+import com.minhnb.finvera_be.alert.config.AlertProperties;
 import com.minhnb.finvera_be.market.repository.MarketCalendarDayRepository;
 import com.minhnb.finvera_be.market.repository.MarketIndexRepository;
 import com.minhnb.finvera_be.market.repository.MarketIndexSnapshotRepository;
@@ -41,6 +42,9 @@ class FinveraBeApplicationTests {
 
 	@Autowired
 	BacktestWorkerConfig.Properties backtestWorkerProperties;
+
+	@Autowired
+	AlertProperties alertProperties;
 
 	@MockitoBean
 	MarketObservationRepository marketObservationRepository;
@@ -180,9 +184,15 @@ class FinveraBeApplicationTests {
 	@MockitoBean com.minhnb.finvera_be.backtest.repository.BacktestMetricRepository backtestMetricRepository;
 	@MockitoBean com.minhnb.finvera_be.backtest.repository.BacktestEntryEventRepository backtestEntryEventRepository;
 	@MockitoBean com.minhnb.finvera_be.backtest.repository.BacktestEvidenceRepository backtestEvidenceRepository;
+	@MockitoBean com.minhnb.finvera_be.alert.repository.AlertDefinitionRepository alertDefinitionRepository;
+	@MockitoBean com.minhnb.finvera_be.alert.repository.AlertEvaluationRepository alertEvaluationRepository;
+	@MockitoBean com.minhnb.finvera_be.alert.repository.AlertNotificationRepository alertNotificationRepository;
+	@MockitoBean com.minhnb.finvera_be.alert.repository.AlertDeliveryAttemptRepository alertDeliveryAttemptRepository;
+	@MockitoBean jakarta.persistence.EntityManager entityManager;
 
 	@DynamicPropertySource
 	static void ownerProperties(DynamicPropertyRegistry registry) {
+		registry.add("finvera.alert.worker.enabled", () -> true);
 		registry.add("finvera.security.owner.id", UUID::randomUUID);
 		registry.add("finvera.security.owner.username", () -> "owner-" + UUID.randomUUID());
 		registry.add("finvera.security.owner.password-hash",
@@ -193,6 +203,9 @@ class FinveraBeApplicationTests {
 	void contextLoads() {
 		assertThat(backtestWorkerProperties.enabled()).isTrue();
 		assertThat(backtestWorkerProperties.concurrency()).isOne();
+		assertThat(alertProperties.enabled()).isTrue();
+		assertThat(alertProperties.batchSize()).isEqualTo(50);
+		assertThat(alertProperties.maxAttempts()).isEqualTo(2);
 	}
 
 }
