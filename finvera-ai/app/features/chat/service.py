@@ -155,9 +155,8 @@ TOOL_DECLARATIONS: List[Dict[str, Any]] = [
         "name": "STRATEGY_SCAN",
         "description": (
             "Quét toàn bộ thị trường tìm các mã cổ phiếu đang kích hoạt tín hiệu giao dịch theo "
-            "chiến lược kỹ thuật định lượng (MOMENTUM, BREAKOUT, TREND_FOLLOWING, PULLBACK, "
-            "RSI_BASED, MACD_BASED, MA_CROSSOVER, MEAN_REVERSION). Trả về danh sách mã cùng "
-            "điểm vào lệnh (entry), cắt lỗ (stopLoss), chốt lời (target1, target2), độ mạnh tín hiệu và mức rủi ro."
+            "chiến lược kỹ thuật định lượng. Trả về danh sách mã cùng điểm vào lệnh (entry), cắt lỗ (stopLoss), "
+            "chốt lời (target1, target2), độ mạnh tín hiệu và mức rủi ro."
         ),
         "parameters": {
             "type": "object",
@@ -165,22 +164,33 @@ TOOL_DECLARATIONS: List[Dict[str, Any]] = [
                 "strategyCode": {
                     "type": "string",
                     "enum": [
+                        "PULLBACK",
                         "MOMENTUM",
                         "BREAKOUT",
-                        "TREND_FOLLOWING",
-                        "PULLBACK",
-                        "RSI_BASED",
-                        "MACD_BASED",
                         "MA_CROSSOVER",
+                        "MACD_BASED",
+                        "RSI_BASED",
                         "MEAN_REVERSION",
+                        "TREND_FOLLOWING",
                     ],
-                    "description": "Mã chiến lược kỹ thuật cần quét (mặc định MOMENTUM)",
+                    "description": (
+                        "BẮT BUỘC chọn chiến lược phù hợp với khẩu vị và mục tiêu của người dùng:\n"
+                        "- PULLBACK: An toàn, rủi ro thấp/ít nhất, mua tại nền giá/hỗ trợ tích lũy, phòng thủ, giữ vốn, cắt lỗ hẹp.\n"
+                        "- MOMENTUM: Lướt sóng đà tăng, dòng tiền mạnh, cổ phiếu khỏe nhất thị trường, mua gia tăng khi tăng mạnh.\n"
+                        "- BREAKOUT: Vượt đỉnh, bứt phá cản/kháng cự, bùng nổ khối lượng giao dịch.\n"
+                        "- MA_CROSSOVER: Chân sóng mới, vừa đảo chiều tăng, tín hiệu sớm từ đường trung bình (Golden Cross, MA cắt nhau).\n"
+                        "- MACD_BASED: Xung lượng đảo chiều, phân kỳ dương MACD hoặc MACD cắt lên Signal.\n"
+                        "- RSI_BASED: Thoát vùng quá bán, phục hồi từ đáy, tín hiệu RSI.\n"
+                        "- MEAN_REVERSION: Bắt đáy cổ phiếu giảm sâu/chiết khấu mạnh xa đường MA (rủi ro cao).\n"
+                        "- TREND_FOLLOWING: Đầu tư theo xu hướng trung và dài hạn, bám trend lớn, nắm giữ theo chu kỳ."
+                    ),
                 },
                 "limit": {
                     "type": "integer",
-                    "description": "Số lượng mã tối đa cần quét (1-20, mặc định 5)",
+                    "description": "Số lượng mã tối đa cần quét (1-20, mặc định 10)",
                 },
             },
+            "required": ["strategyCode"],
         },
     },
     {
@@ -217,7 +227,19 @@ Quy tắc bắt buộc:
 3. Nếu câu hỏi cần nhiều loại dữ liệu (ví dụ vừa giá vừa kỹ thuật), đề xuất nhiều công cụ.
 4. Nếu câu hỏi không thể trả lời bằng bất kỳ công cụ nào ở trên (ví dụ hỏi về thời tiết, hỏi
    ngoài phạm vi tài chính/đầu tư), KHÔNG đề xuất công cụ nào cả.
-5. owner_id KHÔNG bao giờ là một đối số bạn cung cấp — hệ thống tự gắn giá trị đó."""
+5. owner_id KHÔNG bao giờ là một đối số bạn cung cấp — hệ thống tự gắn giá trị đó.
+6. Khi người dùng hỏi câu hỏi tư vấn giao dịch/đầu tư toàn thị trường (không chỉ định mã cụ thể),
+   hãy đề xuất thêm công cụ MARKET để cung cấp bối cảnh thị trường chung (xu hướng VN-Index, độ rộng).
+7. Khi gọi STRATEGY_SCAN, BẮT BUỘC phân tích kỹ mục tiêu tài chính của câu hỏi để chọn strategyCode phù hợp nhất trong 8 chiến lược sau:
+   - PULLBACK: Hỏi về an toàn, rủi ro thấp/ít nhất, mua tại nền/hỗ trợ tích lũy, phòng thủ, giữ vốn, cắt lỗ hẹp.
+   - MOMENTUM: Hỏi về cổ phiếu mạnh/khỏe nhất thị trường, dẫn dắt, dòng tiền lớn, đà tăng mạnh, lướt sóng nhanh (hoặc câu hỏi chung về trading ngắn hạn mà không nêu rõ tiêu chí an toàn).
+   - BREAKOUT: Hỏi về vượt đỉnh, bứt phá cản/kháng cự, bùng nổ khối lượng, đón nhịp tăng tốc.
+   - MA_CROSSOVER: Hỏi về chân sóng mới, vừa đảo chiều tăng, tín hiệu sớm từ đường trung bình (Golden Cross, MA cắt nhau).
+   - MACD_BASED: Hỏi về xung lượng đảo chiều, phân kỳ dương MACD, MACD cắt lên Signal, bắt đầu chu kỳ tăng.
+   - RSI_BASED: Hỏi về hồi phục từ vùng quá bán, RSI bật tăng từ đáy.
+   - MEAN_REVERSION: Hỏi về bắt đáy cổ phiếu giảm sâu/chiết khấu mạnh xa khỏi đường MA (rủi ro cao).
+   - TREND_FOLLOWING: Hỏi về đầu tư theo xu hướng trung và dài hạn, bám trend lớn, nắm giữ theo chu kỳ.
+   Tuyệt đối KHÔNG gán cứng MOMENTUM cho mọi câu hỏi."""
 
 # SYNTHESIS_SYSTEM_INSTRUCTION is imported from app.features.chat.prompts
 
@@ -441,25 +463,34 @@ class ChatOrchestrationService:
         trading_scan_keywords = (
             "TRADING", "LƯỚT SÓNG", "NGẮN HẠN", "TÍN HIỆU TỐT", "TÍN HIỆU MUA",
             "CHIẾN LƯỢC GIAO DỊCH", "BREAKOUT", "VƯỢT ĐỈNH", "BẮT ĐÁY", "PULLBACK",
-            "MOMENTUM", "ĐIỀU CHỈNH", "BẮT XU HƯỚNG"
+            "MOMENTUM", "ĐIỀU CHỈNH", "BẮT XU HƯỚNG",
+            "RỦI RO THẤP", "RỦI RO ÍT", "AN TOÀN", "NỀN GIÁ", "HỖ TRỢ",
+            "MẠNH NHẤT", "DÒNG TIỀN MẠNH", "KHỎE NHẤT", "TĂNG TRƯỞNG MẠNH",
+            "CHÂN SÓNG", "ĐẢO CHIỀU", "TÍCH LŨY", "CHIẾT KHẤU SÂU", "BÙNG NỔ"
         )
         if not matched_symbol and any(k in q_upper for k in trading_scan_keywords):
             strat_code = "MOMENTUM"
-            if any(k in q_upper for k in ("BREAKOUT", "VƯỢT ĐỈNH")):
+            if any(k in q_upper for k in ("BREAKOUT", "VƯỢT ĐỈNH", "BỨT PHÁ", "BÙNG NỔ")):
                 strat_code = "BREAKOUT"
-            elif any(k in q_upper for k in ("PULLBACK", "ĐIỀU CHỈNH")):
+            elif any(k in q_upper for k in ("PULLBACK", "ĐIỀU CHỈNH", "RỦI RO THẤP", "RỦI RO ÍT", "AN TOÀN", "NỀN GIÁ", "HỖ TRỢ", "CẮT LỖ HẸP", "TÍCH LŨY", "GIỮ VỐN", "PHÒNG THỦ")):
                 strat_code = "PULLBACK"
-            elif any(k in q_upper for k in ("BẮT ĐÁY", "MEAN REVERSION")):
+            elif any(k in q_upper for k in ("BẮT ĐÁY", "MEAN REVERSION", "CHIẾT KHẤU SÂU")):
                 strat_code = "MEAN_REVERSION"
-            elif any(k in q_upper for k in ("XU HƯỚNG", "TREND")):
+            elif any(k in q_upper for k in ("XU HƯỚNG", "TREND", "TRUNG HẠN", "DÀI HẠN")):
                 strat_code = "TREND_FOLLOWING"
-            elif "RSI" in q_upper:
+            elif any(k in q_upper for k in ("RSI", "QUÁ BÁN")):
                 strat_code = "RSI_BASED"
-            elif "MACD" in q_upper:
+            elif any(k in q_upper for k in ("MACD", "PHÂN KỲ DƯƠNG")):
                 strat_code = "MACD_BASED"
-            elif any(k in q_upper for k in ("MA", "GIAO CẮT", "CROSS")):
+            elif any(k in q_upper for k in ("MA", "GIAO CẮT", "CROSS", "CHÂN SÓNG", "ĐẢO CHIỀU", "GOLDEN CROSS")):
                 strat_code = "MA_CROSSOVER"
-            proposed.append({"tool_name": "STRATEGY_SCAN", "arguments": {"strategyCode": strat_code, "limit": 5}})
+            elif any(k in q_upper for k in ("MOMENTUM", "DÒNG TIỀN MẠNH", "KHỎE NHẤT", "MẠNH NHẤT", "TĂNG TRƯỞNG MẠNH", "ĐÀ TĂNG")):
+                strat_code = "MOMENTUM"
+
+            if not any(t["tool_name"] == "MARKET" for t in proposed):
+                proposed.insert(0, {"tool_name": "MARKET", "arguments": {}})
+
+            proposed.append({"tool_name": "STRATEGY_SCAN", "arguments": {"strategyCode": strat_code, "limit": 10}})
         elif any(k in q_upper for k in ("LỌC CỔ PHIẾU", "TÌM CỔ PHIẾU", "LỌC MÃ", "MÃ NÀO CÓ", "CỔ PHIẾU CÓ", "TÌM MÃ", "SCREENER", "SCREENING", "DANH SÁCH CỔ PHIẾU", "CỔ PHIẾU NÀO", "CÁC MÃ CÓ", "CỔ PHIẾU THOẢ")):
             proposed.append({"tool_name": "SCREENING", "arguments": {"query": question}})
 
@@ -807,9 +838,10 @@ class ChatOrchestrationService:
                 raw_claims.append(RawStructuredClaim(claimText=f"Chiến lược {strat}", sequenceNo=seq, fieldPath="strategyCode", claimedValue=str(strat)))
 
                 if matches:
-                    for idx, m in enumerate(matches[:5]):
+                    for idx, m in enumerate(matches[:10]):
                         sym = m.get("symbol", "")
                         comp_name = m.get("companyName", "")
+                        exchange = m.get("exchange", "")
                         sig = m.get("signal") or {}
                         direction = sig.get("direction", "NEUTRAL")
                         entry_low = sig.get("entryLow")
@@ -843,7 +875,8 @@ class ChatOrchestrationService:
                         if risk_lvl:
                             details.append(f"rủi ro {risk_lvl}")
 
-                        line = f"- **{sym}** ({comp_name}): {direction}"
+                        exchange_label = f" - Sàn {exchange}" if exchange else ""
+                        line = f"- **{sym}** ({comp_name}{exchange_label}): {direction}"
                         if details:
                             line += " | " + ", ".join(details)
                         scan_lines.append(line)

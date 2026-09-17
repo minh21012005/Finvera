@@ -22,6 +22,7 @@ import com.minhnb.finvera_be.stock.repository.EquityProfileRepository;
 import com.minhnb.finvera_be.stock.repository.TechnicalIndicatorResultRepository;
 import com.minhnb.finvera_be.stock.repository.TechnicalIndicatorValueRepository;
 import com.minhnb.finvera_be.stock.service.strategy.StrategySignalService.SignalDetail;
+import com.minhnb.finvera_be.stock.domain.model.StockTypes.SignalStrength;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -29,6 +30,7 @@ import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -155,7 +157,7 @@ public class StrategyScanService {
                     signal));
         }
 
-        matches.sort(Comparator.comparing(ScanMatch::symbol, Comparator.nullsLast(Comparator.naturalOrder())));
+        matches.sort(QUALITY_RANKING);
         int totalMatchCount = matches.size();
         int fromIndex = Math.min(offset, totalMatchCount);
         int toIndex = Math.min(fromIndex + limit, totalMatchCount);
@@ -163,6 +165,35 @@ public class StrategyScanService {
 
         return new ScanResult(strategyCode, List.copyOf(page), totalMatchCount, limit, offset,
                 excludedForInsufficientHistory, Instant.now());
+    }
+
+    static final Comparator<ScanMatch> QUALITY_RANKING = Comparator
+            .comparing((ScanMatch m) -> m.signal() != null ? signalStrengthRank(m.signal().signalStrength()) : 3)
+            .thenComparing(m -> venueRank(m.exchange()))
+            .thenComparing(m -> m.signal() != null ? m.signal().riskScore() : null, Comparator.nullsLast(Comparator.naturalOrder()))
+            .thenComparing(ScanMatch::symbol, Comparator.nullsLast(Comparator.naturalOrder()));
+
+    private static int signalStrengthRank(SignalStrength s) {
+        if (s == null) {
+            return 3;
+        }
+        return switch (s) {
+            case STRONG -> 0;
+            case MODERATE -> 1;
+            case WEAK -> 2;
+        };
+    }
+
+    private static int venueRank(String venue) {
+        if (venue == null) {
+            return 3;
+        }
+        return switch (venue.toUpperCase(Locale.ROOT)) {
+            case "HOSE" -> 0;
+            case "HNX" -> 1;
+            case "UPCOM" -> 2;
+            default -> 3;
+        };
     }
 
     private static IndicatorCode parseIndicatorCode(String code) {

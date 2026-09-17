@@ -33,6 +33,25 @@ def test_plan_tools_strategy_scan_routing():
     strat_tool3 = next(t for t in tools3 if t["tool_name"] == "STRATEGY_SCAN")
     assert strat_tool3["arguments"]["strategyCode"] == "PULLBACK"
 
+    # Query 4: Risk-averse trading query
+    q4 = "Nên trading cổ phiếu nào ngắn hạn thời điểm hiện tại là tốt nhất, rủi ro ít nhất an toàn nhất"
+    tools4 = service.plan_tools(q4, symbol=None)
+    strat_tool4 = next(t for t in tools4 if t["tool_name"] == "STRATEGY_SCAN")
+    assert strat_tool4["arguments"]["strategyCode"] == "PULLBACK"
+    assert any(t["tool_name"] == "MARKET" for t in tools4)
+
+    # Query 5: Strongest momentum query
+    q5 = "Cổ phiếu nào đang mạnh nhất thị trường, dòng tiền mạnh đà tăng khỏe"
+    tools5 = service.plan_tools(q5, symbol=None)
+    strat_tool5 = next(t for t in tools5 if t["tool_name"] == "STRATEGY_SCAN")
+    assert strat_tool5["arguments"]["strategyCode"] == "MOMENTUM"
+
+    # Query 6: Reversal query
+    q6 = "Mã nào vừa có tín hiệu chân sóng đảo chiều tăng golden cross"
+    tools6 = service.plan_tools(q6, symbol=None)
+    strat_tool6 = next(t for t in tools6 if t["tool_name"] == "STRATEGY_SCAN")
+    assert strat_tool6["arguments"]["strategyCode"] == "MA_CROSSOVER"
+
 
 def test_strategy_scan_validation():
     owner_id = uuid.uuid4()
@@ -92,6 +111,7 @@ def test_offline_synthesize_strategy_scan_with_matches():
     assert "BREAKOUT" in full_answer
     assert "1 mã" in full_answer
     assert "HPG" in full_answer
+    assert "Sàn HOSE" in full_answer
     assert "28.000" in full_answer or "28000" in full_answer
     assert "27.000" in full_answer or "27000" in full_answer
     assert "30.000" in full_answer or "30000" in full_answer
