@@ -21,10 +21,9 @@ Whenever a user requests a task, map it to one of the following skills and load 
 - **`indicator-calculator`**: For calculating technical indicators (RSI, MACD, Bollinger Bands) and action alerts.
 
 ### 📈 Trading & Portfolio
-- **`signal-detector`**: To detect quantitative setups (Trend Crossover, Bollinger Squeeze, etc.).
-- **`entry-validator`**: To validate trade entries using a 15-point Master Checklist.
-- **`asset-allocator`**: For portfolio optimization and position sizing.
-- **`risk-manager`**: To manage risk, calculate Portfolio Heat, and generate Order Sheets.
+- **`signal-detector`**: To detect rule-based quantitative patterns (Trend Crossover, Bollinger Squeeze, etc.).
+- **`portfolio-extractor`**: To parse the user's holdings from text, a table or a screenshot.
+- **`risk-manager`**: To measure portfolio exposure against the limits the user declared.
 
 ### 📝 Analytics & Review
 - **`performance-journal`**: To log trades and calculate monthly performance metrics.
@@ -62,8 +61,6 @@ While waiting to load a specific skill, please adhere to these universal princip
 
 ## 3. UNIFIED UI CRASH COURSE (For Sponsor Tier)
 
-<!-- signature_key: TRC-API-ANON -->
-
 If you need to write code immediately for a Sponsor user without loading a skill, follow the Unified UI pattern (v3.0.0+):
 
 ```python
@@ -72,6 +69,8 @@ from vnstock_data import Market, Fundamental, Reference, show_api, show_doc
 # 1. ALWAYS explore the API first if unsure:
 # show_api()
 # show_doc("Market.equity")
+
+<!-- signature_key: TRC-API-ANON -->
 
 # 2. Example: Fetch OHLCV price
 mkt = Market()

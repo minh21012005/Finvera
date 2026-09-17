@@ -104,6 +104,10 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
 
             <div className="nav-utility-group">
               <header className="session-bar">
+                <NavLink href="/tcbs-renewal" active={isTcbsRenewal} className="live-nav-link">
+                  <Radio className="nav-icon-svg" size={14} />
+                  <span>Dữ liệu Live</span>
+                </NavLink>
                 <span className="user-badge">
                   <span>Phiên riêng tư: {state.session.username}</span>
                 </span>
@@ -181,14 +185,6 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
                   <span>AI <span className="hidden 2xl:inline">Financial </span>Analyst</span>
                 </NavLink>
               </div>
-
-              {/* Nhóm 5: Dữ liệu thời gian thực */}
-              <div className="nav-group">
-                <NavLink href="/tcbs-renewal" active={isTcbsRenewal} className="live-nav-link">
-                  <Radio className="nav-icon-svg" size={14} />
-                  <span>Dữ liệu Live</span>
-                </NavLink>
-              </div>
             </div>
           </div>
         </div>
@@ -226,15 +222,18 @@ function NavLink({
   active,
   className,
   children,
+  title,
 }: {
   href: string;
   active: boolean;
   className?: string;
   children: ReactNode;
+  title?: string;
 }) {
   return (
     <a
       href={href}
+      title={title}
       className={`${className ? `${className} ` : ""}nav-link ${active ? "active" : ""}`.trim()}
       onClick={(event) => {
         event.preventDefault();
