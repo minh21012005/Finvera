@@ -109,8 +109,7 @@ class BackendToolClient:
                     scan_params = dict(params)
                     strategy_code = arguments.get("strategy_code") or arguments.get("strategyCode") or "MOMENTUM"
                     scan_params["strategyCode"] = str(strategy_code).upper()
-                    if arguments.get("limit"):
-                        scan_params["limit"] = str(arguments["limit"])
+                    scan_params["limit"] = str(arguments.get("limit") or 10)
                     resp = await client.post(
                         f"{self.base_url}/tools/strategies/scan",
                         params=scan_params,

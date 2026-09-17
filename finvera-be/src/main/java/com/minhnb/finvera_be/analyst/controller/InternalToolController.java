@@ -146,7 +146,7 @@ public class InternalToolController {
     public ResponseEntity<ScanResponse> scanStrategy(
             @RequestParam(name = "ownerId", required = false) UUID ownerId,
             @RequestParam(name = "strategyCode", required = false, defaultValue = "MOMENTUM") StrategyCode strategyCode,
-            @RequestParam(name = "limit", required = false, defaultValue = "5") int limit) {
+            @RequestParam(name = "limit", required = false, defaultValue = "10") int limit) {
         requireOwner(ownerId);
         return ResponseEntity.ok(toolDelegateService.scanStrategy(strategyCode, limit));
     }
