@@ -49,7 +49,6 @@ services:
     environment:
       - SERVER_ADDRESS=0.0.0.0
       - FINVERA_DATABASE_URL=jdbc:postgresql://host.docker.internal:5432/finvera
-      - FINVERA_OWNER_PASSWORD_HASH=$$2a$$12$$KV/amMySA49xrnRylSWR7OcSY1sKtTiocoM3.FIAk8casEzMam/Ue
       - FINVERA_RESEARCH_AI_SERVICE_URL=http://finvera-ai:8000/internal/v1
       - FINVERA_ANALYST_AI_SERVICE_URL=http://finvera-ai:8000
     depends_on:

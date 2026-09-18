@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  deleteAllBacktests,
+  deleteBacktest,
   getBacktest,
   getEquity,
   getEvents,
@@ -15,7 +17,7 @@ import { BacktestCreateForm } from "./backtest-create-form";
 import { BacktestEquityChart } from "./backtest-equity-chart";
 import { BacktestLedger } from "./backtest-ledger";
 import { BacktestResult } from "./backtest-result";
-import { History, BarChart3 } from "lucide-react";
+import { History, BarChart3, Trash2 } from "lucide-react";
 
 export function BacktestPage() {
   const [runs, setRuns] = useState<RunSummary[]>([]);
@@ -25,6 +27,47 @@ export function BacktestPage() {
   const [equity, setEquity] = useState<EquityPoint[]>([]);
   const [events, setEvents] = useState<EntryEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
+
+  const handleDelete = useCallback(async (id: string) => {
+    try {
+      setDeletingId(id);
+      await deleteBacktest(id);
+      setRuns((current) => current.filter((r) => r.id !== id));
+      if (selected === id) {
+        setSelected(null);
+        setDetail(null);
+        setTrades([]);
+        setEquity([]);
+        setEvents([]);
+      }
+      setConfirmDeleteId(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Không xóa được backtest");
+    } finally {
+      setDeletingId(null);
+    }
+  }, [selected]);
+
+  const handleDeleteAll = useCallback(async () => {
+    try {
+      setDeletingId("ALL");
+      await deleteAllBacktests();
+      setRuns([]);
+      setSelected(null);
+      setDetail(null);
+      setTrades([]);
+      setEquity([]);
+      setEvents([]);
+      setConfirmDeleteAll(false);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Không xóa được tất cả backtest");
+    } finally {
+      setDeletingId(null);
+    }
+  }, []);
 
   const loadList = useCallback(async () => {
     try {
@@ -113,7 +156,40 @@ export function BacktestPage() {
                 <History size={15} className="text-cyan-400" />
                 <span>Lịch sử run</span>
               </h2>
-              <span className="text-xs text-slate-400 font-mono">{runs.length} lượt</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-400 font-mono">{runs.length} lượt</span>
+                {runs.length > 0 && (
+                  confirmDeleteAll ? (
+                    <div className="flex items-center gap-1.5 bg-rose-950/80 border border-rose-700/80 px-2 py-0.5 rounded text-[11px]">
+                      <span className="text-rose-300 font-semibold">Xóa hết?</span>
+                      <button
+                        type="button"
+                        onClick={handleDeleteAll}
+                        disabled={deletingId === "ALL"}
+                        className="text-rose-300 font-bold hover:underline"
+                      >
+                        Có
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteAll(false)}
+                        className="text-slate-400 hover:text-white"
+                      >
+                        Hủy
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteAll(true)}
+                      className="text-[11px] text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 px-1.5 py-0.5 rounded transition-colors"
+                      title="Xóa tất cả các lượt chạy"
+                    >
+                      Xóa tất cả
+                    </button>
+                  )
+                )}
+              </div>
             </div>
 
             {runs.length === 0 ? (
@@ -122,25 +198,73 @@ export function BacktestPage() {
               </p>
             ) : (
               <ul className="space-y-2 max-h-[580px] overflow-y-auto pr-1">
-                {runs.map((run) => (
-                  <li key={run.id}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDetail(null);
-                        setSelected(run.id);
-                      }}
-                      aria-current={selected === run.id}
-                      className={`w-full text-left p-3 rounded-lg border transition-all text-xs font-mono ${
-                        selected === run.id
-                          ? "border-cyan-500/80 bg-cyan-950/30 text-cyan-200 shadow-md shadow-cyan-950/50"
-                          : "border-slate-800 bg-slate-950/50 text-slate-300 hover:border-slate-700 hover:bg-slate-900/80"
-                      }`}
-                    >
-                      {run.symbol} · {run.strategyCode} · {run.status} · {run.processedSessions}/{run.totalSessions ?? "?"}
-                    </button>
-                  </li>
-                ))}
+                {runs.map((run) => {
+                  const isSelected = selected === run.id;
+                  const isConfirming = confirmDeleteId === run.id;
+                  const isDeleting = deletingId === run.id;
+
+                  return (
+                    <li key={run.id} className="relative group">
+                      <div
+                        className={`flex items-center rounded-lg border transition-all ${
+                          isSelected
+                            ? "border-cyan-500/80 bg-cyan-950/30 text-cyan-200 shadow-md shadow-cyan-950/50"
+                            : "border-slate-800 bg-slate-950/50 text-slate-300 hover:border-slate-700 hover:bg-slate-900/80"
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDetail(null);
+                            setSelected(run.id);
+                          }}
+                          aria-current={isSelected}
+                          className="flex-1 min-w-0 text-left p-3 text-xs font-mono"
+                        >
+                          {run.symbol} · {run.strategyCode} · {run.status} · {run.processedSessions}/{run.totalSessions ?? "?"}
+                        </button>
+
+                        <div className="pr-2 flex-shrink-0">
+                          {isConfirming ? (
+                            <div className="flex items-center gap-1.5 bg-rose-950/90 border border-rose-700 px-1.5 py-0.5 rounded text-[11px]">
+                              <button
+                                type="button"
+                                onClick={() => void handleDelete(run.id)}
+                                disabled={isDeleting}
+                                className="text-rose-300 font-bold hover:underline"
+                                title="Xác nhận xóa"
+                              >
+                                Xóa
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmDeleteId(null)}
+                                className="text-slate-400 hover:text-white"
+                                title="Hủy"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setConfirmDeleteId(run.id);
+                              }}
+                              disabled={isDeleting}
+                              aria-label="Xóa lượt chạy"
+                              title="Xóa lượt chạy này"
+                              className="p-1.5 rounded text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors opacity-70 group-hover:opacity-100"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </section>
@@ -150,7 +274,7 @@ export function BacktestPage() {
         <div className="xl:col-span-8 min-w-0">
           {detail ? (
             <>
-              <BacktestResult run={detail} />
+              <BacktestResult run={detail} onDelete={() => void handleDelete(detail.id)} />
               {detail.status === "COMPLETED" && (
                 <>
                   <BacktestEquityChart points={equity} />

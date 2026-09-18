@@ -41,7 +41,7 @@ public class BacktestExecutionService {
                     .anyMatch(s->!market.isKnownTradingSession(run.getVenue(),s.bar().tradingDate())))
                 throw new Withheld("INCOHERENT_TRADING_CALENDAR");
             List<BacktestEngineV1.Session> sessions=snapshot.sessions().stream().map(s->{var x=s.evaluation();
-                if(x.status()==EntryStatus.WITHHELD)throw new Withheld(x.reasonCode());
+                if(s.reporting() && x.status()==EntryStatus.WITHHELD)throw new Withheld(x.reasonCode());
                 var signal=x.status()==EntryStatus.SIGNAL?new BacktestEngineV1.Signal(true,x.levels().stopLoss(),x.levels().target1(),
                         x.levels().entryHigh().subtract(x.levels().entryLow()).multiply(new java.math.BigDecimal("2"))):new BacktestEngineV1.Signal(false,null,null,null);
                 return new BacktestEngineV1.Session(s.bar(),s.reporting(),signal);}).toList();

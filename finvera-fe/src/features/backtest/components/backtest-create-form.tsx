@@ -36,7 +36,18 @@ export function BacktestCreateForm({ onCreated }: { onCreated: (run: RunSummary)
         })
       );
     } catch (x) {
-      setError(x instanceof Error ? x.message : "Không thể tạo backtest");
+      const msg = x instanceof Error ? x.message : "Không thể tạo backtest";
+      if (msg.includes("NON_TRADING_DATE")) {
+        setError("Ngày bắt đầu hoặc ngày kết thúc không phải là ngày có phiên giao dịch (rơi vào Thứ 7, Chủ Nhật hoặc ngày nghỉ Lễ/Tết). Vui lòng chọn một ngày mở cửa sàn thực tế (Thứ 2 – Thứ 6, ví dụ: 2024-01-02 đến 2026-09-17).");
+      } else if (msg.includes("INCOMPLETE_END_SESSION")) {
+        setError("Phiên giao dịch ngày kết thúc chưa đóng cửa hoàn tất. Vui lòng chọn ngày kết thúc là ngày giao dịch trước đó (sau 15:00).");
+      } else if (msg.includes("INVALID_DATE_RANGE")) {
+        setError("Khoảng ngày không hợp lệ. Ngày kết thúc phải sau ngày bắt đầu, không quá 10 năm và không vượt quá hôm nay.");
+      } else if (msg.includes("SYMBOL_NOT_FOUND")) {
+        setError("Không tìm thấy mã cổ phiếu trong hệ thống. Vui lòng kiểm tra lại mã (ví dụ: FPT, HPG, VNM, SSI).");
+      } else {
+        setError(msg);
+      }
     } finally {
       setBusy(false);
     }
@@ -74,6 +85,7 @@ export function BacktestCreateForm({ onCreated }: { onCreated: (run: RunSummary)
             name="symbol"
             pattern="[A-Za-z0-9]{1,10}"
             required
+            defaultValue="FPT"
             placeholder="FPT"
             className="tx-field-input w-full font-mono uppercase font-bold text-cyan-400"
           />
@@ -81,12 +93,26 @@ export function BacktestCreateForm({ onCreated }: { onCreated: (run: RunSummary)
 
         <label className="block">
           <span className="text-xs font-semibold text-slate-300 mb-1.5 block">Từ ngày</span>
-          <input name="start" type="date" required className="tx-field-input w-full font-mono text-xs" />
+          <input
+            name="start"
+            type="date"
+            defaultValue="2024-01-02"
+            required
+            className="tx-field-input w-full font-mono text-xs"
+          />
+          <span className="text-[10px] text-slate-500 mt-1 block">Thứ 2–Thứ 6, trừ Lễ/Tết</span>
         </label>
 
         <label className="block">
           <span className="text-xs font-semibold text-slate-300 mb-1.5 block">Đến ngày</span>
-          <input name="end" type="date" required className="tx-field-input w-full font-mono text-xs" />
+          <input
+            name="end"
+            type="date"
+            defaultValue="2026-09-17"
+            required
+            className="tx-field-input w-full font-mono text-xs"
+          />
+          <span className="text-[10px] text-slate-500 mt-1 block">Phiên gần nhất đã đóng cửa</span>
         </label>
       </div>
 

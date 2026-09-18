@@ -8,7 +8,43 @@ const COST_FIELDS: Array<[keyof Omit<CostPolicy, "excluded">, string]> = [
   ["exitSlippageRate", "Trượt giá bán"],
 ];
 
-export function BacktestResult({ run }: { run: RunDetail }) {
+interface WarningDetail {
+  title: string;
+  desc: string;
+  icon: string;
+}
+
+const WARNING_DEFINITIONS: Record<string, WarningDetail> = {
+  COSTS_EXCLUDED: {
+    title: "Chưa trừ chi phí giao dịch & thuế",
+    desc: "Mô phỏng chạy với giả định 0% phí môi giới, 0% thuế và 0% trượt giá. Kết quả phản ánh lợi nhuận gộp (Gross Return); lợi nhuận thực tế trên sàn sẽ thấp hơn do phát sinh chi phí.",
+    icon: "⚡",
+  },
+  CURRENT_MARKET_LOT_APPLIED_HISTORICALLY: {
+    title: "Áp dụng quy chuẩn lô 100 cổ phiếu hiện hành",
+    desc: "Khối lượng vào lệnh luôn được làm tròn theo bội số 100 cổ phiếu (chuẩn sàn HOSE/HNX hiện hành) cho toàn bộ chu kỳ mô phỏng.",
+    icon: "📦",
+  },
+  SURVIVORSHIP_BIAS_NOT_ELIMINATED: {
+    title: "Thiên lệch sống sót (Survivorship Bias)",
+    desc: "Mô phỏng chạy trên cổ phiếu đang niêm yết hiện hành, chưa tính đến các mã từng bị hủy niêm yết hoặc phá sản trong quá khứ.",
+    icon: "🛡️",
+  },
+  SUSPENSION_DELISTING_COVERAGE_LIMITED: {
+    title: "Giới hạn dữ liệu ngừng giao dịch đột xuất",
+    desc: "Dữ liệu lịch sử sử dụng các phiên giao dịch thực tế từ Sở; tự động bỏ qua các phiên không phát sinh khớp lệnh.",
+    icon: "⏱️",
+  },
+  PROVIDER_ADJUSTED_EXECUTION_BASIS: {
+    title: "Khớp lệnh trên nền giá điều chỉnh kỹ thuật (Adjusted OHLC)",
+    desc: "Chuỗi giá đã được điều chỉnh sau chia cổ tức/thưởng cổ phiếu để các chỉ báo kỹ thuật (EMA, RSI) hoạt động chuẩn xác, không bị gãy đồ thị.",
+    icon: "📈",
+  },
+};
+
+import { Trash2 } from "lucide-react";
+
+export function BacktestResult({ run, onDelete }: { run: RunDetail; onDelete?: () => void }) {
   const isCompleted = run.status === "COMPLETED";
   const isRunning = run.status === "RUNNING";
 
@@ -38,8 +74,21 @@ export function BacktestResult({ run }: { run: RunDetail }) {
             · {run.processedSessions}/{run.totalSessions ?? "?"} phiên
           </p>
         </div>
-        <div className="text-xs text-slate-400 font-mono">
-          Strategy: <span className="text-cyan-400 font-bold">{run.strategyCode}</span>
+        <div className="flex items-center gap-3">
+          <div className="text-xs text-slate-400 font-mono">
+            Strategy: <span className="text-cyan-400 font-bold">{run.strategyCode}</span>
+          </div>
+          {onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-800/80 hover:bg-rose-950/40 text-slate-400 hover:text-rose-300 border border-slate-700/60 hover:border-rose-800/60 text-xs transition-colors"
+              title="Xóa lượt chạy này"
+            >
+              <Trash2 size={12} />
+              <span>Xóa</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -49,11 +98,41 @@ export function BacktestResult({ run }: { run: RunDetail }) {
         </p>
       )}
 
-      {run.warnings.map((warning) => (
-        <p key={warning} role="status" className="p-3 rounded-lg bg-amber-950/30 border border-amber-800/50 text-xs text-amber-300">
-          Cảnh báo: {warning}
-        </p>
-      ))}
+      {run.warnings.length > 0 && (
+        <div className="rounded-xl bg-slate-950/50 border border-slate-800 p-4 space-y-2.5">
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400/90 pb-1">
+            <span>⚠️</span>
+            <span>Giả định & Lưu ý phương pháp luận ({run.warnings.length})</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+            {run.warnings.map((warning) => {
+              const def = WARNING_DEFINITIONS[warning] ?? {
+                title: warning,
+                desc: "Lưu ý định lượng từ hệ thống backtest.",
+                icon: "⚠️",
+              };
+              return (
+                <div
+                  key={warning}
+                  role="status"
+                  className="flex items-start gap-2.5 p-3 rounded-lg bg-slate-900/70 border border-slate-800/80 text-xs hover:border-slate-700 transition-colors"
+                >
+                  <span className="text-base leading-none pt-0.5 select-none">{def.icon}</span>
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-slate-200">{def.title}</span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                        Cảnh báo: {warning}
+                      </span>
+                    </div>
+                    <p className="text-slate-400 leading-relaxed text-[11px]">{def.desc}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div>
         <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider mb-3">Chỉ số</h3>
@@ -84,6 +163,11 @@ export function BacktestResult({ run }: { run: RunDetail }) {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+        {run.metrics.some((m) => m.reasonCode === "NO_CLOSED_TRADES") && (
+          <div className="mt-3 p-3 rounded-lg bg-slate-950/60 border border-slate-800 text-xs text-slate-300">
+            <span className="text-cyan-400 font-semibold">ℹ️ Lưu ý về lượt chạy 0 lệnh:</span> Chiến lược không xuất hiện tín hiệu kích hoạt vị thế trong chu kỳ này. Theo chuẩn định lượng nghiêm ngặt, các chỉ số tỷ lệ (Win Rate, Profit Factor, Average Return) được đánh dấu <code>UNAVAILABLE (NO_CLOSED_TRADES)</code> và Sharpe Ratio là <code>UNAVAILABLE (ZERO_RETURN_VARIANCE)</code> để tránh chia cho 0 hoặc ngụy tạo số liệu.
           </div>
         )}
       </div>

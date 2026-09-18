@@ -18,6 +18,14 @@ public interface BacktestRunRepository extends JpaRepository<BacktestRunEntity,U
     Optional<BacktestRunEntity> findByOwnerIdAndIdempotencyKey(UUID ownerId,String idempotencyKey);
     Page<BacktestRunEntity> findAllByOwnerIdOrderByCreatedAtDescIdDesc(UUID ownerId,Pageable pageable);
 
+    @Modifying(clearAutomatically=true,flushAutomatically=true)
+    @Query(value="delete from backtest_run where id=:id and owner_id=:ownerId",nativeQuery=true)
+    int deleteByIdAndOwnerId(@Param("id") UUID id,@Param("ownerId") UUID ownerId);
+
+    @Modifying(clearAutomatically=true,flushAutomatically=true)
+    @Query(value="delete from backtest_run where owner_id=:ownerId",nativeQuery=true)
+    int deleteAllByOwnerId(@Param("ownerId") UUID ownerId);
+
     @Query("select r.id from BacktestRunEntity r where r.status='QUEUED' order by r.createdAt,r.id")
     List<UUID> findQueuedIds(Pageable pageable);
 

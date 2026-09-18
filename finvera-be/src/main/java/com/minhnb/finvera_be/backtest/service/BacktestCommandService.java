@@ -50,6 +50,17 @@ public class BacktestCommandService {
         var run=new BacktestRunEntity(UUID.randomUUID(),owner,key==null||key.isBlank()?null:key,request.strategyCode().name(),request.symbol(),instrument.instrumentId(),instrument.venue(),request.startDate(),request.endDate(),assumptions,clock.instant(),clock.instant());
         runs.save(run);events.publishEvent(new RunQueued(run.getId()));return map(run);
     }
+    @Transactional
+    public void delete(UUID id) {
+        UUID owner = owners.getAuthenticatedOwnerId();
+        int affected = runs.deleteByIdAndOwnerId(id, owner);
+        if (affected == 0) throw new BacktestExceptions.NotFound();
+    }
+    @Transactional
+    public void deleteAll() {
+        UUID owner = owners.getAuthenticatedOwnerId();
+        runs.deleteAllByOwnerId(owner);
+    }
     static RunSummary map(BacktestRunEntity r){return new RunSummary(r.getId(),r.getStatus(),com.minhnb.finvera_be.stock.domain.model.StockTypes.StrategyCode.valueOf(r.getStrategyCode()),r.getSymbol(),r.getReportingStart(),r.getReportingEnd(),r.getProcessedSessions(),r.getTotalSessions(),r.getReasonCode(),r.getCreatedAt(),r.getCompletedAt());}
     private static boolean sameRequest(BacktestRunEntity r,CreateRequest q,BigDecimal initial,BigDecimal risk,BigDecimal aggregate,boolean excluded,BigDecimal ef,BigDecimal xf,BigDecimal tax,BigDecimal es,BigDecimal xs){return r.getStrategyCode().equals(q.strategyCode().name())&&r.getSymbol().equals(q.symbol())&&r.getReportingStart().equals(q.startDate())&&r.getReportingEnd().equals(q.endDate())&&r.getInitialCapitalVnd().compareTo(initial)==0&&r.getRiskPerTrancheRate().compareTo(risk)==0&&r.getMaxAggregateOpenRiskRate().compareTo(aggregate)==0&&r.isCostsExcluded()==excluded&&r.getEntryFeeRate().compareTo(ef)==0&&r.getExitFeeRate().compareTo(xf)==0&&r.getSellTaxRate().compareTo(tax)==0&&r.getEntrySlippageRate().compareTo(es)==0&&r.getExitSlippageRate().compareTo(xs)==0;}
     private static BigDecimal decimal(String x){try{return new BigDecimal(x);}catch(Exception e){throw new BacktestExceptions.Invalid("INVALID_DECIMAL");}}

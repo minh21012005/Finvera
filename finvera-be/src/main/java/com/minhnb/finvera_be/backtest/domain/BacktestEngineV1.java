@@ -61,7 +61,7 @@ public final class BacktestEngineV1 {
             }
             if (pending!=null && session.reporting()) {
                 BigDecimal effectiveCandidate=b.rawOpen().multiply(ONE.add(a.costs().entrySlippageRate(),MC),MC);
-                if (pending.signal().stop().compareTo(effectiveCandidate)>=0) {
+                if (pending.signal().stop().compareTo(effectiveCandidate)>=0 || pending.signal().stop().compareTo(b.rawOpen())>=0) {
                     events.add(new Event(++eventSequence,pending.signalDate(),b.tradingDate(),EntryOutcome.CANCELLED,
                             "EXECUTION_PRICE_UNAVAILABLE",(short)open.size(),cash,null));
                     pending=null;

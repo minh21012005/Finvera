@@ -19,6 +19,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 @Component
 public class BacktestWorker {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(BacktestWorker.class);
     private final BacktestRunRepository runs;
     private final BacktestExecutionService execution;
     private final ExecutorService executor;
@@ -96,6 +97,7 @@ public class BacktestWorker {
             execution.execute(id);
             runs.findById(id).ifPresent(metrics::terminal);
         } catch (Exception exception) {
+            log.error("Backtest execution failed for run: {}", id, exception);
             tx.executeWithoutResult(ignored -> {
                 var run = runs.findById(id).orElse(null);
                 if (run != null && run.getStatus() == RunStatus.RUNNING) {

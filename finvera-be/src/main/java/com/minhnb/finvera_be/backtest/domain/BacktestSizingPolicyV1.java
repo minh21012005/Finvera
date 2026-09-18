@@ -27,11 +27,22 @@ public final class BacktestSizingPolicyV1 {
         BigDecimal remaining = cap.subtract(used, MC).max(BigDecimal.ZERO);
         BigDecimal tranche = equity.multiply(assumptions.riskPerTrancheRate(), MC);
         BigDecimal budget = tranche.min(remaining);
-        if (budget.signum() <= 0) return new Decision(null, remaining, "AGGREGATE_RISK_EXHAUSTED");
+        BigDecimal sizedEquity = equity.setScale(6, RoundingMode.HALF_EVEN);
+        BigDecimal sizedCash = cash.max(BigDecimal.ZERO).setScale(6, RoundingMode.HALF_EVEN);
+        BigDecimal sizedEntry = rawEntry.setScale(6, RoundingMode.HALF_EVEN);
+        BigDecimal sizedStop = stop.setScale(6, RoundingMode.HALF_EVEN);
+        BigDecimal sizedBudget = budget.setScale(6, RoundingMode.DOWN);
+        if (sizedBudget.signum() <= 0) return new Decision(null, remaining, "AGGREGATE_RISK_EXHAUSTED");
+        if (sizedStop.compareTo(sizedEntry) >= 0) return new Decision(null, remaining, "EXECUTION_PRICE_UNAVAILABLE");
+
         var c = assumptions.costs();
-        var costs = new PositionSizingV1.Costs(c.entryFeeRate(), c.exitFeeRate(), c.sellTaxRate(),
-                c.entrySlippageRate(), c.exitSlippageRate());
-        var result = PositionSizingV1.calculate(new PositionSizingV1.Input(equity, cash, rawEntry, stop, budget,
+        var costs = new PositionSizingV1.Costs(
+                c.entryFeeRate().setScale(8, RoundingMode.HALF_EVEN),
+                c.exitFeeRate().setScale(8, RoundingMode.HALF_EVEN),
+                c.sellTaxRate().setScale(8, RoundingMode.HALF_EVEN),
+                c.entrySlippageRate().setScale(8, RoundingMode.HALF_EVEN),
+                c.exitSlippageRate().setScale(8, RoundingMode.HALF_EVEN));
+        var result = PositionSizingV1.calculate(new PositionSizingV1.Input(sizedEquity, sizedCash, sizedEntry, sizedStop, sizedBudget,
                 costs, null, null, null, null, null, lotSize));
         return new Decision(result, remaining, result.calculated() ? null : "BELOW_STANDARD_LOT");
     }

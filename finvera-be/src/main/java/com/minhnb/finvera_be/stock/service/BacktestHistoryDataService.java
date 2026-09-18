@@ -61,11 +61,29 @@ public class BacktestHistoryDataService {
             fingerprintParts.add("I:"+r.getId());
         }
         List<HistoricalSession> sessions=new ArrayList<>(); List<DailyBarPoint> recent=new ArrayList<>();
+        List<com.minhnb.finvera_be.stock.domain.technical.TechnicalIndicatorsV1.TechnicalBar> technicalBars = new ArrayList<>();
+        com.minhnb.finvera_be.stock.domain.technical.TechnicalIndicatorsV1 technicalEngine = new com.minhnb.finvera_be.stock.domain.technical.TechnicalIndicatorsV1();
         LocalDate priorDate=null;
         for(var b:barRows){
             if(b.getHighPrice()==null||b.getLowPrice()==null||b.getClosePrice()==null
                     ||b.getAdjustmentStatus()==null||b.getSource()==null||b.getObservedAt()==null||b.getAcceptedAt()==null)
                 return unavailable("INCOHERENT_PRICE_HISTORY");
+            technicalBars.add(new com.minhnb.finvera_be.stock.domain.technical.TechnicalIndicatorsV1.TechnicalBar(
+                    b.getTradingDate(), b.getClosePrice(), b.getHighPrice(), b.getLowPrice(),
+                    b.getVolume() == null ? 0L : b.getVolume()));
+            if(!indicators.containsKey(b.getTradingDate())){
+                var computed = technicalEngine.compute(technicalBars);
+                Map<IndicatorCode, IndicatorSnapshot> computedMap = new EnumMap<>(IndicatorCode.class);
+                for(var ind : computed.indicators()){
+                    Map<IndicatorComponent, BigDecimal> comps = new EnumMap<>(IndicatorComponent.class);
+                    for(var c : ind.components()){
+                        comps.put(c.componentCode(), c.value());
+                    }
+                    computedMap.put(ind.indicatorCode(), new IndicatorSnapshot(ind.applicability(), Map.copyOf(comps), ind.reasonCode()));
+                    fingerprintParts.add("C:" + b.getTradingDate() + ":" + ind.indicatorCode() + ":" + ind.inputSetHash());
+                }
+                indicators.put(b.getTradingDate(), computedMap);
+            }
             recent.add(new DailyBarPoint(b.getTradingDate(),b.getClosePrice(),b.getHighPrice(),b.getLowPrice()));
             if(recent.size()>21)recent.remove(0);
             var input=new StrategySignalV1.StrategyInputs(b.getClosePrice(),indicators.getOrDefault(b.getTradingDate(),Map.of()),

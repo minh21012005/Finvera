@@ -6,7 +6,8 @@ import * as api from "./api/backtest";
 vi.mock("./api/backtest", async () => {
   const actual = await vi.importActual<typeof import("./api/backtest")>("./api/backtest");
   return { ...actual, listBacktests: vi.fn(), getBacktest: vi.fn(), getTrades: vi.fn(),
-    getEquity: vi.fn(), getEvents: vi.fn(), createBacktest: vi.fn() };
+    getEquity: vi.fn(), getEvents: vi.fn(), createBacktest: vi.fn(),
+    deleteBacktest: vi.fn(), deleteAllBacktests: vi.fn() };
 });
 
 const run: api.RunSummary = {
@@ -109,5 +110,17 @@ describe("BacktestPage", () => {
     vi.mocked(api.listBacktests).mockResolvedValue({ items: [], total: 0, limit: 100, offset: 0 });
     render(<BacktestPage />);
     expect(await screen.findByText("Chưa có backtest.")).toBeVisible();
+  });
+
+  it("deletes a backtest run and removes it from the list", async () => {
+    vi.mocked(api.deleteBacktest).mockResolvedValue(undefined);
+    render(<BacktestPage />);
+    const deleteButton = await screen.findByRole("button", { name: "Xóa lượt chạy" });
+    fireEvent.click(deleteButton);
+
+    const confirmButton = await screen.findByRole("button", { name: "Xóa" });
+    fireEvent.click(confirmButton);
+
+    await waitFor(() => expect(api.deleteBacktest).toHaveBeenCalledWith("00000000-0000-0000-0000-000000000001"));
   });
 });
