@@ -4357,6 +4357,27 @@ tbody th {
   white-space: nowrap;
 }
 
+.company-cell,
+.company-name-cell {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (min-width: 1280px) {
+  .company-cell,
+  .company-name-cell {
+    max-width: 220px;
+  }
+}
+
+.company-name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .ai-rating-pill {
   display: inline-flex;
   align-items: center;

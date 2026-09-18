@@ -117,7 +117,11 @@ export function WatchlistItemTable({ items, onRemove }: WatchlistItemTableProps)
                     {item.symbol}
                   </button>
                 </td>
-                <td className="company-name-cell font-semibold text-slate-200">{item.companyName}</td>
+                <td className="company-name-cell font-semibold text-slate-200" title={item.companyName}>
+                  <span className="company-name-text block truncate max-w-[180px] xl:max-w-[220px]">
+                    {item.companyName}
+                  </span>
+                </td>
                 <td className="text-right font-mono font-bold text-slate-100">
                   {formatPrice(item.currentPrice)}
                 </td>

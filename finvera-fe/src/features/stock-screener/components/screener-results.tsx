@@ -60,7 +60,11 @@ export function ScreenerResults({ result }: { result: ScreenResponse }) {
                       {match.symbol}
                     </button>
                   </th>
-                  <td className="company-cell font-semibold text-slate-200">{match.companyName}</td>
+                  <td className="company-cell font-semibold text-slate-200" title={match.companyName}>
+                    <span className="company-name-text block truncate max-w-[180px] xl:max-w-[220px]">
+                      {match.companyName}
+                    </span>
+                  </td>
                   <td className="text-center"><span className="venue-tag">{match.exchange}</span></td>
                   <td className="text-slate-300 text-xs">{match.sectorName ?? "—"}</td>
                   <td>

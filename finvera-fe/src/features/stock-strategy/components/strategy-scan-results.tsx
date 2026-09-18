@@ -79,7 +79,11 @@ export function StrategyScanResults({ result, onPageChange, loading = false }: S
                           {match.symbol}
                         </button>
                       </th>
-                      <td className="company-cell font-semibold text-slate-200">{match.companyName}</td>
+                      <td className="company-cell font-semibold text-slate-200" title={match.companyName}>
+                        <span className="company-name-text block truncate max-w-[180px] xl:max-w-[220px]">
+                          {match.companyName}
+                        </span>
+                      </td>
                       <td className="text-center"><span className="venue-tag">{match.exchange}</span></td>
                       <td className="text-right font-mono text-cyan-400 font-semibold">
                         {formatDecimal(match.signal.entryLow)} – {formatDecimal(match.signal.entryHigh)}
