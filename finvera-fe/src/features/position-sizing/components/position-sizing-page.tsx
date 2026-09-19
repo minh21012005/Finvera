@@ -19,6 +19,10 @@ import {
   Lock,
   Layers,
   Sparkles,
+  Milestone,
+  Target,
+  ArrowUpRight,
+  ShieldCheck,
 } from "lucide-react";
 
 const emptyCosts = {
@@ -27,6 +31,65 @@ const emptyCosts = {
   sellTaxRate: "",
   entrySlippageRate: "",
   exitSlippageRate: "",
+};
+
+const SIZING_WARNING_DEFINITIONS: Record<string, { title: string; desc: string }> = {
+  COSTS_EXCLUDED: {
+    title: "Đã loại trừ toàn bộ chi phí giao dịch & trượt giá",
+    desc: "Tính toán phản ánh lợi nhuận gộp (Gross). Thực tế trên sàn sẽ phát sinh phí môi giới, thuế bán và trượt giá.",
+  },
+  ENTRY_FEE_EXCLUDED: {
+    title: "Chưa tính phí môi giới mua",
+    desc: "Chi phí mua thực tế có thể cao hơn một chút do phí CTCK.",
+  },
+  EXIT_FEE_EXCLUDED: {
+    title: "Chưa tính phí môi giới bán",
+    desc: "Tiền thu về khi đóng lệnh thực tế sẽ bị trừ phí CTCK.",
+  },
+  SELL_TAX_EXCLUDED: {
+    title: "Chưa tính thuế bán chứng khoán (0.1%)",
+    desc: "Thuế chuyển nhượng 0.1% sẽ được khấu trừ tự động khi bán.",
+  },
+  ENTRY_SLIPPAGE_EXCLUDED: {
+    title: "Chưa tính trượt giá khi mua",
+    desc: "Lệnh có thể khớp ở mức giá thực tế cao hơn giá kỳ vọng.",
+  },
+  EXIT_SLIPPAGE_EXCLUDED: {
+    title: "Chưa tính trượt giá khi bán",
+    desc: "Lệnh thoát có thể khớp ở mức giá thực tế thấp hơn giá kỳ vọng.",
+  },
+};
+
+const SIZING_REASON_DEFINITIONS: Record<string, string> = {
+  BELOW_STANDARD_LOT: "Khối lượng cho phép nhỏ hơn 1 lô tối thiểu (100 cp) theo quy định sàn",
+  MARKET_LOT_RULE_UNAVAILABLE: "Mã chứng khoán không nằm trong danh mục lô chẵn hoặc chưa có quy định",
+  PORTFOLIO_DATA_UNAVAILABLE: "Không truy xuất được dữ liệu danh mục của tài khoản",
+  SIGNAL_NOT_CURRENT: "Tín hiệu đã quá hạn hoặc không còn hiệu lực",
+};
+
+const CONSTRAINT_NAMES: Record<string, { label: string; desc: string }> = {
+  RISK_BUDGET: {
+    label: "Ngân sách rủi ro",
+    desc: "Khống chế số tiền lỗ tối đa nếu chạm Stop Loss",
+  },
+  AFFORDABILITY: {
+    label: "Sức mua tiền mặt",
+    desc: "Giới hạn theo số dư tiền mặt khả dụng hiện có",
+  },
+  SYMBOL_CONCENTRATION: {
+    label: "Hạn mức tỷ trọng mã",
+    desc: "Khống chế tỷ trọng cổ phiếu này trong tổng danh mục",
+  },
+  TOTAL_DEPLOYMENT: {
+    label: "Hạn mức giải ngân toàn danh mục",
+    desc: "Khống chế tổng giá trị cổ phiếu đang nắm giữ",
+  },
+};
+
+const APPLICABILITY_LABELS: Record<string, string> = {
+  APPLIED: "Đã áp dụng",
+  NOT_APPLIED: "Không áp dụng",
+  WITHHELD: "Chưa công bố",
 };
 
 export function PositionSizingPage() {
@@ -452,7 +515,7 @@ export function PositionSizingPage() {
         {/* Cột Phải: Kết Quả & Phân Tích Rủi Ro (Sticky Eye Level) */}
         <div className="xl:col-span-5 sticky top-6">
           {result ? (
-            <ResultView result={result} />
+            <ResultView result={result} signal={signal ?? originatingSignal} />
           ) : (
             <div className="sizing-placeholder-card panel bg-slate-900/40 border border-slate-800/80 rounded-xl p-8 text-center flex flex-col items-center justify-center min-h-[380px]">
               <div className="w-14 h-14 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-center text-cyan-400 mb-4 shadow-inner">
@@ -494,7 +557,7 @@ function costLabel(key: string) {
   );
 }
 
-function ResultView({ result }: { result: SizingResult }) {
+function ResultView({ result, signal }: { result: SizingResult; signal: Signal | null }) {
   return (
     <section className="transaction-ledger-section space-y-5" aria-live="polite" aria-labelledby="sizing-result-title">
       {/* Hero Card Điểm Nhấn Kết Quả */}
@@ -522,22 +585,59 @@ function ResultView({ result }: { result: SizingResult }) {
         </p>
       </div>
 
+      {/* Kịch bản Chiến lược Toàn diện (Trade Playbook) */}
+      {result.status === "CALCULATED" && (
+        <StrategyPlaybook result={result} signal={signal} />
+      )}
+
       {/* Cảnh báo hoặc Lý do từ chối (nếu có) */}
       {result.reasonCodes.length > 0 && (
         <div className="p-3.5 rounded-lg bg-amber-950/30 border border-amber-800/60 text-xs text-amber-300">
-          <p className="font-bold flex items-center gap-1.5 mb-1">
+          <p className="font-bold flex items-center gap-1.5 mb-1.5">
             <AlertTriangle size={14} />
             <span>Lý do giới hạn / từ chối:</span>
           </p>
-          <p role="status" className="font-mono font-semibold">{result.reasonCodes.join(", ")}</p>
+          <ul className="space-y-1">
+            {result.reasonCodes.map((rc) => (
+              <li key={rc} className="flex items-center gap-1.5 flex-wrap">
+                <span className="font-semibold text-amber-200">
+                  {SIZING_REASON_DEFINITIONS[rc] ?? rc}
+                </span>
+                <span className="text-[11px] text-amber-400/80 font-mono">
+                  (<span role="status">{rc}</span>)
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
-      {result.warnings.map((w) => (
-        <div key={w} className="p-3 rounded-lg bg-amber-950/20 border border-amber-800/40 text-xs text-amber-300 flex items-center gap-2">
-          <span>⚠ {w}</span>
+      {/* Cảnh báo giả định về chi phí & trượt giá */}
+      {result.warnings.length > 0 && (
+        <div className="p-3.5 rounded-xl bg-slate-900/70 border border-amber-800/40 text-xs space-y-2">
+          <div className="flex items-center gap-2 font-bold text-amber-400">
+            <span>⚠️</span>
+            <span>Lưu ý về chi phí & trượt giá ({result.warnings.length})</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+            {result.warnings.map((w) => {
+              const def = SIZING_WARNING_DEFINITIONS[w] ?? {
+                title: w,
+                desc: "Lưu ý phương pháp luận từ hệ thống.",
+              };
+              return (
+                <div key={w} className="p-2.5 rounded-lg bg-slate-950/70 border border-slate-800 space-y-0.5">
+                  <div className="flex items-center justify-between gap-1 flex-wrap">
+                    <span className="font-semibold text-slate-200 text-[11px]">{def.title}</span>
+                    <span className="font-mono text-[10px] text-amber-400/80">({w})</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 leading-relaxed">{def.desc}</p>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      ))}
+      )}
 
       {/* Lưới Thẻ Chỉ Số Trọng Tâm */}
       <div className="sizing-kpi-grid">
@@ -562,26 +662,38 @@ function ResultView({ result }: { result: SizingResult }) {
           <span>Các giới hạn & Ràng buộc rủi ro</span>
         </h3>
         <ul className="sizing-constraint-list space-y-2">
-          {result.constraints.map((c) => (
-            <li
-              key={c.code}
-              className={`sizing-constraint-row flex items-center justify-between p-3 rounded-lg border text-xs ${
-                c.binding ? "binding border-amber-500/60 bg-amber-950/20 text-amber-200" : "border-slate-800 bg-slate-900/40 text-slate-300"
-              }`}
-            >
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <strong className="font-mono font-bold text-slate-200">{c.code}</strong>
-                <span className="text-xs text-slate-400">: {c.applicability}</span>
-                {c.rawQuantity != null && <span className="text-xs text-slate-300"> · {c.rawQuantity} cp</span>}
-                {c.binding && <span className="font-bold text-amber-400"> · ĐANG GIỚI HẠN</span>}
-              </div>
-              <span className={`constraint-tag px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shrink-0 ${
-                c.binding ? "binding-tag bg-amber-500/20 text-amber-400 border border-amber-500/40" : "bg-slate-800 text-slate-400"
-              }`}>
-                {c.binding ? "ĐANG GIỚI HẠN" : c.applicability === "APPLIED" ? "ÁP DỤNG" : "KHÔNG ÁP DỤNG"}
-              </span>
-            </li>
-          ))}
+          {result.constraints.map((c) => {
+            const meta = CONSTRAINT_NAMES[c.code] ?? { label: c.code, desc: "" };
+            const appLabel = APPLICABILITY_LABELS[c.applicability] ?? c.applicability;
+            return (
+              <li
+                key={c.code}
+                className={`sizing-constraint-row flex items-center justify-between p-3 rounded-lg border text-xs ${
+                  c.binding ? "binding border-amber-500/60 bg-amber-950/20 text-amber-200" : "border-slate-800 bg-slate-900/40 text-slate-300"
+                }`}
+              >
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <strong className="font-bold text-slate-100">{meta.label}</strong>
+                    <span className="font-mono text-[10px] text-slate-500">({c.code})</span>
+                    <span className="text-[11px] text-slate-400">: {appLabel}</span>
+                    {c.rawQuantity != null && (
+                      <span className="text-xs text-cyan-300 font-mono font-semibold">
+                        · {c.rawQuantity.toLocaleString("vi-VN")} cp
+                      </span>
+                    )}
+                    {c.binding && <span className="font-bold text-amber-400"> · ĐANG GIỚI HẠN</span>}
+                  </div>
+                  {meta.desc && <p className="text-[11px] text-slate-400">{meta.desc}</p>}
+                </div>
+                <span className={`constraint-tag px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shrink-0 ${
+                  c.binding ? "binding-tag bg-amber-500/20 text-amber-400 border border-amber-500/40" : "bg-slate-800 text-slate-400"
+                }`}>
+                  {c.binding ? "ĐANG GIỚI HẠN" : appLabel.toUpperCase()}
+                </span>
+              </li>
+            );
+          })}
         </ul>
       </div>
 
@@ -638,6 +750,202 @@ function Metric({ label, value }: { label: string; value: string | number | null
     <div className="p-2 rounded bg-slate-900/40 border border-slate-800/40">
       <dt className="text-[11px] text-slate-400 mb-0.5">{label}</dt>
       <dd className="font-mono font-bold text-slate-200 text-sm">{value ?? "—"}</dd>
+    </div>
+  );
+}
+
+function StrategyPlaybook({ result, signal }: { result: SizingResult; signal: Signal | null }) {
+  if (
+    result.status !== "CALCULATED" ||
+    !result.quantity ||
+    !result.resolvedEntryPriceVnd ||
+    !result.resolvedStopPriceVnd
+  ) {
+    return null;
+  }
+
+  const entry = Number(result.resolvedEntryPriceVnd);
+  const stop = Number(result.resolvedStopPriceVnd);
+  const qty = result.quantity;
+  const lossPerShare = Number(result.lossPerShareVnd ?? Math.max(1, entry - stop));
+  const estimatedLoss = Number(result.estimatedLossAtStopVnd ?? (lossPerShare * qty));
+
+  // ATR calculation: matches BacktestExecutionService exactly: (entryHigh - entryLow) * 2
+  const atrFactor = signal?.riskFactors?.find((f) => f.factorCode === "ATR");
+  let atr = 0;
+  if (signal?.entryHigh && signal?.entryLow) {
+    atr = (Number(signal.entryHigh) - Number(signal.entryLow)) * 2;
+  } else if (atrFactor?.inputValue) {
+    const rawVal = Number(atrFactor.inputValue);
+    atr = rawVal < 1 ? rawVal * entry : rawVal;
+  } else if (lossPerShare > 0) {
+    atr = lossPerShare / 1.5;
+  } else {
+    atr = entry * 0.03;
+  }
+
+  // Pyramiding steps (from financial-v1 rule: +0.5 ATR per step)
+  const pyramid1Price = Math.round(entry + 0.5 * atr);
+  const pyramid2Price = Math.round(entry + 1.0 * atr);
+  const pyramid3Price = Math.round(entry + 1.5 * atr);
+
+  // Take Profit targets
+  const target1Price = signal?.target1
+    ? Number(signal.target1)
+    : Math.round(entry + 1.5 * lossPerShare);
+  const target2Price = signal?.target2
+    ? Number(signal.target2)
+    : Math.round(entry + 2.5 * lossPerShare);
+
+  const profitT1 = Math.round(Math.max(0, target1Price - entry) * qty);
+  const profitT2 = Math.round(Math.max(0, target2Price - entry) * qty);
+
+  return (
+    <div className="rounded-xl border border-cyan-800/60 bg-gradient-to-br from-slate-900 via-slate-900 to-cyan-950/30 p-4 shadow-xl space-y-3.5">
+      <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5">
+        <div className="flex items-center gap-2">
+          <Milestone size={16} className="text-cyan-400" />
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200">
+            Kịch bản Chiến lược Toàn diện (4 Tranches · Chuẩn Backtest)
+          </h3>
+        </div>
+        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-800 text-cyan-300 font-semibold">
+          Quản trị vốn 4 đợt
+        </span>
+      </div>
+
+      <p className="text-[11px] text-slate-400 leading-relaxed">
+        Chiến lược quản trị vốn đa đợt (Multi-tranche Pyramiding): Mỗi đợt chịu rủi ro 1 tranche (~{Math.round(estimatedLoss).toLocaleString("vi-VN")} ₫), tổng rủi ro mở trần tối đa 4% danh mục:
+      </p>
+
+      <div className="space-y-2.5 text-xs">
+        {/* Đợt 1 */}
+        <div className="p-3 rounded-lg bg-slate-900/90 border border-slate-800 flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 font-semibold text-slate-200">
+              <span className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 flex items-center justify-center text-[11px] font-bold">
+                1
+              </span>
+              <span>Đợt 1 (Mở vị thế): Mua {qty.toLocaleString("vi-VN")} cp tại {entry.toLocaleString("vi-VN")} ₫</span>
+            </div>
+            <p className="text-[11px] text-slate-400 pl-7">
+              Cắt lỗ ban đầu: <strong className="text-rose-400">{stop.toLocaleString("vi-VN")} ₫</strong> · Rủi ro Tranche 1: <strong className="text-rose-400">-{Math.round(estimatedLoss).toLocaleString("vi-VN")} ₫</strong>
+            </p>
+          </div>
+          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 shrink-0">
+            Tranche 1
+          </span>
+        </div>
+
+        {/* Đợt 2 */}
+        <div className="p-3 rounded-lg bg-slate-900/70 border border-cyan-900/40 flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 font-semibold text-cyan-300">
+              <span className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center justify-center text-[11px] font-bold">
+                2
+              </span>
+              <span>Đợt 2 (Mua nhồi 1): Khi giá ≥ {pyramid1Price.toLocaleString("vi-VN")} ₫ (+0.5×ATR)</span>
+            </div>
+            <p className="text-[11px] text-slate-400 pl-7">
+              Khối lượng: ~{qty.toLocaleString("vi-VN")} cp · Hành động: <strong className="text-emerald-300">Dời Stop Loss Đợt 1 về hòa vốn ({entry.toLocaleString("vi-VN")} ₫)</strong> để triệt tiêu rủi ro Đợt 1!
+            </p>
+          </div>
+          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800/60 shrink-0 font-bold">
+            +0.5×ATR
+          </span>
+        </div>
+
+        {/* Đợt 3 */}
+        <div className="p-3 rounded-lg bg-slate-900/50 border border-slate-800 flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 font-semibold text-slate-300">
+              <span className="w-5 h-5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 flex items-center justify-center text-[11px] font-bold">
+                3
+              </span>
+              <span>Đợt 3 (Mua nhồi 2): Khi giá ≥ {pyramid2Price.toLocaleString("vi-VN")} ₫ (+1.0×ATR)</span>
+            </div>
+            <p className="text-[11px] text-slate-400 pl-7">
+              Khối lượng: ~{qty.toLocaleString("vi-VN")} cp · Hành động: Dời Stop Loss Đợt 2 về hòa vốn ({pyramid1Price.toLocaleString("vi-VN")} ₫).
+            </p>
+          </div>
+          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 shrink-0">
+            +1.0×ATR
+          </span>
+        </div>
+
+        {/* Đợt 4 */}
+        <div className="p-3 rounded-lg bg-slate-900/50 border border-slate-800 flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 font-semibold text-slate-300">
+              <span className="w-5 h-5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 flex items-center justify-center text-[11px] font-bold">
+                4
+              </span>
+              <span>Đợt 4 (Mua nhồi tối đa): Khi giá ≥ {pyramid3Price.toLocaleString("vi-VN")} ₫ (+1.5×ATR)</span>
+            </div>
+            <p className="text-[11px] text-slate-400 pl-7">
+              Hoàn tất 4 tranches tối đa theo quy tắc Backtest. Khóa giải ngân mới, tập trung bảo vệ vị thế và chờ chốt lời.
+            </p>
+          </div>
+          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-950 text-amber-400 border border-amber-800 shrink-0">
+            Tối đa 4 tranches
+          </span>
+        </div>
+
+        {/* Chốt lời Target 1 & 2 */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <div className="p-2.5 rounded-lg bg-emerald-950/20 border border-emerald-800/40 space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-emerald-400 flex items-center gap-1.5">
+                <Target size={13} />
+                <span>Mục tiêu 1 (Target 1)</span>
+              </span>
+              <span className="font-mono font-bold text-emerald-300 text-xs">
+                {target1Price.toLocaleString("vi-VN")} ₫
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-[11px] text-slate-400 pt-0.5">
+              <span>Lãi dự kiến Đợt 1:</span>
+              <span className="font-mono font-bold text-emerald-400">
+                +{profitT1.toLocaleString("vi-VN")} ₫
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-400 italic">
+              Khuyến nghị: Chốt 50% hoặc toàn bộ Đợt 1 để khóa lợi nhuận.
+            </p>
+          </div>
+
+          <div className="p-2.5 rounded-lg bg-emerald-950/10 border border-emerald-900/30 space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-emerald-300 flex items-center gap-1.5">
+                <ArrowUpRight size={13} />
+                <span>Mục tiêu 2 (Target 2)</span>
+              </span>
+              <span className="font-mono font-bold text-emerald-200 text-xs">
+                {target2Price.toLocaleString("vi-VN")} ₫
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-[11px] text-slate-400 pt-0.5">
+              <span>Lãi dự kiến Đợt 1:</span>
+              <span className="font-mono font-bold text-emerald-300">
+                +{profitT2.toLocaleString("vi-VN")} ₫
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-400 italic">
+              Khuyến nghị: Gồng lãi phần còn lại khi hoàn thành sóng tăng lớn.
+            </p>
+          </div>
+        </div>
+
+        {/* Nguyên tắc cắt lỗ */}
+        <div className="p-2.5 rounded-lg bg-rose-950/20 border border-rose-800/40 flex items-start gap-2 text-[11px] text-rose-300">
+          <ShieldAlert size={14} className="shrink-0 mt-0.5 text-rose-400" />
+          <div>
+            <strong className="text-rose-200">Nguyên tắc Cắt lỗ tuyệt đối: </strong>
+            Nếu giá giảm chạm <span className="font-mono font-bold text-white">{stop.toLocaleString("vi-VN")} ₫</span> trước khi đạt Target, bán hết 100% vị thế. Khoản lỗ tối đa được khống chế ở mức{" "}
+            <span className="font-mono font-bold text-white">-{Math.round(estimatedLoss).toLocaleString("vi-VN")} ₫</span>.
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
