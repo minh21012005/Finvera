@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="vi" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cẩm Nang Hướng Dẫn Đầu Tư Định Lượng · Finvera Terminal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-main: #06090e;
+      --bg-card: #0b131e;
+      --bg-card-alt: #101c2c;
+      --border-subtle: #1b2838;
+      --border-focus: #00d2ff;
+      --cyan-400: #00e5ff;
+      --cyan-500: #00b4d8;
+      --emerald-400: #00e599;
+      --emerald-500: #059669;
+      --rose-400: #ff4d6d;
+      --rose-500: #e11d48;
+      --amber-400: #fbbf24;
+      --text-main: #e2e8f0;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { background-color: var(--bg-main); color: var(--text-main); font-family: var(--font-sans); line-height: 1.6; }
+    body { min-height: 100vh; overflow-x: hidden; }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 7px; height: 7px; }
+    ::-webkit-scrollbar-track { background: #06090e; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #334155; }
+
+    /* Typography & Utilities */
+    .mono { font-family: var(--font-mono); }
+    .text-cyan { color: var(--cyan-400); }
+    .text-emerald { color: var(--emerald-400); }
+    .text-rose { color: var(--rose-400); }
+    .text-amber { color: var(--amber-400); }
+    .bg-cyan-glow { box-shadow: 0 0 25px rgba(0, 229, 255, 0.15); }
+
+    /* Layout */
+    .app-container {
+      display: flex;
+      max-width: 1560px;
+      margin: 0 auto;
+      position: relative;
+    }
+
+    /* Sidebar Navigation */
+    .sidebar {
+      width: 320px;
+      flex-shrink: 0;
+      height: 100vh;
+      position: sticky;
+      top: 0;
+      background: rgba(11, 19, 30, 0.95);
+      backdrop-filter: blur(12px);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      padding: 24px 20px;
+      z-index: 40;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+      text-decoration: none;
+    }
+    .brand-badge {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #00e5ff 0%, #0077b6 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: #030712;
+      font-size: 18px;
+      box-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
+    }
+    .brand-title {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: #fff;
+    }
+    .brand-subtitle {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      color: var(--cyan-400);
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+    }
+
+    .search-box {
+      margin-bottom: 20px;
+      position: relative;
+    }
+    .search-input {
+      width: 100%;
+      padding: 9px 12px 9px 36px;
+      border-radius: 8px;
+      border: 1px solid var(--border-subtle);
+      background: #070d16;
+      color: #fff;
+      font-size: 13px;
+      outline: none;
+      transition: all 0.2s;
+    }
+    .search-input:focus {
+      border-color: var(--cyan-400);
+      box-shadow: 0 0 0 2px rgba(0, 229, 255, 0.2);
+    }
+    .search-icon {
+      position: absolute;
+      left: 11px;
+      top: 10px;
+      width: 15px;
+      height: 15px;
+      stroke: var(--text-dim);
+    }
+
+    .nav-menu {
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .nav-section-title {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin: 16px 0 6px 8px;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    .nav-item:hover {
+      background: #142234;
+      color: var(--cyan-400);
+    }
+    .nav-item.active {
+      background: rgba(0, 229, 255, 0.1);
+      color: var(--cyan-400);
+      font-weight: 600;
+      border-left: 2px solid var(--cyan-400);
+    }
+    .nav-step-badge {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: #152438;
+      color: var(--text-muted);
+    }
+
+    .sidebar-footer {
+      padding-top: 16px;
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .btn-action {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      border: 1px solid var(--border-subtle);
+      background: #0f1c2d;
+      color: var(--text-main);
+      transition: all 0.2s;
+    }
+    .btn-action:hover {
+      border-color: var(--cyan-400);
+      color: var(--cyan-400);
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #00b4d8 0%, #0077b6 100%);
+      border: none;
+      color: #030712;
+      font-weight: 700;
+    }
+    .btn-primary:hover {
+      filter: brightness(1.15);
+      color: #030712;
+    }
+
+    /* Main Content Area */
+    .main-content {
+      flex: 1;
+      min-width: 0;
+      padding: 40px 56px 100px;
+      max-width: 1200px;
+    }
+
+    /* Hero Banner */
+    .hero-banner {
+      background: radial-gradient(circle at top right, rgba(0, 229, 255, 0.1) 0%, rgba(11, 19, 30, 0.95) 70%);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 36px 40px;
+      margin-bottom: 48px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-banner::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 320px;
+      height: 320px;
+      background: radial-gradient(circle, rgba(0, 229, 255, 0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: rgba(0, 229, 255, 0.1);
+      border: 1px solid rgba(0, 229, 255, 0.3);
+      color: var(--cyan-400);
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+    .hero-title {
+      font-size: 32px;
+      font-weight: 800;
+      line-height: 1.25;
+      color: #fff;
+      margin-bottom: 14px;
+      letter-spacing: -0.5px;
+    }
+    .hero-desc {
+      font-size: 15px;
+      color: var(--text-muted);
+      max-width: 820px;
+      line-height: 1.7;
+    }
+
+    /* Section Styles */
+    section {
+      margin-bottom: 56px;
+      scroll-margin-top: 36px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .section-num {
+      font-family: var(--font-mono);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--cyan-400);
+      background: rgba(0, 229, 255, 0.1);
+      border: 1px solid rgba(0, 229, 255, 0.25);
+      padding: 3px 9px;
+      border-radius: 6px;
+    }
+    .section-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.3px;
+    }
+
+    /* Cards & Grids */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+
+    @media (max-width: 1024px) {
+      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .main-content { padding: 24px 20px; }
+    }
+
+    /* Flow Steps Visualizer */
+    .workflow-container {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin: 24px 0;
+    }
+    .workflow-step {
+      display: flex;
+      gap: 20px;
+      background: #09121d;
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 20px 24px;
+      position: relative;
+      transition: all 0.2s;
+    }
+    .workflow-step:hover {
+      border-color: rgba(0, 229, 255, 0.4);
+      transform: translateX(4px);
+    }
+    .step-icon-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .step-circle {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      background: #112236;
+      border: 1px solid rgba(0, 229, 255, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: var(--cyan-400);
+      font-size: 15px;
+    }
+    .step-content { flex: 1; }
+    .step-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .step-heading {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .step-route-badge {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 2px 8px;
+      background: #102135;
+      border: 1px solid #1a3350;
+      border-radius: 5px;
+      color: var(--cyan-400);
+    }
+    .step-desc {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* Callout Boxes */
+    .callout {
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin: 18px 0;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      font-size: 13.5px;
+      line-height: 1.6;
+    }
+    .callout-icon { flex-shrink: 0; font-size: 18px; margin-top: 1px; }
+    .callout-tip {
+      background: rgba(0, 229, 255, 0.06);
+      border: 1px solid rgba(0, 229, 255, 0.25);
+      color: #bae6fd;
+    }
+    .callout-warn {
+      background: rgba(251, 191, 36, 0.07);
+      border: 1px solid rgba(251, 191, 36, 0.3);
+      color: #fde68a;
+    }
+    .callout-danger {
+      background: rgba(255, 77, 109, 0.08);
+      border: 1px solid rgba(255, 77, 109, 0.3);
+      color: #fecdd3;
+    }
+    .callout-success {
+      background: rgba(0, 229, 153, 0.06);
+      border: 1px solid rgba(0, 229, 153, 0.25);
+      color: #a7f3d0;
+    }
+
+    /* Tables */
+    .table-wrapper {
+      overflow-x: auto;
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      margin: 16px 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      text-align: left;
+    }
+    th {
+      background: #0b1522;
+      padding: 12px 16px;
+      font-weight: 600;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-subtle);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid #132030;
+      color: var(--text-main);
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(0, 229, 255, 0.02); }
+
+    /* Key-Value Tag Lists */
+    .pill-list { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+    .pill {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: #111e30;
+      border: 1px solid #1a2f4a;
+      color: #cbd5e1;
+    }
+
+    /* Print Styles */
+    @media print {
+      body { background: #fff; color: #111; }
+      .sidebar, .search-box, .sidebar-footer { display: none !important; }
+      .main-content { padding: 0 !important; max-width: 100% !important; }
+      .card, .workflow-step { border: 1px solid #ccc !important; background: #fff !important; color: #000 !important; box-shadow: none !important; }
+      .hero-banner { background: #f8fafc !important; border: 1px solid #ddd !important; }
+      .hero-title, .section-title, .step-heading { color: #000 !important; }
+      .callout { border: 1px solid #999 !important; background: #f9f9f9 !important; color: #222 !important; }
+      .nav-step-badge, .step-route-badge, .pill { background: #eee !important; color: #000 !important; border-color: #ccc !important; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <!-- SIDEBAR NAVIGATION -->
+  <aside class="sidebar">
+    <a href="/" class="brand" title="Về Finvera Terminal">
+      <div class="brand-badge">F</div>
+      <div>
+        <div class="brand-title">FINVERA</div>
+        <div class="brand-subtitle">Quant Terminal</div>
+      </div>
+    </a>
+
+    <div class="search-box">
+      <svg class="search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+      </svg>
+      <input type="text" id="guideSearch" class="search-input" placeholder="Tìm kiếm nhanh… (VD: Pyramiding, Stop)">
+    </div>
+
+    <nav class="nav-menu" id="navMenu">
+      <div class="nav-section-title">Tổng quan</div>
+      <a href="#overview" class="nav-item active">
+        <span class="nav-step-badge">01</span>
+        <span>Triết lý & Tôn chỉ</span>
+      </a>
+      <a href="#master-workflow" class="nav-item">
+        <span class="nav-step-badge">02</span>
+        <span>Quy trình 6 bước</span>
+      </a>
+
+      <div class="nav-section-title">Chi tiết các bước</div>
+      <a href="#step-market" class="nav-item">
+        <span class="nav-step-badge">B1</span>
+        <span>Chế độ thị trường</span>
+      </a>
+      <a href="#step-screener" class="nav-item">
+        <span class="nav-step-badge">B2</span>
+        <span>Bộ lọc định lượng</span>
+      </a>
+      <a href="#step-research" class="nav-item">
+        <span class="nav-step-badge">B3</span>
+        <span>Thẩm định & AI</span>
+      </a>
+      <a href="#step-strategy" class="nav-item">
+        <span class="nav-step-badge">B4</span>
+        <span>Chiến lược định lượng</span>
+      </a>
+      <a href="#step-backtest" class="nav-item">
+        <span class="nav-step-badge">B5</span>
+        <span>Kiểm chứng Backtest</span>
+      </a>
+      <a href="#step-sizing" class="nav-item">
+        <span class="nav-step-badge">B6</span>
+        <span>Quy mô vị thế & 4 Đợt</span>
+      </a>
+      <a href="#step-portfolio" class="nav-item">
+        <span class="nav-step-badge">B7</span>
+        <span>Danh mục & Cảnh báo</span>
+      </a>
+
+      <div class="nav-section-title">Thực chiến & Kỷ luật</div>
+      <a href="#faqs" class="nav-item">
+        <span class="nav-step-badge">FAQ</span>
+        <span>Xử lý tình huống</span>
+      </a>
+      <a href="#golden-rules" class="nav-item">
+        <span class="nav-step-badge">Rule</span>
+        <span>5 Nguyên tắc vàng</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button onclick="window.print()" class="btn-action">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+        </svg>
+        <span>In / Lưu PDF Cẩm Nang</span>
+      </button>
+      <a href="/" class="btn-action btn-primary">
+        <span>Vào Finvera Terminal</span>
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+        </svg>
+      </a>
+    </div>
+  </aside>
+
+  <!-- MAIN ARTICLE -->
+  <main class="main-content">
+    
+    <!-- HERO BANNER -->
+    <header class="hero-banner">
+      <div class="hero-tag">FINVERA QUANT SYSTEM · OPERATIONAL GUIDE v4.2</div>
+      <h1 class="hero-title">Cẩm Nang Hướng Dẫn Đầu Tư Định Lượng Toàn Diện</h1>
+      <p class="hero-desc">
+        Tài liệu thực chiến hướng dẫn nhà đầu tư khai thác trọn vẹn hệ thống Finvera: từ đọc chế độ thị trường (Regime), lọc mã đạt chuẩn, kiểm chứng lịch sử (Backtest), đến quản trị rủi ro khoa học và giải ngân kim tự tháp 4 đợt (Multi-tranche Pyramiding).
+      </p>
+    </header>
+
+    <!-- PHẦN 1: TRIẾT LÝ VÀ TÔN CHỈ -->
+    <section id="overview">
+      <div class="section-header">
+        <span class="section-num">01</span>
+        <h2 class="section-title">Triết Lý & Tôn Chỉ Bất Khả Xâm Phạm của Finvera</h2>
+      </div>
+
+      <div class="card">
+        <p style="margin-bottom: 16px; font-size: 14.5px;">
+          Finvera là <strong>Nền tảng Hỗ trợ Nghiên cứu & Ra Quyết định Đầu tư (Decision-Support Platform)</strong> chuyên sâu cho thị trường chứng khoán Việt Nam (HOSE, HNX, UPCOM). Hệ thống kết hợp giữa <em>động cơ định lượng xác định (Deterministic Quant Engine)</em> và <em>AI phân tích dựa trên bằng chứng (Grounded AI)</em>.
+        </p>
+
+        <div class="grid-3" style="margin-bottom: 16px;">
+          <div style="background: #08101a; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 16px;">
+            <div class="mono text-rose" style="font-size: 12px; font-weight: 700; margin-bottom: 6px;">KHÔNG PHẢI BOT TỰ ĐỘNG</div>
+            <p style="font-size: 13px; color: var(--text-muted);">
+              Finvera không tự ý đặt lệnh vào tài khoản công ty chứng khoán, không trading tần suất cao (HFT) và không thay thế trách nhiệm của bạn.
+            </p>
+          </div>
+          <div style="background: #08101a; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 16px;">
+            <div class="mono text-rose" style="font-size: 12px; font-weight: 700; margin-bottom: 6px;">KHÔNG CAM KẾT LỢI NHUẬN</div>
+            <p style="font-size: 13px; color: var(--text-muted);">
+              Hệ thống không hứa hẹn lợi nhuận, không dự đoán tương lai thần thánh. Mọi kết quả đều là kịch bản xác suất toán học kèm giả định rủi ro.
+            </p>
+          </div>
+          <div style="background: #08101a; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 16px;">
+            <div class="mono text-cyan" style="font-size: 12px; font-weight: 700; margin-bottom: 6px;">BẰNG CHỨNG XÁC THỰC (EVIDENCE)</div>
+            <p style="font-size: 13px; color: var(--text-muted);">
+              Mọi kết quả đều minh bạch nguồn gốc (observed_at, provenance key, số trang BCTC, công thức mở). Không ảo giác (Zero Hallucination).
+            </p>
+          </div>
+        </div>
+
+        <div class="callout callout-tip">
+          <div class="callout-icon">💡</div>
+          <div>
+            <strong>Phân định trách nhiệm chuẩn trong Finvera:</strong>
+            <ul style="margin-left: 20px; margin-top: 6px;">
+              <li><strong>Động cơ định lượng (Spring Boot):</strong> Độc quyền tính toán số liệu giá trị thực, chỉ báo, bộ lọc, tín hiệu, backtest và quy mô vị thế. LLM tuyệt đối không can thiệp hay tự chế số liệu tài chính.</li>
+              <li><strong>AI Assistant (FastAPI / Gemini):</strong> Chỉ đóng vai trò tóm tắt, giải thích nguyên nhân, đối chiếu văn bản và tìm kiếm tài liệu có trích dẫn nguồn (citations).</li>
+              <li><strong>Nhà đầu tư (Bạn):</strong> Người ra quyết định tối cao, nắm giữ quyền kiểm soát vốn và kỷ luật tuân thủ lệnh.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PHẦN 2: SƠ ĐỒ LUỒNG ĐẦU TƯ 6 BƯỚC -->
+    <section id="master-workflow">
+      <div class="section-header">
+        <span class="section-num">02</span>
+        <h2 class="section-title">Quy Trình 6 Bước Thực Chiến Chuẩn Finvera</h2>
+      </div>
+
+      <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;">
+        Để đạt hiệu quả tối đa và bảo vệ tài khoản, nhà đầu tư nên tuân thủ nghiêm ngặt chu trình 6 bước: từ vĩ mô đến lựa chọn cổ phiếu, kiểm tra xác suất và quản trị rủi ro chặt chẽ trước khi giải ngân.
+      </p>
+
+      <div class="workflow-container">
+        <!-- BƯỚC 1 -->
+        <div class="workflow-step">
+          <div class="step-icon-col">
+            <div class="step-circle">01</div>
+          </div>
+          <div class="step-content">
+            <div class="step-title-row">
+              <span class="step-heading">Quét Chế Độ Thị Trường (Market Regime & Breadth)</span>
+              <span class="step-route-badge">Trang: / (Thị trường)</span>
+            </div>
+            <p class="step-desc">
+              Xác định trạng thái thị trường chung (VNINDEX, HNX): Xu hướng tăng (Bullish), Phân phối (Bearish) hay Đi ngang (Sideway). Đánh giá độ rộng thị trường (tỷ lệ mã trên MA20/MA50).<br>
+              <strong class="text-emerald">Nguyên tắc:</strong> Chỉ ưu tiên mở vị thế mới khi thị trường ở chế độ thuận lợi hoặc đang tích lũy hỗ trợ mạnh.
+            </p>
+          </div>
+        </div>
+
+        <!-- BƯỚC 2 -->
+        <div class="workflow-step">
+          <div class="step-icon-col">
+            <div class="step-circle">02</div>
+          </div>
+          <div class="step-content">
+            <div class="step-title-row">
+              <span class="step-heading">Lọc Ứng Viên Đạt Chuẩn (Stock Screener)</span>
+              <span class="step-route-badge">Trang: /screener</span>
+            </div>
+            <p class="step-desc">
+              Sử dụng bộ lọc định lượng đa tiêu chí để sàng lọc ra 3–5 cổ phiếu khỏe nhất: ROE &gt; 15%, tăng trưởng EPS, P/E &amp; P/B hợp lý, thanh khoản bình quân &gt; 200.000 cp/phiên và đáp ứng cấu trúc Trend Template.
+            </p>
+          </div>
+        </div>
+
+        <!-- BƯỚC 3 -->
+        <div class="workflow-step">
+          <div class="step-icon-col">
+            <div class="step-circle">03</div>
+          </div>
+          <div class="step-content">
+            <div class="step-title-row">
+              <span class="step-heading">Thẩm Định Doanh Nghiệp & Nghiên Cứu AI (Deep-Dive & AI)</span>
+              <span class="step-route-badge">Trang: /stocks/:symbol &amp; /analyst</span>
+            </div>
+            <p class="step-desc">
+              Xem chi tiết cơ cấu tài chính, dòng tiền thuần hoạt động kinh doanh (OCF), P/E Band lịch sử. Sử dụng Trợ lý AI (Finvera Analyst) để tra cứu tài liệu đại hội cổ đông, rủi ro tiềm ẩn với dẫn chứng số trang minh bạch.
+            </p>
+          </div>
+        </div>
+
+        <!-- BƯỚC 4 -->
+        <div class="workflow-step">
+          <div class="step-icon-col">
+            <div class="step-circle">04</div>
+          </div>
+          <div class="step-content">
+            <div class="step-title-row">
+              <span class="step-heading">Xác Nhận Tín Hiệu Chiến Lược (Strategy Signal)</span>
+              <span class="step-route-badge">Trang: /strategies</span>
+            </div>
+            <p class="step-desc">
+              Kiểm tra mã cổ phiếu đã phát sinh tín hiệu từ 8 chiến lược định lượng (Trend Following, Pullback, Breakout, Mean Reversion…). Nắm rõ vùng mua (Entry Low – High), điểm cắt lỗ (Stop Loss) và 2 mục tiêu chốt lời (Target 1 &amp; 2).
+            </p>
+          </div>
+        </div>
+
+        <!-- BƯỚC 5 -->
+        <div class="workflow-step">
+          <div class="step-icon-col">
+            <div class="step-circle">05</div>
+          </div>
+          <div class="step-content">
+            <div class="step-title-row">
+              <span class="step-heading">Kiểm Chứng Lịch Sử Thực Tế (Historical Backtest)</span>
+              <span class="step-route-badge">Trang: /backtests</span>
+            </div>
+            <p class="step-desc">
+              Chạy mô phỏng chiến lược trên dữ liệu lịch sử cổ phiếu: Xem xác suất thắng (Win Rate), tỷ số lợi nhuận/thua lỗ (Profit Factor), sụt giảm tối đa (Max Drawdown). Mô phỏng chuẩn sàn VN: Khớp mở cửa phiên sau (Next Open), trừ đủ phí thuế trượt giá.
+            </p>
+          </div>
+        </div>
+
+        <!-- BƯỚC 6 -->
+        <div class="workflow-step">
+          <div class="step-icon-col">
+            <div class="step-circle">06</div>
+          </div>
+          <div class="step-content">
+            <div class="step-title-row">
+              <span class="step-heading">Tính Quy Mô Vị Thế & Kịch Bản 4 Đợt (Position Sizing)</span>
+              <span class="step-route-badge">Trang: /position-sizing</span>
+            </div>
+            <p class="step-desc">
+              Xác định chính xác số lượng cổ phiếu cần mua dựa trên ngân sách rủi ro (VD: không quá 2% NAV nếu chạm Stop Loss), khống chế sức mua và làm tròn lô chẵn 100 cp. Nhận kịch bản kim tự tháp 4 đợt (dời Stop Loss về hòa vốn, chốt 50% ở Target 1).
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHI TIẾT BƯỚC 1: THỊ TRƯỜNG -->
+    <section id="step-market">
+      <div class="section-header">
+        <span class="section-num">B1</span>
+        <h2 class="section-title">Bước 1: Giám Sát Chế Độ Thị Trường (Market Regime)</h2>
+      </div>
+
+      <div class="card">
+        <p style="margin-bottom: 16px; font-size: 14px;">
+          Đầu tư ngược chiều thị trường chung là nguyên nhân hàng đầu dẫn đến thua lỗ. Trang <strong>Thị trường (<code>/</code>)</strong> cung cấp bức tranh toàn cảnh khách quan:
+        </p>
+
+        <div class="grid-3" style="margin-bottom: 16px;">
+          <div style="background: #07101b; padding: 16px; border-radius: 8px; border: 1px solid var(--border-subtle);">
+            <div class="mono text-cyan" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">Chỉ số &amp; Thanh khoản</div>
+            <p style="font-size: 12.5px; color: var(--text-muted);">
+              Theo dõi biến động điểm số VN-Index, VN30, HNX-Index kèm giá trị khớp lệnh so với trung bình 20 phiên. Thanh khoản tăng kèm điểm tăng xác nhận dòng tiền vào.
+            </p>
+          </div>
+          <div style="background: #07101b; padding: 16px; border-radius: 8px; border: 1px solid var(--border-subtle);">
+            <div class="mono text-emerald" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">Độ rộng Thị trường (Breadth)</div>
+            <p style="font-size: 12.5px; color: var(--text-muted);">
+              Đo lường tỷ lệ số mã tăng / giảm và số mã vượt MA20 / MA50. Nếu chỉ số tăng nhưng độ rộng hẹp (kéo trụ ảo), rủi ro điều chỉnh rất cao.
+            </p>
+          </div>
+          <div style="background: #07101b; padding: 16px; border-radius: 8px; border: 1px solid var(--border-subtle);">
+            <div class="mono text-amber" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">Phân loại Chế độ (Regime)</div>
+            <p style="font-size: 12.5px; color: var(--text-muted);">
+              Hệ thống gắn nhãn chế độ rõ ràng: <em>BULLISH (Tăng giá), CORRECTION (Điều chỉnh), BEARISH (Giảm giá), REBOUND (Hồi phục kỹ thuật)</em>.
+            </p>
+          </div>
+        </div>
+
+        <div class="callout callout-warn">
+          <div class="callout-icon">⚠️</div>
+          <div>
+            <strong>Kỷ luật hành động:</strong>
+            <ul style="margin-left: 20px; margin-top: 4px;">
+              <li><strong>Khi Regime là BULLISH:</strong> Tự tin giải ngân theo các chiến lược Trend Following và Breakout.</li>
+              <li><strong>Khi Regime là CORRECTION / BEARISH:</strong> Hạn chế mua mới, hạ tỷ lệ đòn bẩy, chuyển sang chiến lược Mean Reversion phòng thủ với quy mô vị thế nhỏ hơn (giảm ngân sách rủi ro xuống 0.5%–1%).</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHI TIẾT BƯỚC 2: BỘ LỌC CỔ PHIẾU -->
+    <section id="step-screener">
+      <div class="section-header">
+        <span class="section-num">B2</span>
+        <h2 class="section-title">Bước 2: Lọc Ứng Viên Tiềm Năng (Stock Screener)</h2>
+      </div>
+
+      <div class="card">
+        <p style="font-size: 14px; margin-bottom: 16px;">
+          Với hơn 1.600 mã trên cả 3 sàn HOSE, HNX và UPCOM, trang <strong>Bộ lọc (<code>/screener</code>)</strong> giúp loại bỏ 98% cổ phiếu rác, giữ lại nhóm cổ phiếu thỏa mãn tiêu chí chất lượng cao.
+        </p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Nhóm tiêu chí</th>
+                <th>Thông số khuyến nghị</th>
+                <th>Mục đích bảo vệ</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="mono font-bold text-cyan">Hiệu quả sinh lời</td>
+                <td><strong>ROE &ge; 15%</strong> (hoặc ROIC &ge; 12%)</td>
+                <td>Doanh nghiệp sử dụng vốn hiệu quả, có lợi thế cạnh tranh bền vững (Moat).</td>
+              </tr>
+              <tr>
+                <td class="mono font-bold text-cyan">Định giá cơ bản</td>
+                <td><strong>P/E &le; 18</strong> và <strong>P/B &le; 2.5</strong></td>
+                <td>Tránh mua phải các cổ phiếu định giá bong bóng hoặc đầu cơ quá mức.</td>
+              </tr>
+              <tr>
+                <td class="mono font-bold text-cyan">Tăng trưởng</td>
+                <td><strong>Tăng trưởng EPS &gt; 15%</strong> (YoY)</td>
+                <td>Cổ phiếu có động lực kinh doanh cốt lõi dẫn dắt giá tăng trưởng.</td>
+              </tr>
+              <tr>
+                <td class="mono font-bold text-cyan">Thanh khoản sàn</td>
+                <td><strong>Khối lượng TB 20 phiên &ge; 200.000 cp</strong></td>
+                <td>Đảm bảo dễ dàng mua bán, không bị kẹp hàng khi cần cắt lỗ.</td>
+              </tr>
+              <tr>
+                <td class="mono font-bold text-cyan">Kỹ thuật (Trend)</td>
+                <td><strong>Giá nằm trên MA50 &amp; MA200</strong></td>
+                <td>Đảm bảo chỉ mua cổ phiếu đang trong chu kỳ tăng (Giai đoạn 2 - Stan Weinstein).</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHI TIẾT BƯỚC 3: THẨM ĐỊNH VÀ AI -->
+    <section id="step-research">
+      <div class="section-header">
+        <span class="section-num">B3</span>
+        <h2 class="section-title">Bước 3: Thẩm Định Doanh Nghiệp & Trợ Lý AI Analyst</h2>
+      </div>
+
+      <div class="card">
+        <div class="grid-2">
+          <div>
+            <h3 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 10px;">Trang Chi Tiết Cổ Phiếu (<code>/stocks/:symbol</code>)</h3>
+            <p style="font-size: 13.5px; color: var(--text-muted); margin-bottom: 12px;">
+              Khảo sát sâu cơ cấu tài chính của mã được chọn:
+            </p>
+            <ul style="font-size: 13px; color: var(--text-main); margin-left: 18px; space-y: 6px;">
+              <li><strong>Lưu chuyển tiền tệ:</strong> Đảm bảo dòng tiền thuần từ HĐKD (OCF) dương, chất lượng lợi nhuận cao, không bị ứ đọng nợ phải thu.</li>
+              <li><strong>Cơ cấu nợ:</strong> Tỷ lệ Nợ vay / Vốn chủ sở hữu (D/E) ở mức an toàn (&lt; 1.0 với doanh nghiệp sản xuất).</li>
+              <li><strong>Định giá dải P/E &amp; P/B Band:</strong> Vị thế giá hiện tại đang ở vùng rẻ (đáy band) hay đắt (đỉnh band).</li>
+            </ul>
+          </div>
+          <div>
+            <h3 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 10px;">AI Financial Analyst (<code>/analyst</code>)</h3>
+            <p style="font-size: 13.5px; color: var(--text-muted); margin-bottom: 12px;">
+              Trợ lý AI được xây dựng theo cơ chế RAG có trích dẫn nguồn:
+            </p>
+            <ul style="font-size: 13px; color: var(--text-main); margin-left: 18px; space-y: 6px;">
+              <li><strong>Hỏi đáp chuyên sâu:</strong> Hỏi về tiến độ dự án mới, rủi ro nợ trái phiếu, cơ cấu doanh thu theo mảng.</li>
+              <li><strong>Truy xuất bằng chứng thực:</strong> AI dẫn link trực tiếp đến trang báo cáo tài chính kiểm toán hoặc tài liệu ĐHCĐ đã quét.</li>
+              <li><strong>Không tự chế:</strong> Nếu tài liệu không có thông tin, AI sẽ thẳng thắn thông báo không đủ căn cứ, không trả lời cảm tính.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHI TIẾT BƯỚC 4: CHIẾN LƯỢC ĐỊNH LƯỢNG -->
+    <section id="step-strategy">
+      <div class="section-header">
+        <span class="section-num">B4</span>
+        <h2 class="section-title">Bước 4: Nhận Diện Tín Hiệu Chiến Lược Định Lượng</h2>
+      </div>
+
+      <div class="card">
+        <p style="font-size: 14px; margin-bottom: 16px;">
+          Tại trang <strong>Chiến lược (<code>/strategies</code>)</strong>, hệ thống tự động quét và tính toán tín hiệu mua bán theo 8 chiến lược định lượng kinh điển:
+        </p>
+
+        <div class="grid-2" style="margin-bottom: 20px;">
+          <div style="background: #08121f; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 16px;">
+            <div class="mono text-cyan" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">TREND_FOLLOWING (Bám xu hướng)</div>
+            <p style="font-size: 12.5px; color: var(--text-muted);">
+              Mua khi cổ phiếu xác lập xu hướng tăng bền vững trên các đường trung bình MA. Phù hợp nắm giữ trung - dài hạn khi thị trường có sóng lớn.
+            </p>
+          </div>
+          <div style="background: #08121f; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 16px;">
+            <div class="mono text-cyan" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">PULLBACK (Mua khi điều chỉnh)</div>
+            <p style="font-size: 12.5px; color: var(--text-muted);">
+              Mua khi giá điều chỉnh lành mạnh về vùng hỗ trợ MA20 hoặc biên Bollinger trong xu hướng tăng lớn. Tối ưu điểm vào với mức cắt lỗ rất ngắn.
+            </p>
+          </div>
+          <div style="background: #08121f; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 16px;">
+            <div class="mono text-cyan" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">BREAKOUT (Bứt phá đỉnh nền)</div>
+            <p style="font-size: 12.5px; color: var(--text-muted);">
+              Mua khi giá vượt đỉnh hộp tích lũy kèm khối lượng lớn đột biến (&gt; 1.5 lần trung bình). Thích hợp với nhà đầu tư năng động.
+            </p>
+          </div>
+          <div style="background: #08121f; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 16px;">
+            <div class="mono text-cyan" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">MEAN_REVERSION (Hồi phục từ quá bán)</div>
+            <p style="font-size: 12.5px; color: var(--text-muted);">
+              Bắt đáy khi chỉ số kỹ thuật rơi vào vùng quá bán sâu (RSI &lt; 30) chạm hỗ trợ dài hạn. Mang tính chất đánh nhanh rút gọn.
+            </p>
+          </div>
+        </div>
+
+        <h3 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 12px;">Cấu trúc chuẩn của một Tín Hiệu (Signal Anatomy)</h3>
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+          Mỗi tín hiệu do Finvera xuất ra đều đi kèm bộ 5 tham số định lượng không thể thiếu:
+        </p>
+        <div class="pill-list">
+          <span class="pill">Vùng vào: [Entry Low – Entry High]</span>
+          <span class="pill text-rose">Cắt lỗ: Stop Loss</span>
+          <span class="pill text-emerald">Mục tiêu 1: Target 1 (1.5R)</span>
+          <span class="pill text-emerald">Mục tiêu 2: Target 2 (2.5R)</span>
+          <span class="pill text-amber">Biến động: ATR (Average True Range)</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHI TIẾT BƯỚC 5: KIỂM CHỨNG BACKTEST -->
+    <section id="step-backtest">
+      <div class="section-header">
+        <span class="section-num">B5</span>
+        <h2 class="section-title">Bước 5: Kiểm Chứng Lịch Sử (Historical Backtesting)</h2>
+      </div>
+
+      <div class="card">
+        <p style="font-size: 14px; margin-bottom: 16px;">
+          Trước khi mạo hiểm tiền thật vào một mã cổ phiếu theo một chiến lược cụ thể, hãy kiểm tra xem trong quá khứ thuật toán đó thực sự mang lại kết quả ra sao tại trang <strong>Backtests (<code>/backtests</code>)</strong>.
+        </p>
+
+        <div class="grid-3" style="margin-bottom: 16px;">
+          <div style="background: #07101b; padding: 16px; border-radius: 8px; border: 1px solid var(--border-subtle);">
+            <div class="mono text-emerald" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">Win Rate (Tỷ lệ thắng)</div>
+            <p style="font-size: 12.5px; color: var(--text-muted);">
+              Tỷ lệ số lệnh có lãi / tổng số lệnh thực hiện. Thường dao động từ 40%–60% trong các hệ thống theo xu hướng (Trend Following).
+            </p>
+          </div>
+          <div style="background: #07101b; padding: 16px; border-radius: 8px; border: 1px solid var(--border-subtle);">
+            <div class="mono text-cyan" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">Profit Factor (Hệ số lãi/lỗ)</div>
+            <p style="font-size: 12.5px; color: var(--text-muted);">
+              Tổng tiền lãi chia tổng tiền lỗ. Hệ số <strong>&gt; 1.5</strong> là hệ thống tốt; <strong>&gt; 2.0</strong> là xuất sắc.
+            </p>
+          </div>
+          <div style="background: #07101b; padding: 16px; border-radius: 8px; border: 1px solid var(--border-subtle);">
+            <div class="mono text-rose" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">Max Drawdown (Sụt giảm tối đa)</div>
+            <p style="font-size: 12.5px; color: var(--text-muted);">
+              Mức giảm sâu nhất từ đỉnh vốn. Giúp bạn chuẩn bị tâm lý và đảm bảo tài khoản không rơi vào nguy cơ cháy vốn.
+            </p>
+          </div>
+        </div>
+
+        <div class="callout callout-success">
+          <div class="callout-icon">🎯</div>
+          <div>
+            <strong>Đặc tính mô phỏng thực tế duy nhất tại Finvera:</strong>
+            <ul style="margin-left: 20px; margin-top: 4px;">
+              <li><strong>Khớp tại Next Session Open:</strong> Tín hiệu xuất hiện ở cuối phiên T thì lệnh chỉ được giả định khớp ở giá Mở Cửa phiên T+1 (tránh ảo tưởng mua ngay đỉnh/đáy trong phiên).</li>
+              <li><strong>Chi phí thực tế đầy đủ:</strong> Trừ thuế bán 0.1%, phí môi giới 0.15% mỗi chiều mua/bán và trượt giá thực tế trên sàn.</li>
+              <li><strong>Sổ giao dịch (Trade Ledger):</strong> Minh bạch từng lệnh vào/ra kèm lý do: chạm Target 1, chạm Target 2, hay bị dính Stop Loss.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHI TIẾT BƯỚC 6: QUY MÔ VỊ THẾ & KIM TỰ THÁP 4 ĐỢT -->
+    <section id="step-sizing">
+      <div class="section-header">
+        <span class="section-num">B6</span>
+        <h2 class="section-title">Bước 6: Tính Quy Mô Vị Thế &amp; Chiến Lược 4 Đợt (Position Sizing)</h2>
+      </div>
+
+      <div class="card">
+        <p style="font-size: 14px; margin-bottom: 16px;">
+          Quản trị vốn là yếu tố quyết định 80% sự sống còn của nhà đầu tư. Trang <strong>Quy mô vị thế (<code>/position-sizing</code>)</strong> giúp bạn trả lời chính xác câu hỏi: <em>"Tôi nên mua bao nhiêu cổ phiếu để nếu sai, tôi chỉ mất đúng số tiền tôi cho phép?"</em>
+        </p>
+
+        <h3 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 10px;">1. Công Thức Tính Toán Lõi</h3>
+        <div style="background: #08101a; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+          <div class="mono text-cyan" style="font-size: 14px; margin-bottom: 8px;">
+            Số lượng cổ phiếu (thô) = Ngân sách rủi ro / Lỗ mỗi cổ phiếu tại Stop Loss
+          </div>
+          <div class="mono text-muted" style="font-size: 12.5px;">
+            Số lượng thực nhận = Làm tròn xuống bội số của 100 (Chuẩn sàn HOSE, HNX, UPCOM)
+          </div>
+        </div>
+
+        <h3 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 12px;">2. Bốn Tầng Ràng Buộc Bảo Vệ (Constraints)</h3>
+        <div class="grid-2" style="margin-bottom: 20px;">
+          <div style="background: #08121f; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px;">
+            <strong class="text-cyan mono">1. RISK_BUDGET (Ngân sách rủi ro)</strong>
+            <p style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px;">
+              Khống chế số tiền lỗ tối đa nếu chạm Stop Loss bằng đúng số tiền bạn chọn (VD: 2.000.000 ₫ hoặc 2% tài khoản).
+            </p>
+          </div>
+          <div style="background: #08121f; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px;">
+            <strong class="text-emerald mono">2. AFFORDABILITY (Sức mua tiền mặt)</strong>
+            <p style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px;">
+              Không bao giờ cho phép mua vượt quá số dư tiền mặt khả dụng hiện có.
+            </p>
+          </div>
+          <div style="background: #08121f; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px;">
+            <strong class="text-amber mono">3. SYMBOL_CONCENTRATION (Tỷ trọng mã)</strong>
+            <p style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px;">
+              Giới hạn tối đa tỷ trọng của 1 mã trên tổng danh mục (VD: không quá 20%–25% NAV).
+            </p>
+          </div>
+          <div style="background: #08121f; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px;">
+            <strong class="text-rose mono">4. TOTAL_DEPLOYMENT (Tỷ lệ giải ngân)</strong>
+            <p style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px;">
+              Khống chế tổng giá trị toàn bộ cổ phiếu không vượt quá trần cho phép của danh mục.
+            </p>
+          </div>
+        </div>
+
+        <h3 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 12px;">3. Kịch Bản Kim Tự Tháp 4 Đợt (Multi-Tranche Pyramiding)</h3>
+        <p style="font-size: 13.5px; color: var(--text-muted); margin-bottom: 16px;">
+          Finvera áp dụng chiến lược đi vốn kinh điển của các huyền thoại đầu tư (Jesse Livermore, Mark Minervini): <strong>Chỉ mua nhồi khi vị thế đang có lãi, và dời Stop Loss về hòa vốn để triệt tiêu rủi ro!</strong>
+        </p>
+
+        <div class="workflow-container">
+          <div class="workflow-step" style="border-left: 3px solid var(--cyan-400);">
+            <div class="step-icon-col"><div class="step-circle" style="color: var(--cyan-400);">1</div></div>
+            <div class="step-content">
+              <div class="step-title-row">
+                <span class="step-heading">Đợt 1: Mở Vị Thế Thăm Dò (Tranche 1)</span>
+                <span class="step-route-badge text-rose">Rủi ro: 100% Tranche 1</span>
+              </div>
+              <p class="step-desc">
+                Mua khối lượng theo tính toán ở điểm vào. Đặt Stop Loss ban đầu theo quy tắc. Khoản lỗ tối đa được khống chế ở ngân sách rủi ro đã chọn.
+              </p>
+            </div>
+          </div>
+
+          <div class="workflow-step" style="border-left: 3px solid var(--emerald-400);">
+            <div class="step-icon-col"><div class="step-circle" style="color: var(--emerald-400);">2</div></div>
+            <div class="step-content">
+              <div class="step-title-row">
+                <span class="step-heading">Đợt 2: Mua Nhồi Lần 1 (Khi giá &ge; Entry + 0.5&times;ATR)</span>
+                <span class="step-route-badge text-emerald">DỜI STOP LOSS ĐỢT 1 VỀ HÒA VỐN!</span>
+              </div>
+              <p class="step-desc">
+                Mua thêm khối lượng tương đương Tranche 1. <strong>Hành động bắt buộc:</strong> Dời điểm cắt lỗ của Đợt 1 lên đúng mức giá mua Đợt 1 (Hòa vốn). Khi này, rủi ro của Đợt 1 bằng 0, tổng rủi ro của cả vị thế chỉ còn nằm ở Đợt 2 mới mua!
+              </p>
+            </div>
+          </div>
+
+          <div class="workflow-step" style="border-left: 3px solid var(--emerald-400);">
+            <div class="step-icon-col"><div class="step-circle" style="color: var(--emerald-400);">3</div></div>
+            <div class="step-content">
+              <div class="step-title-row">
+                <span class="step-heading">Đợt 3: Mua Nhồi Lần 2 (Khi giá &ge; Entry + 1.0&times;ATR)</span>
+                <span class="step-route-badge text-emerald">DỜI STOP LOSS ĐỢT 2 VỀ HÒA VỐN!</span>
+              </div>
+              <p class="step-desc">
+                Mua thêm Tranche 3. Dời Stop Loss của Đợt 2 lên mức giá mua Đợt 2. Toàn bộ vị thế đã có lãi đệm bảo vệ vững chắc.
+              </p>
+            </div>
+          </div>
+
+          <div class="workflow-step" style="border-left: 3px solid var(--amber-400);">
+            <div class="step-icon-col"><div class="step-circle" style="color: var(--amber-400);">4</div></div>
+            <div class="step-content">
+              <div class="step-title-row">
+                <span class="step-heading">Đợt 4: Hoàn Tất Vị Thế &amp; Chốt Lời Từng Phần</span>
+                <span class="step-route-badge text-amber">KHÓA GIẢI NGÂN MỚI · TẬP TRUNG BẢO VỆ LÃI</span>
+              </div>
+              <p class="step-desc">
+                Khi giá đạt <strong>Target 1</strong>: Khuyến nghị chốt lời chủ động 50% khối lượng để bỏ túi lợi nhuận.<br>
+                50% còn lại tiếp tục gồng lãi hướng tới <strong>Target 2</strong> với điểm trailing stop nâng dần theo đáy nến gần nhất.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-danger">
+          <div class="callout-icon">🛑</div>
+          <div>
+            <strong>Nguyên Tắc Cắt Lỗ Tuyệt Đối:</strong> Nếu giá quay đầu giảm chạm mốc Stop Loss trước khi đạt Target, hãy bán dứt khoát 100% vị thế. Tuyệt đối không hy vọng hay bình quân giá xuống (Average Down) khi đang lỗ!
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHI TIẾT BƯỚC 7: DANH MỤC & CẢNH BÁO -->
+    <section id="step-portfolio">
+      <div class="section-header">
+        <span class="section-num">B7</span>
+        <h2 class="section-title">Bước 7: Quản Lý Danh Mục &amp; Cài Đặt Cảnh Báo</h2>
+      </div>
+
+      <div class="card">
+        <div class="grid-2">
+          <div>
+            <h3 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 10px;">Quản Lý Danh Mục (<code>/portfolios</code>)</h3>
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 10px;">
+              Lưu giữ các vị thế đã mở vào danh mục thực tế của bạn:
+            </p>
+            <ul style="font-size: 13px; color: var(--text-main); margin-left: 18px; space-y: 6px;">
+              <li>Theo dõi lãi lỗ chưa chốt (Unrealized P/L) và đã chốt (Realized P/L).</li>
+              <li>Liên kết tự động với trang <em>Quy mô vị thế</em>: Khi chọn chế độ <em>"Theo danh mục"</em>, hệ thống tự đọc NAV và tiền mặt thực tế để tính toán tỷ trọng mà bạn không cần gõ tay.</li>
+            </ul>
+          </div>
+          <div>
+            <h3 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 10px;">Hệ Thống Cảnh Báo (<code>/alerts</code>)</h3>
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 10px;">
+              Giải phóng tâm lý canh bảng điện liên tục:
+            </p>
+            <ul style="font-size: 13px; color: var(--text-main); margin-left: 18px; space-y: 6px;">
+              <li>Tự động kích hoạt thông báo khi cổ phiếu chạm ngưỡng Stop Loss để hành động kịp thời.</li>
+              <li>Báo động khi giá chạm mốc mua nhồi (+0.5 ATR) hoặc mốc chốt lời (Target 1 &amp; Target 2).</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PHẦN: FAQ XỬ LÝ TÌNH HUỐNG -->
+    <section id="faqs">
+      <div class="section-header">
+        <span class="section-num">FAQ</span>
+        <h2 class="section-title">Bảng Giải Đáp &amp; Xử Lý Tình Huống Thực Tế</h2>
+      </div>
+
+      <div class="card">
+        <div style="display: flex; flex-direction: column; gap: 18px;">
+          <div>
+            <h4 style="font-size: 14.5px; font-weight: 700; color: var(--cyan-400); margin-bottom: 6px;">
+              1. Tại sao 3 thông số cuối ở trang Quy mô vị thế hiển thị dấu gạch ngang (—)?
+            </h4>
+            <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+              Ba thông số đó gồm: <em>Giá trị mã dự kiến, Tỷ trọng mã dự kiến, Tỷ lệ giải ngân dự kiến</em>. Đây là các chỉ số phân tích tác động lên tổng danh mục (NAV). Khi bạn chọn chế độ "Nhập thủ công" và để trống phần "Giới hạn tỷ trọng &amp; Giải ngân", hệ thống <strong>không tự ý bịa đặt NAV hay số cổ phiếu bạn đang có</strong> (Zero Hallucination). Để hiển thị đầy đủ, bạn chỉ cần điền <em>Giá trị danh mục (NAV)</em> và <em>Giá trị mã hiện có (điền 0 nếu chưa mua)</em>, hoặc chuyển sang chế độ <em>"Theo danh mục"</em>.
+            </p>
+          </div>
+
+          <div style="border-top: 1px solid var(--border-subtle); padding-top: 16px;">
+            <h4 style="font-size: 14.5px; font-weight: 700; color: var(--cyan-400); margin-bottom: 6px;">
+              2. Tín hiệu xuất hiện từ hôm trước nhưng hôm nay tôi mới phát hiện, có mua được không?
+            </h4>
+            <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+              Kiểm tra thị giá hiện tại so với <strong>Vùng vào (Entry Low – Entry High)</strong> của tín hiệu:
+              <br>• Nếu giá hiện tại vẫn nằm trong vùng vào: Bạn vẫn mua được bình thường theo kế hoạch.
+              <br>• Nếu giá đã tăng vượt quá Entry High: Tuyệt đối không mua đuổi. Hãy chờ nhịp điều chỉnh lành mạnh (Pullback) hoặc chọn cơ hội khác. Mua đuổi sẽ làm tỷ lệ R:R bị xấu đi và gia tăng rủi ro khi chạm Stop Loss.
+            </p>
+          </div>
+
+          <div style="border-top: 1px solid var(--border-subtle); padding-top: 16px;">
+            <h4 style="font-size: 14.5px; font-weight: 700; color: var(--cyan-400); margin-bottom: 6px;">
+              3. Điểm khác biệt giữa kết quả Backtest và khi áp dụng thực tế là gì?
+            </h4>
+            <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+              Backtest là mô phỏng thuật toán trên dữ liệu quá khứ với kỷ luật 100% vô cảm (khớp lệnh mở cửa phiên sau, dời stop loss chuẩn mốc, chốt lời tự động). Khi con người giao dịch thực tế, sai số thường đến từ: yếu tố tâm lý (ngần ngại không dám cắt lỗ, chốt non quá sớm, mua đuổi khi giá đã chạy) và độ trễ vào lệnh. Việc hiểu rõ Backtest giúp bạn có niềm tin vững chắc để thực thi kỷ luật.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PHẦN: NGUYÊN TẮC VÀNG -->
+    <section id="golden-rules">
+      <div class="section-header">
+        <span class="section-num">Rule</span>
+        <h2 class="section-title">5 Nguyên Tắc Vàng Bất Biến Của Nhà Đầu Tư Finvera</h2>
+      </div>
+
+      <div class="grid-2">
+        <div class="card" style="border-left: 4px solid var(--rose-400);">
+          <div class="mono text-rose" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">NGUYÊN TẮC 1: BẢO VỆ VỐN LÀ SỐ 1</div>
+          <p style="font-size: 13px; color: var(--text-muted);">
+            Lỗ 10% cần lãi 11% để hòa vốn, nhưng lỗ 50% cần lãi 100% mới về bờ. Luôn đặt Stop Loss trước khi mua và không bao giờ để một lệnh lỗ vượt quá 2% tổng tài sản danh mục.
+          </p>
+        </div>
+
+        <div class="card" style="border-left: 4px solid var(--rose-400);">
+          <div class="mono text-rose" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">NGUYÊN TẮC 2: KHÔNG NHỒI LỆNH LỖ</div>
+          <p style="font-size: 13px; color: var(--text-muted);">
+            Bình quân giá xuống là con đường nhanh nhất dẫn đến cháy tài khoản. Finvera chỉ cho phép mua nhồi (Pyramiding) khi vị thế trước đó ĐANG CÓ LÃI và đã dời Stop Loss về hòa vốn.
+          </p>
+        </div>
+
+        <div class="card" style="border-left: 4px solid var(--emerald-400);">
+          <div class="mono text-emerald" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">NGUYÊN TẮC 3: ĐI CÙNG THỊ TRƯỜNG</div>
+          <p style="font-size: 13px; color: var(--text-muted);">
+            3/4 cổ phiếu sẽ vận động theo xu hướng của thị trường chung. Khi Market Regime ở trạng thái Bearish hoặc Correction, hãy kiên nhẫn cầm tiền mặt và đứng ngoài quan sát.
+          </p>
+        </div>
+
+        <div class="card" style="border-left: 4px solid var(--cyan-400);">
+          <div class="mono text-cyan" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">NGUYÊN TẮC 4: TUÂN THỦ TỶ LỆ R:R</div>
+          <p style="font-size: 13px; color: var(--text-muted);">
+            Chỉ tham gia những cơ hội có tỷ lệ Lợi nhuận / Rủi ro (R:R) tối thiểu từ <strong>2:1 trở lên</strong>. Khi đó, dù chỉ có xác suất thắng 40%, tài khoản của bạn vẫn sinh lời dài hạn.
+          </p>
+        </div>
+      </div>
+
+      <div class="card" style="border-left: 4px solid var(--amber-400); margin-top: 16px;">
+        <div class="mono text-amber" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">NGUYÊN TẮC 5: TÔN TRỌNG DỮ LIỆU &amp; LOẠI BỎ CẢM XÚC</div>
+        <p style="font-size: 13px; color: var(--text-muted);">
+          Không yêu hay ghét bất kỳ cổ phiếu nào. Hãy để các con số, dữ liệu định lượng và báo cáo tài chính dẫn đường. Kỷ luật chính là chiếc chìa khóa duy nhất tạo nên sự thành công bền vững trên thị trường chứng khoán.
+        </p>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer style="margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; font-size: 12px; color: var(--text-dim); font-family: var(--font-mono);">
+      <div>© 2026 FINVERA QUANT TERMINAL · BẢO VỆ QUYỀN RIÊNG TƯ ĐA TẦNG</div>
+      <div>DETERMINISTIC QUANT ENGINE &amp; GROUNDED AI</div>
+    </footer>
+
+  </main>
+</div>
+
+<!-- CLIENT SCRIPT FOR INTERACTION & SEARCH -->
+<script>
+  // Quick Search/Filter function
+  const searchInput = document.getElementById('guideSearch');
+  searchInput.addEventListener('input', function(e) {
+    const term = e.target.value.toLowerCase().trim();
+    const sections = document.querySelectorAll('main section');
+    sections.forEach(sec => {
+      const text = sec.innerText.toLowerCase();
+      if (!term || text.includes(term)) {
+        sec.style.display = '';
+      } else {
+        sec.style.display = 'none';
+      }
+    });
+  });
+
+  // Active navigation highlighting on scroll
+  const navLinks = document.querySelectorAll('.nav-item');
+  window.addEventListener('scroll', () => {
+    let current = '';
+    const sections = document.querySelectorAll('section');
+    sections.forEach(section => {
+      const sectionTop = section.offsetTop;
+      if (pageYOffset >= sectionTop - 120) {
+        current = section.getAttribute('id');
+      }
+    });
+
+    navLinks.forEach(link => {
+      link.classList.remove('active');
+      if (link.getAttribute('href') === '#' + current) {
+        link.classList.add('active');
+      }
+    });
+  });
+</script>
+
+</body>
+</html>

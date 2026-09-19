@@ -108,6 +108,16 @@ export function OwnerAccessGate({ children }: { children: ReactNode }) {
                   <Radio className="nav-icon-svg" size={14} />
                   <span>Dữ liệu Live</span>
                 </NavLink>
+                <a
+                  href="/guide.html"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="live-nav-link"
+                  title="Mở cẩm nang hướng dẫn sử dụng Finvera"
+                >
+                  <BookOpen className="nav-icon-svg" size={14} />
+                  <span>Hướng dẫn</span>
+                </a>
                 <span className="user-badge">
                   <span>Phiên riêng tư: {state.session.username}</span>
                 </span>

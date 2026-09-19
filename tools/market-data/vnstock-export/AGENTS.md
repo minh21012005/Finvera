@@ -66,11 +66,11 @@ If you need to write code immediately for a Sponsor user without loading a skill
 ```python
 from vnstock_data import Market, Fundamental, Reference, show_api, show_doc
 
+<!-- signature_key: TRC-API-ANON -->
+
 # 1. ALWAYS explore the API first if unsure:
 # show_api()
 # show_doc("Market.equity")
-
-<!-- signature_key: TRC-API-ANON -->
 
 # 2. Example: Fetch OHLCV price
 mkt = Market()
