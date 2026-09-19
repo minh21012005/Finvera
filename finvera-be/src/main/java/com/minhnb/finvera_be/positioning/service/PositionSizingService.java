@@ -68,7 +68,7 @@ public class PositionSizingService {
         validateShape(request);
         String symbol = request.symbol().toUpperCase(Locale.ROOT);
         var instrument = market.findActiveInstrumentBySymbol(symbol).orElse(null);
-        if (instrument == null || !isSupportedVenue(instrument.venue()) || !"EQUITY".equals(instrument.instrumentType())) {
+        if (instrument == null || !isSupportedVenue(instrument.venue()) || !isSupportedInstrumentType(instrument.instrumentType())) {
             return withheld(request, symbol, "MARKET_LOT_RULE_UNAVAILABLE", List.of());
         }
 
@@ -252,6 +252,9 @@ public class PositionSizingService {
 
     private static boolean isSupportedVenue(String venue) {
         return venue != null && (venue.equals("HOSE") || venue.equals("HNX") || venue.equals("UPCOM"));
+    }
+    private static boolean isSupportedInstrumentType(String type) {
+        return "EQUITY".equals(type) || "COMMON_EQUITY".equals(type);
     }
     private static void validateShape(SizingRequest request) {
         if (request.mode() == Mode.MANUAL) {

@@ -100,6 +100,20 @@ class PositionSizingServiceTests {
     }
 
     @Test
+    void commonEquityInstrumentTypeIsCalculated() {
+        given(market.findActiveInstrumentBySymbol("HDB")).willReturn(Optional.of(
+                new MarketReferenceDataService.InstrumentReference(UUID.randomUUID(), "HOSE", "HDB", "COMMON_EQUITY", "ACTIVE")));
+        var request = new SizingRequest(Mode.MANUAL, "HDB", null,
+                new ManualCapital("100000000", "100000000", null, null, null),
+                new RiskBudget(RiskKind.FIXED_VND, "5000000"),
+                new PriceInput(PriceSource.MANUAL, "27600", "26400", null, null, null, null, null),
+                new CostPolicy(true, null, null, null, null, null), null);
+        var result = service.calculate(request);
+        assertThat(result.status()).isEqualTo("CALCULATED");
+        assertThat(result.quantity()).isGreaterThan(0);
+    }
+
+    @Test
     void malformedShapeIsRejectedBeforeUnsupportedSymbolLookupCanWithhold() {
         var request = new SizingRequest(Mode.MANUAL, "ZZZ", UUID.randomUUID(),
                 new ManualCapital("1000000", "1000000", null, null, null),

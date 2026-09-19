@@ -42,6 +42,18 @@ const WARNING_DEFINITIONS: Record<string, WarningDetail> = {
   },
 };
 
+const RUN_REASON_EXPLANATIONS: Record<string, string> = {
+  INVALID_LEVELS: "Mức giá cắt lỗ hoặc chỉ báo ATR chưa đủ điều kiện tính toán",
+  INSUFFICIENT_HISTORY: "Dữ liệu lịch sử nến chưa đủ 250 phiên để tính chỉ báo kỹ thuật",
+  UNSUPPORTED_CORPORATE_ACTION: "Phát sinh sự kiện quyền (cổ tức/thưởng cổ phiếu) làm đổi hệ số điều chỉnh khi đang mở vị thế",
+  CORPORATE_ACTION_UNSUPPORTED: "Phát sinh sự kiện quyền (cổ tức/thưởng cổ phiếu) làm đổi hệ số điều chỉnh khi đang mở vị thế",
+  INCOHERENT_TRADING_CALENDAR: "Ngày giao dịch không nằm trong lịch giao dịch chính thức của sàn",
+  PRICE_HISTORY_UNAVAILABLE: "Không tìm thấy dữ liệu giá của mã trong khoảng thời gian đã chọn",
+  ADJUSTMENT_BASIS_UNAVAILABLE: "Không xác định được trạng thái điều chỉnh giá",
+  BACKTEST_EXECUTION_FAILED: "Lỗi trong quá trình thực thi mô phỏng",
+  WORKER_ATTEMPTS_EXHAUSTED: "Đã thử xử lý lại nhiều lần nhưng không thành công",
+};
+
 import { Trash2 } from "lucide-react";
 
 export function BacktestResult({ run, onDelete }: { run: RunDetail; onDelete?: () => void }) {
@@ -93,9 +105,14 @@ export function BacktestResult({ run, onDelete }: { run: RunDetail; onDelete?: (
       </div>
 
       {run.reasonCode && (
-        <p role="alert" className="p-3.5 rounded-lg bg-rose-950/40 border border-rose-800/60 text-xs text-rose-300 font-medium">
-          Lý do: {run.reasonCode}
-        </p>
+        <div role="alert" className="p-3.5 rounded-lg bg-rose-950/40 border border-rose-800/60 text-xs text-rose-300 font-medium flex items-start gap-2">
+          <span className="text-sm select-none leading-none pt-0.5">⚠️</span>
+          <div>
+            <span className="font-bold text-rose-200">Lý do: </span>
+            <span>{RUN_REASON_EXPLANATIONS[run.reasonCode] ?? run.reasonCode}</span>
+            <span className="ml-1 text-[11px] font-mono text-rose-400/80">({run.reasonCode})</span>
+          </div>
+        </div>
       )}
 
       {run.warnings.length > 0 && (
