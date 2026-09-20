@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock
 
 from app.infrastructure.llm.generation import GeminiGenerationAdapter
 from app.features.orchestration.screener_conversion import (
+    CONVERSION_SYSTEM_PROMPT,
     ScreenerConversionResult,
     convert_natural_language_to_filters,
 )
@@ -206,4 +207,52 @@ async def test_sort_extraction_default_market_cap():
     res = await convert_natural_language_to_filters("Lọc cổ phiếu có RSI dưới 30")
     assert res.sortField == "MARKET_CAP"
     assert res.sortDirection == "DESC"
+
+
+@pytest.mark.asyncio
+async def test_llm_fallback_extracts_structured_filters_and_passes_system_prompt():
+    """Verify that when rule-based extraction yields None, convert_natural_language_to_filters
+    calls adapter.generate_text with CONVERSION_SYSTEM_PROMPT, and correctly parses the returned JSON."""
+    mock_llm = AsyncMock(spec=GeminiGenerationAdapter)
+    mock_llm.generate_text.return_value = """```json
+{
+  "filters": {
+    "fundamental": {
+      "debtToEquityMax": "50.0"
+    }
+  },
+  "sortField": "DEBT_TO_EQUITY",
+  "sortDirection": "ASC",
+  "confidence": 0.92,
+  "ambiguityNote": null
+}
+```"""
+    # A query with no keywords from _rule_based_extract
+    query = "Doanh nghiệp cơ cấu nguồn vốn lành mạnh an toàn"
+    res = await convert_natural_language_to_filters(query, llm_adapter=mock_llm)
+
+    mock_llm.generate_text.assert_awaited_once()
+    called_prompt = mock_llm.generate_text.call_args[0][0]
+    assert CONVERSION_SYSTEM_PROMPT in called_prompt
+    assert query in called_prompt
+
+    assert res.confidence == 0.92
+    assert res.sortField == "DEBT_TO_EQUITY"
+    assert res.sortDirection == "ASC"
+    assert res.filters == {"fundamental": {"debtToEquityMax": "50.0"}}
+
+
+@pytest.mark.asyncio
+async def test_llm_fallback_handles_exception_gracefully():
+    """Verify that if LLM raises a network or API exception, it safely falls back without crashing."""
+    mock_llm = AsyncMock(spec=GeminiGenerationAdapter)
+    mock_llm.generate_text.side_effect = RuntimeError("Gemini API connection timeout")
+
+    query = "Doanh nghiệp cơ cấu nguồn vốn lành mạnh an toàn"
+    res = await convert_natural_language_to_filters(query, llm_adapter=mock_llm)
+
+    assert res.confidence == 0.3
+    assert res.filters == {}
+    assert "Không thể trích xuất tiêu chí lọc" in res.ambiguityNote
+
 
