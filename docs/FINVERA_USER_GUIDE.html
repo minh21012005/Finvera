@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cẩm Nang Hướng Dẫn Đầu Tư Định Lượng · Finvera Terminal</title>
+  <title>Cẩm Nang Đầu Tư Định Lượng · Finvera Quant Terminal</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -44,7 +44,6 @@
     .text-emerald { color: var(--emerald-400); }
     .text-rose { color: var(--rose-400); }
     .text-amber { color: var(--amber-400); }
-    .bg-cyan-glow { box-shadow: 0 0 25px rgba(0, 229, 255, 0.15); }
 
     /* Layout */
     .app-container {
@@ -61,7 +60,7 @@
       height: 100vh;
       position: sticky;
       top: 0;
-      background: rgba(11, 19, 30, 0.95);
+      background: rgba(11, 19, 30, 0.96);
       backdrop-filter: blur(12px);
       border-right: 1px solid var(--border-subtle);
       display: flex;
@@ -88,7 +87,7 @@
       font-weight: 800;
       color: #030712;
       font-size: 18px;
-      box-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
+      box-shadow: 0 0 15px rgba(0, 229, 255, 0.35);
     }
     .brand-title {
       font-size: 16px;
@@ -271,7 +270,7 @@
     .hero-desc {
       font-size: 15px;
       color: var(--text-muted);
-      max-width: 820px;
+      max-width: 840px;
       line-height: 1.7;
     }
 
@@ -501,7 +500,7 @@
       <svg class="search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
       </svg>
-      <input type="text" id="guideSearch" class="search-input" placeholder="Tìm kiếm nhanh… (VD: Pyramiding, Stop)">
+      <input type="text" id="guideSearch" class="search-input" placeholder="Tìm kiếm… (VD: Stop Loss, ATR, T+2.5)">
     </div>
 
     <nav class="nav-menu" id="navMenu">
@@ -545,10 +544,10 @@
         <span>Danh mục & Cảnh báo</span>
       </a>
 
-      <div class="nav-section-title">Thực chiến & Kỷ luật</div>
+      <div class="nav-section-title">Cốt lõi thực chiến</div>
       <a href="#faqs" class="nav-item">
-        <span class="nav-step-badge">FAQ</span>
-        <span>Xử lý tình huống</span>
+        <span class="nav-step-badge">QA</span>
+        <span>Hỏi & Đáp thực chiến</span>
       </a>
       <a href="#golden-rules" class="nav-item">
         <span class="nav-step-badge">Rule</span>
@@ -577,10 +576,10 @@
     
     <!-- HERO BANNER -->
     <header class="hero-banner">
-      <div class="hero-tag">FINVERA QUANT SYSTEM · OPERATIONAL GUIDE v4.2</div>
-      <h1 class="hero-title">Cẩm Nang Hướng Dẫn Đầu Tư Định Lượng Toàn Diện</h1>
+      <div class="hero-tag">FINVERA QUANT SYSTEM · OPERATIONAL PLAYBOOK v4.2</div>
+      <h1 class="hero-title">Cẩm Nang Hướng Dẫn Đầu Tư Định Lượng Thực Chiến</h1>
       <p class="hero-desc">
-        Tài liệu thực chiến hướng dẫn nhà đầu tư khai thác trọn vẹn hệ thống Finvera: từ đọc chế độ thị trường (Regime), lọc mã đạt chuẩn, kiểm chứng lịch sử (Backtest), đến quản trị rủi ro khoa học và giải ngân kim tự tháp 4 đợt (Multi-tranche Pyramiding).
+        Tài liệu vận hành chuẩn mực hướng dẫn nhà đầu tư khai thác trọn vẹn sức mạnh Finvera: từ giải mã chế độ thị trường (Regime), lọc mã đạt chuẩn FA & TA, kiểm chứng lịch sử (Backtest), đến tính toán Stop Loss theo biến động thực tế ($2\times\text{ATR}$) và kỷ luật giải ngân kim tự tháp 4 đợt (Multi-tranche Pyramiding).
       </p>
     </header>
 
@@ -600,19 +599,19 @@
           <div style="background: #08101a; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 16px;">
             <div class="mono text-rose" style="font-size: 12px; font-weight: 700; margin-bottom: 6px;">KHÔNG PHẢI BOT TỰ ĐỘNG</div>
             <p style="font-size: 13px; color: var(--text-muted);">
-              Finvera không tự ý đặt lệnh vào tài khoản công ty chứng khoán, không trading tần suất cao (HFT) và không thay thế trách nhiệm của bạn.
+              Finvera không tự ý đặt lệnh vào tài khoản CTCK, không trading tần suất cao và không thay thế trách nhiệm của bạn.
             </p>
           </div>
           <div style="background: #08101a; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 16px;">
             <div class="mono text-rose" style="font-size: 12px; font-weight: 700; margin-bottom: 6px;">KHÔNG CAM KẾT LỢI NHUẬN</div>
             <p style="font-size: 13px; color: var(--text-muted);">
-              Hệ thống không hứa hẹn lợi nhuận, không dự đoán tương lai thần thánh. Mọi kết quả đều là kịch bản xác suất toán học kèm giả định rủi ro.
+              Hệ thống không hứa hẹn tỷ suất sinh lời hay dự đoán tương lai thần thánh. Mọi kết quả đều là kịch bản xác suất toán học kèm giả định rủi ro.
             </p>
           </div>
           <div style="background: #08101a; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 16px;">
             <div class="mono text-cyan" style="font-size: 12px; font-weight: 700; margin-bottom: 6px;">BẰNG CHỨNG XÁC THỰC (EVIDENCE)</div>
             <p style="font-size: 13px; color: var(--text-muted);">
-              Mọi kết quả đều minh bạch nguồn gốc (observed_at, provenance key, số trang BCTC, công thức mở). Không ảo giác (Zero Hallucination).
+              Mọi kết quả đều minh bạch nguồn gốc (observed_at, provenance key, số trang BCTC, công thức mở). Tuyệt đối không có ảo giác (Zero Hallucination).
             </p>
           </div>
         </div>
@@ -703,7 +702,7 @@
               <span class="step-route-badge">Trang: /strategies</span>
             </div>
             <p class="step-desc">
-              Kiểm tra mã cổ phiếu đã phát sinh tín hiệu từ 8 chiến lược định lượng (Trend Following, Pullback, Breakout, Mean Reversion…). Nắm rõ vùng mua (Entry Low – High), điểm cắt lỗ (Stop Loss) và 2 mục tiêu chốt lời (Target 1 &amp; 2).
+              Kiểm tra mã cổ phiếu đã phát sinh tín hiệu từ 8 chiến lược định lượng. Nắm rõ vùng mua (Entry Low – High), điểm cắt lỗ Stop Loss ($2\times\text{ATR}$) và 2 mục tiêu chốt lời Target 1 ($4\times\text{ATR} = 2R$) &amp; Target 2 ($6\times\text{ATR} = 3R$).
             </p>
           </div>
         </div>
@@ -719,7 +718,7 @@
               <span class="step-route-badge">Trang: /backtests</span>
             </div>
             <p class="step-desc">
-              Chạy mô phỏng chiến lược trên dữ liệu lịch sử cổ phiếu: Xem xác suất thắng (Win Rate), tỷ số lợi nhuận/thua lỗ (Profit Factor), sụt giảm tối đa (Max Drawdown). Mô phỏng chuẩn sàn VN: Khớp mở cửa phiên sau (Next Open), trừ đủ phí thuế trượt giá.
+              Chạy mô phỏng chiến lược trên dữ liệu lịch sử cổ phiếu: Đánh giá Win Rate, Profit Factor (&gt; 1.5), Max Drawdown (&lt; 20%). Mô phỏng chuẩn sàn VN: Khớp mở cửa phiên sau (Next Open), trừ đủ thuế 0.1%, phí 0.15% và trượt giá.
             </p>
           </div>
         </div>
@@ -735,7 +734,7 @@
               <span class="step-route-badge">Trang: /position-sizing</span>
             </div>
             <p class="step-desc">
-              Xác định chính xác số lượng cổ phiếu cần mua dựa trên ngân sách rủi ro (VD: không quá 2% NAV nếu chạm Stop Loss), khống chế sức mua và làm tròn lô chẵn 100 cp. Nhận kịch bản kim tự tháp 4 đợt (dời Stop Loss về hòa vốn, chốt 50% ở Target 1).
+              Xác định chính xác số lượng cổ phiếu cần mua dựa trên ngân sách rủi ro (1%–2% NAV nếu chạm Stop Loss), khống chế sức mua và làm tròn lô chẵn 100 cp. Nhận kịch bản kim tự tháp 4 đợt (dời Stop Loss về hòa vốn, chốt 50% ở Target 1).
             </p>
           </div>
         </div>
@@ -751,7 +750,7 @@
 
       <div class="card">
         <p style="margin-bottom: 16px; font-size: 14px;">
-          Đầu tư ngược chiều thị trường chung là nguyên nhân hàng đầu dẫn đến thua lỗ. Trang <strong>Thị trường (<code>/</code>)</strong> cung cấp bức tranh toàn cảnh khách quan:
+          Đầu tư ngược chiều xu hướng thị trường chung là nguyên nhân hàng đầu dẫn đến thua lỗ. Trang <strong>Thị trường (<code>/</code>)</strong> cung cấp bức tranh toàn cảnh khách quan:
         </p>
 
         <div class="grid-3" style="margin-bottom: 16px;">
@@ -778,10 +777,10 @@
         <div class="callout callout-warn">
           <div class="callout-icon">⚠️</div>
           <div>
-            <strong>Kỷ luật hành động:</strong>
+            <strong>Kỷ luật hành động theo Regime:</strong>
             <ul style="margin-left: 20px; margin-top: 4px;">
-              <li><strong>Khi Regime là BULLISH:</strong> Tự tin giải ngân theo các chiến lược Trend Following và Breakout.</li>
-              <li><strong>Khi Regime là CORRECTION / BEARISH:</strong> Hạn chế mua mới, hạ tỷ lệ đòn bẩy, chuyển sang chiến lược Mean Reversion phòng thủ với quy mô vị thế nhỏ hơn (giảm ngân sách rủi ro xuống 0.5%–1%).</li>
+              <li><strong>Khi Regime là BULLISH:</strong> Tự tin giải ngân theo các chiến lược Trend Following và Breakout. Áp dụng đầy đủ 4 đợt kim tự tháp.</li>
+              <li><strong>Khi Regime là CORRECTION / BEARISH:</strong> Hạn chế mua mới, hạ tỷ lệ đòn bẩy về 0, chuyển sang chiến lược Mean Reversion phòng thủ với quy mô vị thế nhỏ hơn (giảm ngân sách rủi ro xuống 0.5%–1% NAV).</li>
             </ul>
           </div>
         </div>
@@ -898,7 +897,7 @@
           <div style="background: #08121f; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 16px;">
             <div class="mono text-cyan" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">PULLBACK (Mua khi điều chỉnh)</div>
             <p style="font-size: 12.5px; color: var(--text-muted);">
-              Mua khi giá điều chỉnh lành mạnh về vùng hỗ trợ MA20 hoặc biên Bollinger trong xu hướng tăng lớn. Tối ưu điểm vào với mức cắt lỗ rất ngắn.
+              Mua khi giá điều chỉnh lành mạnh về vùng hỗ trợ MA20/MA50 trong xu hướng tăng lớn. Tối ưu điểm vào với mức cắt lỗ rất ngắn.
             </p>
           </div>
           <div style="background: #08121f; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 16px;">
@@ -910,21 +909,53 @@
           <div style="background: #08121f; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 16px;">
             <div class="mono text-cyan" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">MEAN_REVERSION (Hồi phục từ quá bán)</div>
             <p style="font-size: 12.5px; color: var(--text-muted);">
-              Bắt đáy khi chỉ số kỹ thuật rơi vào vùng quá bán sâu (RSI &lt; 30) chạm hỗ trợ dài hạn. Mang tính chất đánh nhanh rút gọn.
+              Bắt đáy khi chỉ số kỹ thuật rơi vào vùng quá bán sâu (RSI &lt; 30) chạm hỗ trợ dải dưới Bollinger Band. Đánh nhanh rút gọn.
             </p>
           </div>
         </div>
 
-        <h3 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 12px;">Cấu trúc chuẩn của một Tín Hiệu (Signal Anatomy)</h3>
-        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
-          Mỗi tín hiệu do Finvera xuất ra đều đi kèm bộ 5 tham số định lượng không thể thiếu:
+        <h3 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 12px;">Công Thức Toán Học Xác Định Tín Hiệu (Quy Chuẩn strategy-signal-v1)</h3>
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
+          Mọi tín hiệu được chuẩn hóa dựa trên giá đóng cửa ($C$) và biên độ biến động thực tế ($ATR_{14}$):
         </p>
-        <div class="pill-list">
-          <span class="pill">Vùng vào: [Entry Low – Entry High]</span>
-          <span class="pill text-rose">Cắt lỗ: Stop Loss</span>
-          <span class="pill text-emerald">Mục tiêu 1: Target 1 (1.5R)</span>
-          <span class="pill text-emerald">Mục tiêu 2: Target 2 (2.5R)</span>
-          <span class="pill text-amber">Biến động: ATR (Average True Range)</span>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Mức giá</th>
+                <th>Công thức toán học</th>
+                <th>Hệ số R-Multiple</th>
+                <th>Ý nghĩa tác chiến</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="mono font-bold text-cyan">Vùng mua (Entry)</td>
+                <td class="mono">[C - 0.25&times;ATR , C + 0.25&times;ATR]</td>
+                <td>Vùng cơ sở</td>
+                <td>Vùng giá gom hàng tối ưu, tránh mua đuổi khi giá đã chạy xa.</td>
+              </tr>
+              <tr>
+                <td class="mono font-bold text-rose">Cắt lỗ (Stop Loss)</td>
+                <td class="mono font-bold text-rose">C - 2.0 &times; ATR14</td>
+                <td class="mono text-rose">-1.0 R</td>
+                <td>Điểm thoát lệnh tuyệt đối. Tương ứng mức giảm 5%–8% tùy biến động mã.</td>
+              </tr>
+              <tr>
+                <td class="mono font-bold text-emerald">Mục tiêu 1 (Target 1)</td>
+                <td class="mono font-bold text-emerald">C + 4.0 &times; ATR14</td>
+                <td class="mono text-emerald">+2.0 R</td>
+                <td>Gấp đôi khoảng cách rủi ro (R:R = 2:1). Điểm chốt lời chủ động 50% vị thế.</td>
+              </tr>
+              <tr>
+                <td class="mono font-bold text-emerald">Mục tiêu 2 (Target 2)</td>
+                <td class="mono font-bold text-emerald">C + 6.0 &times; ATR14</td>
+                <td class="mono text-emerald">+3.0 R</td>
+                <td>Gấp ba khoảng cách rủi ro (R:R = 3:1). Gồng lãi tối đa con sóng tăng mạnh.</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </section>
@@ -941,33 +972,52 @@
           Trước khi mạo hiểm tiền thật vào một mã cổ phiếu theo một chiến lược cụ thể, hãy kiểm tra xem trong quá khứ thuật toán đó thực sự mang lại kết quả ra sao tại trang <strong>Backtests (<code>/backtests</code>)</strong>.
         </p>
 
-        <div class="grid-3" style="margin-bottom: 16px;">
-          <div style="background: #07101b; padding: 16px; border-radius: 8px; border: 1px solid var(--border-subtle);">
-            <div class="mono text-emerald" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">Win Rate (Tỷ lệ thắng)</div>
-            <p style="font-size: 12.5px; color: var(--text-muted);">
-              Tỷ lệ số lệnh có lãi / tổng số lệnh thực hiện. Thường dao động từ 40%–60% trong các hệ thống theo xu hướng (Trend Following).
-            </p>
-          </div>
-          <div style="background: #07101b; padding: 16px; border-radius: 8px; border: 1px solid var(--border-subtle);">
-            <div class="mono text-cyan" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">Profit Factor (Hệ số lãi/lỗ)</div>
-            <p style="font-size: 12.5px; color: var(--text-muted);">
-              Tổng tiền lãi chia tổng tiền lỗ. Hệ số <strong>&gt; 1.5</strong> là hệ thống tốt; <strong>&gt; 2.0</strong> là xuất sắc.
-            </p>
-          </div>
-          <div style="background: #07101b; padding: 16px; border-radius: 8px; border: 1px solid var(--border-subtle);">
-            <div class="mono text-rose" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">Max Drawdown (Sụt giảm tối đa)</div>
-            <p style="font-size: 12.5px; color: var(--text-muted);">
-              Mức giảm sâu nhất từ đỉnh vốn. Giúp bạn chuẩn bị tâm lý và đảm bảo tài khoản không rơi vào nguy cơ cháy vốn.
-            </p>
-          </div>
+        <h3 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 12px;">Tiêu Chuẩn Vàng Đánh Giá Một Chiến Lược Đạt Chuẩn Thực Chiến</h3>
+        <div class="table-wrapper" style="margin-bottom: 18px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Chỉ số định lượng</th>
+                <th>Ngưỡng đạt chuẩn</th>
+                <th>Ngưỡng cảnh báo / Loại bỏ</th>
+                <th>Ý nghĩa thực chiến</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="mono font-bold text-cyan">Profit Factor</td>
+                <td><strong>&ge; 1.5</strong> (Xuất sắc: &ge; 2.0)</td>
+                <td>&lt; 1.3</td>
+                <td>Tổng tiền lãi / Tổng tiền lỗ. Phải đủ lớn để bù đắp sai số thị trường.</td>
+              </tr>
+              <tr>
+                <td class="mono font-bold text-cyan">Win Rate</td>
+                <td><strong>&ge; 45%</strong> (Trend) hoặc <strong>&ge; 55%</strong> (Reversion)</td>
+                <td>&lt; 35%</td>
+                <td>Tỷ lệ số lệnh có lãi. Vì R:R = 2:1 nên chỉ cần Win Rate 40% là đã có lãi.</td>
+              </tr>
+              <tr>
+                <td class="mono font-bold text-cyan">Max Drawdown (MDD)</td>
+                <td><strong>&le; 18%</strong></td>
+                <td>&gt; 25%</td>
+                <td>Mức sụt giảm vốn sâu nhất. MDD quá lớn sẽ làm nhà đầu tư gãy tâm lý.</td>
+              </tr>
+              <tr>
+                <td class="mono font-bold text-cyan">Số lượng lệnh (Sample)</td>
+                <td><strong>&ge; 15 – 20 lệnh</strong></td>
+                <td>&lt; 8 lệnh</td>
+                <td>Đủ số lượng mẫu thống kê để tránh bẫy may mắn ngẫu nhiên.</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         <div class="callout callout-success">
           <div class="callout-icon">🎯</div>
           <div>
-            <strong>Đặc tính mô phỏng thực tế duy nhất tại Finvera:</strong>
+            <strong>Đặc tính mô phỏng trung thực duy nhất tại Finvera:</strong>
             <ul style="margin-left: 20px; margin-top: 4px;">
-              <li><strong>Khớp tại Next Session Open:</strong> Tín hiệu xuất hiện ở cuối phiên T thì lệnh chỉ được giả định khớp ở giá Mở Cửa phiên T+1 (tránh ảo tưởng mua ngay đỉnh/đáy trong phiên).</li>
+              <li><strong>Khớp tại Next Session Open:</strong> Tín hiệu xuất hiện ở cuối phiên T thì lệnh chỉ được giả định khớp ở giá Mở Cửa phiên T+1 (chống ảo tưởng mua ngay đỉnh/đáy trong phiên).</li>
               <li><strong>Chi phí thực tế đầy đủ:</strong> Trừ thuế bán 0.1%, phí môi giới 0.15% mỗi chiều mua/bán và trượt giá thực tế trên sàn.</li>
               <li><strong>Sổ giao dịch (Trade Ledger):</strong> Minh bạch từng lệnh vào/ra kèm lý do: chạm Target 1, chạm Target 2, hay bị dính Stop Loss.</li>
             </ul>
@@ -1037,10 +1087,10 @@
             <div class="step-content">
               <div class="step-title-row">
                 <span class="step-heading">Đợt 1: Mở Vị Thế Thăm Dò (Tranche 1)</span>
-                <span class="step-route-badge text-rose">Rủi ro: 100% Tranche 1</span>
+                <span class="step-route-badge text-rose">Rủi ro: 100% Tranche 1 (1–2% NAV)</span>
               </div>
               <p class="step-desc">
-                Mua khối lượng theo tính toán ở điểm vào. Đặt Stop Loss ban đầu theo quy tắc. Khoản lỗ tối đa được khống chế ở ngân sách rủi ro đã chọn.
+                Mua khối lượng theo tính toán ở điểm vào. Đặt Stop Loss ban đầu ở mức $C - 2\times\text{ATR}$. Khoản lỗ tối đa được khống chế ở ngân sách rủi ro đã chọn.
               </p>
             </div>
           </div>
@@ -1079,8 +1129,8 @@
                 <span class="step-route-badge text-amber">KHÓA GIẢI NGÂN MỚI · TẬP TRUNG BẢO VỆ LÃI</span>
               </div>
               <p class="step-desc">
-                Khi giá đạt <strong>Target 1</strong>: Khuyến nghị chốt lời chủ động 50% khối lượng để bỏ túi lợi nhuận.<br>
-                50% còn lại tiếp tục gồng lãi hướng tới <strong>Target 2</strong> với điểm trailing stop nâng dần theo đáy nến gần nhất.
+                Khi giá đạt <strong>Target 1 ($+4\text{ATR}$)</strong>: Khuyến nghị chốt lời chủ động 50% khối lượng để bỏ túi lợi nhuận.<br>
+                50% còn lại tiếp tục gồng lãi hướng tới <strong>Target 2 ($+6\text{ATR}$)</strong> với điểm trailing stop nâng dần theo đáy nến gần nhất.
               </p>
             </div>
           </div>
@@ -1128,41 +1178,74 @@
       </div>
     </section>
 
-    <!-- PHẦN: FAQ XỬ LÝ TÌNH HUỐNG -->
+    <!-- PHẦN: HỎI & ĐÁP THỰC CHIẾN CHUYÊN SÂU -->
     <section id="faqs">
       <div class="section-header">
-        <span class="section-num">FAQ</span>
-        <h2 class="section-title">Bảng Giải Đáp &amp; Xử Lý Tình Huống Thực Tế</h2>
+        <span class="section-num">QA</span>
+        <h2 class="section-title">Hỏi &amp; Đáp Thực Chiến Định Lượng (Quant Execution FAQs)</h2>
       </div>
 
       <div class="card">
-        <div style="display: flex; flex-direction: column; gap: 18px;">
+        <div style="display: flex; flex-direction: column; gap: 20px;">
           <div>
-            <h4 style="font-size: 14.5px; font-weight: 700; color: var(--cyan-400); margin-bottom: 6px;">
-              1. Tại sao 3 thông số cuối ở trang Quy mô vị thế hiển thị dấu gạch ngang (—)?
+            <h4 style="font-size: 15px; font-weight: 700; color: var(--cyan-400); margin-bottom: 8px;">
+              1. Hệ thống tính toán mức cắt lỗ (Stop Loss) là bao nhiêu %?
             </h4>
-            <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
-              Ba thông số đó gồm: <em>Giá trị mã dự kiến, Tỷ trọng mã dự kiến, Tỷ lệ giải ngân dự kiến</em>. Đây là các chỉ số phân tích tác động lên tổng danh mục (NAV). Khi bạn chọn chế độ "Nhập thủ công" và để trống phần "Giới hạn tỷ trọng &amp; Giải ngân", hệ thống <strong>không tự ý bịa đặt NAV hay số cổ phiếu bạn đang có</strong> (Zero Hallucination). Để hiển thị đầy đủ, bạn chỉ cần điền <em>Giá trị danh mục (NAV)</em> và <em>Giá trị mã hiện có (điền 0 nếu chưa mua)</em>, hoặc chuyển sang chế độ <em>"Theo danh mục"</em>.
+            <p style="font-size: 13.5px; color: var(--text-main); line-height: 1.65; margin-bottom: 8px;">
+              Hệ thống <strong>không dùng % cố định cứng nhắc</strong> (như cắt lỗ 7% cho mọi mã), mà tính Stop Loss linh hoạt theo độ biến động thực tế ($2 \times \text{ATR}_{14}$):
+            </p>
+            <div style="background: #08101a; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 12px; margin-bottom: 10px;" class="mono text-xs">
+              Mức Stop Loss = Giá vào - 2 &times; ATR14 &nbsp;|&nbsp; % Lỗ giá cp = (2 &times; ATR14 / Giá vào) &times; 100%
+            </div>
+            <ul style="font-size: 13px; color: var(--text-muted); margin-left: 20px; space-y: 4px;">
+              <li><strong>Bluechips biến động thấp (VCB, FPT, VNM...):</strong> Mức Stop Loss cách giá vào khoảng <strong>3% – 5%</strong>.</li>
+              <li><strong>Midcaps biến động trung bình (HPG, VIC, SSI, GMD...):</strong> Mức Stop Loss cách giá vào khoảng <strong>6% – 8%</strong>.</li>
+              <li><strong>Smallcaps đầu cơ cao:</strong> Mức Stop Loss nới rộng lên <strong>10% – 14%</strong>.</li>
+              <li><strong>Về mặt Danh mục:</strong> Dù giá cổ phiếu giảm 5% hay 10% chạm Stop Loss, thuật toán Position Sizing luôn ép số lượng cổ phiếu sao cho <strong>tài khoản bạn chỉ mất đúng 1% – 2% tổng NAV</strong>.</li>
+            </ul>
+          </div>
+
+          <div style="border-top: 1px solid var(--border-subtle); padding-top: 18px;">
+            <h4 style="font-size: 15px; font-weight: 700; color: var(--cyan-400); margin-bottom: 8px;">
+              2. Tín hiệu xuất hiện ở cuối phiên T thì phiên T+1 tôi hành động và vào lệnh như thế nào?
+            </h4>
+            <p style="font-size: 13.5px; color: var(--text-main); line-height: 1.65;">
+              Tín hiệu được tính toán vào cuối ngày (EOD) sau khi có giá đóng cửa phiên T. Kế hoạch hành động tại phiên T+1:
+              <br>• <strong>Kịch bản chuẩn:</strong> Đặt lệnh mua trong đợt ATO hoặc đầu phiên sáng khi thị giá nằm trọn trong <strong>Vùng vào [Entry Low – Entry High]</strong>.
+              <br>• <strong>Kịch bản nhảy giá (Gap Up) vượt quá Entry High:</strong> <em>Tuyệt đối không mua đuổi!</em> Việc mua đuổi giá cao sẽ làm tỷ lệ R:R bị suy giảm nghiêm trọng và biến Stop Loss thành mức lỗ quá sâu. Hãy kiên nhẫn chờ nhịp chỉnh (Pullback) về vùng mua hoặc chuyển sang cơ hội khác.
             </p>
           </div>
 
-          <div style="border-top: 1px solid var(--border-subtle); padding-top: 16px;">
-            <h4 style="font-size: 14.5px; font-weight: 700; color: var(--cyan-400); margin-bottom: 6px;">
-              2. Tín hiệu xuất hiện từ hôm trước nhưng hôm nay tôi mới phát hiện, có mua được không?
+          <div style="border-top: 1px solid var(--border-subtle); padding-top: 18px;">
+            <h4 style="font-size: 15px; font-weight: 700; color: var(--cyan-400); margin-bottom: 8px;">
+              3. Quy định T+2.5 trên sàn Việt Nam ảnh hưởng thế nào đến việc cắt lỗ và cách phòng vệ?
             </h4>
-            <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
-              Kiểm tra thị giá hiện tại so với <strong>Vùng vào (Entry Low – Entry High)</strong> của tín hiệu:
-              <br>• Nếu giá hiện tại vẫn nằm trong vùng vào: Bạn vẫn mua được bình thường theo kế hoạch.
-              <br>• Nếu giá đã tăng vượt quá Entry High: Tuyệt đối không mua đuổi. Hãy chờ nhịp điều chỉnh lành mạnh (Pullback) hoặc chọn cơ hội khác. Mua đuổi sẽ làm tỷ lệ R:R bị xấu đi và gia tăng rủi ro khi chạm Stop Loss.
+            <p style="font-size: 13.5px; color: var(--text-main); line-height: 1.65;">
+              Trên sàn HOSE/HNX, cổ phiếu mua ở phiên T+1 thì đến chiều ngày T+2.5 mới về tài khoản để bán được. Nếu cổ phiếu giảm sàn ngay ở phiên T+1 hoặc sáng T+2, bạn sẽ không thể bán cắt lỗ ngay.
+              <br><strong>Cách Finvera phòng vệ rủi ro T+:</strong>
+              <br>1. <strong>Chia 4 đợt giải ngân (Pyramiding):</strong> Đợt 1 chỉ giải ngân 1 tranche nhỏ thăm dò (chỉ chịu rủi ro 1% NAV).
+              <br>2. <strong>Quy tắc nhồi lệnh:</strong> Chỉ mua nhồi Đợt 2 khi cổ phiếu Đợt 1 đã có lãi VÀ hàng Đợt 1 đã khả dụng (hoặc đã sẵn sàng bán). Khi đó bạn luôn có sẵn hàng trong tài khoản để chủ động bán phòng vệ bất kỳ lúc nào.
             </p>
           </div>
 
-          <div style="border-top: 1px solid var(--border-subtle); padding-top: 16px;">
-            <h4 style="font-size: 14.5px; font-weight: 700; color: var(--cyan-400); margin-bottom: 6px;">
-              3. Điểm khác biệt giữa kết quả Backtest và khi áp dụng thực tế là gì?
+          <div style="border-top: 1px solid var(--border-subtle); padding-top: 18px;">
+            <h4 style="font-size: 15px; font-weight: 700; color: var(--cyan-400); margin-bottom: 8px;">
+              4. Làm thế nào để phối hợp hiệu quả nhất giữa Bộ lọc (Screener) và Chiến lược (Strategies)?
             </h4>
-            <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
-              Backtest là mô phỏng thuật toán trên dữ liệu quá khứ với kỷ luật 100% vô cảm (khớp lệnh mở cửa phiên sau, dời stop loss chuẩn mốc, chốt lời tự động). Khi con người giao dịch thực tế, sai số thường đến từ: yếu tố tâm lý (ngần ngại không dám cắt lỗ, chốt non quá sớm, mua đuổi khi giá đã chạy) và độ trễ vào lệnh. Việc hiểu rõ Backtest giúp bạn có niềm tin vững chắc để thực thi kỷ luật.
+            <p style="font-size: 13.5px; color: var(--text-main); line-height: 1.65;">
+              Quy trình chuẩn là <strong>"Lọc FA trước — Bắt TA sau"</strong>:
+              <br>• <strong>Bước 1 (Lọc nền tảng):</strong> Chạy Bộ lọc để chọn ra danh sách cổ phiếu đạt chuẩn (ROE &ge; 15%, EPS tăng trưởng &gt; 15%, thanh khoản &ge; 200k cp/phiên). Đưa các mã này vào Watchlist.
+              <br>• <strong>Bước 2 (Bắt điểm vào):</strong> Chỉ kích hoạt giao dịch khi các mã nằm trong Watchlist này phát sinh tín hiệu kỹ thuật tại trang Chiến lược. <em>Không bao giờ mua các tín hiệu xuất hiện trên cổ phiếu rác, kinh doanh thua lỗ hay thanh khoản thấp</em>.
+            </p>
+          </div>
+
+          <div style="border-top: 1px solid var(--border-subtle); padding-top: 18px;">
+            <h4 style="font-size: 15px; font-weight: 700; color: var(--cyan-400); margin-bottom: 8px;">
+              5. Chi phí giao dịch (thuế, phí, trượt giá) tác động thế nào đến lợi nhuận ròng?
+            </h4>
+            <p style="font-size: 13.5px; color: var(--text-main); line-height: 1.65;">
+              Mỗi vòng quay lệnh (Round-trip) trên sàn VN bao gồm: Phí mua (0.15%), phí bán (0.15%), thuế chuyển nhượng (0.1%) và trượt giá khớp lệnh (0.1%–0.2%). Tổng chi phí thực tế tiêu tốn khoảng <strong>0.5% – 0.6% giá trị giao dịch</strong>.
+              <br>Động cơ Finvera tự động cộng chi phí vào giá vốn mua và trừ chi phí tại giá bán. Mọi báo cáo lãi/lỗ trên hệ thống đều là <strong>Lợi nhuận ròng (Net PnL)</strong> trung thực, giúp bạn tránh xa ảo tưởng của các bảng tính lãi gộp thông thường.
             </p>
           </div>
         </div>
