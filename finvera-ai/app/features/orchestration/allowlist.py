@@ -191,7 +191,8 @@ def validate_tool_call(
     try:
         parsed_args = schema_cls.model_validate(args_dict)
     except ValidationError as e:
-        return False, tool_name, None, f"INVALID_ARGUMENTS: {e}"
+        err_msg = str(e).replace("\n", " ")[:180]
+        return False, tool_name, None, f"INVALID_ARGUMENTS: {err_msg}"
 
     # U-2 Ownership check
     arg_owner_id = getattr(parsed_args, "owner_id", None)

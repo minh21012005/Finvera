@@ -1,4 +1,5 @@
 import type { CostPolicy, RunDetail } from "../api/backtest";
+import { Trash2 } from "lucide-react";
 
 const COST_FIELDS: Array<[keyof Omit<CostPolicy, "excluded">, string]> = [
   ["entryFeeRate", "Phí mua"],
@@ -54,7 +55,102 @@ const RUN_REASON_EXPLANATIONS: Record<string, string> = {
   WORKER_ATTEMPTS_EXHAUSTED: "Đã thử xử lý lại nhiều lần nhưng không thành công",
 };
 
-import { Trash2 } from "lucide-react";
+const METRIC_LABELS: Record<string, string> = {
+  TOTAL_RETURN: "Tổng lợi nhuận",
+  CAGR: "Lợi nhuận bình quân năm (CAGR)",
+  WIN_RATE: "Tỷ lệ thắng (Win Rate)",
+  PROFIT_FACTOR: "Hệ số lợi nhuận (Profit Factor)",
+  MAXIMUM_DRAWDOWN: "Sụt giảm vốn tối đa (Max Drawdown)",
+  SHARPE_RATIO: "Chỉ số Sharpe",
+  AVERAGE_TRADE_RETURN: "Lợi nhuận TB / lệnh",
+  TRADE_COUNT: "Tổng số lệnh đã đóng",
+};
+
+function BenchmarkAssessment({ metrics }: { metrics: RunDetail["metrics"] }) {
+  const metricMap = new Map(metrics.map((m) => [m.code, m.value]));
+  const pfStr = metricMap.get("PROFIT_FACTOR");
+  const wrStr = metricMap.get("WIN_RATE");
+  const mddStr = metricMap.get("MAXIMUM_DRAWDOWN");
+  const tcStr = metricMap.get("TRADE_COUNT");
+
+  const pf = pfStr ? parseFloat(pfStr) : null;
+  const wr = wrStr ? parseFloat(wrStr) : null;
+  const mdd = mddStr ? Math.abs(parseFloat(mddStr)) * 100 : null;
+  const tc = tcStr ? parseInt(tcStr, 10) : null;
+
+  if (tc === 0 || metrics.some((m) => m.reasonCode === "NO_CLOSED_TRADES")) {
+    return null;
+  }
+
+  const isPfPass = pf !== null && pf >= 1.5;
+  const isWrPass = wr !== null && wr >= 0.45;
+  const isMddPass = mdd !== null && mdd <= 18;
+  const isTcPass = tc !== null && tc >= 10;
+
+  const passedCount = [isPfPass, isWrPass, isMddPass, isTcPass].filter(Boolean).length;
+  const isRobust = passedCount >= 3 && (pf !== null && pf >= 1.3) && (mdd !== null && mdd <= 22);
+
+  return (
+    <div className="mb-4 p-4 rounded-xl border border-slate-800 bg-slate-950/60">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 mb-3 border-b border-slate-800/80">
+        <div className="flex items-center gap-2">
+          <span className="text-base">🎯</span>
+          <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+            Đánh Giá Chuẩn Định Lượng Thực Chiến (Quant Benchmark)
+          </h4>
+        </div>
+        <span
+          className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+            isRobust
+              ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+              : "bg-amber-500/20 text-amber-300 border-amber-500/40"
+          }`}
+        >
+          {isRobust ? "✓ ĐẠT CHUẨN THỰC CHIẾN" : "⚠ CẦN TỐI ƯU HOẶC RỦI RO CAO"}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+        <div className={`p-2.5 rounded-lg border ${isPfPass ? "bg-emerald-950/20 border-emerald-800/40" : "bg-slate-900/60 border-slate-800"}`}>
+          <div className="text-slate-400 text-[11px] mb-0.5">Profit Factor (Chuẩn ≥ 1.5)</div>
+          <div className={`font-mono font-bold text-sm ${isPfPass ? "text-emerald-400" : "text-amber-400"}`}>
+            {pf !== null ? pf.toFixed(2) : "—"}{" "}
+            <span className="text-[10px] font-sans font-normal">{isPfPass ? "✓ Đạt" : "✗ Chưa đạt"}</span>
+          </div>
+        </div>
+
+        <div className={`p-2.5 rounded-lg border ${isWrPass ? "bg-emerald-950/20 border-emerald-800/40" : "bg-slate-900/60 border-slate-800"}`}>
+          <div className="text-slate-400 text-[11px] mb-0.5">Win Rate (Chuẩn ≥ 45%)</div>
+          <div className={`font-mono font-bold text-sm ${isWrPass ? "text-emerald-400" : "text-amber-400"}`}>
+            {wr !== null ? `${(wr * 100).toFixed(1)}%` : "—"}{" "}
+            <span className="text-[10px] font-sans font-normal">{isWrPass ? "✓ Đạt" : "✗ Chưa đạt"}</span>
+          </div>
+        </div>
+
+        <div className={`p-2.5 rounded-lg border ${isMddPass ? "bg-emerald-950/20 border-emerald-800/40" : "bg-rose-950/20 border-rose-800/40"}`}>
+          <div className="text-slate-400 text-[11px] mb-0.5">Max Drawdown (Chuẩn ≤ 18%)</div>
+          <div className={`font-mono font-bold text-sm ${isMddPass ? "text-emerald-400" : "text-rose-400"}`}>
+            {mdd !== null ? `-${mdd.toFixed(1)}%` : "—"}{" "}
+            <span className="text-[10px] font-sans font-normal">{isMddPass ? "✓ An toàn" : "⚠ Cao"}</span>
+          </div>
+        </div>
+
+        <div className={`p-2.5 rounded-lg border ${isTcPass ? "bg-emerald-950/20 border-emerald-800/40" : "bg-slate-900/60 border-slate-800"}`}>
+          <div className="text-slate-400 text-[11px] mb-0.5">Mẫu lệnh (Chuẩn ≥ 10 lệnh)</div>
+          <div className={`font-mono font-bold text-sm ${isTcPass ? "text-emerald-400" : "text-amber-400"}`}>
+            {tc !== null ? `${tc} lệnh` : "—"}{" "}
+            <span className="text-[10px] font-sans font-normal">{isTcPass ? "✓ Đủ mẫu" : "⚠ Mẫu ít"}</span>
+          </div>
+        </div>
+      </div>
+      <p className="mt-2.5 text-[11px] text-slate-400 leading-relaxed">
+        {isRobust
+          ? "Chiến lược có kỳ vọng toán học dương và mức kiểm soát sụt giảm vốn an toàn trên chu kỳ quá khứ của cổ phiếu này."
+          : "Chiến lược chưa đạt tối ưu trên cổ phiếu này (hoặc chu kỳ thử nghiệm có mẫu giao dịch quá ít). Nhà đầu tư nên thận trọng, hạ tỷ trọng rủi ro hoặc xem xét các mã cổ phiếu khác."}
+      </p>
+    </div>
+  );
+}
 
 export function BacktestResult({ run, onDelete }: { run: RunDetail; onDelete?: () => void }) {
   const isCompleted = run.status === "COMPLETED";
@@ -151,8 +247,11 @@ export function BacktestResult({ run, onDelete }: { run: RunDetail; onDelete?: (
         </div>
       )}
 
+
+
       <div>
         <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider mb-3">Chỉ số</h3>
+        {run.metrics.length > 0 && <BenchmarkAssessment metrics={run.metrics} />}
         {run.metrics.length === 0 ? (
           <p className="p-4 rounded-lg bg-slate-950/40 border border-slate-800 text-xs text-slate-400 text-center">
             Không có chỉ số được công bố cho run này.
@@ -163,6 +262,7 @@ export function BacktestResult({ run, onDelete }: { run: RunDetail; onDelete?: (
               <thead>
                 <tr>
                   <th>Chỉ số</th>
+                  <th>Tên chỉ số</th>
                   <th>Giá trị</th>
                   <th>Khả dụng</th>
                 </tr>
@@ -171,6 +271,7 @@ export function BacktestResult({ run, onDelete }: { run: RunDetail; onDelete?: (
                 {run.metrics.map((metric) => (
                   <tr key={metric.code}>
                     <td className="font-mono font-bold text-slate-200">{metric.code}</td>
+                    <td className="text-xs text-slate-300">{METRIC_LABELS[metric.code] ?? metric.code}</td>
                     <td className="font-mono text-cyan-300 font-bold">{metric.value ?? "—"}</td>
                     <td className="text-xs text-slate-400">
                       {metric.availability}

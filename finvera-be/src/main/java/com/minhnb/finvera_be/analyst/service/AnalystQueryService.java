@@ -95,6 +95,11 @@ public class AnalystQueryService {
         Instant timestamp = calledAt != null ? calledAt : clock.instant();
         String safeArgs = argumentsJson != null && !argumentsJson.isBlank() ? argumentsJson : "{}";
 
+        String safeFailureReason = failureReason;
+        if (safeFailureReason != null && safeFailureReason.length() > 1000) {
+            safeFailureReason = safeFailureReason.substring(0, 1000);
+        }
+
         AnalystToolCallEntity entity = new AnalystToolCallEntity(
                 UUID.randomUUID(),
                 queryId,
@@ -102,7 +107,7 @@ public class AnalystQueryService {
                 toolName,
                 safeArgs,
                 status,
-                failureReason,
+                safeFailureReason,
                 latencyMs,
                 timestamp);
 

@@ -135,12 +135,13 @@ class BackendToolClient:
                 if resp.is_success:
                     return True, resp.json(), None
                 else:
-                    return False, None, f"HTTP_{resp.status_code}: {resp.text[:200]}"
+                    snippet = resp.text[:180] if resp.text else ""
+                    return False, None, f"HTTP_{resp.status_code}: {snippet}"
 
         except httpx.TimeoutException:
             return False, None, f"TIMEOUT: Tool call exceeded {self.timeout}s"
         except Exception as e:
-            return False, None, f"NETWORK_ERROR: {str(e)}"
+            return False, None, f"NETWORK_ERROR: {str(e)[:180]}"
 
 
 class OrchestrationDispatcher:
@@ -178,7 +179,7 @@ class OrchestrationDispatcher:
                 tool_name=tool_name or ToolName.MARKET,
                 arguments=arguments_raw,
                 status="FAILED",
-                failure_reason=err or "VALIDATION_FAILED",
+                failure_reason=(err or "VALIDATION_FAILED")[:200],
                 latency_ms=latency_ms,
                 called_at=now_iso,
                 response_data=None,
@@ -205,7 +206,7 @@ class OrchestrationDispatcher:
             tool_name=tool_name,
             arguments=args_dict,
             status="SUCCEEDED" if success else "FAILED",
-            failure_reason=failure_reason,
+            failure_reason=failure_reason[:200] if failure_reason else None,
             latency_ms=latency_ms,
             called_at=now_iso,
             response_data=response_dict,

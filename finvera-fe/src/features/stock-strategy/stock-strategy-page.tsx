@@ -2,6 +2,7 @@ import { useState } from "react";
 import { scanStrategy, StrategyScanApiError, type ScanResponse, type StrategyCode } from "./api/stock-strategy";
 import { StrategyPicker } from "./components/strategy-picker";
 import { StrategyScanResults } from "./components/strategy-scan-results";
+import { MarketRegimeBanner } from "./components/market-regime-banner";
 
 export function StockStrategyPage() {
   const [result, setResult] = useState<ScanResponse | null>(null);
@@ -48,6 +49,8 @@ export function StockStrategyPage() {
           </p>
         </div>
       </header>
+
+      <MarketRegimeBanner />
 
       <StrategyPicker onSubmit={handleSubmit} submitting={submitting} />
 

@@ -64,6 +64,8 @@ export interface FormState {
   interestCoverageMax: string;
   debtToAssetsMin: string;
   debtToAssetsMax: string;
+  dividendYieldMin: string;
+  dividendYieldMax: string;
 }
 
 export const EMPTY_FORM: FormState = {
@@ -112,11 +114,23 @@ export const EMPTY_FORM: FormState = {
   interestCoverageMax: "",
   debtToAssetsMin: "",
   debtToAssetsMax: "",
+  dividendYieldMin: "",
+  dividendYieldMax: "",
 };
 
 function opt(value: string): string | undefined {
   const trimmed = value.trim();
   return trimmed.length === 0 ? undefined : trimmed;
+}
+
+function optDebtToEquity(value: string): string | undefined {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return undefined;
+  const n = Number(trimmed);
+  if (!Number.isFinite(n)) return undefined;
+  // If user entered as a decimal ratio (e.g. 0.8 or 1.5 lần), convert to percentage points (80 or 150)
+  // to match backend percentage storage (e.g. 80.0%)
+  return n <= 5 ? String(n * 100) : String(n);
 }
 
 function optInt(value: string): number | undefined {
@@ -126,9 +140,19 @@ function optInt(value: string): number | undefined {
   return Number.isFinite(n) ? Math.trunc(n) : undefined;
 }
 
+function parseExchanges(value: string): string[] | undefined {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return undefined;
+  const list = trimmed
+    .split(/[,;\s]+/)
+    .map((s) => s.trim().toUpperCase())
+    .filter(Boolean);
+  return list.length > 0 ? list : undefined;
+}
+
 export function buildScreenRequest(form: FormState): ScreenRequest {
   const market: MarketFilter = {
-    exchange: opt(form.exchange) ? [form.exchange.trim().toUpperCase()] : undefined,
+    exchange: parseExchanges(form.exchange),
     marketCapMin: opt(form.marketCapMin),
     marketCapMax: opt(form.marketCapMax),
   };
@@ -163,8 +187,8 @@ export function buildScreenRequest(form: FormState): ScreenRequest {
     peMax: opt(form.peMax),
     pbMin: opt(form.pbMin),
     pbMax: opt(form.pbMax),
-    debtToEquityMin: opt(form.debtToEquityMin),
-    debtToEquityMax: opt(form.debtToEquityMax),
+    debtToEquityMin: optDebtToEquity(form.debtToEquityMin),
+    debtToEquityMax: optDebtToEquity(form.debtToEquityMax),
     psMin: opt(form.psMin),
     psMax: opt(form.psMax),
     betaMin: opt(form.betaMin),
@@ -179,6 +203,8 @@ export function buildScreenRequest(form: FormState): ScreenRequest {
     interestCoverageMax: opt(form.interestCoverageMax),
     debtToAssetsMin: opt(form.debtToAssetsMin),
     debtToAssetsMax: opt(form.debtToAssetsMax),
+    dividendYieldMin: opt(form.dividendYieldMin),
+    dividendYieldMax: opt(form.dividendYieldMax),
   };
 
   const hasAny = (o: object) => Object.values(o).some((v) => v !== undefined);

@@ -83,6 +83,26 @@ class AnalystQueryServiceTests {
     }
 
     @Test
+    void recordToolCall_truncatesLongFailureReason() {
+        UUID queryId = UUID.randomUUID();
+        when(toolCallRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        String veryLongReason = "ERROR: ".repeat(200); // 1400 chars
+        AnalystToolCallEntity entity = service.recordToolCall(
+                queryId,
+                (short) 2,
+                ToolName.MARKET,
+                "{}",
+                ToolCallStatus.FAILED,
+                veryLongReason,
+                200,
+                fixedClock.instant());
+
+        assertThat(entity.getFailureReason()).hasSize(1000);
+        assertThat(entity.getStatus()).isEqualTo(ToolCallStatus.FAILED);
+    }
+
+    @Test
     void recordQueryCompletion_updatesOutcomeAndCompletedAt() {
         UUID queryId = UUID.randomUUID();
         AnalystQueryEntity existing = new AnalystQueryEntity(

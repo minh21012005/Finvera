@@ -511,37 +511,29 @@
       </a>
       <a href="#master-workflow" class="nav-item">
         <span class="nav-step-badge">02</span>
-        <span>Quy trình 6 bước</span>
+        <span>Quy trình 4 bước</span>
       </a>
 
       <div class="nav-section-title">Chi tiết các bước</div>
       <a href="#step-market" class="nav-item">
         <span class="nav-step-badge">B1</span>
-        <span>Chế độ thị trường</span>
+        <span>Thị trường & Tín hiệu</span>
       </a>
       <a href="#step-screener" class="nav-item">
         <span class="nav-step-badge">B2</span>
-        <span>Bộ lọc định lượng</span>
-      </a>
-      <a href="#step-research" class="nav-item">
-        <span class="nav-step-badge">B3</span>
-        <span>Thẩm định & AI</span>
-      </a>
-      <a href="#step-strategy" class="nav-item">
-        <span class="nav-step-badge">B4</span>
-        <span>Chiến lược định lượng</span>
+        <span>Bộ lọc & Sắp xếp nhanh</span>
       </a>
       <a href="#step-backtest" class="nav-item">
-        <span class="nav-step-badge">B5</span>
+        <span class="nav-step-badge">B3</span>
         <span>Kiểm chứng Backtest</span>
       </a>
       <a href="#step-sizing" class="nav-item">
-        <span class="nav-step-badge">B6</span>
+        <span class="nav-step-badge">B4</span>
         <span>Quy mô vị thế & 4 Đợt</span>
       </a>
-      <a href="#step-portfolio" class="nav-item">
-        <span class="nav-step-badge">B7</span>
-        <span>Danh mục & Cảnh báo</span>
+      <a href="#step-deepdive" class="nav-item">
+        <span class="nav-step-badge">+</span>
+        <span>Thẩm định AI & Danh mục</span>
       </a>
 
       <div class="nav-section-title">Cốt lõi thực chiến</div>
@@ -630,15 +622,15 @@
       </div>
     </section>
 
-    <!-- PHẦN 2: SƠ ĐỒ LUỒNG ĐẦU TƯ 6 BƯỚC -->
+    <!-- PHẦN 2: SƠ ĐỒ LUỒNG ĐẦU TƯ 4 BƯỚC THỰC CHIẾN -->
     <section id="master-workflow">
       <div class="section-header">
         <span class="section-num">02</span>
-        <h2 class="section-title">Quy Trình 6 Bước Thực Chiến Chuẩn Finvera</h2>
+        <h2 class="section-title">Quy Trình 4 Bước Thực Chiến Tinh Gọn Chuẩn Finvera</h2>
       </div>
 
       <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;">
-        Để đạt hiệu quả tối đa và bảo vệ tài khoản, nhà đầu tư nên tuân thủ nghiêm ngặt chu trình 6 bước: từ vĩ mô đến lựa chọn cổ phiếu, kiểm tra xác suất và quản trị rủi ro chặt chẽ trước khi giải ngân.
+        Được thiết kế tối ưu cho nhà đầu tư thực chiến: Loại bỏ hoàn toàn nhiễu và thao tác thừa, đi thẳng từ bối cảnh thị trường đến mã dẫn dắt, kiểm chứng xác suất toán học và tính toán quy mô vị thế an toàn.
       </p>
 
       <div class="workflow-container">
@@ -649,12 +641,11 @@
           </div>
           <div class="step-content">
             <div class="step-title-row">
-              <span class="step-heading">Quét Chế Độ Thị Trường (Market Regime & Breadth)</span>
-              <span class="step-route-badge">Trang: / (Thị trường)</span>
+              <span class="step-heading">Xác Định Bối Cảnh Thị Trường & Tín Hiệu Chiến Lược</span>
+              <span class="step-route-badge">Trang: / &amp; /strategies</span>
             </div>
             <p class="step-desc">
-              Xác định trạng thái thị trường chung (VNINDEX, HNX): Xu hướng tăng (Bullish), Phân phối (Bearish) hay Đi ngang (Sideway). Đánh giá độ rộng thị trường (tỷ lệ mã trên MA20/MA50).<br>
-              <strong class="text-emerald">Nguyên tắc:</strong> Chỉ ưu tiên mở vị thế mới khi thị trường ở chế độ thuận lợi hoặc đang tích lũy hỗ trợ mạnh.
+              Kiểm tra ngay Banner Chế độ Thị trường (Market Regime Banner) để nhận định chu kỳ: <strong>BULL</strong> (80%–100% vốn), <strong>SIDEWAYS</strong> (40%–60% vốn) hay <strong>BEAR</strong> (0%–20% vốn). Lựa chọn chiến lược định lượng phù hợp (Trend Following, Pullback, Mean Reversion...) với các ngưỡng Entry, Stop Loss ($2\times\text{ATR}$), Target 1 ($2.0R$), Target 2 ($3.0R$).
             </p>
           </div>
         </div>
@@ -666,11 +657,11 @@
           </div>
           <div class="step-content">
             <div class="step-title-row">
-              <span class="step-heading">Lọc Ứng Viên Đạt Chuẩn (Stock Screener)</span>
+              <span class="step-heading">Sàng Lọc Cổ Phiếu Đạt Chuẩn & Sắp Xếp Nhanh</span>
               <span class="step-route-badge">Trang: /screener</span>
             </div>
             <p class="step-desc">
-              Sử dụng bộ lọc định lượng đa tiêu chí để sàng lọc ra 3–5 cổ phiếu khỏe nhất: ROE &gt; 15%, tăng trưởng EPS, P/E &amp; P/B hợp lý, thanh khoản bình quân &gt; 200.000 cp/phiên và đáp ứng cấu trúc Trend Template.
+              Tiết kiệm tối đa thời gian bằng các <strong>Bộ Lọc Mẫu Có Sẵn (Presets)</strong>: <em>Siêu Tăng Trưởng (CANSLIM), Cơ Bản Mạnh &amp; Định Giá Hợp Lý, Dòng Tiền Bứt Phá</em>. Tham khảo <strong>Gợi ý chuẩn thị trường VN</strong> ngay dưới từng ô lọc và sử dụng thanh <strong>⚡ Sắp Xếp Nhanh</strong> để chọn ngay Top 1–3 mã có ROE cao nhất, Tăng trưởng LN mạnh nhất.
             </p>
           </div>
         </div>
@@ -682,11 +673,11 @@
           </div>
           <div class="step-content">
             <div class="step-title-row">
-              <span class="step-heading">Thẩm Định Doanh Nghiệp & Nghiên Cứu AI (Deep-Dive & AI)</span>
-              <span class="step-route-badge">Trang: /stocks/:symbol &amp; /analyst</span>
+              <span class="step-heading">Kiểm Chứng Xác Suất & Chuẩn Định Lượng Thực Chiến</span>
+              <span class="step-route-badge">Trang: /backtests</span>
             </div>
             <p class="step-desc">
-              Xem chi tiết cơ cấu tài chính, dòng tiền thuần hoạt động kinh doanh (OCF), P/E Band lịch sử. Sử dụng Trợ lý AI (Finvera Analyst) để tra cứu tài liệu đại hội cổ đông, rủi ro tiềm ẩn với dẫn chứng số trang minh bạch.
+              Chạy kiểm chứng lịch sử với điều kiện khớp lệnh thực (Next Session Open, trừ đủ thuế 0.1%, phí 0.15%, trượt giá). Đối chiếu với <strong>Thẻ Đánh Giá Chuẩn Định Lượng (Quant Benchmark Card)</strong>: <em>Profit Factor &ge; 1.5, Win Rate &ge; 45%, Max Drawdown &le; 18%, Mẫu lệnh &ge; 10</em>. Chỉ giải ngân khi chiến lược đạt chuẩn!
             </p>
           </div>
         </div>
@@ -698,223 +689,54 @@
           </div>
           <div class="step-content">
             <div class="step-title-row">
-              <span class="step-heading">Xác Nhận Tín Hiệu Chiến Lược (Strategy Signal)</span>
-              <span class="step-route-badge">Trang: /strategies</span>
-            </div>
-            <p class="step-desc">
-              Kiểm tra mã cổ phiếu đã phát sinh tín hiệu từ 8 chiến lược định lượng. Nắm rõ vùng mua (Entry Low – High), điểm cắt lỗ Stop Loss ($2\times\text{ATR}$) và 2 mục tiêu chốt lời Target 1 ($4\times\text{ATR} = 2R$) &amp; Target 2 ($6\times\text{ATR} = 3R$).
-            </p>
-          </div>
-        </div>
-
-        <!-- BƯỚC 5 -->
-        <div class="workflow-step">
-          <div class="step-icon-col">
-            <div class="step-circle">05</div>
-          </div>
-          <div class="step-content">
-            <div class="step-title-row">
-              <span class="step-heading">Kiểm Chứng Lịch Sử Thực Tế (Historical Backtest)</span>
-              <span class="step-route-badge">Trang: /backtests</span>
-            </div>
-            <p class="step-desc">
-              Chạy mô phỏng chiến lược trên dữ liệu lịch sử cổ phiếu: Đánh giá Win Rate, Profit Factor (&gt; 1.5), Max Drawdown (&lt; 20%). Mô phỏng chuẩn sàn VN: Khớp mở cửa phiên sau (Next Open), trừ đủ thuế 0.1%, phí 0.15% và trượt giá.
-            </p>
-          </div>
-        </div>
-
-        <!-- BƯỚC 6 -->
-        <div class="workflow-step">
-          <div class="step-icon-col">
-            <div class="step-circle">06</div>
-          </div>
-          <div class="step-content">
-            <div class="step-title-row">
-              <span class="step-heading">Tính Quy Mô Vị Thế & Kịch Bản 4 Đợt (Position Sizing)</span>
+              <span class="step-heading">Quản Trị Rủi Ro & Kịch Bản Giải Ngân Kim Tự Tháp 4 Đợt</span>
               <span class="step-route-badge">Trang: /position-sizing</span>
             </div>
             <p class="step-desc">
-              Xác định chính xác số lượng cổ phiếu cần mua dựa trên ngân sách rủi ro (1%–2% NAV nếu chạm Stop Loss), khống chế sức mua và làm tròn lô chẵn 100 cp. Nhận kịch bản kim tự tháp 4 đợt (dời Stop Loss về hòa vốn, chốt 50% ở Target 1).
+              Nhập ngân sách rủi ro (1%–2% NAV). Hệ thống tự động tính khối lượng cổ phiếu tròn lô 100 cp, hiển thị khoảng cách Dừng lỗ (-% Stop Loss). Áp dụng kỷ luật giải ngân kim tự tháp: Mua đợt 1 &rarr; Dời Stop Loss về hòa vốn khi mua nhồi đợt 2 &rarr; Chốt 50% ở Target 1 và gồng lãi Target 2.
             </p>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- CHI TIẾT BƯỚC 1: THỊ TRƯỜNG -->
+    <!-- CHI TIẾT BƯỚC 1: THỊ TRƯỜNG & CHIẾN LƯỢC -->
     <section id="step-market">
       <div class="section-header">
         <span class="section-num">B1</span>
-        <h2 class="section-title">Bước 1: Giám Sát Chế Độ Thị Trường (Market Regime)</h2>
+        <h2 class="section-title">Bước 1: Xác Định Bối Cảnh Thị Trường & Tín Hiệu Chiến Lược</h2>
       </div>
 
       <div class="card">
         <p style="margin-bottom: 16px; font-size: 14px;">
-          Đầu tư ngược chiều xu hướng thị trường chung là nguyên nhân hàng đầu dẫn đến thua lỗ. Trang <strong>Thị trường (<code>/</code>)</strong> cung cấp bức tranh toàn cảnh khách quan:
+          Đầu tư ngược chiều xu hướng thị trường chung là nguyên nhân hàng đầu dẫn đến thua lỗ (hơn 75% cổ phiếu vận động theo thị trường chung). Finvera cung cấp <strong>Banner Chế độ Thị trường (Market Regime Banner)</strong> trực quan ngay tại đầu trang <strong>Chiến lược (<code>/strategies</code>)</strong> và trang <strong>Tổng quan (<code>/</code>)</strong>:
         </p>
 
         <div class="grid-3" style="margin-bottom: 16px;">
           <div style="background: #07101b; padding: 16px; border-radius: 8px; border: 1px solid var(--border-subtle);">
-            <div class="mono text-cyan" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">Chỉ số &amp; Thanh khoản</div>
-            <p style="font-size: 12.5px; color: var(--text-muted);">
-              Theo dõi biến động điểm số VN-Index, VN30, HNX-Index kèm giá trị khớp lệnh so với trung bình 20 phiên. Thanh khoản tăng kèm điểm tăng xác nhận dòng tiền vào.
+            <div class="mono text-emerald" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">BULL / EARLY_BULL (Tăng trưởng)</div>
+            <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 6px;">
+              Xu hướng thị trường xác lập sóng tăng, độ rộng tích cực.
             </p>
+            <div class="mono text-emerald" style="font-size: 12px; font-weight: 600;">Tỷ trọng: 80% – 100% Vốn</div>
           </div>
           <div style="background: #07101b; padding: 16px; border-radius: 8px; border: 1px solid var(--border-subtle);">
-            <div class="mono text-emerald" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">Độ rộng Thị trường (Breadth)</div>
-            <p style="font-size: 12.5px; color: var(--text-muted);">
-              Đo lường tỷ lệ số mã tăng / giảm và số mã vượt MA20 / MA50. Nếu chỉ số tăng nhưng độ rộng hẹp (kéo trụ ảo), rủi ro điều chỉnh rất cao.
+            <div class="mono text-amber" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">SIDEWAYS (Đi ngang tích lũy)</div>
+            <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 6px;">
+              Thị trường phân hóa cao, thiếu sóng dẫn dắt. Cẩn trọng Breakout giả.
             </p>
+            <div class="mono text-amber" style="font-size: 12px; font-weight: 600;">Tỷ trọng: 40% – 60% Vốn</div>
           </div>
           <div style="background: #07101b; padding: 16px; border-radius: 8px; border: 1px solid var(--border-subtle);">
-            <div class="mono text-amber" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">Phân loại Chế độ (Regime)</div>
-            <p style="font-size: 12.5px; color: var(--text-muted);">
-              Hệ thống gắn nhãn chế độ rõ ràng: <em>BULLISH (Tăng giá), CORRECTION (Điều chỉnh), BEARISH (Giảm giá), REBOUND (Hồi phục kỹ thuật)</em>.
+            <div class="mono text-rose" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">BEAR / EARLY_BEAR (Xu hướng giảm)</div>
+            <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 6px;">
+              Rủi ro sụt giảm cao, xác suất thất bại vị thế mua tăng vọt.
             </p>
+            <div class="mono text-rose" style="font-size: 12px; font-weight: 600;">Tỷ trọng: 0% – 20% Vốn (Cầm tiền mặt)</div>
           </div>
         </div>
 
-        <div class="callout callout-warn">
-          <div class="callout-icon">⚠️</div>
-          <div>
-            <strong>Kỷ luật hành động theo Regime:</strong>
-            <ul style="margin-left: 20px; margin-top: 4px;">
-              <li><strong>Khi Regime là BULLISH:</strong> Tự tin giải ngân theo các chiến lược Trend Following và Breakout. Áp dụng đầy đủ 4 đợt kim tự tháp.</li>
-              <li><strong>Khi Regime là CORRECTION / BEARISH:</strong> Hạn chế mua mới, hạ tỷ lệ đòn bẩy về 0, chuyển sang chiến lược Mean Reversion phòng thủ với quy mô vị thế nhỏ hơn (giảm ngân sách rủi ro xuống 0.5%–1% NAV).</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- CHI TIẾT BƯỚC 2: BỘ LỌC CỔ PHIẾU -->
-    <section id="step-screener">
-      <div class="section-header">
-        <span class="section-num">B2</span>
-        <h2 class="section-title">Bước 2: Lọc Ứng Viên Tiềm Năng (Stock Screener)</h2>
-      </div>
-
-      <div class="card">
-        <p style="font-size: 14px; margin-bottom: 16px;">
-          Với hơn 1.600 mã trên cả 3 sàn HOSE, HNX và UPCOM, trang <strong>Bộ lọc (<code>/screener</code>)</strong> giúp loại bỏ 98% cổ phiếu rác, giữ lại nhóm cổ phiếu thỏa mãn tiêu chí chất lượng cao.
-        </p>
-
-        <div class="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Nhóm tiêu chí</th>
-                <th>Thông số khuyến nghị</th>
-                <th>Mục đích bảo vệ</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class="mono font-bold text-cyan">Hiệu quả sinh lời</td>
-                <td><strong>ROE &ge; 15%</strong> (hoặc ROIC &ge; 12%)</td>
-                <td>Doanh nghiệp sử dụng vốn hiệu quả, có lợi thế cạnh tranh bền vững (Moat).</td>
-              </tr>
-              <tr>
-                <td class="mono font-bold text-cyan">Định giá cơ bản</td>
-                <td><strong>P/E &le; 18</strong> và <strong>P/B &le; 2.5</strong></td>
-                <td>Tránh mua phải các cổ phiếu định giá bong bóng hoặc đầu cơ quá mức.</td>
-              </tr>
-              <tr>
-                <td class="mono font-bold text-cyan">Tăng trưởng</td>
-                <td><strong>Tăng trưởng EPS &gt; 15%</strong> (YoY)</td>
-                <td>Cổ phiếu có động lực kinh doanh cốt lõi dẫn dắt giá tăng trưởng.</td>
-              </tr>
-              <tr>
-                <td class="mono font-bold text-cyan">Thanh khoản sàn</td>
-                <td><strong>Khối lượng TB 20 phiên &ge; 200.000 cp</strong></td>
-                <td>Đảm bảo dễ dàng mua bán, không bị kẹp hàng khi cần cắt lỗ.</td>
-              </tr>
-              <tr>
-                <td class="mono font-bold text-cyan">Kỹ thuật (Trend)</td>
-                <td><strong>Giá nằm trên MA50 &amp; MA200</strong></td>
-                <td>Đảm bảo chỉ mua cổ phiếu đang trong chu kỳ tăng (Giai đoạn 2 - Stan Weinstein).</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- CHI TIẾT BƯỚC 3: THẨM ĐỊNH VÀ AI -->
-    <section id="step-research">
-      <div class="section-header">
-        <span class="section-num">B3</span>
-        <h2 class="section-title">Bước 3: Thẩm Định Doanh Nghiệp & Trợ Lý AI Analyst</h2>
-      </div>
-
-      <div class="card">
-        <div class="grid-2">
-          <div>
-            <h3 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 10px;">Trang Chi Tiết Cổ Phiếu (<code>/stocks/:symbol</code>)</h3>
-            <p style="font-size: 13.5px; color: var(--text-muted); margin-bottom: 12px;">
-              Khảo sát sâu cơ cấu tài chính của mã được chọn:
-            </p>
-            <ul style="font-size: 13px; color: var(--text-main); margin-left: 18px; space-y: 6px;">
-              <li><strong>Lưu chuyển tiền tệ:</strong> Đảm bảo dòng tiền thuần từ HĐKD (OCF) dương, chất lượng lợi nhuận cao, không bị ứ đọng nợ phải thu.</li>
-              <li><strong>Cơ cấu nợ:</strong> Tỷ lệ Nợ vay / Vốn chủ sở hữu (D/E) ở mức an toàn (&lt; 1.0 với doanh nghiệp sản xuất).</li>
-              <li><strong>Định giá dải P/E &amp; P/B Band:</strong> Vị thế giá hiện tại đang ở vùng rẻ (đáy band) hay đắt (đỉnh band).</li>
-            </ul>
-          </div>
-          <div>
-            <h3 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 10px;">AI Financial Analyst (<code>/analyst</code>)</h3>
-            <p style="font-size: 13.5px; color: var(--text-muted); margin-bottom: 12px;">
-              Trợ lý AI được xây dựng theo cơ chế RAG có trích dẫn nguồn:
-            </p>
-            <ul style="font-size: 13px; color: var(--text-main); margin-left: 18px; space-y: 6px;">
-              <li><strong>Hỏi đáp chuyên sâu:</strong> Hỏi về tiến độ dự án mới, rủi ro nợ trái phiếu, cơ cấu doanh thu theo mảng.</li>
-              <li><strong>Truy xuất bằng chứng thực:</strong> AI dẫn link trực tiếp đến trang báo cáo tài chính kiểm toán hoặc tài liệu ĐHCĐ đã quét.</li>
-              <li><strong>Không tự chế:</strong> Nếu tài liệu không có thông tin, AI sẽ thẳng thắn thông báo không đủ căn cứ, không trả lời cảm tính.</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- CHI TIẾT BƯỚC 4: CHIẾN LƯỢC ĐỊNH LƯỢNG -->
-    <section id="step-strategy">
-      <div class="section-header">
-        <span class="section-num">B4</span>
-        <h2 class="section-title">Bước 4: Nhận Diện Tín Hiệu Chiến Lược Định Lượng</h2>
-      </div>
-
-      <div class="card">
-        <p style="font-size: 14px; margin-bottom: 16px;">
-          Tại trang <strong>Chiến lược (<code>/strategies</code>)</strong>, hệ thống tự động quét và tính toán tín hiệu mua bán theo 8 chiến lược định lượng kinh điển:
-        </p>
-
-        <div class="grid-2" style="margin-bottom: 20px;">
-          <div style="background: #08121f; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 16px;">
-            <div class="mono text-cyan" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">TREND_FOLLOWING (Bám xu hướng)</div>
-            <p style="font-size: 12.5px; color: var(--text-muted);">
-              Mua khi cổ phiếu xác lập xu hướng tăng bền vững trên các đường trung bình MA. Phù hợp nắm giữ trung - dài hạn khi thị trường có sóng lớn.
-            </p>
-          </div>
-          <div style="background: #08121f; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 16px;">
-            <div class="mono text-cyan" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">PULLBACK (Mua khi điều chỉnh)</div>
-            <p style="font-size: 12.5px; color: var(--text-muted);">
-              Mua khi giá điều chỉnh lành mạnh về vùng hỗ trợ MA20/MA50 trong xu hướng tăng lớn. Tối ưu điểm vào với mức cắt lỗ rất ngắn.
-            </p>
-          </div>
-          <div style="background: #08121f; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 16px;">
-            <div class="mono text-cyan" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">BREAKOUT (Bứt phá đỉnh nền)</div>
-            <p style="font-size: 12.5px; color: var(--text-muted);">
-              Mua khi giá vượt đỉnh hộp tích lũy kèm khối lượng lớn đột biến (&gt; 1.5 lần trung bình). Thích hợp với nhà đầu tư năng động.
-            </p>
-          </div>
-          <div style="background: #08121f; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 16px;">
-            <div class="mono text-cyan" style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">MEAN_REVERSION (Hồi phục từ quá bán)</div>
-            <p style="font-size: 12.5px; color: var(--text-muted);">
-              Bắt đáy khi chỉ số kỹ thuật rơi vào vùng quá bán sâu (RSI &lt; 30) chạm hỗ trợ dải dưới Bollinger Band. Đánh nhanh rút gọn.
-            </p>
-          </div>
-        </div>
-
-        <h3 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 12px;">Công Thức Toán Học Xác Định Tín Hiệu (Quy Chuẩn strategy-signal-v1)</h3>
+        <h3 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 12px;">Công Thức Toán Học Xác Định Tín Hiệu Chiến Lược (Quy Chuẩn strategy-signal-v1)</h3>
         <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
           Mọi tín hiệu được chuẩn hóa dựa trên giá đóng cửa ($C$) và biên độ biến động thực tế ($ATR_{14}$):
         </p>
@@ -934,25 +756,25 @@
                 <td class="mono font-bold text-cyan">Vùng mua (Entry)</td>
                 <td class="mono">[C - 0.25&times;ATR , C + 0.25&times;ATR]</td>
                 <td>Vùng cơ sở</td>
-                <td>Vùng giá gom hàng tối ưu, tránh mua đuổi khi giá đã chạy xa.</td>
+                <td>Vùng gom hàng tối ưu. Điểm vào chuẩn là trung điểm vùng mua.</td>
               </tr>
               <tr>
-                <td class="mono font-bold text-rose">Cắt lỗ (Stop Loss)</td>
+                <td class="mono font-bold text-rose">Dừng lỗ (Stop Loss)</td>
                 <td class="mono font-bold text-rose">C - 2.0 &times; ATR14</td>
                 <td class="mono text-rose">-1.0 R</td>
-                <td>Điểm thoát lệnh tuyệt đối. Tương ứng mức giảm 5%–8% tùy biến động mã.</td>
+                <td>Điểm thoát lệnh tuyệt đối. Hiển thị rõ % khoảng cách lỗ (-4% đến -8%).</td>
               </tr>
               <tr>
                 <td class="mono font-bold text-emerald">Mục tiêu 1 (Target 1)</td>
                 <td class="mono font-bold text-emerald">C + 4.0 &times; ATR14</td>
                 <td class="mono text-emerald">+2.0 R</td>
-                <td>Gấp đôi khoảng cách rủi ro (R:R = 2:1). Điểm chốt lời chủ động 50% vị thế.</td>
+                <td>Gấp đôi khoảng cách rủi ro (R:R = 2.0R). Điểm chốt lời chủ động 50% vị thế.</td>
               </tr>
               <tr>
                 <td class="mono font-bold text-emerald">Mục tiêu 2 (Target 2)</td>
                 <td class="mono font-bold text-emerald">C + 6.0 &times; ATR14</td>
                 <td class="mono text-emerald">+3.0 R</td>
-                <td>Gấp ba khoảng cách rủi ro (R:R = 3:1). Gồng lãi tối đa con sóng tăng mạnh.</td>
+                <td>Gấp ba khoảng cách rủi ro (R:R = 3.0R). Gồng lãi tối đa con sóng tăng mạnh.</td>
               </tr>
             </tbody>
           </table>
@@ -960,53 +782,148 @@
       </div>
     </section>
 
-    <!-- CHI TIẾT BƯỚC 5: KIỂM CHỨNG BACKTEST -->
-    <section id="step-backtest">
+    <!-- CHI TIẾT BƯỚC 2: BỘ LỌC ĐỊNH LƯỢNG & SẮP XẾP NHANH -->
+    <section id="step-screener">
       <div class="section-header">
-        <span class="section-num">B5</span>
-        <h2 class="section-title">Bước 5: Kiểm Chứng Lịch Sử (Historical Backtesting)</h2>
+        <span class="section-num">B2</span>
+        <h2 class="section-title">Bước 2: Sàng Lọc Cổ Phiếu Đạt Chuẩn & Sắp Xếp Nhanh</h2>
       </div>
 
       <div class="card">
         <p style="font-size: 14px; margin-bottom: 16px;">
-          Trước khi mạo hiểm tiền thật vào một mã cổ phiếu theo một chiến lược cụ thể, hãy kiểm tra xem trong quá khứ thuật toán đó thực sự mang lại kết quả ra sao tại trang <strong>Backtests (<code>/backtests</code>)</strong>.
+          Với hơn 1.600 mã trên sàn HOSE, HNX và UPCOM, nhà đầu tư không cần mò mẫm điền từng chỉ số. Trang <strong>Bộ lọc (<code>/screener</code>)</strong> được tối ưu hoàn toàn cho thị trường Việt Nam:
         </p>
 
-        <h3 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 12px;">Tiêu Chuẩn Vàng Đánh Giá Một Chiến Lược Đạt Chuẩn Thực Chiến</h3>
+        <h3 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 10px;">1. Bốn Bộ Lọc Mẫu Có Sẵn (Presets 1-Click)</h3>
+        <div class="grid-2" style="margin-bottom: 18px;">
+          <div style="background: #08121f; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px;">
+            <div class="mono text-cyan" style="font-size: 13px; font-weight: 700; margin-bottom: 4px;">🚀 Siêu Tăng Trưởng (CANSLIM)</div>
+            <p style="font-size: 12.5px; color: var(--text-muted);">
+              Lọc mã có ROE &ge; 18%, Tăng trưởng Lợi nhuận &ge; 20%, Doanh thu &ge; 15%, nằm trên đường MA và khối lượng tương đối &ge; 1.2x.
+            </p>
+          </div>
+          <div style="background: #08121f; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px;">
+            <div class="mono text-emerald" style="font-size: 13px; font-weight: 700; margin-bottom: 4px;">🛡️ Cơ Bản Mạnh &amp; Định Giá Hợp Lý</div>
+            <p style="font-size: 12.5px; color: var(--text-muted);">
+              Sàng lọc mã cơ bản vững chắc: ROE &ge; 15%, P/E &le; 15, P/B &le; 2.0, Nợ vay / VCSH &le; 1.0, thanh khoản tốt &ge; 200.000 cp.
+            </p>
+          </div>
+          <div style="background: #08121f; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px;">
+            <div class="mono text-amber" style="font-size: 13px; font-weight: 700; margin-bottom: 4px;">⚡ Dòng Tiền Bứt Phá (Breakout)</div>
+            <p style="font-size: 12.5px; color: var(--text-muted);">
+              Bắt các nhịp bùng nổ: Khối lượng tương đối &ge; 1.5x MA20, RSI 50–70, cổ phiếu có tín hiệu Breakout và xu hướng tăng.
+            </p>
+          </div>
+          <div style="background: #08121f; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px;">
+            <div class="mono text-cyan" style="font-size: 13px; font-weight: 700; margin-bottom: 4px;">💰 Cổ Tức Tiền Mặt Cao</div>
+            <p style="font-size: 12.5px; color: var(--text-muted);">
+              Doanh nghiệp dòng tiền mạnh, ROE &ge; 15%, đòn bẩy tài chính thấp (Nợ/VCSH &le; 0.8), thích hợp đầu tư giá trị hưởng cổ tức.
+            </p>
+          </div>
+        </div>
+
+        <h3 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 10px;">2. Thanh Sắp Xếp Nhanh (⚡ Quick-Sort Toolbar)</h3>
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
+          Bảng kết quả trang bị thanh công cụ phân loại tức thì. Nhà đầu tư bấm 1 nút để xếp hạng ngay các ứng viên:
+          <br>• <strong>ROE cao nhất:</strong> Tìm kiếm doanh nghiệp sử dụng vốn hiệu quả nhất thị trường.
+          <br>• <strong>Tăng trưởng LN cao:</strong> Đưa doanh nghiệp có tốc độ mở rộng lợi nhuận đột biến lên đầu.
+          <br>• <strong>P/E thấp nhất:</strong> Lựa chọn mã định giá hấp dẫn nhất trong nhóm vượt qua bộ lọc.
+          <br>• <strong>Vốn hóa lớn nhất:</strong> Tập trung vào các trụ cột thanh khoản cao, an toàn cho dòng vốn lớn.
+        </p>
+
+        <h3 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 10px;">3. Gợi Ý Chuẩn Định Lượng Cho Thị Trường Việt Nam</h3>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Chỉ số</th>
+                <th>Gợi ý chuẩn thị trường VN</th>
+                <th>Lý do &amp; Ý nghĩa thực chiến</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="mono font-bold text-cyan">Vốn hóa thị trường</td>
+                <td><strong>&gt; 5.000 Tỷ VND</strong></td>
+                <td>Loại bỏ penny, đảm bảo doanh nghiệp có tầm vóc và được các quỹ lớn theo dõi.</td>
+              </tr>
+              <tr>
+                <td class="mono font-bold text-cyan">Thanh khoản 20 phiên</td>
+                <td><strong>&ge; 200.000 CP/phiên</strong></td>
+                <td>Đảm bảo thanh khoản khớp lệnh thông suốt, dễ dàng vào/ra mà không bị trượt giá lớn.</td>
+              </tr>
+              <tr>
+                <td class="mono font-bold text-cyan">ROE (Hiệu quả vốn)</td>
+                <td><strong>&ge; 15%</strong> (Xuất sắc: &ge; 20%)</td>
+                <td>Doanh nghiệp có lợi thế cạnh tranh cốt lõi, khả năng tái đầu tư lợi nhuận cao.</td>
+              </tr>
+              <tr>
+                <td class="mono font-bold text-cyan">P/E (Định giá giá/lãi)</td>
+                <td><strong>10 – 18 lần</strong></td>
+                <td>Tránh các cổ phiếu quá đắt hoặc rủi ro bẫy giá rẻ (P/E &lt; 5 do lợi nhuận bất thường).</td>
+              </tr>
+              <tr>
+                <td class="mono font-bold text-cyan">Nợ vay / Vốn CSH</td>
+                <td><strong>&le; 1.0 lần</strong></td>
+                <td>Đảm bảo sức khỏe tài chính an toàn trong môi trường lãi suất biến động.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHI TIẾT BƯỚC 3: KIỂM CHỨNG BACKTEST & CHUẨN ĐỊNH LƯỢNG -->
+    <section id="step-backtest">
+      <div class="section-header">
+        <span class="section-num">B3</span>
+        <h2 class="section-title">Bước 3: Kiểm Chứng Xác Suất & Chuẩn Định Lượng Thực Chiến</h2>
+      </div>
+
+      <div class="card">
+        <p style="font-size: 14px; margin-bottom: 16px;">
+          Trước khi mạo hiểm tiền thật vào một mã cổ phiếu, hãy kiểm chứng xem trong quá khứ thuật toán đó thực sự mang lại kết quả ra sao tại trang <strong>Backtests (<code>/backtests</code>)</strong>.
+        </p>
+
+        <h3 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 12px;">Thẻ Đánh Giá Chuẩn Định Lượng Thực Chiến (Quant Benchmark Assessment Card)</h3>
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
+          Mỗi lượt chạy kiểm chứng tự động đối chiếu các chỉ số với bộ tiêu chuẩn khắt khe để đưa ra kết luận dứt khoát:
+        </p>
+
         <div class="table-wrapper" style="margin-bottom: 18px;">
           <table>
             <thead>
               <tr>
                 <th>Chỉ số định lượng</th>
-                <th>Ngưỡng đạt chuẩn</th>
+                <th>Chuẩn đạt yêu cầu</th>
                 <th>Ngưỡng cảnh báo / Loại bỏ</th>
                 <th>Ý nghĩa thực chiến</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td class="mono font-bold text-cyan">Profit Factor</td>
+                <td class="mono font-bold text-cyan">Profit Factor (PF)</td>
                 <td><strong>&ge; 1.5</strong> (Xuất sắc: &ge; 2.0)</td>
-                <td>&lt; 1.3</td>
+                <td>&lt; 1.2</td>
                 <td>Tổng tiền lãi / Tổng tiền lỗ. Phải đủ lớn để bù đắp sai số thị trường.</td>
               </tr>
               <tr>
-                <td class="mono font-bold text-cyan">Win Rate</td>
-                <td><strong>&ge; 45%</strong> (Trend) hoặc <strong>&ge; 55%</strong> (Reversion)</td>
+                <td class="mono font-bold text-cyan">Win Rate (Tỷ lệ thắng)</td>
+                <td><strong>&ge; 45%</strong></td>
                 <td>&lt; 35%</td>
-                <td>Tỷ lệ số lệnh có lãi. Vì R:R = 2:1 nên chỉ cần Win Rate 40% là đã có lãi.</td>
+                <td>Vì tỷ lệ R:R chuẩn là 2.0R nên chỉ cần Win Rate 45% là đã có lãi ròng vượt trội.</td>
               </tr>
               <tr>
                 <td class="mono font-bold text-cyan">Max Drawdown (MDD)</td>
                 <td><strong>&le; 18%</strong></td>
                 <td>&gt; 25%</td>
-                <td>Mức sụt giảm vốn sâu nhất. MDD quá lớn sẽ làm nhà đầu tư gãy tâm lý.</td>
+                <td>Mức sụt giảm vốn sâu nhất. MDD quá lớn sẽ làm nhà đầu tư gãy kỷ luật tâm lý.</td>
               </tr>
               <tr>
-                <td class="mono font-bold text-cyan">Số lượng lệnh (Sample)</td>
-                <td><strong>&ge; 15 – 20 lệnh</strong></td>
-                <td>&lt; 8 lệnh</td>
-                <td>Đủ số lượng mẫu thống kê để tránh bẫy may mắn ngẫu nhiên.</td>
+                <td class="mono font-bold text-cyan">Mẫu lệnh (Trade Count)</td>
+                <td><strong>&ge; 10 – 15 lệnh</strong></td>
+                <td>&lt; 6 lệnh</td>
+                <td>Đủ số lượng giao dịch mẫu để kết luận có ý nghĩa thống kê, loại trừ may rủi.</td>
               </tr>
             </tbody>
           </table>
@@ -1026,59 +943,31 @@
       </div>
     </section>
 
-    <!-- CHI TIẾT BƯỚC 6: QUY MÔ VỊ THẾ & KIM TỰ THÁP 4 ĐỢT -->
+    <!-- CHI TIẾT BƯỚC 4: QUY MÔ VỊ THẾ & KIM TỰ THÁP 4 ĐỢT -->
     <section id="step-sizing">
       <div class="section-header">
-        <span class="section-num">B6</span>
-        <h2 class="section-title">Bước 6: Tính Quy Mô Vị Thế &amp; Chiến Lược 4 Đợt (Position Sizing)</h2>
+        <span class="section-num">B4</span>
+        <h2 class="section-title">Bước 4: Tính Quy Mô Vị Thế &amp; Kịch Bản Giải Ngân 4 Đợt</h2>
       </div>
 
       <div class="card">
         <p style="font-size: 14px; margin-bottom: 16px;">
-          Quản trị vốn là yếu tố quyết định 80% sự sống còn của nhà đầu tư. Trang <strong>Quy mô vị thế (<code>/position-sizing</code>)</strong> giúp bạn trả lời chính xác câu hỏi: <em>"Tôi nên mua bao nhiêu cổ phiếu để nếu sai, tôi chỉ mất đúng số tiền tôi cho phép?"</em>
+          Quản trị vốn là yếu tố quyết định 80% sự sống còn của nhà đầu tư. Trang <strong>Quy mô vị thế (<code>/position-sizing</code>)</strong> giúp bạn trả lời chính xác câu hỏi: <em>"Tôi nên mua bao nhiêu cổ phiếu để nếu chạm Stop Loss, tài khoản tôi chỉ mất đúng số tiền tôi cho phép?"</em>
         </p>
 
-        <h3 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 10px;">1. Công Thức Tính Toán Lõi</h3>
+        <h3 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 10px;">1. Công Thức Tính Toán Lõi &amp; Dừng Lỗ Động</h3>
         <div style="background: #08101a; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-          <div class="mono text-cyan" style="font-size: 14px; margin-bottom: 8px;">
-            Số lượng cổ phiếu (thô) = Ngân sách rủi ro / Lỗ mỗi cổ phiếu tại Stop Loss
+          <div class="mono text-cyan" style="font-size: 13.5px; margin-bottom: 8px;">
+            Số lượng cổ phiếu = Ngân sách rủi ro (VND) / [ Giá vào lệnh - Mức Stop Loss ]
           </div>
           <div class="mono text-muted" style="font-size: 12.5px;">
-            Số lượng thực nhận = Làm tròn xuống bội số của 100 (Chuẩn sàn HOSE, HNX, UPCOM)
+            Số lượng thực khớp = Làm tròn xuống bội số của 100 cổ phiếu (chuẩn sàn HOSE/HNX)
           </div>
         </div>
 
-        <h3 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 12px;">2. Bốn Tầng Ràng Buộc Bảo Vệ (Constraints)</h3>
-        <div class="grid-2" style="margin-bottom: 20px;">
-          <div style="background: #08121f; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px;">
-            <strong class="text-cyan mono">1. RISK_BUDGET (Ngân sách rủi ro)</strong>
-            <p style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px;">
-              Khống chế số tiền lỗ tối đa nếu chạm Stop Loss bằng đúng số tiền bạn chọn (VD: 2.000.000 ₫ hoặc 2% tài khoản).
-            </p>
-          </div>
-          <div style="background: #08121f; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px;">
-            <strong class="text-emerald mono">2. AFFORDABILITY (Sức mua tiền mặt)</strong>
-            <p style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px;">
-              Không bao giờ cho phép mua vượt quá số dư tiền mặt khả dụng hiện có.
-            </p>
-          </div>
-          <div style="background: #08121f; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px;">
-            <strong class="text-amber mono">3. SYMBOL_CONCENTRATION (Tỷ trọng mã)</strong>
-            <p style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px;">
-              Giới hạn tối đa tỷ trọng của 1 mã trên tổng danh mục (VD: không quá 20%–25% NAV).
-            </p>
-          </div>
-          <div style="background: #08121f; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px;">
-            <strong class="text-rose mono">4. TOTAL_DEPLOYMENT (Tỷ lệ giải ngân)</strong>
-            <p style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px;">
-              Khống chế tổng giá trị toàn bộ cổ phiếu không vượt quá trần cho phép của danh mục.
-            </p>
-          </div>
-        </div>
-
-        <h3 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 12px;">3. Kịch Bản Kim Tự Tháp 4 Đợt (Multi-Tranche Pyramiding)</h3>
+        <h3 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 12px;">2. Kịch Bản Kim Tự Tháp 4 Đợt (Multi-Tranche Pyramiding)</h3>
         <p style="font-size: 13.5px; color: var(--text-muted); margin-bottom: 16px;">
-          Finvera áp dụng chiến lược đi vốn kinh điển của các huyền thoại đầu tư (Jesse Livermore, Mark Minervini): <strong>Chỉ mua nhồi khi vị thế đang có lãi, và dời Stop Loss về hòa vốn để triệt tiêu rủi ro!</strong>
+          Finvera áp dụng chiến lược đi vốn kinh điển của các huyền thoại đầu tư: <strong>Chỉ mua nhồi khi vị thế đang có lãi, và dời Stop Loss về hòa vốn để triệt tiêu rủi ro!</strong>
         </p>
 
         <div class="workflow-container">
@@ -1090,7 +979,7 @@
                 <span class="step-route-badge text-rose">Rủi ro: 100% Tranche 1 (1–2% NAV)</span>
               </div>
               <p class="step-desc">
-                Mua khối lượng theo tính toán ở điểm vào. Đặt Stop Loss ban đầu ở mức $C - 2\times\text{ATR}$. Khoản lỗ tối đa được khống chế ở ngân sách rủi ro đã chọn.
+                Mua khối lượng theo tính toán ở vùng vào lệnh. Đặt Stop Loss ban đầu ở mức $C - 2\times\text{ATR}$. Khoản lỗ tối đa nếu sai được khống chế ở đúng ngân sách rủi ro đã chọn.
               </p>
             </div>
           </div>
@@ -1129,8 +1018,8 @@
                 <span class="step-route-badge text-amber">KHÓA GIẢI NGÂN MỚI · TẬP TRUNG BẢO VỆ LÃI</span>
               </div>
               <p class="step-desc">
-                Khi giá đạt <strong>Target 1 ($+4\text{ATR}$)</strong>: Khuyến nghị chốt lời chủ động 50% khối lượng để bỏ túi lợi nhuận.<br>
-                50% còn lại tiếp tục gồng lãi hướng tới <strong>Target 2 ($+6\text{ATR}$)</strong> với điểm trailing stop nâng dần theo đáy nến gần nhất.
+                Khi giá đạt <strong>Target 1 ($+4\text{ATR} = 2.0R$)</strong>: Khuyến nghị chốt lời chủ động 50% khối lượng để bỏ túi lợi nhuận.<br>
+                50% còn lại tiếp tục gồng lãi hướng tới <strong>Target 2 ($+6\text{ATR} = 3.0R$)</strong> với điểm trailing stop nâng dần theo đáy nến gần nhất.
               </p>
             </div>
           </div>
@@ -1140,6 +1029,54 @@
           <div class="callout-icon">🛑</div>
           <div>
             <strong>Nguyên Tắc Cắt Lỗ Tuyệt Đối:</strong> Nếu giá quay đầu giảm chạm mốc Stop Loss trước khi đạt Target, hãy bán dứt khoát 100% vị thế. Tuyệt đối không hy vọng hay bình quân giá xuống (Average Down) khi đang lỗ!
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CÔNG CỤ HỖ TRỢ MỞ RỘNG: THẨM ĐỊNH AI & QUẢN LÝ DANH MỤC -->
+    <section id="step-deepdive">
+      <div class="section-header">
+        <span class="section-num">+</span>
+        <h2 class="section-title">Công Cụ Hỗ Trợ Mở Rộng: Thẩm Định AI &amp; Quản Lý Danh Mục</h2>
+      </div>
+
+      <div class="card">
+        <div class="grid-2" style="margin-bottom: 16px;">
+          <div>
+            <h3 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 8px;">Trang Chi Tiết Cổ Phiếu (<code>/stocks/:symbol</code>)</h3>
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">
+              Khảo sát sâu sức khỏe tài chính của doanh nghiệp:
+            </p>
+            <ul style="font-size: 12.5px; color: var(--text-main); margin-left: 18px; space-y: 4px;">
+              <li><strong>Lưu chuyển tiền thuần (OCF):</strong> Đảm bảo dòng tiền từ HĐKD dương, tránh bẫy lợi nhuận ảo.</li>
+              <li><strong>Dải định giá P/E &amp; P/B Band:</strong> Định vị giá cổ phiếu đang ở vùng rẻ hay đắt so với lịch sử 3–5 năm.</li>
+            </ul>
+          </div>
+          <div>
+            <h3 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 8px;">Trợ Lý AI Grounded Analyst (<code>/analyst</code>)</h3>
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">
+              AI phân tích tài chính có trích dẫn nguồn (Zero Hallucination):
+            </p>
+            <ul style="font-size: 12.5px; color: var(--text-main); margin-left: 18px; space-y: 4px;">
+              <li>Tra cứu văn bản Báo cáo tài chính kiểm toán, Nghị quyết ĐHCĐ kèm số trang nguồn.</li>
+              <li>Tóm tắt các rủi ro tiềm ẩn (nợ trái phiếu, các khoản phải thu, giao dịch bên liên quan).</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div>
+            <h3 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 8px;">Quản Lý Danh Mục (<code>/portfolios</code>)</h3>
+            <p style="font-size: 12.5px; color: var(--text-muted);">
+              Theo dõi lãi lỗ chưa chốt (Unrealized P/L) và đã chốt (Realized P/L). Kết nối trực tiếp số dư tiền mặt và NAV vào trang Quy mô vị thế.
+            </p>
+          </div>
+          <div>
+            <h3 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 8px;">Hệ Thống Cảnh Báo (<code>/alerts</code>)</h3>
+            <p style="font-size: 12.5px; color: var(--text-muted);">
+              Cài đặt cảnh báo tự động khi giá chạm ngưỡng Dừng lỗ (Stop Loss), mốc nhồi lệnh (+0.5 ATR) hoặc mốc chốt lời Target 1/Target 2.
+            </p>
           </div>
         </div>
       </div>

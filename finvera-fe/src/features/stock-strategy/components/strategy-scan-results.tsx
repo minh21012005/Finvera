@@ -62,6 +62,12 @@ export function StrategyScanResults({ result, onPageChange, loading = false }: S
               <tbody>
                 {result.matches.map((match) => {
                   const risk = riskLevelDisplay(match.signal.riskLevel);
+                  const entryMid = (parseFloat(match.signal.entryLow) + parseFloat(match.signal.entryHigh)) / 2;
+                  const stopVal = parseFloat(match.signal.stopLoss);
+                  const targetVal = match.signal.target1 ? parseFloat(match.signal.target1) : null;
+                  const stopPercent = entryMid > 0 && !isNaN(stopVal) ? (((stopVal - entryMid) / entryMid) * 100).toFixed(1) : null;
+                  const targetPercent = entryMid > 0 && targetVal && !isNaN(targetVal) ? (((targetVal - entryMid) / entryMid) * 100).toFixed(1) : null;
+
                   return (
                     <tr
                       key={match.symbol}
@@ -86,16 +92,33 @@ export function StrategyScanResults({ result, onPageChange, loading = false }: S
                       </td>
                       <td className="text-center"><span className="venue-tag">{match.exchange}</span></td>
                       <td className="text-right font-mono text-cyan-400 font-semibold">
-                        {formatDecimal(match.signal.entryLow)} – {formatDecimal(match.signal.entryHigh)}
+                        <div>{formatDecimal(match.signal.entryLow)} – {formatDecimal(match.signal.entryHigh)}</div>
+                        <span className="text-[10px] text-slate-400 font-sans font-normal">Trung điểm: {formatDecimal(entryMid.toFixed(0))}</span>
                       </td>
                       <td className="text-right font-mono text-rose-400 font-semibold">
-                        {formatDecimal(match.signal.stopLoss)}
+                        <div>{formatDecimal(match.signal.stopLoss)}</div>
+                        {stopPercent && (
+                          <span className="text-[11px] text-rose-400/90 font-mono font-normal">
+                            ({stopPercent}%)
+                          </span>
+                        )}
                       </td>
                       <td className="text-right font-mono text-emerald-400">
-                        {match.signal.target1 ? formatDecimal(match.signal.target1) : "—"}
+                        {match.signal.target1 ? (
+                          <>
+                            <div>{formatDecimal(match.signal.target1)}</div>
+                            {targetPercent && (
+                              <span className="text-[11px] text-emerald-400/90 font-mono font-normal">
+                                (+{targetPercent}%)
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          "—"
+                        )}
                       </td>
-                      <td className="text-right font-mono text-amber-400">
-                        {match.signal.riskReward ? formatDecimal(match.signal.riskReward) : "—"}
+                      <td className="text-right font-mono text-amber-400 font-semibold">
+                        {match.signal.riskReward ? `${formatDecimal(match.signal.riskReward)}R` : "—"}
                       </td>
                       <td className="text-center">
                         <span className={`risk-level-badge ${risk.className}`}>

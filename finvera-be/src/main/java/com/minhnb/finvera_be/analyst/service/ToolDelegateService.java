@@ -108,7 +108,9 @@ public class ToolDelegateService {
         }
 
         Map<String, Object> raw = new HashMap<>();
-        raw.put("marketRegime", latest.regime() != null && latest.regime().assessment() != null
+        raw.put("marketRegime", latest.regime() != null
+                && latest.regime().assessment() != null
+                && latest.regime().assessment().label() != null
                 ? latest.regime().assessment().label().name() : null);
         raw.put("breadth", latest.breadth());
 

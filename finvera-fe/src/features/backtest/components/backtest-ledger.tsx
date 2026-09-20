@@ -1,5 +1,5 @@
 import type { EntryEvent, Trade } from "../api/backtest";
-import { ListFilter, XCircle, Info, ShieldAlert } from "lucide-react";
+import { ListFilter, XCircle, Info } from "lucide-react";
 
 interface ReasonExplanation {
   label: string;

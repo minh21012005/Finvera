@@ -23,39 +23,49 @@ interface ScreenerFiltersProps {
 interface Preset {
   id: string;
   name: string;
+  desc: string;
   form: Partial<FormState>;
 }
 
 const PRESETS: Preset[] = [
   {
     id: "canslim",
-    name: "CANSLIM Chuẩn",
+    name: "Siêu Tăng Trưởng (CANSLIM)",
+    desc: "ROE ≥ 15%, EPS tăng ≥ 15%, DT tăng ≥ 10%, P/E ≤ 35, Uptrend, KL ≥ 100k",
     form: {
       exchange: "HOSE, HNX",
-      marketCapMin: "5000000000000",
-      roeMin: "18",
-      earningsGrowthPercentMin: "20",
-      revenueGrowthPercentMin: "15",
-      peMax: "22",
+      marketCapMin: "1000000000000",
+      volumeMin: "100000",
+      roeMin: "15",
+      earningsGrowthPercentMin: "15",
+      revenueGrowthPercentMin: "10",
+      peMax: "35",
       rsiMin: "45",
-      rsiMax: "70",
+      rsiMax: "75",
       trend: "UPTREND",
     },
   },
   {
-    id: "eps-growth",
-    name: "Tăng Trưởng EPS > 25%",
+    id: "value-quality",
+    name: "Cơ Bản Mạnh & Định Giá Hợp Lý",
+    desc: "ROE ≥ 15%, P/E ≤ 15, P/B ≤ 2.0, Nợ D/E ≤ 0.8 lần, EPS tăng ≥ 10%",
     form: {
-      exchange: "HOSE",
-      earningsGrowthPercentMin: "25",
+      exchange: "HOSE, HNX",
+      marketCapMin: "500000000000",
       roeMin: "15",
-      peMax: "20",
+      peMax: "15",
+      pbMax: "2.0",
+      debtToEquityMax: "0.8",
+      earningsGrowthPercentMin: "10",
     },
   },
   {
-    id: "breakout-ma20",
-    name: "Breakout MA20",
+    id: "breakout-volume",
+    name: "Dòng Tiền Bứt Phá (Breakout)",
+    desc: "HOSE/HNX, KL ≥ 100k, Đột biến ≥ 1.5x MA20, Vượt đỉnh nền, RSI ≥ 55",
     form: {
+      exchange: "HOSE, HNX",
+      volumeMin: "100000",
       relativeVolumeMin: "1.5",
       breakout: "BREAKOUT_UP",
       trend: "UPTREND",
@@ -64,11 +74,14 @@ const PRESETS: Preset[] = [
   },
   {
     id: "high-dividend",
-    name: "Cổ Tức Tiền Mặt",
+    name: "Cổ Tức Tiền Mặt Cao",
+    desc: "Cổ tức ≥ 6.0%/năm, ROE ≥ 12%, P/E ≤ 15, Nợ D/E ≤ 0.8 lần",
     form: {
-      roeMin: "15",
-      debtToEquityMax: "0.8",
+      exchange: "HOSE, HNX, UPCOM",
+      dividendYieldMin: "6.0",
+      roeMin: "12",
       peMax: "15",
+      debtToEquityMax: "0.8",
     },
   },
 ];
@@ -78,6 +91,7 @@ type FilterCategory = "ALL" | "MARKET_PRICE" | "TECHNICAL" | "VALUATION" | "HEAL
 interface RangeFieldProps {
   label: string;
   unit?: string;
+  hint?: string;
   minLabel: string;
   maxLabel: string;
   minPlaceholder?: string;
@@ -93,6 +107,7 @@ interface RangeFieldProps {
 function RangeField({
   label,
   unit,
+  hint,
   minLabel,
   maxLabel,
   minPlaceholder = "Từ",
@@ -112,6 +127,7 @@ function RangeField({
         <span className="range-title">{label}</span>
         {unit && <span className="range-unit">{unit}</span>}
       </div>
+      {hint && <span className="text-[10.5px] text-slate-400 block mb-1 font-normal italic">{hint}</span>}
       <div className="range-inputs-pair">
         <label className="range-input-wrapper">
           <span className="sr-only">{minLabel}</span>
@@ -353,9 +369,10 @@ export function ScreenerFilters({ onSubmit, submitting }: ScreenerFiltersProps) 
                   <RangeField
                     label="Vốn hóa"
                     unit="VND"
+                    hint="VN: ≥ 1.000 Tỷ bao quát Mid/Large-cap an toàn"
                     minLabel="Vốn hóa tối thiểu (VND)"
                     maxLabel="Vốn hóa tối đa (VND)"
-                    minPlaceholder="> 5.000 Tỷ"
+                    minPlaceholder="≥ 1.000 Tỷ"
                     maxPlaceholder="Vốn hóa tối đa"
                     minVal={form.marketCapMin}
                     maxVal={form.marketCapMax}
@@ -406,6 +423,7 @@ export function ScreenerFilters({ onSubmit, submitting }: ScreenerFiltersProps) 
                   <RangeField
                     label="RSI 14"
                     unit="0-100"
+                    hint="Quá bán: ≤ 30 | Quá mua: ≥ 70 | Vùng gom: 50 – 60"
                     minLabel="RSI tối thiểu"
                     maxLabel="RSI tối đa"
                     minPlaceholder="VD: 45"
@@ -420,6 +438,7 @@ export function ScreenerFilters({ onSubmit, submitting }: ScreenerFiltersProps) 
                   <RangeField
                     label="Khối lượng"
                     unit="CP"
+                    hint="Thanh khoản an toàn: ≥ 200.000 CP/phiên"
                     minLabel="Khối lượng tối thiểu"
                     maxLabel="Khối lượng tối đa"
                     minPlaceholder="Tối thiểu CP"
@@ -435,6 +454,7 @@ export function ScreenerFilters({ onSubmit, submitting }: ScreenerFiltersProps) 
                   <RangeField
                     label="KL tương đối"
                     unit="x MA20"
+                    hint="Đột biến: ≥ 1.5x MA20 báo hiệu dòng tiền lớn"
                     minLabel="KL tương đối tối thiểu"
                     maxLabel="KL tương đối tối đa"
                     minPlaceholder="VD: 1.5"
@@ -509,6 +529,7 @@ export function ScreenerFilters({ onSubmit, submitting }: ScreenerFiltersProps) 
                   <RangeField
                     label="P/E"
                     unit="lần"
+                    hint="Thị trường VN: Thường 10 – 18 (Dưới 10 là rẻ, trên 20 là cao)"
                     minLabel="P/E tối thiểu"
                     maxLabel="P/E tối đa"
                     minPlaceholder="VD: 5"
@@ -523,6 +544,7 @@ export function ScreenerFilters({ onSubmit, submitting }: ScreenerFiltersProps) 
                   <RangeField
                     label="P/B"
                     unit="lần"
+                    hint="Thường 1.0 – 2.5 (Ngân hàng/BĐS thường 1.2 – 2.0)"
                     minLabel="P/B tối thiểu"
                     maxLabel="P/B tối đa"
                     minPlaceholder="VD: 1.0"
@@ -565,6 +587,7 @@ export function ScreenerFilters({ onSubmit, submitting }: ScreenerFiltersProps) 
                   <RangeField
                     label="Tăng trưởng DT"
                     unit="%"
+                    hint="Tăng trưởng vững: ≥ 15% so với cùng kỳ"
                     minLabel="Tăng trưởng DT % tối thiểu"
                     maxLabel="Tăng trưởng DT % tối đa"
                     minPlaceholder="Từ %"
@@ -579,6 +602,7 @@ export function ScreenerFilters({ onSubmit, submitting }: ScreenerFiltersProps) 
                   <RangeField
                     label="Tăng trưởng LN"
                     unit="%"
+                    hint="Tăng trưởng EPS tốt: ≥ 15% – 20%"
                     minLabel="Tăng trưởng LN % tối thiểu"
                     maxLabel="Tăng trưởng LN % tối đa"
                     minPlaceholder="Từ %"
@@ -588,6 +612,21 @@ export function ScreenerFilters({ onSubmit, submitting }: ScreenerFiltersProps) 
                     onMinChange={handleChange("earningsGrowthPercentMin")}
                     onMaxChange={handleChange("earningsGrowthPercentMax")}
                     highlight={isMatch(["lợi nhuận", "ln", "eps"])}
+                  />
+
+                  <RangeField
+                    label="Tỷ suất cổ tức"
+                    unit="%"
+                    hint="Vượt lãi suất tiết kiệm: ≥ 6.0%/năm"
+                    minLabel="Tỷ suất cổ tức tối thiểu"
+                    maxLabel="Tỷ suất cổ tức tối đa"
+                    minPlaceholder="VD: 6.0"
+                    maxPlaceholder="Đến %"
+                    minVal={form.dividendYieldMin}
+                    maxVal={form.dividendYieldMax}
+                    onMinChange={handleChange("dividendYieldMin")}
+                    onMaxChange={handleChange("dividendYieldMax")}
+                    highlight={isMatch(["cổ tức", "dividend"])}
                   />
                 </div>
               </fieldset>
@@ -604,6 +643,7 @@ export function ScreenerFilters({ onSubmit, submitting }: ScreenerFiltersProps) 
                   <RangeField
                     label="ROE 12 tháng"
                     unit="%"
+                    hint="Chuẩn tốt: ≥ 15%. Doanh nghiệp xuất sắc: ≥ 20%"
                     minLabel="ROE 12 tháng tối thiểu"
                     maxLabel="ROE 12 tháng tối đa"
                     minPlaceholder="VD: 15%"
@@ -660,10 +700,11 @@ export function ScreenerFilters({ onSubmit, submitting }: ScreenerFiltersProps) 
                   <RangeField
                     label="Nợ / VCSH"
                     unit="lần"
+                    hint="An toàn: ≤ 0.8 lần (80% VCSH). Ngành sản xuất: ≤ 1.2 – 1.5 lần"
                     minLabel="Nợ/VCSH tối thiểu"
                     maxLabel="Nợ/VCSH tối đa"
                     minPlaceholder="VD: 0"
-                    maxPlaceholder="VD: 1.5"
+                    maxPlaceholder="VD: 0.8"
                     minVal={form.debtToEquityMin}
                     maxVal={form.debtToEquityMax}
                     onMinChange={handleChange("debtToEquityMin")}

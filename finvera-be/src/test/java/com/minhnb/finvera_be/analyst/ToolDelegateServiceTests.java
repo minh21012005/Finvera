@@ -163,6 +163,39 @@ class ToolDelegateServiceTests {
     }
 
     @Test
+    void getMarketOverview_handlesNullRegimeLabel_withoutException() {
+        Instant asOf = Instant.parse("2026-08-20T10:00:00Z");
+        RegimeAssessment degradedAssessment = new RegimeAssessment(
+                DataStatus.PARTIAL,
+                null,
+                null,
+                null,
+                new BigDecimal("0.50"),
+                null,
+                null,
+                false,
+                List.of(),
+                List.of());
+        RegimeAssessmentService.Snapshot regimeSnapshot = new RegimeAssessmentService.Snapshot(
+                LocalDate.of(2026, 8, 20), asOf, "market-regime-v1", degradedAssessment);
+
+        MarketOverview overview = new MarketOverview(
+                asOf,
+                null,
+                null,
+                regimeSnapshot,
+                DataStatus.PARTIAL,
+                "ETAG");
+
+        when(marketOverviewService.latest()).thenReturn(overview);
+
+        MarketOverviewToolResponse response = toolDelegateService.getMarketOverview();
+
+        assertThat(response.raw()).containsEntry("marketRegime", null);
+        assertThat(response.advancers()).isZero();
+    }
+
+    @Test
     void getPortfolioAnalytics_usesUnrealizedPnlPercentNotReturnSinceInception() {
         UUID portfolioId = UUID.randomUUID();
         Instant asOf = Instant.parse("2026-09-02T03:00:00Z");

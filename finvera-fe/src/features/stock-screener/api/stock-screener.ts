@@ -73,6 +73,8 @@ export interface FundamentalFilter {
   interestCoverageMax?: string;
   debtToAssetsMin?: string;
   debtToAssetsMax?: string;
+  dividendYieldMin?: string;
+  dividendYieldMax?: string;
 }
 
 export interface ScreenRequest {

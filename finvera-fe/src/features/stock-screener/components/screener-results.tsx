@@ -1,10 +1,47 @@
-import type { ScreenResponse } from "../api/stock-screener";
+import { useMemo, useState } from "react";
+import type { ScreenMatch, ScreenResponse } from "../api/stock-screener";
 import { navigate } from "../../../router";
 import { formatAsOf, formatDecimal } from "../../market-overview/format/market-format";
 import { categoryLabel, dataStatusClassName, dataStatusLabel, matchedValueLabel } from "../format/screener-format";
 import { ReasonCode } from "../../../shared/components/reason-codes";
 
+type SortKey = "DEFAULT" | "ROE_DESC" | "EPS_DESC" | "PE_ASC" | "MARKET_CAP_DESC" | "SYMBOL_ASC";
+
 export function ScreenerResults({ result }: { result: ScreenResponse }) {
+  const [sortBy, setSortBy] = useState<SortKey>("DEFAULT");
+
+  const sortedMatches = useMemo(() => {
+    if (sortBy === "DEFAULT") return result.matches;
+    return [...result.matches].sort((a, b) => {
+      if (sortBy === "SYMBOL_ASC") {
+        return a.symbol.localeCompare(b.symbol);
+      }
+      const parseVal = (m: ScreenMatch, key: string): number => {
+        const raw = m.matchedValues[key];
+        if (!raw) return -Infinity;
+        const parsed = parseFloat(raw);
+        return isNaN(parsed) ? -Infinity : parsed;
+      };
+      if (sortBy === "ROE_DESC") {
+        return parseVal(b, "roe") - parseVal(a, "roe");
+      }
+      if (sortBy === "EPS_DESC") {
+        return parseVal(b, "earningsGrowthPercent") - parseVal(a, "earningsGrowthPercent");
+      }
+      if (sortBy === "PE_ASC") {
+        const valA = parseVal(a, "pe");
+        const valB = parseVal(b, "pe");
+        const scoreA = valA > 0 ? valA : Infinity;
+        const scoreB = valB > 0 ? valB : Infinity;
+        return scoreA - scoreB;
+      }
+      if (sortBy === "MARKET_CAP_DESC") {
+        return parseVal(b, "marketCap") - parseVal(a, "marketCap");
+      }
+      return 0;
+    });
+  }, [result.matches, sortBy]);
+
   return (
     <section aria-labelledby="screener-results-heading" className="screener-results-section">
       <div className="screener-results-header-row">
@@ -36,6 +73,83 @@ export function ScreenerResults({ result }: { result: ScreenResponse }) {
         </p>
       ) : (
         <div className="screener-table-container">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-3 p-2.5 rounded-lg bg-slate-900/60 border border-slate-800 text-xs">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-slate-400 font-medium">⚡ Sắp xếp nhanh:</span>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setSortBy("DEFAULT")}
+                  className={`px-2.5 py-1 rounded border transition-colors ${
+                    sortBy === "DEFAULT"
+                      ? "bg-cyan-950 border-cyan-500 text-cyan-300 font-semibold"
+                      : "bg-slate-800/80 border-slate-700 text-slate-300 hover:border-slate-500"
+                  }`}
+                >
+                  Mặc định
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSortBy("ROE_DESC")}
+                  className={`px-2.5 py-1 rounded border transition-colors ${
+                    sortBy === "ROE_DESC"
+                      ? "bg-cyan-950 border-cyan-500 text-cyan-300 font-semibold"
+                      : "bg-slate-800/80 border-slate-700 text-slate-300 hover:border-slate-500"
+                  }`}
+                >
+                  ROE cao nhất
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSortBy("EPS_DESC")}
+                  className={`px-2.5 py-1 rounded border transition-colors ${
+                    sortBy === "EPS_DESC"
+                      ? "bg-cyan-950 border-cyan-500 text-cyan-300 font-semibold"
+                      : "bg-slate-800/80 border-slate-700 text-slate-300 hover:border-slate-500"
+                  }`}
+                >
+                  Tăng trưởng LN cao
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSortBy("PE_ASC")}
+                  className={`px-2.5 py-1 rounded border transition-colors ${
+                    sortBy === "PE_ASC"
+                      ? "bg-cyan-950 border-cyan-500 text-cyan-300 font-semibold"
+                      : "bg-slate-800/80 border-slate-700 text-slate-300 hover:border-slate-500"
+                  }`}
+                >
+                  P/E thấp nhất
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSortBy("MARKET_CAP_DESC")}
+                  className={`px-2.5 py-1 rounded border transition-colors ${
+                    sortBy === "MARKET_CAP_DESC"
+                      ? "bg-cyan-950 border-cyan-500 text-cyan-300 font-semibold"
+                      : "bg-slate-800/80 border-slate-700 text-slate-300 hover:border-slate-500"
+                  }`}
+                >
+                  Vốn hóa lớn nhất
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSortBy("SYMBOL_ASC")}
+                  className={`px-2.5 py-1 rounded border transition-colors ${
+                    sortBy === "SYMBOL_ASC"
+                      ? "bg-cyan-950 border-cyan-500 text-cyan-300 font-semibold"
+                      : "bg-slate-800/80 border-slate-700 text-slate-300 hover:border-slate-500"
+                  }`}
+                >
+                  Mã A-Z
+                </button>
+              </div>
+            </div>
+            <span className="text-slate-400">
+              Đang hiển thị: <strong className="text-slate-200">{sortedMatches.length}</strong> ứng viên
+            </span>
+          </div>
+
           <table className="terminal-quant-table">
             <thead>
               <tr>
@@ -49,7 +163,7 @@ export function ScreenerResults({ result }: { result: ScreenResponse }) {
               </tr>
             </thead>
             <tbody>
-              {result.matches.map((match) => (
+              {sortedMatches.map((match) => (
                 <tr key={match.symbol} className="quant-row">
                   <th scope="row" className="symbol-th">
                     <button

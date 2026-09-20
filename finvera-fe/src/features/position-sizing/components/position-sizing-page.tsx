@@ -22,7 +22,6 @@ import {
   Milestone,
   Target,
   ArrowUpRight,
-  ShieldCheck,
 } from "lucide-react";
 
 const emptyCosts = {

@@ -38,7 +38,7 @@ public class AnalystToolCallEntity {
     @Column(name = "status", nullable = false, length = 16)
     private ToolCallStatus status;
 
-    @Column(name = "failure_reason", length = 200)
+    @Column(name = "failure_reason", length = 1000)
     private String failureReason;
 
     @Column(name = "latency_ms", nullable = false)

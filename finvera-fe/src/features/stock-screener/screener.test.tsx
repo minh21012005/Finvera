@@ -64,6 +64,34 @@ describe("ScreenerFilters", () => {
     });
   });
 
+  it("applies a preset and submits with properly parsed exchange and criteria", async () => {
+    const user = userEvent.setup();
+    let submitted: unknown = null;
+    render(<ScreenerFilters onSubmit={(r) => (submitted = r)} submitting={false} />);
+
+    await user.click(screen.getByRole("button", { name: /siêu tăng trưởng \(canslim\)/i }));
+    await user.click(screen.getByRole("button", { name: /lọc cổ phiếu/i }));
+
+    expect(submitted).toMatchObject({
+      market: {
+        exchange: ["HOSE", "HNX"],
+        marketCapMin: "1000000000000",
+      },
+      technical: {
+        volumeMin: 100000,
+        trend: "UPTREND",
+        rsiMin: "45",
+        rsiMax: "75",
+      },
+      fundamental: {
+        roeMin: "15",
+        earningsGrowthPercentMin: "15",
+        revenueGrowthPercentMin: "10",
+        peMax: "35",
+      },
+    });
+  });
+
   it("disables the submit button while a screen is running", () => {
     render(<ScreenerFilters onSubmit={() => {}} submitting={true} />);
     expect(screen.getByRole("button", { name: /đang lọc/i })).toBeDisabled();
@@ -107,6 +135,24 @@ describe("buildScreenRequest", () => {
       debtToEquityMax: "",
     });
     expect(request.market?.exchange).toEqual(["HOSE"]);
+  });
+
+  it("splits comma-separated exchanges into an array of uppercase exchange codes", () => {
+    const request = buildScreenRequest({
+      ...EMPTY_FORM,
+      exchange: "HOSE, HNX",
+    });
+    expect(request.market?.exchange).toEqual(["HOSE", "HNX"]);
+  });
+
+  it("normalizes decimal D/E ratio to percentage points and carries dividend yield", () => {
+    const request = buildScreenRequest({
+      ...EMPTY_FORM,
+      debtToEquityMax: "0.8",
+      dividendYieldMin: "6.0",
+    });
+    expect(request.fundamental?.debtToEquityMax).toBe("80");
+    expect(request.fundamental?.dividendYieldMin).toBe("6.0");
   });
 
   it("defaults sortField to MARKET_CAP and sortDirection to DESC", () => {
