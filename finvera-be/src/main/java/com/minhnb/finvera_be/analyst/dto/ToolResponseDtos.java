@@ -242,7 +242,12 @@ public final class ToolResponseDtos {
             String grossMargin,
             String netMargin,
             String peSectorPercentile,
-            String pbSectorPercentile) {
+            String pbSectorPercentile,
+            String ma20,
+            String ma50,
+            String entryPrice,
+            String stopLoss,
+            String targetPrice) {
         public StockComparisonItemDto(
                 String symbol, String companyName, String exchange, String sectorName,
                 String price, String changePercent, Long volume, String marketCap,
@@ -255,7 +260,8 @@ public final class ToolResponseDtos {
                     pe, pb, valuationClassification, valuationScore, roe, roa, eps, epsTtm,
                     revenueGrowthPercent, epsGrowthPercent, rsi14, trend, primarySignal,
                     signalStrength, riskLevel, dataStatus, reasonCodes, Map.of(),
-                    null, null, null, null, null, null, null, null);
+                    null, null, null, null, null, null, null, null,
+                    null, null, null, null, null);
         }
     }
 

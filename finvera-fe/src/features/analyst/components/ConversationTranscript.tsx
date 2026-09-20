@@ -1,5 +1,5 @@
-import React from 'react';
-import type { ConversationExchange } from '../api/analyst';
+import React, { useState, useMemo } from 'react';
+import type { ConversationExchange, PublicStructuredClaim } from '../api/analyst';
 import { LiteMarkdown } from '../format/lite-markdown';
 import {
   Bot,
@@ -16,6 +16,8 @@ import {
   GitCompare,
   BarChart3,
   BookOpen,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 interface Props {
@@ -31,6 +33,73 @@ interface Props {
 
 const vietnameseTime = (value: string) =>
   new Date(value).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+
+const METRIC_ACRONYMS = new Set(['ROE', 'ROA', 'RSI', 'EPS', 'TTM', 'VND', 'USD', 'TOP', 'MAX', 'MIN', 'AVG', 'SMA', 'EMA', 'MAC', 'BOS', 'COT']);
+
+const CollapsibleClaims: React.FC<{ claims: PublicStructuredClaim[] }> = ({ claims }) => {
+  const [expanded, setExpanded] = useState(claims.length <= 4);
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, PublicStructuredClaim[]>();
+    for (const claim of claims) {
+      const matches = claim.claimText.match(/\b([A-Z]{3})\b/g);
+      let symbol: string | null = null;
+      if (matches) {
+        for (const m of matches) {
+          if (!METRIC_ACRONYMS.has(m)) {
+            symbol = m;
+            break;
+          }
+        }
+      }
+      const groupKey = symbol || (claim.toolName === 'PORTFOLIO' ? 'Danh mục' : (claim.toolName === 'MARKET' ? 'Thị trường' : 'Chung'));
+      if (!map.has(groupKey)) map.set(groupKey, []);
+      map.get(groupKey)!.push(claim);
+    }
+    return map;
+  }, [claims]);
+
+  return (
+    <div className="mt-4 rounded-xl border border-emerald-900/30 bg-emerald-950/20 p-3.5 transition-all">
+      <button
+        type="button"
+        onClick={() => setExpanded((prev) => !prev)}
+        className="w-full text-xs font-bold text-emerald-400 flex items-center justify-between gap-1.5 focus:outline-none hover:text-emerald-300"
+      >
+        <span className="flex items-center gap-1.5">
+          <ShieldCheck size={14} />
+          <span>Số liệu đã kiểm chứng ({claims.length} số liệu đối soát)</span>
+        </span>
+        <span className="flex items-center gap-1 text-[11px] font-normal text-emerald-500/80 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-900/40">
+          {expanded ? 'Thu gọn' : 'Xem chi tiết'}
+          {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+        </span>
+      </button>
+
+      {expanded && (
+        <div className="mt-3 space-y-3 pt-2 border-t border-emerald-900/30">
+          {Array.from(grouped.entries()).map(([groupName, items]) => (
+            <div key={groupName} className="space-y-1.5">
+              <div className="text-[11px] font-bold text-emerald-300 uppercase tracking-wider">
+                {groupName} ({items.length})
+              </div>
+              <div className="space-y-1.5">
+                {items.map((claim, index) => (
+                  <p
+                    className="text-xs text-slate-300 font-mono bg-slate-950/50 rounded-lg p-2 border border-emerald-900/20"
+                    key={`${claim.sequenceNo}-${index}`}
+                  >
+                    {claim.claimText} · <span className="text-slate-500">{claim.sourceField}</span> · {vietnameseTime(claim.asOf)}
+                  </p>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const stateLabel: Record<ConversationExchange['status'], string> = {
   PROCESSING: 'Đang xử lý',
@@ -267,22 +336,7 @@ export const ConversationTranscript: React.FC<Props> = ({
 
                       {/* Structured grounded claims */}
                       {final.structuredClaims.length > 0 && (
-                        <div className="mt-4 rounded-xl border border-emerald-900/30 bg-emerald-950/20 p-3.5">
-                          <p className="text-xs font-bold text-emerald-400 flex items-center gap-1.5 mb-2">
-                            <ShieldCheck size={14} />
-                            <span>Số liệu đã kiểm chứng</span>
-                          </p>
-                          <div className="space-y-1.5">
-                            {final.structuredClaims.map((claim, index) => (
-                              <p
-                                className="text-xs text-slate-300 font-mono bg-slate-950/50 rounded-lg p-2 border border-emerald-900/20"
-                                key={`${claim.sequenceNo}-${index}`}
-                              >
-                                {claim.claimText} · {claim.sourceField} · {vietnameseTime(claim.asOf)}
-                              </p>
-                            ))}
-                          </div>
-                        </div>
+                        <CollapsibleClaims claims={final.structuredClaims} />
                       )}
 
                       {/* Document citation claims */}

@@ -223,23 +223,21 @@ class OrchestrationDispatcher:
         Returns (dispatched_calls, tool_call_bound_reached).
         """
         limit = max_tool_calls or settings.analyst_max_tool_calls
-        dispatched: List[DispatchedToolCall] = []
-        bound_reached = False
+        bound_reached = len(proposed_calls) > limit
+        calls_to_run = proposed_calls[:limit]
 
-        for i, call_req in enumerate(proposed_calls, start=1):
-            if len(dispatched) >= limit:
-                bound_reached = True
-                break
-
-            tool_name = call_req.get("tool_name") or call_req.get("name") or ""
-            args = call_req.get("arguments") or call_req.get("args") or {}
-
-            result = await self.dispatch_single_tool(
+        tasks = [
+            self.dispatch_single_tool(
                 sequence_no=i,
-                tool_name_raw=tool_name,
-                arguments_raw=args,
+                tool_name_raw=call_req.get("tool_name") or call_req.get("name") or "",
+                arguments_raw=call_req.get("arguments") or call_req.get("args") or {},
                 session_owner_id=session_owner_id,
             )
-            dispatched.append(result)
+            for i, call_req in enumerate(calls_to_run, start=1)
+        ]
 
-        return dispatched, bound_reached
+        if not tasks:
+            return [], bound_reached
+
+        dispatched = await asyncio.gather(*tasks)
+        return list(dispatched), bound_reached

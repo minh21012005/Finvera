@@ -205,8 +205,8 @@ TOOL_DECLARATIONS: List[Dict[str, Any]] = [
         "name": "COMPARE",
         "description": (
             "So sánh đối đầu giữa 2 đến 5 mã cổ phiếu trên các khía cạnh định giá (P/E, P/B), "
-            "chất lượng tài chính (ROE, EPS, tăng trưởng doanh thu/lợi nhuận), sức mạnh giá và tín hiệu kỹ thuật. "
-            "Dùng khi người dùng muốn so sánh các cổ phiếu với nhau (ví dụ: 'So sánh SSI và VND', 'Giữa HPG và NKG mã nào tốt hơn')."
+            "chất lượng tài chính (ROE, EPS, tăng trưởng doanh thu/lợi nhuận), sức mạnh giá và tín hiệu kỹ thuật (MA20, MA50, RSI). "
+            "Dùng khi người dùng muốn so sánh các cổ phiếu với nhau hoặc khi câu hỏi đề cập đánh giá 2 đến 5 mã cổ phiếu cùng lúc."
         ),
         "parameters": {
             "type": "object",
@@ -232,7 +232,7 @@ Quy tắc bắt buộc:
 1. Chỉ được đề xuất các công cụ đã khai báo. Không tự bịa ra công cụ khác.
 2. Nếu câu hỏi có nhắc mã cổ phiếu, hãy truyền đúng mã đó (viết hoa) vào đối số symbol của mọi
    công cụ cần symbol.
-3. Nếu câu hỏi cần nhiều loại dữ liệu (ví dụ vừa giá vừa kỹ thuật), đề xuất nhiều công cụ.
+3. Khi câu hỏi chỉ đề cập 1 mã duy nhất và cần nhiều loại dữ liệu (ví dụ vừa giá vừa kỹ thuật), đề xuất nhiều công cụ chuyên sâu (STOCK, TECHNICAL, FUNDAMENTAL, VALUATION).
 4. Nếu câu hỏi không thể trả lời bằng bất kỳ công cụ nào ở trên (ví dụ hỏi về thời tiết, hỏi
    ngoài phạm vi tài chính/đầu tư), KHÔNG đề xuất công cụ nào cả.
 5. owner_id KHÔNG bao giờ là một đối số bạn cung cấp — hệ thống tự gắn giá trị đó.
@@ -247,7 +247,9 @@ Quy tắc bắt buộc:
    - RSI_BASED: Hỏi về hồi phục từ vùng quá bán, RSI bật tăng từ đáy.
    - MEAN_REVERSION: Hỏi về bắt đáy cổ phiếu giảm sâu/chiết khấu mạnh xa khỏi đường MA (rủi ro cao).
    - TREND_FOLLOWING: Hỏi về đầu tư theo xu hướng trung và dài hạn, bám trend lớn, nắm giữ theo chu kỳ.
-   Tuyệt đối KHÔNG gán cứng MOMENTUM cho mọi câu hỏi."""
+   Tuyệt đối KHÔNG gán cứng MOMENTUM cho mọi câu hỏi.
+8. ĐẶC BIỆT KHI CÂU HỎI ĐỀ CẬP HOẶC ĐÁNH GIÁ/SO SÁNH TỪ 2 ĐẾN 5 MÃ CỔ PHIẾU (ví dụ: 'đánh giá SSI, GMD và MBB', 'nên giữ hay cơ cấu mã nào...'): BẮT BUỘC sử dụng công cụ COMPARE(symbols=[...]) thay vì gọi lẻ tẻ STOCK, TECHNICAL, FUNDAMENTAL, VALUATION cho từng mã. COMPARE đã tích hợp đầy đủ mọi chỉ số giá, kỹ thuật (MA20, MA50, RSI, tín hiệu), cơ bản (ROE, EPS, tăng trưởng) và định giá (P/E, P/B) của các mã này trong duy nhất 1 lần gọi.
+9. KHI NGƯỜI DÙNG HỎI VỀ CƠ HỘI XOAY TRỤC TRONG CÙNG NGÀNH (ví dụ: 'MBB có nên xoay sang mã nào khác cùng ngành ngân hàng không'): BẮT BUỘC đề xuất thêm công cụ COMPARE đối chiếu mã đó với các mã đầu ngành tương ứng (ví dụ đối với MBB ngành ngân hàng, đề xuất COMPARE(symbols=['MBB', 'TCB', 'ACB', 'CTG'])). Nếu hỏi xoay sang ngành khác hoặc tìm mã tốt nhất thị trường, đề xuất thêm STRATEGY_SCAN(strategyCode='MOMENTUM') để cung cấp cơ hội bùng nổ."""
 
 # SYNTHESIS_SYSTEM_INSTRUCTION is imported from app.features.chat.prompts
 
@@ -403,7 +405,9 @@ class ChatOrchestrationService:
             "LAM", "SAO", "KHI", "NAO", "VAN", "ROI", "VOI", "TAI", "DAY",
             "TOT", "HON", "NEN", "MUA", "LUC", "GIO", "DAU", "CAC", "NHO",
             "LON", "VAY", "LAI", "LOI", "TUC", "HAY", "DOI", "DON", "MAU",
-            "TIM", "NUA", "QUA", "BOS", "COT", "CAN", "LUA", "GOM", "CAT"
+            "TIM", "NUA", "QUA", "BOS", "COT", "CAN", "LUA", "GOM", "CAT",
+            "BAO", "CUA", "TOI", "DEN", "VAO", "THI", "MOT", "HAI", "CHU",
+            "CHI", "MAY", "NHA", "KHO", "MIN"
         }
 
         # Inspect each token occurrence so a ticker named VND is retained while a
@@ -426,12 +430,10 @@ class ChatOrchestrationService:
                 cleaned_tickers.append(s)
         unique_tickers = list(dict.fromkeys(cleaned_tickers))
 
-        comparison_keywords = (
-            "SO SÁNH", "GIỮA", "VÀ", "NÊN CHỌN", "TỐT HƠN", "HƠN", "ĐỐI ĐẦU", "COMPARE", "MÃ NÀO",
-            "VS", "VERSUS", "HAY", "CHỌN", "NÊN MUA", "NÊN ĐẦU TƯ"
-        )
-        if len(unique_tickers) >= 2 and any(k in q_upper for k in comparison_keywords):
+        if len(unique_tickers) >= 2:
             proposed.append({"tool_name": "COMPARE", "arguments": {"symbols": unique_tickers[:5]}})
+            if any(k in q_upper for k in ("DANH MỤC", "TÀI SẢN", "PORTFOLIO", "VỊ THẾ", "LÃI LỖ", "CỦA TÔI", "ĐANG NẮM", "ĐANG GIỮ")):
+                proposed.append({"tool_name": "PORTFOLIO", "arguments": {"sub_type": "POSITIONS"}})
             return proposed
 
         matched_symbol = symbol.upper() if symbol else None
@@ -1070,7 +1072,32 @@ class ChatOrchestrationService:
                                 ))
                         rows.append("| " + " | ".join(row) + " |")
 
-                    # 10. RSI (14)
+                    # 10. MA20 & MA50
+                    row_ma20 = ["MA20"]
+                    for idx, it in enumerate(items):
+                        val = it.get("ma20")
+                        sym_it = it.get("symbol", "")
+                        row_ma20.append(fmt_vi(val, 0) if val is not None else "N/A")
+                        if val is not None:
+                            raw_claims.append(RawStructuredClaim(
+                                claimText=f"MA20 {sym_it} {val}", sequenceNo=seq,
+                                fieldPath=f"items[{idx}].ma20", claimedValue=str(val),
+                            ))
+                    rows.append("| " + " | ".join(row_ma20) + " |")
+
+                    row_ma50 = ["MA50"]
+                    for idx, it in enumerate(items):
+                        val = it.get("ma50")
+                        sym_it = it.get("symbol", "")
+                        row_ma50.append(fmt_vi(val, 0) if val is not None else "N/A")
+                        if val is not None:
+                            raw_claims.append(RawStructuredClaim(
+                                claimText=f"MA50 {sym_it} {val}", sequenceNo=seq,
+                                fieldPath=f"items[{idx}].ma50", claimedValue=str(val),
+                            ))
+                    rows.append("| " + " | ".join(row_ma50) + " |")
+
+                    # 11. RSI (14)
                     row_rsi = ["RSI (14)"]
                     for idx, it in enumerate(items):
                         rsi = it.get("rsi14")
@@ -1083,11 +1110,29 @@ class ChatOrchestrationService:
                             ))
                     rows.append("| " + " | ".join(row_rsi) + " |")
 
-                    # 11. Tín hiệu chiến lược
+                    # 12. Tín hiệu chiến lược
                     row_sig = ["Tín hiệu kỹ thuật"]
-                    for it in items:
+                    for idx, it in enumerate(items):
                         sig = it.get("primarySignal")
-                        row_sig.append(sig if sig else "Chưa kích hoạt")
+                        entry = it.get("entryPrice")
+                        sl = it.get("stopLoss")
+                        tp = it.get("targetPrice")
+                        sym_it = it.get("symbol", "")
+                        if sig:
+                            extras = []
+                            if entry:
+                                extras.append(f"vào {fmt_vi(entry, 0)}")
+                                raw_claims.append(RawStructuredClaim(claimText=f"Điểm vào {sym_it} {entry}", sequenceNo=seq, fieldPath=f"items[{idx}].entryPrice", claimedValue=str(entry)))
+                            if sl:
+                                extras.append(f"cắt lỗ {fmt_vi(sl, 0)}")
+                                raw_claims.append(RawStructuredClaim(claimText=f"Cắt lỗ {sym_it} {sl}", sequenceNo=seq, fieldPath=f"items[{idx}].stopLoss", claimedValue=str(sl)))
+                            if tp:
+                                extras.append(f"mục tiêu {fmt_vi(tp, 0)}")
+                                raw_claims.append(RawStructuredClaim(claimText=f"Mục tiêu {sym_it} {tp}", sequenceNo=seq, fieldPath=f"items[{idx}].targetPrice", claimedValue=str(tp)))
+                            extra_str = f" ({', '.join(extras)})" if extras else ""
+                            row_sig.append(f"{sig}{extra_str}")
+                        else:
+                            row_sig.append("Chưa kích hoạt")
                     rows.append("| " + " | ".join(row_sig) + " |")
 
                     table_text = "\n".join([comp_header, header_line, sep_line] + rows)

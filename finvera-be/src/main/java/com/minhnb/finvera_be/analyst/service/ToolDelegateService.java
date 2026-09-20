@@ -607,16 +607,27 @@ public class ToolDelegateService {
                 }
             }
 
+            BigDecimal ma20Val = indicatorValue(technical.indicators() != null ? technical.indicators().get("MA20") : null);
+            BigDecimal ma50Val = indicatorValue(technical.indicators() != null ? technical.indicators().get("MA50") : null);
+            String ma20 = ma20Val != null ? ma20Val.toPlainString() : null;
+            String ma50 = ma50Val != null ? ma50Val.toPlainString() : null;
+
             // Extract primary signal and strength
             String primarySignal = null;
             String signalStrength = null;
             String riskLevel = null;
+            String entryPrice = null;
+            String stopLoss = null;
+            String targetPrice = null;
             if (technical.signal() != null) {
                 primarySignal = technical.signal().strategyCode() != null
                         ? technical.signal().strategyCode() + " (" + technical.signal().direction() + ")"
                         : technical.signal().direction();
                 signalStrength = technical.signal().signalStrength();
                 riskLevel = technical.signal().riskLevel();
+                entryPrice = technical.signal().entryLow() != null ? technical.signal().entryLow() : technical.signal().entryHigh();
+                stopLoss = technical.signal().stopLoss();
+                targetPrice = technical.signal().target1();
             }
 
             // Extract ROA from raw facts if present
@@ -695,7 +706,12 @@ public class ToolDelegateService {
                     rawString(fundamentals.raw(), "GROSS_MARGIN"),
                     rawString(fundamentals.raw(), "NET_MARGIN"),
                     sectorPercentile(valuation.metrics(), "PE"),
-                    sectorPercentile(valuation.metrics(), "PB")));
+                    sectorPercentile(valuation.metrics(), "PB"),
+                    ma20,
+                    ma50,
+                    entryPrice,
+                    stopLoss,
+                    targetPrice));
         }
 
         Instant asOf = sourceTimes.stream().max(Instant::compareTo).orElseGet(Instant::now);

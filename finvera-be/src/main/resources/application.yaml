@@ -5,6 +5,8 @@ spring:
     url: ${FINVERA_DATABASE_URL}
     username: ${FINVERA_DATABASE_USERNAME}
     password: ${FINVERA_DATABASE_PASSWORD}
+    hikari:
+      maximum-pool-size: ${FINVERA_DATABASE_POOL_SIZE:20}
   flyway:
     enabled: true
   jpa:
@@ -57,7 +59,7 @@ finvera:
     internal-api-key: ${FINVERA_ANALYST_INTERNAL_API_KEY:}
     max-tool-calls: ${FINVERA_ANALYST_MAX_TOOL_CALLS:10}
     tool-call-timeout: ${FINVERA_ANALYST_TOOL_CALL_TIMEOUT:10s}
-    ask-timeout: ${FINVERA_ANALYST_ASK_TIMEOUT:30s}
+    ask-timeout: ${FINVERA_ANALYST_ASK_TIMEOUT:60s}
     conversation-context-candidates: ${FINVERA_ANALYST_CONTEXT_CANDIDATES:10}
     conversation-context-included: ${FINVERA_ANALYST_CONTEXT_INCLUDED:5}
     conversation-context-characters: ${FINVERA_ANALYST_CONTEXT_CHARACTERS:12000}
