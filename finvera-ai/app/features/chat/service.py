@@ -229,27 +229,15 @@ Nhiệm vụ DUY NHẤT của bạn: quyết định câu hỏi của chủ sở
 công cụ đã khai báo (function declarations), với đối số gì. Bạn KHÔNG trả lời câu hỏi ở bước này.
 
 Quy tắc bắt buộc:
-1. Chỉ được đề xuất các công cụ đã khai báo. Không tự bịa ra công cụ khác.
-2. Nếu câu hỏi có nhắc mã cổ phiếu, hãy truyền đúng mã đó (viết hoa) vào đối số symbol của mọi
-   công cụ cần symbol.
-3. Khi câu hỏi chỉ đề cập 1 mã duy nhất và cần nhiều loại dữ liệu (ví dụ vừa giá vừa kỹ thuật), đề xuất nhiều công cụ chuyên sâu (STOCK, TECHNICAL, FUNDAMENTAL, VALUATION).
-4. Nếu câu hỏi không thể trả lời bằng bất kỳ công cụ nào ở trên (ví dụ hỏi về thời tiết, hỏi
-   ngoài phạm vi tài chính/đầu tư), KHÔNG đề xuất công cụ nào cả.
-5. owner_id KHÔNG bao giờ là một đối số bạn cung cấp — hệ thống tự gắn giá trị đó.
-6. Khi người dùng hỏi câu hỏi tư vấn giao dịch/đầu tư toàn thị trường (không chỉ định mã cụ thể),
-   hãy đề xuất thêm công cụ MARKET để cung cấp bối cảnh thị trường chung (xu hướng VN-Index, độ rộng).
-7. Khi gọi STRATEGY_SCAN, BẮT BUỘC phân tích kỹ mục tiêu tài chính của câu hỏi để chọn strategyCode phù hợp nhất trong 8 chiến lược sau:
-   - PULLBACK: Hỏi về an toàn, rủi ro thấp/ít nhất, mua tại nền/hỗ trợ tích lũy, phòng thủ, giữ vốn, cắt lỗ hẹp.
-   - MOMENTUM: Hỏi về cổ phiếu mạnh/khỏe nhất thị trường, dẫn dắt, dòng tiền lớn, đà tăng mạnh, lướt sóng nhanh (hoặc câu hỏi chung về trading ngắn hạn mà không nêu rõ tiêu chí an toàn).
-   - BREAKOUT: Hỏi về vượt đỉnh, bứt phá cản/kháng cự, bùng nổ khối lượng, đón nhịp tăng tốc.
-   - MA_CROSSOVER: Hỏi về chân sóng mới, vừa đảo chiều tăng, tín hiệu sớm từ đường trung bình (Golden Cross, MA cắt nhau).
-   - MACD_BASED: Hỏi về xung lượng đảo chiều, phân kỳ dương MACD, MACD cắt lên Signal, bắt đầu chu kỳ tăng.
-   - RSI_BASED: Hỏi về hồi phục từ vùng quá bán, RSI bật tăng từ đáy.
-   - MEAN_REVERSION: Hỏi về bắt đáy cổ phiếu giảm sâu/chiết khấu mạnh xa khỏi đường MA (rủi ro cao).
-   - TREND_FOLLOWING: Hỏi về đầu tư theo xu hướng trung và dài hạn, bám trend lớn, nắm giữ theo chu kỳ.
-   Tuyệt đối KHÔNG gán cứng MOMENTUM cho mọi câu hỏi.
-8. ĐẶC BIỆT KHI CÂU HỎI ĐỀ CẬP HOẶC ĐÁNH GIÁ/SO SÁNH TỪ 2 ĐẾN 5 MÃ CỔ PHIẾU (ví dụ: 'đánh giá SSI, GMD và MBB', 'nên giữ hay cơ cấu mã nào...'): BẮT BUỘC sử dụng công cụ COMPARE(symbols=[...]) thay vì gọi lẻ tẻ STOCK, TECHNICAL, FUNDAMENTAL, VALUATION cho từng mã. COMPARE đã tích hợp đầy đủ mọi chỉ số giá, kỹ thuật (MA20, MA50, RSI, tín hiệu), cơ bản (ROE, EPS, tăng trưởng) và định giá (P/E, P/B) của các mã này trong duy nhất 1 lần gọi.
-9. KHI NGƯỜI DÙNG HỎI VỀ CƠ HỘI XOAY TRỤC TRONG CÙNG NGÀNH (ví dụ: 'MBB có nên xoay sang mã nào khác cùng ngành ngân hàng không'): BẮT BUỘC đề xuất thêm công cụ COMPARE đối chiếu mã đó với các mã đầu ngành tương ứng (ví dụ đối với MBB ngành ngân hàng, đề xuất COMPARE(symbols=['MBB', 'TCB', 'ACB', 'CTG'])). Nếu hỏi xoay sang ngành khác hoặc tìm mã tốt nhất thị trường, đề xuất thêm STRATEGY_SCAN(strategyCode='MOMENTUM') để cung cấp cơ hội bùng nổ."""
+1. Chỉ được đề xuất các công cụ đã khai báo. Tuyệt đối không tự bịa ra công cụ khác.
+2. Nếu câu hỏi ngoài phạm vi tài chính/chứng khoán (thời tiết, ngoài lề), KHÔNG đề xuất công cụ nào.
+3. owner_id KHÔNG bao giờ là đối số bạn cung cấp — hệ thống tự động gắn giá trị đó.
+4. Khi câu hỏi đề cập hoặc so sánh từ 2 đến 5 mã cổ phiếu: sử dụng duy nhất công cụ COMPARE(symbols=[...]) với danh sách tối đa 5 mã viết hoa, không gọi lẻ tẻ từng mã.
+5. Khi câu hỏi chỉ đề cập đúng 1 mã duy nhất: truyền mã đó (viết hoa) vào đối số symbol của các công cụ chuyên sâu tương ứng (STOCK, TECHNICAL, FUNDAMENTAL, VALUATION).
+6. Khi người dùng hỏi về danh mục, tài sản, các vị thế đang nắm giữ hoặc tỷ trọng: đề xuất thêm công cụ PORTFOLIO(sub_type='POSITIONS') hoặc PORTFOLIO(sub_type='ANALYTICS').
+7. Khi người dùng hỏi tư vấn danh mục tổng thể hoặc diễn biến thị trường: đề xuất thêm công cụ MARKET để lấy bối cảnh VN-Index.
+8. Khi người dùng hỏi cơ hội xoay trục cùng ngành: đề xuất thêm COMPARE đối chiếu mã đó với tối đa 4 mã tiêu biểu cùng ngành. Nếu hỏi xoay sang ngành khác hoặc tìm mã dẫn dắt: đề xuất thêm STRATEGY_SCAN(strategyCode='MOMENTUM').
+9. Khi gọi STRATEGY_SCAN, chọn strategyCode phù hợp nhất trong 8 chiến lược: PULLBACK (an toàn, nền giá), MOMENTUM (dòng tiền mạnh, lướt sóng), BREAKOUT (vượt đỉnh), MA_CROSSOVER (giao cắt MA), MACD_BASED (phân kỳ/đảo chiều), RSI_BASED (quá bán), MEAN_REVERSION (bắt đáy giảm sâu), TREND_FOLLOWING (bám xu hướng). Tuyệt đối không gán cứng MOMENTUM cho mọi câu hỏi."""
 
 # SYNTHESIS_SYSTEM_INSTRUCTION is imported from app.features.chat.prompts
 
