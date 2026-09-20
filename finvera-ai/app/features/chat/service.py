@@ -243,22 +243,21 @@ Quy tắc bắt buộc:
    - Đúng 1 mã (nêu trực tiếp hoặc suy luận từ ngữ cảnh): Truyền mã viết hoa vào đối số `symbol` của các công cụ chuyên sâu:
      + Hỏi tổng quan cổ phiếu: Đề xuất cả 4 công cụ (STOCK, TECHNICAL, FUNDAMENTAL, VALUATION).
      + Hỏi theo khía cạnh cụ thể (một hoặc kết hợp vài khía cạnh): Chỉ đề xuất các công cụ tương ứng (ví dụ giá/khối lượng/giao dịch: STOCK; phân tích kỹ thuật/chart: TECHNICAL; chỉ số tài chính/kết quả kinh doanh tóm tắt: FUNDAMENTAL; định giá: VALUATION; tin tức/sự kiện: NEWS).
-   - Từ 2 đến 5 mã (kể cả câu ngắn như "So sánh HPG và NKG", "So sánh cổ phiếu HPG và NKG", "HPG vs NKG"): BẮT BUỘC đề xuất DUY NHẤT công cụ COMPARE(symbols=[...]) chứa danh sách các mã đó viết hoa. Tuyệt đối không được bỏ qua và không gọi lẻ tẻ từng mã.
-   - Nếu đề cập trên 5 mã: Chỉ chọn tối đa 5 mã tiêu biểu nhất đưa vào COMPARE.
+   - Từ 2 đến 5 mã do người dùng đưa ra hoặc suy luận từ ngữ cảnh (kể cả câu ngắn như "So sánh HPG và NKG", "So sánh cổ phiếu HPG và NKG", "HPG vs NKG"): BẮT BUỘC đề xuất DUY NHẤT công cụ COMPARE(symbols=[...]) chứa danh sách các mã đó viết hoa. Tuyệt đối không gọi lẻ tẻ từng mã.
+   - Nếu người dùng đề cập trên 5 mã: Chỉ chọn tối đa 5 mã tiêu biểu nhất đưa vào COMPARE.
 
 3. Dữ liệu danh mục & Thị trường:
-   - Hỏi riêng lẻ từng phần:
+   - Tài khoản & Danh mục cá nhân: Mọi câu hỏi về tài sản, cổ phiếu nắm giữ, danh mục, tỷ trọng, lãi/lỗ của người dùng ("tôi đang giữ mã nào", "danh mục của tôi", "tài khoản", "tiền mặt", "NAV")... BẮT BUỘC dùng PORTFOLIO (tuyệt đối không nhầm sang SCREENING):
      + Chi tiết cổ phiếu nắm giữ, khối lượng, giá vốn, lãi/lỗ từng mã, tỷ trọng: Đề xuất PORTFOLIO(sub_type='POSITIONS').
      + Tổng tài sản (NAV), tiền mặt khả dụng, tổng lãi/lỗ tài khoản, hiệu suất sinh lời, rủi ro: Đề xuất PORTFOLIO(sub_type='ANALYTICS').
-   - Đánh giá toàn diện, cơ cấu danh mục hoặc hỏi chung về tài khoản: Đề xuất CẢ HAI công cụ PORTFOLIO(sub_type='POSITIONS') VÀ PORTFOLIO(sub_type='ANALYTICS').
-   - Hỏi nhận định/xu hướng thị trường chung, VN-Index: Đề xuất MARKET. Với câu hỏi chiến lược/danh mục cần đối chiếu bối cảnh vĩ mô: Đề xuất thêm MARKET.
+     + Đánh giá toàn diện, cơ cấu danh mục hoặc hỏi chung về tài khoản: Đề xuất CẢ HAI công cụ PORTFOLIO(sub_type='POSITIONS') VÀ PORTFOLIO(sub_type='ANALYTICS').
+   - Hỏi nhận định, diễn biến hoặc xu hướng thị trường chung, VN-Index: Đề xuất MARKET.
 
-4. Xoay trục, Lọc, Nhóm ngành & Tìm kiếm cơ hội:
-   - Hỏi về một nhóm ngành cụ thể (ví dụ: ngân hàng, chứng khoán, thép, dầu khí, bất động sản...): Đề xuất COMPARE đối chiếu 2 đến 4 mã đầu ngành tiêu biểu của ngành đó (ví dụ: thép -> COMPARE(symbols=['HPG', 'HSG', 'NKG']); chứng khoán -> COMPARE(symbols=['SSI', 'VND', 'VCI'])).
-   - Xoay trục cùng ngành: Đề xuất COMPARE đối chiếu mã gốc với 1 đến 4 mã cùng ngành tiêu biểu (tổng danh sách tối đa 5 mã, ví dụ xoay trục từ MBB: COMPARE(symbols=['MBB', 'TCB', 'ACB', 'CTG'])).
-   - Xoay trục khác ngành hoặc tìm cơ hội dẫn dắt: Đề xuất STRATEGY_SCAN với strategyCode phù hợp khẩu vị tại Mục 6 (mặc định MOMENTUM).
-   - Lọc/tìm kiếm cổ phiếu theo tiêu chí định lượng (chỉ số tài chính P/E, ROE, vốn hóa, hoặc ngưỡng kỹ thuật RSI, khối lượng...): Đề xuất SCREENING(query=...) với `query` là chuỗi tóm tắt ngắn gọn các tiêu chí lọc dạng từ khóa (loại bỏ hoàn toàn từ ngữ giao tiếp/xưng hô thừa).
-   - Kết hợp cả tiêu chí cơ bản và kỹ thuật (ví dụ: cổ phiếu P/E thấp đang vượt đỉnh): Đề xuất ĐỒNG THỜI cả SCREENING(...) và STRATEGY_SCAN(...).
+4. Lọc, Sàng lọc ngành & Tìm kiếm cơ hội:
+   - Đánh giá định giá của một mã so với ngành (ví dụ: "MBB đắt hay rẻ so với ngành"): Đề xuất VALUATION(symbol=...) (backend tự động tính bách phân vị P/E, P/B trên toàn bộ cổ phiếu cùng ngành trong cơ sở dữ liệu).
+   - Lọc hoặc tìm kiếm cổ phiếu theo ngành hoặc theo tiêu chí định lượng (ví dụ: "lọc cổ phiếu ngân hàng", "tìm mã ngành thép P/E thấp", "cổ phiếu nào trong ngành chứng khoán tốt nhất"): Đề xuất SCREENING(query=...) với `query` là chuỗi tóm tắt ngắn gọn các tiêu chí lọc dạng từ khóa (loại bỏ hoàn toàn từ ngữ giao tiếp/xưng hô thừa) để cơ sở dữ liệu tự động quét và trả về danh sách các mã thỏa mãn kèm số liệu.
+   - Quét cơ hội bứt phá, dòng tiền mạnh hoặc chiến lược giao dịch: Đề xuất STRATEGY_SCAN với strategyCode phù hợp khẩu vị tại Mục 6 (mặc định MOMENTUM) để quét tín hiệu thực tế từ cơ sở dữ liệu.
+   - Kết hợp cả tiêu chí cơ bản/ngành và kỹ thuật (ví dụ: cổ phiếu ngân hàng P/E thấp đang có sóng tăng): Đề xuất ĐỒNG THỜI cả SCREENING(...) và STRATEGY_SCAN(...).
 
 5. Tra cứu tin tức, sự kiện doanh nghiệp & Tài liệu nghiên cứu:
    - Tin tức sự kiện, lịch chia cổ tức, phát hành quyền mua, tin báo chí: Đề xuất NEWS(limit=5) cho thị trường chung, hoặc NEWS(symbol=..., limit=5) nếu hỏi riêng một mã.
@@ -487,8 +486,12 @@ class ChatOrchestrationService:
         if matched_symbol and any(k in q_upper for k in ("ĐỊNH GIÁ", "P/E", "P/B", "PE", "PB", "VALUATION", "ĐẮT", "RẺ")):
             proposed.append({"tool_name": "VALUATION", "arguments": {"symbol": matched_symbol}})
 
-        if any(k in q_upper for k in ("DANH MỤC", "TÀI SẢN", "PORTFOLIO", "VỊ THẾ", "HIỆU SUẤT ĐẦU TƯ", "LÃI LỖ")):
-            sub_type = "ANALYTICS" if any(k in q_upper for k in ("HIỆU SUẤT", "RỦI RO", "ANALYTICS")) else "POSITIONS"
+        is_portfolio_query = any(k in q_upper for k in (
+            "DANH MỤC", "TÀI SẢN", "PORTFOLIO", "VỊ THẾ", "HIỆU SUẤT ĐẦU TƯ",
+            "LÃI LỖ", "ĐANG NẮM", "ĐANG GIỮ", "TỶ TRỌNG", "TIỀN MẶT", "NAV", "CỦA TÔI"
+        ))
+        if is_portfolio_query:
+            sub_type = "ANALYTICS" if any(k in q_upper for k in ("HIỆU SUẤT", "RỦI RO", "ANALYTICS", "TỔNG TÀI SẢN", "TIỀN MẶT", "NAV")) else "POSITIONS"
             proposed.append({"tool_name": "PORTFOLIO", "arguments": {"sub_type": sub_type}})
 
         if any(k in q_upper for k in ("TIN TỨC", "TIN MỚI", "BÀI BÁO", "NEWS", "SỰ KIỆN")):
@@ -528,7 +531,7 @@ class ChatOrchestrationService:
                 proposed.insert(0, {"tool_name": "MARKET", "arguments": {}})
 
             proposed.append({"tool_name": "STRATEGY_SCAN", "arguments": {"strategyCode": strat_code, "limit": 10}})
-        elif any(k in q_upper for k in ("LỌC CỔ PHIẾU", "TÌM CỔ PHIẾU", "LỌC MÃ", "MÃ NÀO CÓ", "CỔ PHIẾU CÓ", "TÌM MÃ", "SCREENER", "SCREENING", "DANH SÁCH CỔ PHIẾU", "CỔ PHIẾU NÀO", "CÁC MÃ CÓ", "CỔ PHIẾU THOẢ")):
+        elif not is_portfolio_query and any(k in q_upper for k in ("LỌC CỔ PHIẾU", "TÌM CỔ PHIẾU", "LỌC MÃ", "MÃ NÀO CÓ", "CỔ PHIẾU CÓ", "TÌM MÃ", "SCREENER", "SCREENING", "DANH SÁCH CỔ PHIẾU", "CÁC MÃ CÓ", "CỔ PHIẾU THOẢ")):
             proposed.append({"tool_name": "SCREENING", "arguments": {"query": question}})
 
         if any(k in q_upper for k in ("BÁO CÁO THƯỜNG NIÊN", "TÀI LIỆU", "PDF", "TRÍCH XUẤT", "TRÍCH LỤC", "ĐỌC ĐƯỢC", "THEO TÀI LIỆU", "ĐẠI HỘI CỔ ĐÔNG", "ĐHCĐ", "NGHỊ QUYẾT", "CÔNG BỐ", "THUYẾT MINH", "VĂN BẢN")):
