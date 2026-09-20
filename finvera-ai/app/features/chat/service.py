@@ -233,12 +233,12 @@ Quy tắc bắt buộc:
    - Ngữ cảnh hội thoại: Nếu câu hỏi dùng từ thay thế ("nó", "mã này", "cổ phiếu trên"...), hãy trích xuất mã cổ phiếu tương ứng từ các lượt trao đổi trước đó trong lịch sử.
    - Nếu câu hỏi ngoài phạm vi tài chính/chứng khoán (thời tiết, đời sống...): KHÔNG đề xuất công cụ nào.
    - owner_id do hệ thống tự gắn, TUYỆT ĐỐI KHÔNG truyền tham số này.
-   - Kết hợp đa công cụ: Nếu câu hỏi có nhiều ý định (vừa hỏi danh mục, vừa hỏi mã cụ thể, vừa hỏi thị trường), hãy đề xuất đồng thời các công cụ tương ứng.
+   - Kết hợp đa công cụ: Nếu câu hỏi có nhiều ý định (vừa hỏi danh mục, vừa hỏi mã cụ thể, vừa hỏi thị trường), hãy đề xuất đồng thời các công cụ tương ứng để cung cấp đủ bằng chứng.
 
 2. Định tuyến theo số lượng mã:
    - Đúng 1 mã (nêu trực tiếp hoặc suy luận từ ngữ cảnh): Truyền mã viết hoa vào đối số `symbol` của các công cụ chuyên sâu:
      + Hỏi tổng quan cổ phiếu: Đề xuất cả 4 công cụ (STOCK, TECHNICAL, FUNDAMENTAL, VALUATION).
-     + Hỏi riêng 1 khía cạnh: Chỉ đề xuất công cụ chuyên sâu tương ứng.
+     + Hỏi riêng 1 khía cạnh: Chỉ đề xuất công cụ chuyên sâu tương ứng (ví dụ chỉ hỏi kỹ thuật: TECHNICAL; chỉ hỏi định giá: VALUATION).
    - Từ 2 đến 5 mã (hoặc câu hỏi so sánh/đối đầu): Sử dụng DUY NHẤT công cụ COMPARE(symbols=[...]) với danh sách mã viết hoa. Tuyệt đối không gọi lẻ tẻ từng mã.
    - Nếu đề cập trên 5 mã: Chỉ chọn tối đa 5 mã tiêu biểu nhất đưa vào COMPARE.
 
@@ -251,22 +251,26 @@ Quy tắc bắt buộc:
 
 4. Xoay trục, Lọc & Tìm kiếm cơ hội:
    - Xoay trục cùng ngành: Đề xuất COMPARE đối chiếu mã gốc với 1 đến 4 mã cùng ngành tiêu biểu (tổng danh sách tối đa 5 mã, ví dụ xoay trục từ MBB: COMPARE(symbols=['MBB', 'TCB', 'ACB', 'CTG'])).
-   - Xoay trục khác ngành hoặc tìm cơ hội dẫn dắt: Đề xuất STRATEGY_SCAN với strategyCode phù hợp khẩu vị tại Mục 6 (mặc định MOMENTUM).
-   - Lọc cổ phiếu theo tiêu chí tài chính/cơ bản (P/E, P/B, ROE, vốn hóa, tăng trưởng...): Đề xuất SCREENING(query=...).
+   - Xoay trục khác ngành hoặc tìm cơ hội dẫn dắt: Đề xuất STRATEGY_SCAN với strategyCode phù hợp khẩu vị tại Mục 6 (chọn MOMENTUM nếu câu hỏi tìm kiếm dòng tiền mạnh/lướt sóng chung chung mà không nêu rõ khẩu vị).
+   - Lọc cổ phiếu theo tiêu chí tài chính/cơ bản (P/E, P/B, ROE, vốn hóa, tăng trưởng doanh thu/lợi nhuận...): Đề xuất SCREENING(query=...).
 
 5. Tra cứu tin tức & Tài liệu nghiên cứu:
    - Tin tức báo chí: Đề xuất NEWS(limit=5) cho thị trường chung, hoặc NEWS(symbol=..., limit=5) nếu hỏi riêng một mã.
    - Trích lục văn bản, nghị quyết ĐHCĐ, báo cáo tài chính, tài liệu công bố: Đề xuất RESEARCH_RAG(query=..., symbol=...).
 
-6. Định tuyến STRATEGY_SCAN (chọn duy nhất 1 strategyCode phù hợp nhất, KHÔNG gán cứng MOMENTUM):
-   - PULLBACK: Hỏi an toàn, rủi ro thấp, phòng thủ, giữ vốn, mua tại nền/hỗ trợ tích lũy.
-   - MOMENTUM: Cổ phiếu khỏe/mạnh nhất thị trường, dòng tiền lớn, đà tăng mạnh, trading/lướt sóng ngắn hạn chung.
-   - BREAKOUT: Vượt đỉnh, bứt phá kháng cự/cản, bùng nổ khối lượng, tăng tốc.
-   - MA_CROSSOVER: Chân sóng mới, vừa đảo chiều, giao cắt đường trung bình (Golden Cross, MA cắt nhau).
-   - MACD_BASED: Xung lượng đảo chiều, phân kỳ dương MACD, MACD cắt lên Signal.
-   - RSI_BASED: Hồi phục từ vùng quá bán, RSI bật tăng từ đáy.
-   - MEAN_REVERSION: Bắt đáy cổ phiếu giảm sâu, chiết khấu mạnh xa đường MA (rủi ro cao).
-   - TREND_FOLLOWING: Đầu tư theo xu hướng trung - dài hạn, bám trend lớn theo chu kỳ."""
+6. Định tuyến chiến lược định lượng STRATEGY_SCAN:
+   - Số lượng chiến lược:
+     + Thông thường: Chọn DUY NHẤT 1 strategyCode phản ánh đúng nhất khẩu vị câu hỏi (không tự ý gán cứng).
+     + Khi câu hỏi yêu cầu đích danh nhiều chiến lược hoặc đối chiếu các trường phái (ví dụ kết hợp an toàn PULLBACK, bùng nổ BREAKOUT và chân sóng MA_CROSSOVER): Đề xuất các lệnh STRATEGY_SCAN độc lập cho từng chiến lược được yêu cầu (tối đa 3 chiến lược để đảm bảo độ tập trung của phân tích).
+   - Bảng tra cứu strategyCode:
+     + PULLBACK: Hỏi an toàn, rủi ro thấp, phòng thủ, giữ vốn, mua tại nền/hỗ trợ tích lũy.
+     + MOMENTUM: Cổ phiếu khỏe/mạnh nhất thị trường, dòng tiền lớn, đà tăng mạnh, trading/lướt sóng ngắn hạn chung.
+     + BREAKOUT: Vượt đỉnh, bứt phá kháng cự/cản, bùng nổ khối lượng, tăng tốc.
+     + MA_CROSSOVER: Chân sóng mới, vừa đảo chiều, giao cắt đường trung bình (Golden Cross, MA cắt nhau).
+     + MACD_BASED: Xung lượng đảo chiều, phân kỳ dương MACD, MACD cắt lên Signal.
+     + RSI_BASED: Hồi phục từ vùng quá bán, RSI bật tăng từ đáy.
+     + MEAN_REVERSION: Bắt đáy cổ phiếu giảm sâu, chiết khấu mạnh xa đường MA (rủi ro cao).
+     + TREND_FOLLOWING: Đầu tư theo xu hướng trung - dài hạn, bám trend lớn theo chu kỳ."""
 
 # SYNTHESIS_SYSTEM_INSTRUCTION is imported from app.features.chat.prompts
 
