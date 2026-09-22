@@ -39,9 +39,9 @@ class Settings(BaseSettings):
     # Feature 007 - AI Analyst (research R-005, R-010)
     analyst_max_tool_calls: int = 10
     # Feature 015 / Q-55: sector-basis valuations on the owner's machine measured 8-18 s before the
-    # bulk-peer fix and ~1-2 s after; 20 s keeps headroom for a cold JVM, the ask budget follows.
-    analyst_tool_call_timeout_seconds: float = 20.0
-    analyst_ask_timeout_seconds: float = 60.0
+    # bulk-peer fix and ~1-2 s after; 40 s keeps headroom for full-market universe scans (SCREENING, STRATEGY_SCAN).
+    analyst_tool_call_timeout_seconds: float = 40.0
+    analyst_ask_timeout_seconds: float = 90.0
 
     @field_validator("internal_api_key")
     @classmethod

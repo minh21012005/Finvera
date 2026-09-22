@@ -86,22 +86,44 @@ class GeminiGenerationAdapter:
             system_instruction=system_instruction,
             temperature=0.2,
         )
-        response_stream = self._client.models.generate_content_stream(
-            model=self.model,
-            contents=prompt,
-            config=config,
-        )
+
+        def _open_stream():
+            return self._client.models.generate_content_stream(
+                model=self.model,
+                contents=prompt,
+                config=config,
+            )
+
         yielded_any = False
         blocked_reason = None
-        for chunk in response_stream:
-            for cand in getattr(chunk, "candidates", None) or []:
-                finish_reason = getattr(cand, "finish_reason", None)
-                fr_str = getattr(finish_reason, "name", str(finish_reason)).upper()
-                if fr_str not in ("NONE", "STOP", "FINISHREASON.STOP"):
-                    blocked_reason = fr_str
-            if chunk.text:
-                yielded_any = True
-                yield chunk.text
+
+        try:
+            response_stream = _open_stream()
+            for chunk in response_stream:
+                for cand in getattr(chunk, "candidates", None) or []:
+                    finish_reason = getattr(cand, "finish_reason", None)
+                    fr_str = getattr(finish_reason, "name", str(finish_reason)).upper()
+                    if fr_str not in ("NONE", "STOP", "FINISHREASON.STOP"):
+                        blocked_reason = fr_str
+                if chunk.text:
+                    yielded_any = True
+                    yield chunk.text
+        except Exception as first_exc:
+            delay = quota_retry_delay_seconds(first_exc)
+            if delay is None or yielded_any:
+                raise
+            logger.info("Gemini stream hit transient error (%s); retrying once in %.0fs", first_exc, delay)
+            await asyncio.sleep(delay)
+            response_stream = _open_stream()
+            for chunk in response_stream:
+                for cand in getattr(chunk, "candidates", None) or []:
+                    finish_reason = getattr(cand, "finish_reason", None)
+                    fr_str = getattr(finish_reason, "name", str(finish_reason)).upper()
+                    if fr_str not in ("NONE", "STOP", "FINISHREASON.STOP"):
+                        blocked_reason = fr_str
+                if chunk.text:
+                    yielded_any = True
+                    yield chunk.text
 
         if not yielded_any:
             msg = f"Gemini stream finished without yielding text (finish_reason={blocked_reason or 'EMPTY'})"
