@@ -330,9 +330,18 @@ export const ConversationTranscript: React.FC<Props> = ({
                   {/* Final answer */}
                   {final && (
                     <>
-                      <div className="prose prose-invert max-w-none text-xs sm:text-sm leading-relaxed text-slate-200">
-                        <LiteMarkdown text={final.answer} />
-                      </div>
+                      {final.answer?.trim() ? (
+                        <div className="prose prose-invert max-w-none text-xs sm:text-sm leading-relaxed text-slate-200">
+                          <LiteMarkdown text={final.answer} />
+                        </div>
+                      ) : (
+                        <div className="my-2 p-3 rounded-xl bg-amber-950/30 border border-amber-800/40 text-amber-300 text-xs flex items-center gap-2">
+                          <AlertCircle size={14} className="shrink-0 text-amber-400" />
+                          <p className="text-xs text-amber-200">
+                            Hệ thống không nhận được nội dung diễn giải từ mô hình cho yêu cầu này. Quý nhà đầu tư có thể xem các số liệu đã đối soát bên dưới hoặc gửi lại câu hỏi.
+                          </p>
+                        </div>
+                      )}
 
                       {/* Structured grounded claims */}
                       {final.structuredClaims.length > 0 && (

@@ -32,6 +32,9 @@ public final class ConversationContextWindowPolicy {
             if (selected.size() >= maximumPairs) {
                 break;
             }
+            if (candidate.answer() == null || candidate.answer().isBlank()) {
+                continue;
+            }
             int size = codePoints(candidate.question()) + codePoints(candidate.answer());
             if (used + size > characterBudget) {
                 break;

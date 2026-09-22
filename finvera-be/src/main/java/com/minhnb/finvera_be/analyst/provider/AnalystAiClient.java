@@ -37,8 +37,16 @@ public class AnalystAiClient {
         restClient.post()
                 .uri("/internal/v1/analyst/ask")
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(request)
                 .exchange((req, res) -> {
+                    if (!res.getStatusCode().is2xxSuccessful()) {
+                        String errorBody = "";
+                        try {
+                            errorBody = new String(res.getBody().readAllBytes(), StandardCharsets.UTF_8);
+                        } catch (Exception ignored) {
+                        }
+                        log.error("AI service returned error status {}: {}", res.getStatusCode(), errorBody);
+                        throw new RuntimeException("AI service returned status " + res.getStatusCode() + ": " + errorBody);
+                    }
                     try (BufferedReader reader = new BufferedReader(
                             new InputStreamReader(res.getBody(), StandardCharsets.UTF_8))) {
                         String line;

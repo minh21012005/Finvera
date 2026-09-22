@@ -91,9 +91,22 @@ class GeminiGenerationAdapter:
             contents=prompt,
             config=config,
         )
+        yielded_any = False
+        blocked_reason = None
         for chunk in response_stream:
+            for cand in getattr(chunk, "candidates", None) or []:
+                finish_reason = getattr(cand, "finish_reason", None)
+                fr_str = getattr(finish_reason, "name", str(finish_reason)).upper()
+                if fr_str not in ("NONE", "STOP", "FINISHREASON.STOP"):
+                    blocked_reason = fr_str
             if chunk.text:
+                yielded_any = True
                 yield chunk.text
+
+        if not yielded_any:
+            msg = f"Gemini stream finished without yielding text (finish_reason={blocked_reason or 'EMPTY'})"
+            logger.warning(msg)
+            raise RuntimeError(msg)
 
     @property
     def is_online(self) -> bool:
